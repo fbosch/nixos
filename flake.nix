@@ -30,7 +30,7 @@
               home-manager.users.fbb = import ./home.nix;
               home-manager.extraSpecialArgs = {
                 inherit zen-browser;
-                repoUrl = dotfiles.url;
+                repoUrl = "https://github.com/fbosch/dotfiles.git";
                 dotRev = dotfiles.rev;
               };
             }
