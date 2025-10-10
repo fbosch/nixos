@@ -1,0 +1,24 @@
+# Build results
+result
+result-*
+
+# Secrets
+secrets/
+*.key
+*.pem
+*.age
+*.asc
+
+# System state
+.direnv/
+.envrc
+
+# Editor/IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Nix
+.nix-*

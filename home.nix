@@ -1,10 +1,10 @@
-{ config, inputs, pkgs, lib, repoUrl, dotRev, ... }:
+{ config, pkgs, lib, zen-browser, repoUrl, dotRev, ... }:
 let
 	repoDir = "${config.home.homeDirectory}/dotfiles";
 	REPO = lib.escapeShellArg repoDir;
 	URL = lib.escapeShellArg repoUrl;
 in {
-	imports = [ inputs.zen-browser.homeModules.twilight ];
+	imports = [ zen-browser.homeModules.twilight ];
 	home.username = "fbb";
 	home.homeDirectory = "/home/fbb";
 	home.stateVersion = "25.05";
