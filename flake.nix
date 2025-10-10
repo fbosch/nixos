@@ -11,15 +11,10 @@
       url = "github:0xc000022070/zen-browser-flake";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+		dotfiles = { url = "github:fbosch/dotfiles"; flake = false; };
   };
 
-  outputs = { self, nixpkgs, home-manager, zen-browser }: 
-    let
-      dotfilesConfig = {
-        repoUrl = "https://github.com/fbb/dotfiles";
-        dotRev = "main";
-      };
-    in
+  outputs = { self, nixpkgs, dotfiles, home-manager, zen-browser } @ inputs: 
     {
       nixosConfigurations = {
         virtualbox-vm = nixpkgs.lib.nixosSystem {
@@ -35,7 +30,8 @@
               home-manager.users.fbb = import ./home.nix;
               home-manager.extraSpecialArgs = {
                 inherit zen-browser;
-                inherit (dotfilesConfig) repoUrl dotRev;
+                repoUrl = dotfiles.url;
+                dotRev = dotfiles.rev;
               };
             }
           ];
