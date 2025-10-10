@@ -1,5 +1,12 @@
 { config, pkgs, ... }:
 
+let
+  zenbones-mono = pkgs.fetchzip {
+    url = "https://github.com/zenbones-theme/zenbones-mono/releases/download/v2.400/Zenbones-Brainy-TTF.zip";
+    sha256 = pkgs.lib.fakeSha256;
+    stripRoot = false;
+  };
+in
 {
   time.timeZone = "Europe/Copenhagen";
 
@@ -34,6 +41,18 @@
   nixpkgs.config.allowUnfree = true;
 
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
+
+  fonts.packages = with pkgs; [
+    (pkgs.stdenv.mkDerivation {
+      name = "zenbones-mono";
+      src = zenbones-mono;
+      installPhase = ''
+        mkdir -p $out/share/fonts/truetype
+        find $src -name '*.ttf' -exec cp {} $out/share/fonts/truetype \;
+        find $src -name '*.otf' -exec cp {} $out/share/fonts/truetype \;
+      '';
+    })
+  ];
 
   environment.systemPackages = with pkgs; [ 
     vim
