@@ -3,7 +3,7 @@
 let
   zenbones-mono = pkgs.fetchzip {
     url = "https://github.com/zenbones-theme/zenbones-mono/releases/download/v2.400/Zenbones-Brainy-TTF.zip";
-    sha256 = pkgs.lib.fakeSha256;
+    sha256 = "sha256-Wrn9BYNs0Z9BDau60u2eX/LleXzcH1MuIJph6XfIRTE=";
     stripRoot = false;
   };
 in
