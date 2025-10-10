@@ -14,6 +14,10 @@
 
   services.upower.enable = true;
 
+  virtualisation.virtualbox.guest.enable = true;
+  virtualisation.virtualbox.guest.draganddrop = true;
+  virtualisation.virtualbox.guest.clipboard = true;
+
   programs.hyprland = { 
     enable = true;
     xwayland.enable = true;
