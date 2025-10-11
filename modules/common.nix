@@ -70,12 +70,5 @@ in
     bat
   ];
 
-  system.activationScripts.bat-cache = {
-    deps = [ "users" ];
-    text = ''
-      echo "Building bat cache..."
-      ${pkgs.bat}/bin/bat cache --build 2>/dev/null || true
-    '';
-  };
 }
 

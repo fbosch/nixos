@@ -37,6 +37,11 @@ in {
 	home.activation.stowDotFiles = lib.hm.dag.entryAfter [ "dotfilesClone" "linkGeneration" ] ''
 		set -euo pipefail
 		cd ${REPO}
-		$DRY_RUN_CMD ${pkgs.stow}/bin/stow --restow -vt "$HOME" .
+		$DRY_RUN_CMD ${pkgs.stow}/bin/stow --restow --verbose -t "$HOME" .
 	'';
+
+        home.activation.batCache = lib.hm.dag.entryAfter [ "stowDotfiles" ] ''
+	      echo "Building bat cache..."
+	      ${pkgs.bat}/bin/bat cache --build 2>/dev/null || true
+        '';
 }

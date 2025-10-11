@@ -11,7 +11,7 @@
       url = "github:0xc000022070/zen-browser-flake";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    dotfiles = { url = "github:fbosch/dotfiles/main"; flake = false; };
+    dotfiles = { url = "github:fbosch/dotfiles/master"; flake = false; };
   };
 
   outputs = { self, nixpkgs, dotfiles, home-manager, zen-browser } @ inputs: 
