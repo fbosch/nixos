@@ -29,17 +29,14 @@ in {
 		set -euo pipefail
 		if [ ! -d ${REPO}/.git ]; then
 			$DRY_RUN_CMD ${pkgs.git}/bin/git clone ${URL} ${REPO}
-		else
-			$DRY_RUN_CMD ${pkgs.git}/bin/git -C ${REPO} fetch --tags --force origin
 		fi
+		$DRY_RUN_CMD ${pkgs.git}/bin/git -C ${REPO} fetch origin
+		$DRY_RUN_CMD ${pkgs.git}/bin/git -C ${REPO} checkout ${REV}
 	'';
 
 	home.activation.stowDotFiles = lib.hm.dag.entryAfter [ "dotfilesClone" "linkGeneration" ] ''
 		set -euo pipefail
-		
 		cd ${REPO}
-		$DRY_RUN_CMD ${pkgs.git}/bin/git -C ${REPO} reset --hard ${REV}
-		$DRY_RUN_CMD ${pkgs.stow}/bin/stow --adopt -vt "$HOME" */
-		$DRY_RUN_CMD ${pkgs.git}/bin/git -C ${REPO} reset --hard ${REV}
+		$DRY_RUN_CMD ${pkgs.stow}/bin/stow --restow -vt "$HOME" .
 	'';
 }
