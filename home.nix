@@ -38,6 +38,7 @@ in {
 		set -euo pipefail
 		
 		$DRY_RUN_CMD ${pkgs.git}/bin/git -C ${REPO} reset --hard ${REV}
-		$DRY_RUN_CMD ${pkgs.stow}/bin/stow --restow -vt "$HOME" -d ${REPO} */
+		cd ${REPO}
+		$DRY_RUN_CMD ${pkgs.stow}/bin/stow --restow -vt "$HOME" */
 	'';
 }
