@@ -29,9 +29,7 @@
               home-manager.useUserPackages = true;
               home-manager.users.fbb = import ./home.nix;
               home-manager.extraSpecialArgs = {
-                inherit zen-browser;
-                repoUrl = "https://github.com/fbosch/dotfiles.git";
-                dotRev = dotfiles.rev;
+                inherit zen-browser dotfiles;
               };
             }
           ];
