@@ -11,12 +11,19 @@ in {
 	home.packages = with pkgs; [ 
 		stow 
 		git
+		git-credential-manager
 	]; 
 	programs.bash = {
 		enable = true;
 	};
 	programs.zen-browser = {
 		enable = true;
+	};
+	programs.git = { 
+	        enable = true;
+		extraConfig.credential.helper = "manager";
+		extraConfig.credential."https://github.com".username = "fbosch";
+		extraConfig.credential.credentialStore = "cache";
 	};
 
 	home.activation.dotfilesClone = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
@@ -27,12 +34,12 @@ in {
 		${pkgs.git}/bin/git -C ${REPO} fetch --tags --force origin
 
 	'';
-
+		
+		#${pkgs.git}/bin/git -C ${REPO} checkout origin master
 	home.activation.stowDotFile = lib.hm.dag.entryAfter [ "dotfilesClone" ] ''
 		set -eu
-		${pkgs.git}/bin/git -C ${REPO} checkout --detach ${dotRev}
-		${pkgs.git}/bin/git -C ${REPO} reset --hard ${dotRev}
 		cd "${repoDir}"
+		${pkgs.git}/bin/git -C ${REPO} reset --hard HEAD
 		${pkgs.stow}/bin/stow --adopt -vt "$HOME" */
 	'';
 }
