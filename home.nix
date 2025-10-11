@@ -22,7 +22,7 @@ in {
 		enable = true;
 		extraConfig.credential.helper = "manager";
 		extraConfig.credential."https://github.com".username = "fbosch";
-		extraConfig.credential.credentialStore = "cache";
+		extraConfig.credential.credentialStore = "store";
 	};
 
 	home.activation.dotfilesClone = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
