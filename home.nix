@@ -1,7 +1,7 @@
-{ config, pkgs, lib, zen-browser, dotfiles, ... }:
+{ config, pkgs, lib, zen-browser, dotfiles, dotfilesUrl, ... }:
 let
 	REPO = lib.escapeShellArg "${config.home.homeDirectory}/dotfiles";
-	URL = lib.escapeShellArg "https://github.com/${dotfiles.owner}/${dotfiles.repo}.git";
+	URL = lib.escapeShellArg dotfilesUrl;
 	REV = lib.escapeShellArg dotfiles.rev;
 in {
 	imports = [ zen-browser.homeModules.twilight ];
