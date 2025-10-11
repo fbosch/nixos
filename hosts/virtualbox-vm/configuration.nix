@@ -9,7 +9,7 @@
   boot.loader.grub.device = "/dev/sda";
   boot.loader.grub.useOSProber = true;
 
-  networking.hostName = "rvn";
+  networking.hostName = "rvn-vm";
   networking.networkmanager.enable = true;
 
   services.upower.enable = true;
@@ -21,6 +21,7 @@
   programs.hyprland = { 
     enable = true;
     xwayland.enable = true;
+
   };
 
   environment.systemPackages = with pkgs; [ 
