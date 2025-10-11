@@ -59,6 +59,15 @@ in
     neovim
     wget
     git
+    delta
+    ripgrep
+    fish
+    zoxide
+    eza
+    fd
+    fzf
+    lf
+    bat
   ];
 }
 
