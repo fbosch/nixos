@@ -37,9 +37,9 @@ in {
 	home.activation.stowDotFiles = lib.hm.dag.entryAfter [ "dotfilesClone" "linkGeneration" ] ''
 		set -euo pipefail
 		
-		$DRY_RUN_CMD ${pkgs.git}/bin/git -C ${REPO} reset --hard ${REV}
 		cd ${REPO}
-		$DRY_RUN_CMD ${pkgs.stow}/bin/stow --delete -vt "$HOME" */ 2>/dev/null || true
-		$DRY_RUN_CMD ${pkgs.stow}/bin/stow --stow -vt "$HOME" */
+		$DRY_RUN_CMD ${pkgs.git}/bin/git -C ${REPO} reset --hard ${REV}
+		$DRY_RUN_CMD ${pkgs.stow}/bin/stow --adopt -vt "$HOME" */
+		$DRY_RUN_CMD ${pkgs.git}/bin/git -C ${REPO} reset --hard ${REV}
 	'';
 }
