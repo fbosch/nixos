@@ -1,10 +1,13 @@
-{ config, pkgs, lib, zen-browser, dotfiles, dotfilesUrl, ... }:
+{ config, pkgs, lib, zen-browser, dotfiles, dotfilesUrl, walker, ... }:
 let
 	REPO = lib.escapeShellArg "${config.home.homeDirectory}/dotfiles";
 	URL = lib.escapeShellArg dotfilesUrl;
 	REV = lib.escapeShellArg dotfiles.rev;
 in {
-	imports = [ zen-browser.homeModules.twilight ];
+	imports = [ 
+		zen-browser.homeModules.twilight
+		walker.homeManagerModules.default
+	];
 
 	home.username = "fbb";
 	home.homeDirectory = "/home/fbb";
@@ -19,25 +22,22 @@ in {
 		eza
 		fd
 		lf
+		fish
+		starship	
 	]; 
 
 	programs.bash.enable = true;
 	programs.zen-browser.enable = true;
-	
 	programs.neovim.enable = true;
-	
-	programs.fish.enable = true;
-	
 	programs.fzf.enable = true;
-	
 	programs.bat.enable = true;
-	
 	programs.git = { 
 		enable = true;
 		extraConfig.credential.helper = "manager";
 		extraConfig.credential."https://github.com".username = "fbosch";
 		extraConfig.credential.credentialStore = "store";
 	};
+	programs.walker.enable = true;
 
 	home.activation.dotfilesClone = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
 		set -euo pipefail

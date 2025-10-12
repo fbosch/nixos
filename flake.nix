@@ -12,9 +12,14 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     dotfiles = { url = "github:fbosch/dotfiles/master"; flake = false; };
+    elephant.url = "github:abenz1267/elephant";
+    walker = {
+      url = "github:abenz1267/walker";
+      inputs.elephant.follows = "elephant";
+    };
   };
 
-  outputs = { self, nixpkgs, dotfiles, home-manager, zen-browser } @ inputs: 
+  outputs = { self, nixpkgs, dotfiles, home-manager, zen-browser, elephant, walker } @ inputs: 
     {
       nixosConfigurations = {
         rvn-vm = nixpkgs.lib.nixosSystem {
@@ -28,14 +33,11 @@
               home-manager.useUserPackages = true;
               home-manager.users.fbb = import ./home.nix;
               home-manager.extraSpecialArgs = {
-                inherit zen-browser dotfiles;
+                inherit zen-browser dotfiles walker;
                 dotfilesUrl = "https://github.com/fbosch/dotfiles.git";
               };
             }
           ];
-          specialArgs = {
-            inputs = { inherit zen-browser; };
-          };
         };
       };
     };

@@ -40,7 +40,11 @@ in
 
   nixpkgs.config.allowUnfree = true;
 
-  nix.settings.experimental-features = [ "nix-command" "flakes" ];
+  nix.settings = {
+    experimental-features = [ "nix-command" "flakes" ];
+    extra-substituters = ["https://walker.cachix.org"];
+    trusted-public-keys = ["walker.cachix.org-1:fG8q+uAaMqhsMxWjwvk0IMb4mFPFLqHjuvfwQxE4oJM="];
+  };
 
   fonts.packages = with pkgs; [
     (pkgs.stdenv.mkDerivation {
@@ -56,6 +60,7 @@ in
 
   environment.systemPackages = with pkgs; [ 
     vim   # fallback editor for root
+    neovim
     wget  # essential download tool
     git   # system-level git operations
   ];
