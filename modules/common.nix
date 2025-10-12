@@ -68,6 +68,9 @@ in
     fzf
     lf
     bat
+    wezterm
+    starship
+    mprocs
   ];
 
 }
