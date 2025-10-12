@@ -27,6 +27,7 @@ in {
 		starship
 		gnupg
 		pinentry-curses
+		dconf
 	]; 
 
 	programs.bash.enable = true;
@@ -51,6 +52,12 @@ in {
 		extraConfig.credential.helper = "manager";
 		extraConfig.credential."https://github.com".username = "fbosch";
 		extraConfig.credential.credentialStore = "gpg";
+	};
+
+	dconf.settings = {
+		"org/gnome/desktop/interface" = {
+			color-scheme = "prefer-dark";
+		};
 	};
 
 	gtk = {

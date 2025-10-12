@@ -49,12 +49,14 @@
     QT_QPA_PLATFORM = "wayland;xcb";
     MOZ_ENABLE_WAYLAND = "1";
     XDG_SESSION_TYPE = "wayland";
+    GSK_RENDERER = "gl";
   };
 
   environment.systemPackages = with pkgs; [ 
     killall
     gtk4
     gtk4-layer-shell
+    gsettings-desktop-schemas
     mako
     wezterm
     kitty
