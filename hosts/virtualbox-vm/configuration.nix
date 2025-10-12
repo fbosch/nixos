@@ -47,6 +47,9 @@
     NIXOS_OZONE_WL = "1";
     GDK_BACKEND = "wayland,x11";
     QT_QPA_PLATFORM = "wayland;xcb";
+    GSK_RENDERER = "cairo";
+    WLR_NO_HARDWARE_CURSORS = "1";
+    WLR_RENDERER_ALLOW_SOFTWARE = "1";
   };
 
   environment.systemPackages = with pkgs; [ 
