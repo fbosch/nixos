@@ -47,9 +47,6 @@ in {
 		enable = true;
 		runAsService = true;
 	};
-	programs.elephant = {
-		enable = true;
-	};
 	programs.git = { 
 		enable = true;
 		extraConfig.credential.helper = "manager";
