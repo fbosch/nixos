@@ -1,4 +1,4 @@
-{ config, pkgs, lib, zen-browser, dotfiles, dotfilesUrl, walker, elephant, ... }:
+{ config, pkgs, lib, zen-browser, dotfiles, dotfilesUrl, walker, ... }:
 let
 	REPO = lib.escapeShellArg "${config.home.homeDirectory}/dotfiles";
 	URL = lib.escapeShellArg dotfilesUrl;
@@ -7,7 +7,6 @@ in {
 	imports = [ 
 		zen-browser.homeModules.twilight
 		walker.homeManagerModules.default
-		elephant.homeManagerModules.default
 	];
 
 	home.username = "fbb";
