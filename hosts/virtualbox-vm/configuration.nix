@@ -43,7 +43,7 @@
 
   environment.systemPackages = with pkgs; [ 
     killall
-    gtk3
+    gtk4
     mako
     wezterm
     kitty

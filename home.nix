@@ -31,13 +31,13 @@ in {
 	programs.neovim.enable = true;
 	programs.fzf.enable = true;
 	programs.bat.enable = true;
+	programs.walker.enable = true;
 	programs.git = { 
 		enable = true;
 		extraConfig.credential.helper = "manager";
 		extraConfig.credential."https://github.com".username = "fbosch";
 		extraConfig.credential.credentialStore = "store";
 	};
-	programs.walker.enable = true;
 
 	home.activation.dotfilesClone = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
 		set -euo pipefail
