@@ -75,16 +75,20 @@ in {
 		};
 	};
 
-	home.activation.dotfilesClone = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+	home.file."dotfiles" = {
+		source = dotfiles;
+		recursive = true;
+	};
+
+	home.activation.setupDotfilesGit = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
 		set -euo pipefail
 		if [ ! -d ${REPO}/.git ]; then
-			$DRY_RUN_CMD ${pkgs.git}/bin/git clone ${URL} ${REPO}
+			$DRY_RUN_CMD ${pkgs.git}/bin/git -C ${REPO} init
+			$DRY_RUN_CMD ${pkgs.git}/bin/git -C ${REPO} remote add origin ${URL}
 		fi
-		$DRY_RUN_CMD ${pkgs.git}/bin/git -C ${REPO} fetch origin
-		$DRY_RUN_CMD ${pkgs.git}/bin/git -C ${REPO} checkout ${REV}
 	'';
 
-	home.activation.stowDotFiles = lib.hm.dag.entryAfter [ "dotfilesClone" "linkGeneration" ] ''
+	home.activation.stowDotFiles = lib.hm.dag.entryAfter [ "setupDotfilesGit" "linkGeneration" ] ''
 		set -euo pipefail
 		cd ${REPO}
 		$DRY_RUN_CMD ${pkgs.stow}/bin/stow --restow --verbose -t "$HOME" .
