@@ -52,6 +52,7 @@
   environment.systemPackages = with pkgs; [ 
     killall
     gtk4
+    gtk4-layer-shell
     mako
     wezterm
     kitty

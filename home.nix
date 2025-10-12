@@ -1,4 +1,4 @@
-{ config, pkgs, lib, zen-browser, dotfiles, dotfilesUrl, walker, elephant, ... }:
+{ config, pkgs, lib, zen-browser, dotfiles, dotfilesUrl, walker, ... }:
 let
 	REPO = lib.escapeShellArg "${config.home.homeDirectory}/dotfiles";
 	URL = lib.escapeShellArg dotfilesUrl;
@@ -7,7 +7,6 @@ in {
 	imports = [ 
 		zen-browser.homeModules.twilight
 		walker.homeManagerModules.default
-		elephant.homeManagerModules.default
 	];
 
 	home.username = "fbb";
@@ -17,6 +16,7 @@ in {
 	home.packages = with pkgs; [ 
 		stow
 		git-credential-manager
+		pass
 		delta
 		ripgrep
 		zoxide
@@ -39,15 +39,12 @@ in {
 	};
 	services.gpg-agent = {
 		enable = true;
-		pinentryPackage = pkgs.pinentry-curses;
+		pinentry.package = pkgs.pinentry-curses;
 		enableSshSupport = true;
 	};
 	programs.walker = {
 		enable = true;
 		runAsService = true;
-	};
-	programs.elephant = {
-		enable = true;
 	};
 	programs.git = { 
 		enable = true;
