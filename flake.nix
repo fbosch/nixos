@@ -20,10 +20,12 @@
   };
 
   outputs = { self, nixpkgs, dotfiles, home-manager, zen-browser, elephant, walker } @ inputs: 
-    {
+  let 
+   system = "x86_64-linux";
+  in {
       nixosConfigurations = {
         rvn-vm = nixpkgs.lib.nixosSystem {
-          system = "x86_64-linux";
+	  inherit system;
           modules = [
             ./hosts/virtualbox-vm/configuration.nix
             ./hosts/virtualbox-vm/hardware-configuration.nix
@@ -33,7 +35,7 @@
               home-manager.useUserPackages = true;
               home-manager.users.fbb = import ./home.nix;
               home-manager.extraSpecialArgs = {
-                inherit zen-browser dotfiles walker;
+                inherit inputs system dotfiles;
                 dotfilesUrl = "https://github.com/fbosch/dotfiles.git";
               };
             }

@@ -1,12 +1,12 @@
-{ config, pkgs, lib, zen-browser, dotfiles, dotfilesUrl, walker, ... }:
+{ config, system, pkgs, lib, inputs, dotfiles, dotfilesUrl, ... }:
 let
 	REPO = lib.escapeShellArg "${config.home.homeDirectory}/dotfiles";
 	URL = lib.escapeShellArg dotfilesUrl;
 	REV = lib.escapeShellArg dotfiles.rev;
 in {
 	imports = [ 
-		zen-browser.homeModules.twilight
-		walker.homeManagerModules.default
+		inputs.zen-browser.homeModules.twilight
+		inputs.walker.homeManagerModules.default
 	];
 
 	home.username = "fbb";
@@ -42,16 +42,6 @@ in {
 		pinentry.package = pkgs.pinentry-curses;
 		enableSshSupport = true;
 	};
-	programs.walker = {
-		enable = true;
-		runAsService = true;
-		
-		config = {
-			search.placeholder = "Search...";
-			ui.fullscreen = false;
-			list.height = 200;
-		};
-	};
 	programs.git = { 
 		enable = true;
 		extraConfig.credential.helper = "manager";
@@ -59,6 +49,15 @@ in {
 		extraConfig.credential.credentialStore = "gpg";
 	};
 
+	programs.walker = {
+		enable = true;
+		runAsService = true;
+		# config = {
+		# 	search.placeholder = "Search...";
+		# 	ui.fullscreen = false;
+		# 	list.height = 200;
+		# };
+	};
 	gtk = {
 		enable = true;
 		gtk3.extraConfig = {
