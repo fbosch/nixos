@@ -47,6 +47,8 @@
     NIXOS_OZONE_WL = "1";
     GDK_BACKEND = "wayland,x11";
     QT_QPA_PLATFORM = "wayland;xcb";
+    MOZ_ENABLE_WAYLAND = "1";
+    XDG_SESSION_TYPE = "wayland";
   };
 
   environment.systemPackages = with pkgs; [ 
