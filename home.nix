@@ -11,18 +11,32 @@ in {
 	home.stateVersion = "25.05";
 
 	home.packages = with pkgs; [ 
-		stow 
-		git
+		stow
 		git-credential-manager
+		delta
+		ripgrep
+		zoxide
+		eza
+		fd
+		lf
 	]; 
 
 	programs.bash.enable = true;
 	programs.zen-browser.enable = true;
+	
+	programs.neovim.enable = true;
+	
+	programs.fish.enable = true;
+	
+	programs.fzf.enable = true;
+	
+	programs.bat.enable = true;
+	
 	programs.git = { 
 		enable = true;
 		extraConfig.credential.helper = "manager";
 		extraConfig.credential."https://github.com".username = "fbosch";
-		extraConfig.credential.credentialStore = "cache";
+		extraConfig.credential.credentialStore = "store";
 	};
 
 	home.activation.dotfilesClone = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
@@ -40,8 +54,8 @@ in {
 		$DRY_RUN_CMD ${pkgs.stow}/bin/stow --restow --verbose -t "$HOME" .
 	'';
 
-        home.activation.batCache = lib.hm.dag.entryAfter [ "stowDotfiles" ] ''
-	      echo "Building bat cache..."
-	      ${pkgs.bat}/bin/bat cache --build 2>/dev/null || true
-        '';
+	home.activation.batCache = lib.hm.dag.entryAfter [ "stowDotfiles" ] ''
+		echo "Building bat cache..."
+	  $DRY_RUN_CMD ${pkgs.bat}/bin/bat cache --build 2>/dev/null || true
+	'';
 }

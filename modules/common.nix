@@ -55,19 +55,9 @@ in
   ];
 
   environment.systemPackages = with pkgs; [ 
-    vim
-    neovim
-    wget
-    git
-    delta
-    ripgrep
-    fish
-    zoxide
-    eza
-    fd
-    fzf
-    lf
-    bat
+    vim   # fallback editor for root
+    wget  # essential download tool
+    git   # system-level git operations
   ];
 
 }
