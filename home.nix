@@ -12,7 +12,6 @@ in {
 	home.username = "fbb";
 	home.homeDirectory = "/home/fbb";
 	home.stateVersion = "25.05";
-
 	home.packages = with pkgs; [ 
 		stow
 		git-credential-manager
@@ -28,6 +27,8 @@ in {
 		gnupg
 		pinentry-curses
 	]; 
+
+	systemd.user.startServices = "sd-switch";
 
 	programs.bash.enable = true;
 	programs.zen-browser.enable = true;
@@ -58,6 +59,7 @@ in {
 		# 	list.height = 200;
 		# };
 	};
+
 	gtk = {
 		enable = true;
 		gtk3.extraConfig = {
