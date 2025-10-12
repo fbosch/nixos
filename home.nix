@@ -56,6 +56,16 @@ in {
 		extraConfig.credential.credentialStore = "gpg";
 	};
 
+	gtk = {
+		enable = true;
+		gtk3.extraConfig = {
+			gtk-application-prefer-dark-theme = true;
+		};
+		gtk4.extraConfig = {
+			gtk-application-prefer-dark-theme = true;
+		};
+	};
+
 	home.activation.dotfilesClone = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
 		set -euo pipefail
 		if [ ! -d ${REPO}/.git ]; then
