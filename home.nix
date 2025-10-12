@@ -23,7 +23,9 @@ in {
 		fd
 		lf
 		fish
-		starship	
+		starship
+		gnupg
+		pinentry-curses
 	]; 
 
 	programs.bash.enable = true;
@@ -32,11 +34,19 @@ in {
 	programs.fzf.enable = true;
 	programs.bat.enable = true;
 	programs.walker.enable = true;
+	programs.gpg = {
+		enable = true;
+	};
+	services.gpg-agent = {
+		enable = true;
+		pinentryPackage = pkgs.pinentry-curses;
+		enableSshSupport = true;
+	};
 	programs.git = { 
 		enable = true;
 		extraConfig.credential.helper = "manager";
 		extraConfig.credential."https://github.com".username = "fbosch";
-		extraConfig.credential.credentialStore = "secretservice";
+		extraConfig.credential.credentialStore = "gpg";
 	};
 
 	home.activation.dotfilesClone = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
