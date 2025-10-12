@@ -26,6 +26,8 @@
     jack.enable = true;
   };
 
+  services.gnome.gnome-keyring.enable = true;
+
   xdg.portal = {
     enable = true;
     xdgOpenUsePortal = true;
@@ -50,6 +52,7 @@
     foot
     hyprpaper
     rofi
+    gnome-keyring
     (pkgs.waybar.overrideAttrs (oldAttrs: {
       mesonFlags = oldAttrs.mesonFlags ++ [ "-Dexperimental=true" ];
      })
