@@ -53,9 +53,4 @@ in {
 		cd ${REPO}
 		$DRY_RUN_CMD ${pkgs.stow}/bin/stow --restow --verbose -t "$HOME" .
 	'';
-
-	home.activation.batCache = lib.hm.dag.entryAfter [ "stowDotfiles" ] ''
-		echo "Building bat cache..."
-	  $DRY_RUN_CMD ${pkgs.bat}/bin/bat cache --build 2>/dev/null || true
-	'';
 }
