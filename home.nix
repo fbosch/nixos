@@ -45,6 +45,12 @@ in {
 	programs.walker = {
 		enable = true;
 		runAsService = true;
+		
+		config = {
+			search.placeholder = "Search...";
+			ui.fullscreen = false;
+			list.height = 200;
+		};
 	};
 	programs.git = { 
 		enable = true;
