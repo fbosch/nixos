@@ -36,7 +36,6 @@
               home-manager.users.fbb = import ./home.nix;
               home-manager.extraSpecialArgs = {
                 inherit inputs system dotfiles;
-                dotfilesUrl = "https://github.com/fbosch/dotfiles.git";
               };
             }
           ];

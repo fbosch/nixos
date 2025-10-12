@@ -1,7 +1,7 @@
 { config, system, pkgs, lib, inputs, dotfiles, dotfilesUrl, ... }:
 let
 	REPO = lib.escapeShellArg "${config.home.homeDirectory}/dotfiles";
-	URL = lib.escapeShellArg dotfilesUrl;
+	URL = lib.escapeShellArg "https://github.com/fbosch/dotfiles";
 	REV = lib.escapeShellArg dotfiles.rev;
 in {
 	imports = [ 
@@ -58,6 +58,11 @@ in {
 		# 	ui.fullscreen = false;
 		# 	list.height = 200;
 		# };
+	};
+
+	systemd.user.services.walker.Unit = {
+		After = [ "elephant.service" "graphical-session.target" ];
+		Wants = [ "elephant.service" ];
 	};
 
 	gtk = {
