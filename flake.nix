@@ -33,7 +33,7 @@
               home-manager.useUserPackages = true;
               home-manager.users.fbb = import ./home.nix;
               home-manager.extraSpecialArgs = {
-                inherit zen-browser dotfiles walker;
+                inherit zen-browser dotfiles walker elephant;
                 dotfilesUrl = "https://github.com/fbosch/dotfiles.git";
               };
             }
