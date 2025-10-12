@@ -31,7 +31,10 @@ in {
 	programs.neovim.enable = true;
 	programs.fzf.enable = true;
 	programs.bat.enable = true;
-	programs.walker.enable = true;
+	programs.walker = {
+		enable = true;
+		runAsService = true;
+	};
 	programs.git = { 
 		enable = true;
 		extraConfig.credential.helper = "manager";
