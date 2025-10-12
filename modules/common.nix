@@ -47,6 +47,8 @@ in
   };
 
   fonts.packages = with pkgs; [
+    nerd-fonts.symbols-only
+    nerd-fonts.jetbrains-mono
     (pkgs.stdenv.mkDerivation {
       name = "zenbones-mono";
       src = zenbones-mono;

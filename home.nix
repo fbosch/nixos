@@ -17,6 +17,7 @@ in {
 	home.packages = with pkgs; [ 
 		stow
 		git-credential-manager
+		pass
 		delta
 		ripgrep
 		zoxide
