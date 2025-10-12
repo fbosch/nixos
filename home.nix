@@ -53,16 +53,6 @@ in {
 	programs.walker = {
 		enable = true;
 		runAsService = true;
-		# config = {
-		# 	search.placeholder = "Search...";
-		# 	ui.fullscreen = false;
-		# 	list.height = 200;
-		# };
-	};
-
-	systemd.user.services.walker.Unit = {
-		After = [ "elephant.service" "graphical-session.target" ];
-		Wants = [ "elephant.service" ];
 	};
 
 	gtk = {
