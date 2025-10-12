@@ -42,6 +42,7 @@
   };
 
   environment.systemPackages = with pkgs; [ 
+    killall
     gtk3
     mako
     wezterm
