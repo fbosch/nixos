@@ -33,7 +33,6 @@ in {
 	programs.neovim.enable = true;
 	programs.fzf.enable = true;
 	programs.bat.enable = true;
-	programs.walker.enable = true;
 	programs.gpg = {
 		enable = true;
 	};
@@ -41,6 +40,10 @@ in {
 		enable = true;
 		pinentryPackage = pkgs.pinentry-curses;
 		enableSshSupport = true;
+	};
+	programs.walker = {
+		enable = true;
+		runAsService = true;
 	};
 	programs.git = { 
 		enable = true;
