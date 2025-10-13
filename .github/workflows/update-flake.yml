@@ -63,9 +63,11 @@ jobs:
                 FROM_REV=$(echo "$UPDATE_OUTPUT" | grep -A 3 "• Updated input '$INPUT_NAME'" | grep -v "• Updated input" | grep -v "→" | head -1 | sed 's/.*\///' | sed 's/ (.*//' | cut -c1-7)
                 TO_REV=$(echo "$UPDATE_OUTPUT" | grep -A 3 "• Updated input '$INPUT_NAME'" | grep "→" | sed 's/.*\///' | sed 's/ (.*//' | cut -c1-7)
                 
-                # Create package link
+                # Create package link to the specific commit
                 if [[ "$REPO_TYPE" == "github" ]] && [[ -n "$REPO_OWNER" ]] && [[ -n "$REPO_NAME" ]]; then
-                  PACKAGE_LINK="[${INPUT_NAME}](https://github.com/${REPO_OWNER}/${REPO_NAME}/releases)"
+                  # Get the full commit hash for the link
+                  TO_FULL_REV=$(echo "$UPDATE_OUTPUT" | grep -A 3 "• Updated input '$INPUT_NAME'" | grep "→" | sed 's/.*\///' | sed 's/ (.*//')
+                  PACKAGE_LINK="[${INPUT_NAME}](https://github.com/${REPO_OWNER}/${REPO_NAME}/commit/${TO_FULL_REV})"
                 else
                   PACKAGE_LINK="\`${INPUT_NAME}\`"
                 fi
