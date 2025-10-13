@@ -28,11 +28,28 @@ jobs:
           echo "🔄 Updating flake inputs..."
           nix flake update
 
-      - name: Check for changes
+      - name: Check for changes and capture details
         id: verify-changed-files
         run: |
           if [ -n "$(git status --porcelain flake.lock)" ]; then
             echo "changed=true" >> $GITHUB_OUTPUT
+            
+            # Capture what inputs were updated by analyzing the diff
+            echo "📋 Analyzing changes..."
+            
+            # Get the list of updated inputs from the diff
+            UPDATED_INPUTS=$(git diff flake.lock | grep -E "^\+.*rev =|^\+.*url =" | sed 's/^+//' | sed 's/.*rev = "//' | sed 's/".*//' | head -5 | tr '\n' ', ' | sed 's/,$//')
+            
+            # Count the number of updated inputs
+            INPUT_COUNT=$(git diff flake.lock | grep -E "^\+.*rev =|^\+.*url =" | wc -l)
+            
+            if [ -n "$UPDATED_INPUTS" ]; then
+              echo "updated_inputs=$UPDATED_INPUTS" >> $GITHUB_OUTPUT
+              echo "input_count=$INPUT_COUNT" >> $GITHUB_OUTPUT
+            else
+              echo "updated_inputs=flake.lock" >> $GITHUB_OUTPUT
+              echo "input_count=1" >> $GITHUB_OUTPUT
+            fi
           else
             echo "changed=false" >> $GITHUB_OUTPUT
           fi
@@ -45,10 +62,15 @@ jobs:
           commit-message: |
             Update flake inputs
 
+            Updated: ${{ steps.verify-changed-files.outputs.updated_inputs }}
+
             Co-authored-by: GitHub Actions <actions@github.com>
-          title: "Update flake inputs"
+          title: "Update flake inputs: ${{ steps.verify-changed-files.outputs.input_count }} packages updated"
           body: |
             This PR updates flake inputs to their latest versions.
+
+            **Updated inputs:**
+            - ${{ steps.verify-changed-files.outputs.updated_inputs }}
 
             **Changes:**
             - Updated flake.lock with latest input versions
