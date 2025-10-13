@@ -8,6 +8,7 @@ in {
 	imports = [ 
 		inputs.zen-browser.homeModules.default
 		inputs.walker.homeManagerModules.default
+		inputs.flatpaks.homeManagerModules.nix-flatpak
 		./modules/programs.nix
 		./modules/services.nix
 	];

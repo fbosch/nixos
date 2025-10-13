@@ -17,9 +17,10 @@
       url = "github:abenz1267/walker";
       inputs.elephant.follows = "elephant";
     };
+    flatpaks.url = "github:gmodena/nix-flatpak"
   };
 
-  outputs = { self, nixpkgs, dotfiles, home-manager, zen-browser, elephant, walker } @ inputs: 
+  outputs = { self, nixpkgs, dotfiles, home-manager, zen-browser, elephant, walker, flatpaks } @ inputs: 
   let 
    system = "x86_64-linux";
   in {
