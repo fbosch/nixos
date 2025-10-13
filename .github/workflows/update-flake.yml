@@ -23,6 +23,11 @@ jobs:
       - name: Install Nix
         uses: cachix/install-nix-action@v25
 
+      - name: Install jq
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+
       - name: Update flake inputs and capture changes
         id: update-flake
         run: |
@@ -49,34 +54,34 @@ jobs:
                 # Extract input name
                 INPUT_NAME=$(echo "$line" | sed "s/• Updated input '//" | sed "s/':.*//")
                 
-                # Read the next few lines to get version info
+                # Get version information from flake.lock
                 FROM_VERSION=""
                 TO_VERSION=""
                 
-                # Look for the version lines in the next few lines
-                for i in {1..5}; do
-                  NEXT_LINE=$(echo "$UPDATE_OUTPUT" | grep -A $i "• Updated input '$INPUT_NAME'" | tail -n +2 | sed -n "${i}p")
-                  
-                  if [[ "$NEXT_LINE" =~ "→" ]]; then
-                    # This is the "to" version line
-                    TO_VERSION=$(echo "$NEXT_LINE" | sed 's/.*→ //' | sed 's/ (.*//')
-                    break
-                  elif [[ "$NEXT_LINE" =~ "github:" ]] || [[ "$NEXT_LINE" =~ "git+" ]]; then
-                    # This is the "from" version line
-                    FROM_VERSION=$(echo "$NEXT_LINE" | sed 's/.*→ //' | sed 's/ (.*//' | sed 's/^[[:space:]]*//')
-                  fi
-                done
+                # Extract repository info from flake.lock
+                REPO_OWNER=$(jq -r ".nodes.\"${INPUT_NAME}\".locked.owner // empty" flake.lock 2>/dev/null)
+                REPO_NAME=$(jq -r ".nodes.\"${INPUT_NAME}\".locked.repo // empty" flake.lock 2>/dev/null)
+                REPO_TYPE=$(jq -r ".nodes.\"${INPUT_NAME}\".locked.type // empty" flake.lock 2>/dev/null)
+                ORIGINAL_REF=$(jq -r ".nodes.\"${INPUT_NAME}\".original.ref // empty" flake.lock 2>/dev/null)
                 
-                # If we couldn't parse versions, use revision hashes as fallback
-                if [[ -z "$FROM_VERSION" ]] || [[ -z "$TO_VERSION" ]]; then
-                  FROM_REV=$(echo "$UPDATE_OUTPUT" | grep -A 3 "• Updated input '$INPUT_NAME'" | grep -v "• Updated input" | grep -v "→" | head -1 | sed 's/.*\///' | sed 's/ (.*//' | cut -c1-8)
-                  TO_REV=$(echo "$UPDATE_OUTPUT" | grep -A 3 "• Updated input '$INPUT_NAME'" | grep "→" | sed 's/.*\///' | sed 's/ (.*//' | cut -c1-8)
+                # Get commit hashes from the update output
+                FROM_REV=$(echo "$UPDATE_OUTPUT" | grep -A 3 "• Updated input '$INPUT_NAME'" | grep -v "• Updated input" | grep -v "→" | head -1 | sed 's/.*\///' | sed 's/ (.*//' | cut -c1-8)
+                TO_REV=$(echo "$UPDATE_OUTPUT" | grep -A 3 "• Updated input '$INPUT_NAME'" | grep "→" | sed 's/.*\///' | sed 's/ (.*//' | cut -c1-8)
+                
+                # Use original.ref if it's meaningful (like "nixos-unstable", "nixos-24.11")
+                if [[ -n "$ORIGINAL_REF" ]] && [[ "$ORIGINAL_REF" != "master" ]] && [[ "$ORIGINAL_REF" != "main" ]]; then
+                  FROM_VERSION="$ORIGINAL_REF"
+                  TO_VERSION="$ORIGINAL_REF"
+                fi
+                
+                # Fall back to commit hashes
+                if [[ -z "$FROM_VERSION" ]]; then
                   FROM_VERSION="${FROM_REV:-unknown}"
                   TO_VERSION="${TO_REV:-unknown}"
                 fi
                 
                 # Add to detailed changes
-                DETAILED_CHANGES="${DETAILED_CHANGES}- \`${INPUT_NAME}\`\n   \`\`\`diff\n        - ${FROM_VERSION}\n        + ${TO_VERSION}\n   \`\`\`\n"
+                DETAILED_CHANGES="${DETAILED_CHANGES}- \`${INPUT_NAME}\`\n\`\`\`diff\n-      ${FROM_VERSION}\n+      ${TO_VERSION}\n\`\`\`\n"
                 INPUT_COUNT=$((INPUT_COUNT + 1))
               fi
             done <<< "$(echo "$UPDATE_OUTPUT" | grep "• Updated input")"
@@ -93,7 +98,7 @@ jobs:
             else
               echo "updated_inputs=flake.lock" >> $GITHUB_OUTPUT
               echo "input_count=1" >> $GITHUB_OUTPUT
-              echo "detailed_changes=- \`flake.lock\`\n   \`\`\`diff\n        - previous version\n        + updated version\n   \`\`\`" >> $GITHUB_OUTPUT
+              echo "detailed_changes=- \`flake.lock\`\n\`\`\`diff\n-      previous version\n+      updated version\n\`\`\`" >> $GITHUB_OUTPUT
             fi
           else
             echo "changed=false" >> $GITHUB_OUTPUT
