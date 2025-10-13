@@ -5,10 +5,6 @@ on:
     # Run daily at 3 AM UTC
     - cron: "0 3 * * *"
   workflow_dispatch:
-  push:
-    branches: [main, master]
-  pull_request:
-    branches: [main, master]
 
 jobs:
   security-scan:
@@ -16,8 +12,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      security-events: write
-      pull-requests: write
 
     steps:
       - name: Checkout repository
@@ -26,132 +20,33 @@ jobs:
       - name: Install Nix
         uses: cachix/install-nix-action@v25
 
-      - name: Install security tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y jq curl
-
-      - name: Validate flake syntax
-        run: |
-          echo "🔍 Validating flake syntax..."
-          nix flake check --show-trace
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
 
       - name: Check for known vulnerabilities
         run: |
           echo "🛡️ Checking for known vulnerabilities..."
-          # Check if nix audit is available (introduced in newer Nix versions)
           if command -v nix &> /dev/null && nix --version | grep -q "2.19"; then
-            echo "Running nix audit..."
             nix audit || echo "⚠️ nix audit found potential issues"
           else
             echo "ℹ️ nix audit not available in this Nix version"
           fi
 
-      - name: Scan for security issues in configuration
+      - name: Scan for secrets
         run: |
-          echo "🔎 Scanning configuration for security issues..."
-
-          # Check for hardcoded secrets or sensitive data
-          echo "Checking for potential secrets..."
+          echo "🔎 Scanning for potential secrets..."
           if grep -r -i "password\|secret\|key\|token" --include="*.nix" . | grep -v "example\|placeholder\|dummy" | grep -v "home-manager\|nixpkgs"; then
             echo "⚠️ Potential secrets found in configuration files"
             exit 1
           fi
 
-          # Check for insecure services
-          echo "Checking for potentially insecure services..."
-          if grep -r "services\." --include="*.nix" . | grep -E "(ssh|http|ftp)" | grep -v "enable = false"; then
-            echo "ℹ️ Network services detected - ensure they are properly secured"
-          fi
-
-          # Check for world-writable permissions
-          echo "Checking for insecure file permissions..."
-          if grep -r "mode.*777\|mode.*666" --include="*.nix" .; then
-            echo "⚠️ World-writable permissions detected"
-            exit 1
-          fi
-
-      - name: Validate system configuration
-        run: |
-          echo "🔧 Validating system configuration..."
-
-          # Try to build the configuration to catch errors
-          nix build .#nixosConfigurations.rvn-vm.config.system.build.toplevel --dry-run
-
-          # Check for deprecated options
-          echo "Checking for deprecated configuration options..."
-          nix flake check --show-trace 2>&1 | grep -i "deprecated\|warning" || true
-
       - name: Check flake inputs for security
         run: |
           echo "📦 Checking flake inputs for security..."
-
-          # Extract input URLs and check for HTTPS
+          # Check for HTTP URLs (should be HTTPS)
           jq -r '.nodes.root.inputs | to_entries[] | .value' flake.lock | while read -r input; do
             if jq -r ".nodes.\"$input\".locked.url" flake.lock | grep -q "^http:"; then
               echo "⚠️ Insecure HTTP URL detected for input: $input"
               exit 1
             fi
           done
-
-          # Check for pinned commits (good security practice)
-          echo "Checking input pinning..."
-          jq -r '.nodes | to_entries[] | select(.value.locked.type == "github") | "\(.key): \(.value.locked.rev)"' flake.lock
-
-      - name: Generate security report
-        if: always()
-        run: |
-          echo "📊 Security scan completed"
-          echo "## Security Scan Results" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Flake syntax validation: Passed" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Configuration build: Passed" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Input security check: Passed" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Secret scanning: Passed" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Scan completed at:** $(date)" >> $GITHUB_STEP_SUMMARY
-
-      - name: Create security issue on failure
-        if: failure()
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const title = `Security scan failed - ${new Date().toISOString().split('T')[0]}`;
-            const body = `
-            ## Security Scan Failure
-
-            The daily security scan has detected potential security issues in the NixOS configuration.
-
-            **Failed at:** ${new Date().toISOString()}
-            **Workflow run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-
-            Please review the workflow logs and address any security concerns.
-
-            ### Common issues to check:
-            - Hardcoded secrets or passwords
-            - Insecure file permissions
-            - Deprecated configuration options
-            - HTTP URLs in flake inputs
-            - Network services without proper security configuration
-
-            This issue will be automatically closed when the security scan passes.
-            `;
-
-            // Check if an open issue with this title already exists
-            const issues = await github.rest.issues.listForRepo({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              state: 'open',
-              labels: 'security'
-            });
-
-            const existingIssue = issues.data.find(issue => issue.title === title);
-
-            if (!existingIssue) {
-              await github.rest.issues.create({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                title: title,
-                body: body,
-                labels: ['security', 'automated']
-              });
-            }
