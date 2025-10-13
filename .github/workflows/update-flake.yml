@@ -36,22 +36,64 @@ jobs:
           if [ -n "$(git status --porcelain flake.lock)" ]; then
             echo "changed=true" >> $GITHUB_OUTPUT
             
-            # Parse the update output to extract input names
+            # Parse the update output to extract input names and version changes
             echo "📋 Analyzing changes..."
             
-            # Extract input names from the update output
-            # Pattern: "• Updated input 'inputname':"
-            UPDATED_INPUTS=$(echo "$UPDATE_OUTPUT" | grep "• Updated input" | sed "s/• Updated input '//" | sed "s/':.*//" | tr '\n' ', ' | sed 's/,$//')
+            # Create a temporary file to build the detailed changes
+            DETAILED_CHANGES=""
+            INPUT_COUNT=0
             
-            # Count the number of updated inputs
-            INPUT_COUNT=$(echo "$UPDATE_OUTPUT" | grep -c "• Updated input" || echo "0")
+            # Parse each "• Updated input" section
+            while IFS= read -r line; do
+              if [[ "$line" =~ "• Updated input '" ]]; then
+                # Extract input name
+                INPUT_NAME=$(echo "$line" | sed "s/• Updated input '//" | sed "s/':.*//")
+                
+                # Read the next few lines to get version info
+                FROM_VERSION=""
+                TO_VERSION=""
+                
+                # Look for the version lines in the next few lines
+                for i in {1..5}; do
+                  NEXT_LINE=$(echo "$UPDATE_OUTPUT" | grep -A $i "• Updated input '$INPUT_NAME'" | tail -n +2 | sed -n "${i}p")
+                  
+                  if [[ "$NEXT_LINE" =~ "→" ]]; then
+                    # This is the "to" version line
+                    TO_VERSION=$(echo "$NEXT_LINE" | sed 's/.*→ //' | sed 's/ (.*//')
+                    break
+                  elif [[ "$NEXT_LINE" =~ "github:" ]] || [[ "$NEXT_LINE" =~ "git+" ]]; then
+                    # This is the "from" version line
+                    FROM_VERSION=$(echo "$NEXT_LINE" | sed 's/.*→ //' | sed 's/ (.*//' | sed 's/^[[:space:]]*//')
+                  fi
+                done
+                
+                # If we couldn't parse versions, use revision hashes as fallback
+                if [[ -z "$FROM_VERSION" ]] || [[ -z "$TO_VERSION" ]]; then
+                  FROM_REV=$(echo "$UPDATE_OUTPUT" | grep -A 3 "• Updated input '$INPUT_NAME'" | grep -v "• Updated input" | grep -v "→" | head -1 | sed 's/.*\///' | sed 's/ (.*//' | cut -c1-8)
+                  TO_REV=$(echo "$UPDATE_OUTPUT" | grep -A 3 "• Updated input '$INPUT_NAME'" | grep "→" | sed 's/.*\///' | sed 's/ (.*//' | cut -c1-8)
+                  FROM_VERSION="${FROM_REV:-unknown}"
+                  TO_VERSION="${TO_REV:-unknown}"
+                fi
+                
+                # Add to detailed changes
+                DETAILED_CHANGES="${DETAILED_CHANGES}- \`${INPUT_NAME}\`\n   \`\`\`diff\n        - ${FROM_VERSION}\n        + ${TO_VERSION}\n   \`\`\`\n"
+                INPUT_COUNT=$((INPUT_COUNT + 1))
+              fi
+            done <<< "$(echo "$UPDATE_OUTPUT" | grep "• Updated input")"
+            
+            # Create simple comma-separated list for backward compatibility
+            UPDATED_INPUTS=$(echo "$UPDATE_OUTPUT" | grep "• Updated input" | sed "s/• Updated input '//" | sed "s/':.*//" | tr '\n' ', ' | sed 's/,$//')
             
             if [ -n "$UPDATED_INPUTS" ] && [ "$INPUT_COUNT" -gt 0 ]; then
               echo "updated_inputs=$UPDATED_INPUTS" >> $GITHUB_OUTPUT
               echo "input_count=$INPUT_COUNT" >> $GITHUB_OUTPUT
+              echo "detailed_changes<<EOF" >> $GITHUB_OUTPUT
+              echo -e "$DETAILED_CHANGES" >> $GITHUB_OUTPUT
+              echo "EOF" >> $GITHUB_OUTPUT
             else
               echo "updated_inputs=flake.lock" >> $GITHUB_OUTPUT
               echo "input_count=1" >> $GITHUB_OUTPUT
+              echo "detailed_changes=- \`flake.lock\`\n   \`\`\`diff\n        - previous version\n        + updated version\n   \`\`\`" >> $GITHUB_OUTPUT
             fi
           else
             echo "changed=false" >> $GITHUB_OUTPUT
@@ -65,7 +107,7 @@ jobs:
           commit-message: |
             Update flake inputs
 
-            Updated: ${{ steps.update-flake.outputs.updated_inputs }}
+            ${{ steps.update-flake.outputs.detailed_changes }}
 
             Co-authored-by: GitHub Actions <actions@github.com>
           title: "Update flake inputs: ${{ steps.update-flake.outputs.input_count }} packages updated"
@@ -73,9 +115,10 @@ jobs:
             This PR updates flake inputs to their latest versions.
 
             **Updated inputs:**
-            - ${{ steps.update-flake.outputs.updated_inputs }}
+            ${{ steps.update-flake.outputs.detailed_changes }}
 
-            **Changes:**
+            **Summary:**
+            - Updated ${{ steps.update-flake.outputs.input_count }} packages: ${{ steps.update-flake.outputs.updated_inputs }}
             - Updated flake.lock with latest input versions
 
           branch: update-flake-inputs
