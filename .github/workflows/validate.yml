@@ -1,0 +1,25 @@
+name: Validate NixOS Configuration
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  validate:
+    name: Validate Configuration
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v25
+
+      - name: Validate flake
+        run: nix flake check
+
+      - name: Build configuration
+        run: nix build .#nixosConfigurations.rvn-vm --dry-run
