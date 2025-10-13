@@ -6,7 +6,7 @@ let
 	REV = lib.escapeShellArg dotfiles.rev;
 in {
 	imports = [ 
-		inputs.zen-browser.homeModules.twilight
+		inputs.zen-browser.homeModules.default
 		inputs.walker.homeManagerModules.default
 		./modules/programs.nix
 		./modules/services.nix
