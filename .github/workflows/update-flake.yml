@@ -10,6 +10,9 @@ jobs:
   update-flake:
     name: Update Flake Inputs
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
 
     steps:
       - name: Checkout repository
@@ -53,7 +56,5 @@ jobs:
             **Testing:**
             - [ ] Configuration builds successfully
             - [ ] All tests pass
-          branch: update-flake-inputs
-          delete-branch: true
-          # Close any existing PRs with the same title
-          close-pull-request: true
+        branch: update-flake-inputs
+        delete-branch: true
