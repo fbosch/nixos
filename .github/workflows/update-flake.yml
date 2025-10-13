@@ -56,5 +56,5 @@ jobs:
             **Testing:**
             - [ ] Configuration builds successfully
             - [ ] All tests pass
-        branch: update-flake-inputs
-        delete-branch: true
+          branch: update-flake-inputs
+          delete-branch: true
