@@ -80,8 +80,14 @@ jobs:
                   TO_VERSION="${TO_REV:-unknown}"
                 fi
                 
-                # Add to detailed changes
-                DETAILED_CHANGES="${DETAILED_CHANGES}- \`${INPUT_NAME}\`\n\`\`\`diff\n-      ${FROM_VERSION}\n+      ${TO_VERSION}\n\`\`\`\n"
+                # Add to detailed changes with links
+                if [[ "$REPO_TYPE" == "github" ]] && [[ -n "$REPO_OWNER" ]] && [[ -n "$REPO_NAME" ]]; then
+                  PACKAGE_LINK="[${INPUT_NAME}](https://github.com/${REPO_OWNER}/${REPO_NAME})"
+                else
+                  PACKAGE_LINK="\`${INPUT_NAME}\`"
+                fi
+                
+                DETAILED_CHANGES="${DETAILED_CHANGES}- ${PACKAGE_LINK}\n\`\`\`diff\n-${FROM_VERSION}\n+${TO_VERSION}\n\`\`\`\n"
                 INPUT_COUNT=$((INPUT_COUNT + 1))
               fi
             done <<< "$(echo "$UPDATE_OUTPUT" | grep "• Updated input")"
@@ -98,7 +104,7 @@ jobs:
             else
               echo "updated_inputs=flake.lock" >> $GITHUB_OUTPUT
               echo "input_count=1" >> $GITHUB_OUTPUT
-              echo "detailed_changes=- \`flake.lock\`\n\`\`\`diff\n-      previous version\n+      updated version\n\`\`\`" >> $GITHUB_OUTPUT
+              echo "detailed_changes=- \`flake.lock\`\n\`\`\`diff\n-previous version\n+updated version\n\`\`\`" >> $GITHUB_OUTPUT
             fi
           else
             echo "changed=false" >> $GITHUB_OUTPUT
