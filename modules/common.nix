@@ -67,5 +67,7 @@ in
     git   # system-level git operations
   ];
 
+  services.flatpak.enable = true;
+
 }
 
