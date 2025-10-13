@@ -6,7 +6,7 @@
     
     update = {
       auto.enable = false;
-      # onActivation = true;
+      onActivation = true;
     };
 
     remotes = [{
@@ -16,6 +16,8 @@
     
     packages = [
       "com.github.tchx84.Flatseal"
+      "io.github.flattool.Ignition"
+      "io.github.flattool.Warehouse"
       "com.discordapp.Discord"
       "org.signal.Signal"
       "org.keepassxc.KeePassXC"
@@ -30,8 +32,7 @@
       "net.lutris.Lutris"
       "tv.plex.Desktop"
       "io.github.wiiznokes.fan-control"
-      "org.gnome.Loupe"
-      "io.github.flattool.Ignition"
+      "com.vysp3r.ProtonPlus"
    ];
   };
 }
