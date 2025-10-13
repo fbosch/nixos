@@ -20,7 +20,7 @@
     flatpaks.url = "github:gmodena/nix-flatpak";
   };
 
-  outputs = { self, nixpkgs, home-manager, ...  } @ inputs: 
+  outputs = { self, nixpkgs, home-manager, flatpaks, ...  } @ inputs: 
   let 
    system = "x86_64-linux";
   in {
@@ -31,6 +31,7 @@
             ./hosts/virtualbox-vm/configuration.nix
             ./hosts/virtualbox-vm/hardware-configuration.nix
              home-manager.nixosModules.home-manager
+	     flatpaks.nixosModules.nix-flatpak
             {
               home-manager.useGlobalPkgs = true;
               home-manager.useUserPackages = true;

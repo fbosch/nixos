@@ -22,6 +22,7 @@ in {
 		git-credential-manager
 		pass
 		delta
+		kdePackages.dolphin
 		ripgrep
 		zoxide
 		eza
