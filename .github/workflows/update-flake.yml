@@ -53,8 +53,5 @@ jobs:
             **Changes:**
             - Updated flake.lock with latest input versions
 
-            **Testing:**
-            - [ ] Configuration builds successfully
-            - [ ] All tests pass
           branch: update-flake-inputs
           delete-branch: true
