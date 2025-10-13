@@ -1,0 +1,59 @@
+name: Update Flake Inputs
+
+on:
+  schedule:
+    # Run every Monday at 2 AM UTC
+    - cron: "0 2 * * 1"
+  workflow_dispatch:
+
+jobs:
+  update-flake:
+    name: Update Flake Inputs
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v25
+
+      - name: Update flake inputs
+        run: |
+          echo "🔄 Updating flake inputs..."
+          nix flake update
+
+      - name: Check for changes
+        id: verify-changed-files
+        run: |
+          if [ -n "$(git status --porcelain flake.lock)" ]; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Pull Request
+        if: steps.verify-changed-files.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: |
+            Update flake inputs
+
+            Co-authored-by: GitHub Actions <actions@github.com>
+          title: "Update flake inputs"
+          body: |
+            This PR updates flake inputs to their latest versions.
+
+            **Changes:**
+            - Updated flake.lock with latest input versions
+
+            **Testing:**
+            - [ ] Configuration builds successfully
+            - [ ] All tests pass
+          branch: update-flake-inputs
+          delete-branch: true
+          # Close any existing PRs with the same title
+          close-pull-request: true
