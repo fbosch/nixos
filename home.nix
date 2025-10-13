@@ -1,4 +1,4 @@
-{ config, system, pkgs, lib, inputs, dotfiles, dotfilesUrl, ... }:
+{ config, system, pkgs, lib, inputs, dotfiles, ... }:
 
 let
 	REPO = lib.escapeShellArg "${config.home.homeDirectory}/dotfiles";
@@ -9,8 +9,9 @@ in {
 		inputs.zen-browser.homeModules.default
 		inputs.walker.homeManagerModules.default
 		inputs.flatpaks.homeManagerModules.nix-flatpak
-		./modules/programs.nix
 		./modules/services.nix
+		./modules/programs.nix
+		./modules/flatpak.nix
 	];
 
 	home.username = "fbb";

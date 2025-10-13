@@ -36,7 +36,7 @@
               home-manager.useUserPackages = true;
               home-manager.users.fbb = import ./home.nix;
               home-manager.extraSpecialArgs = {
-                inherit inputs system dotfiles;
+                inherit inputs system dotfile;
               };
             }
           ];
