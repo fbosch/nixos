@@ -31,6 +31,8 @@ in {
 		starship
 		gnupg
 		pinentry-curses
+		gnome-tweaks
+		gnomeExtensions.appindicator
 	]; 
 
 	systemd.user.startServices = "sd-switch";
