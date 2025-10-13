@@ -18,6 +18,7 @@
   virtualisation.virtualbox.guest.clipboard = true;
  
   security.rtkit.enable = true;
+
   services.pipewire = {
     enable = true;
     alsa.enable = true;
@@ -35,7 +36,7 @@
       pkgs.xdg-desktop-portal-gtk
       pkgs.xdg-desktop-portal-hyprland
     ];
-    config.common.default = "*";
+    config.common.default = "gtk";
   };
 
   programs.hyprland = { 
