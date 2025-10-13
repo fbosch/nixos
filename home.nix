@@ -1,9 +1,9 @@
-{ config, system, pkgs, lib, inputs, dotfiles, ... }:
+{ config, system, pkgs, lib, inputs, ... }:
 
 let
 	REPO = lib.escapeShellArg "${config.home.homeDirectory}/dotfiles";
 	URL = lib.escapeShellArg "https://github.com/fbosch/dotfiles";
-	REV = lib.escapeShellArg dotfiles.rev;
+	REV = lib.escapeShellArg inputs.dotfiles.rev;
 in {
 	imports = [ 
 		inputs.zen-browser.homeModules.default
@@ -46,7 +46,7 @@ in {
 	};
 
 	home.file."dotfiles" = {
-		source = dotfiles;
+		source = inputs.dotfiles;
 		recursive = true;
 	};
 
