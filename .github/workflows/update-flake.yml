@@ -66,7 +66,7 @@ jobs:
                 # Create package link to the specific commit
                 if [[ "$REPO_TYPE" == "github" ]] && [[ -n "$REPO_OWNER" ]] && [[ -n "$REPO_NAME" ]]; then
                   # Get the full commit hash for the link
-                  TO_FULL_REV=$(echo "$UPDATE_OUTPUT" | grep -A 3 "• Updated input '$INPUT_NAME'" | grep "→" | sed 's/.*\///' | sed 's/ (.*//')
+                  TO_FULL_REV=$(echo "$UPDATE_OUTPUT" | grep -A 3 "• Updated input '$INPUT_NAME'" | grep "→" | sed 's/.*\///' | sed "s/ (.*//" | sed "s/'$//")
                   PACKAGE_LINK="[${INPUT_NAME}](https://github.com/${REPO_OWNER}/${REPO_NAME}/commit/${TO_FULL_REV})"
                 else
                   PACKAGE_LINK="\`${INPUT_NAME}\`"
