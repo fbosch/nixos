@@ -59,9 +59,9 @@ jobs:
                 REPO_NAME=$(jq -r ".nodes.\"${INPUT_NAME}\".locked.repo // empty" flake.lock 2>/dev/null)
                 REPO_TYPE=$(jq -r ".nodes.\"${INPUT_NAME}\".locked.type // empty" flake.lock 2>/dev/null)
                 
-                # Get commit hashes from the update output
-                FROM_REV=$(echo "$UPDATE_OUTPUT" | grep -A 3 "• Updated input '$INPUT_NAME'" | grep -v "• Updated input" | grep -v "→" | head -1 | sed 's/.*\///' | sed 's/ (.*//' | cut -c1-8)
-                TO_REV=$(echo "$UPDATE_OUTPUT" | grep -A 3 "• Updated input '$INPUT_NAME'" | grep "→" | sed 's/.*\///' | sed 's/ (.*//' | cut -c1-8)
+                # Get commit hashes from the update output (last 8 characters)
+                FROM_REV=$(echo "$UPDATE_OUTPUT" | grep -A 3 "• Updated input '$INPUT_NAME'" | grep -v "• Updated input" | grep -v "→" | head -1 | sed 's/.*\///' | sed 's/ (.*//' | rev | cut -c1-8 | rev)
+                TO_REV=$(echo "$UPDATE_OUTPUT" | grep -A 3 "• Updated input '$INPUT_NAME'" | grep "→" | sed 's/.*\///' | sed 's/ (.*//' | rev | cut -c1-8 | rev)
                 
                 # Create package link
                 if [[ "$REPO_TYPE" == "github" ]] && [[ -n "$REPO_OWNER" ]] && [[ -n "$REPO_NAME" ]]; then
