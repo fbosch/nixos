@@ -25,7 +25,7 @@
   in {
       nixosConfigurations = {
         rvn-vm = nixpkgs.lib.nixosSystem {
-	  inherit system;
+          inherit system;
           modules = [
             ./hosts/virtualbox-vm/configuration.nix
             ./hosts/virtualbox-vm/hardware-configuration.nix

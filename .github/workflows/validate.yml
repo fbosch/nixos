@@ -21,5 +21,5 @@ jobs:
       - name: Validate flake
         run: nix flake check
 
-      - name: Build configuration
-        run: nix build .#nixosConfigurations.rvn-vm --dry-run
+    - name: Build configuration
+      run: nix build .#nixosConfigurations.rvn-vm.config.system.build.toplevel --dry-run
