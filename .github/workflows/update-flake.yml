@@ -54,68 +54,23 @@ jobs:
                 # Extract input name
                 INPUT_NAME=$(echo "$line" | sed "s/• Updated input '//" | sed "s/':.*//")
                 
-                # Get version information from flake.lock
-                FROM_VERSION=""
-                TO_VERSION=""
-                
                 # Extract repository info from flake.lock
                 REPO_OWNER=$(jq -r ".nodes.\"${INPUT_NAME}\".locked.owner // empty" flake.lock 2>/dev/null)
                 REPO_NAME=$(jq -r ".nodes.\"${INPUT_NAME}\".locked.repo // empty" flake.lock 2>/dev/null)
                 REPO_TYPE=$(jq -r ".nodes.\"${INPUT_NAME}\".locked.type // empty" flake.lock 2>/dev/null)
-                ORIGINAL_REF=$(jq -r ".nodes.\"${INPUT_NAME}\".original.ref // empty" flake.lock 2>/dev/null)
                 
                 # Get commit hashes from the update output
                 FROM_REV=$(echo "$UPDATE_OUTPUT" | grep -A 3 "• Updated input '$INPUT_NAME'" | grep -v "• Updated input" | grep -v "→" | head -1 | sed 's/.*\///' | sed 's/ (.*//' | cut -c1-8)
                 TO_REV=$(echo "$UPDATE_OUTPUT" | grep -A 3 "• Updated input '$INPUT_NAME'" | grep "→" | sed 's/.*\///' | sed 's/ (.*//' | cut -c1-8)
                 
-                # Use original.ref if it's meaningful (like "nixos-unstable", "nixos-24.11")
-                if [[ -n "$ORIGINAL_REF" ]] && [[ "$ORIGINAL_REF" != "master" ]] && [[ "$ORIGINAL_REF" != "main" ]]; then
-                  FROM_VERSION="$ORIGINAL_REF"
-                  TO_VERSION="$ORIGINAL_REF"
-                fi
-                
-                # Fall back to commit hashes
-                if [[ -z "$FROM_VERSION" ]]; then
-                  FROM_VERSION="${FROM_REV:-unknown}"
-                  TO_VERSION="${TO_REV:-unknown}"
-                fi
-                
-                # Add to detailed changes with links and changelog
+                # Create package link
                 if [[ "$REPO_TYPE" == "github" ]] && [[ -n "$REPO_OWNER" ]] && [[ -n "$REPO_NAME" ]]; then
-                  PACKAGE_LINK="[${INPUT_NAME}](https://github.com/${REPO_OWNER}/${REPO_NAME})"
-                  
-                  # Try to get changelog information
-                  CHANGELOG_INFO=""
-                  if command -v curl >/dev/null 2>&1; then
-                    # Get the full commit hashes
-                    FROM_FULL_REV=$(echo "$UPDATE_OUTPUT" | grep -A 3 "• Updated input '$INPUT_NAME'" | grep -v "• Updated input" | grep -v "→" | head -1 | sed 's/.*\///' | sed 's/ (.*//')
-                    TO_FULL_REV=$(echo "$UPDATE_OUTPUT" | grep -A 3 "• Updated input '$INPUT_NAME'" | grep "→" | sed 's/.*\///' | sed 's/ (.*//')
-                    
-                    if [[ -n "$FROM_FULL_REV" ]] && [[ -n "$TO_FULL_REV" ]] && [[ "$FROM_FULL_REV" != "$TO_FULL_REV" ]]; then
-                      # Try to get commit messages between the two revisions
-                      COMMITS=$(curl -s "https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/compare/${FROM_FULL_REV}...${TO_FULL_REV}" | jq -r '.commits[]?.commit.message' 2>/dev/null | head -5)
-                      
-                      if [[ -n "$COMMITS" ]] && [[ "$COMMITS" != "null" ]]; then
-                        CHANGELOG_INFO="\n  <details>\n  <summary>📋 Recent changes</summary>\n\n"
-                        while IFS= read -r commit_msg; do
-                          if [[ -n "$commit_msg" ]] && [[ "$commit_msg" != "null" ]]; then
-                            # Clean up commit message (remove newlines, limit length)
-                            CLEAN_MSG=$(echo "$commit_msg" | tr '\n' ' ' | sed 's/^[[:space:]]*//' | cut -c1-80)
-                            if [[ ${#CLEAN_MSG} -eq 80 ]]; then
-                              CLEAN_MSG="${CLEAN_MSG}..."
-                            fi
-                            CHANGELOG_INFO="${CHANGELOG_INFO}  - ${CLEAN_MSG}\n"
-                          fi
-                        done <<< "$COMMITS"
-                        CHANGELOG_INFO="${CHANGELOG_INFO}\n  </details>"
-                      fi
-                    fi
-                  fi
+                  PACKAGE_LINK="[${INPUT_NAME}](https://github.com/${REPO_OWNER}/${REPO_NAME}/releases)"
                 else
                   PACKAGE_LINK="\`${INPUT_NAME}\`"
                 fi
                 
-                DETAILED_CHANGES="${DETAILED_CHANGES}- ${PACKAGE_LINK}\n\`\`\`diff\n-${FROM_VERSION}\n+${TO_VERSION}\n\`\`\`${CHANGELOG_INFO}\n"
+                DETAILED_CHANGES="${DETAILED_CHANGES}- ${PACKAGE_LINK}\n\`\`\`diff\n-${FROM_REV}\n+${TO_REV}\n\`\`\`\n"
                 INPUT_COUNT=$((INPUT_COUNT + 1))
               fi
             done <<< "$(echo "$UPDATE_OUTPUT" | grep "• Updated input")"
