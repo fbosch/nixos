@@ -35,6 +35,7 @@ in {
 		pinentry-curses
 		gnome-tweaks
 		gnomeExtensions.appindicator
+		steam
 	]; 
 
 	systemd.user.startServices = "sd-switch";
