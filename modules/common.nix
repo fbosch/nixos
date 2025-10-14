@@ -8,8 +8,7 @@ let
   };
   babelstone-elder-futhark = pkgs.fetchurl {
     url = "https://babelstone.co.uk/Fonts/Download/BabelStoneRunicElderFuthark.ttf";
-    sha256 = "sha256-Wrn9BYNs0Z9BDau60u2eX/LleXzcH1MuIJph6XfIRTE=";
-    striproot = false;
+    sha256 = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
   };
 in
 {
@@ -61,6 +60,15 @@ in
         mkdir -p $out/share/fonts/truetype
         find $src -name '*.ttf' -exec cp {} $out/share/fonts/truetype \;
         find $src -name '*.otf' -exec cp {} $out/share/fonts/truetype \;
+      '';
+    })
+    (pkgs.stdenv.mkDerivation {
+      name = "babelstone-elder-futhark";
+      src = babelstone-elder-futhark;
+      dontUnpack = true;
+      installPhase = ''
+        mkdir -p $out/share/fonts/truetype
+        cp $src $out/share/fonts/truetype/BabelStoneRunicElderFuthark.ttf
       '';
     })
   ];
