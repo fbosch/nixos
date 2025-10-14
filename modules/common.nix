@@ -6,6 +6,11 @@ let
     sha256 = "sha256-Wrn9BYNs0Z9BDau60u2eX/LleXzcH1MuIJph6XfIRTE=";
     stripRoot = false;
   };
+  babelstone-elder-futhark = pkgs.fetchurl {
+    url = "https://babelstone.co.uk/Fonts/Download/BabelStoneRunicElderFuthark.ttf";
+    sha256 = "sha256-Wrn9BYNs0Z9BDau60u2eX/LleXzcH1MuIJph6XfIRTE=";
+    striproot = false;
+  };
 in
 {
   time.timeZone = "Europe/Copenhagen";
@@ -63,8 +68,22 @@ in
   environment.systemPackages = with pkgs; [ 
     vim   # fallback editor for root
     neovim
+    nodejs
+    fnm
     wget  # essential download tool
     git   # system-level git operations
+    curl
+    clang
+    zig
+    gcc
+    cmake
+    gnumake
+    ripgrep
+    jq
+    fd
+    tree
+    unzip
+    uutils-coreutils
   ];
 
   services.flatpak.enable = true;

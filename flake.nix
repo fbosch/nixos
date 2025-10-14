@@ -13,15 +13,6 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     dotfiles = { url = "github:fbosch/dotfiles/master"; flake = false; };
-    # elephant = { 
-    #   url = "github:abenz1267/elephant"; 
-    #   inputs.nixpkgs.follows = "nixpkgs";
-    # };
-    # walker = {
-    #   url = "github:abenz1267/walker";
-    #   inputs.nixpkgs.follows = "nixpkgs";
-    #   inputs.elephant.follows = "elephant";
-    # };
   };
 
   outputs = { self, nixpkgs, home-manager, flatpaks, ...  } @ inputs: 
