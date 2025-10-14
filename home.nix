@@ -8,7 +8,7 @@ in {
 	imports = [ 
 		inputs.zen-browser.homeModules.default
 		inputs.flatpaks.homeManagerModules.nix-flatpak
-		inputs.walker.homeManagerModules.default
+		# inputs.walker.homeManagerModules.default
 		./modules/services.nix
 		./modules/desktop.nix
 		./modules/programs.nix
@@ -20,6 +20,7 @@ in {
 	home.stateVersion = "25.05";
 	home.packages = with pkgs; [ 
 		# GNOME
+		rofi
 		gtk4
 		gtk4-layer-shell
 		gnome-keyring
