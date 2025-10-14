@@ -11,10 +11,10 @@
 		};
 	};
 
-	dconf.enable = true;
-	dconf.settings = {
-		"org/gnome/shell/extensions/user-theme"  = {
-name = "WhiteSure-Dark-Solid";
-		};
-	};
+# 	dconf.enable = true;
+# 	dconf.settings = {
+# 		"org/gnome/shell/extensions/user-theme"  = {
+# name = "WhiteSure-Dark-Solid";
+# 		};
+# 	};
 }

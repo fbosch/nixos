@@ -2,7 +2,7 @@
   description = "NixOS Configuration";
 
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-25.05";
     home-manager = {
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -12,9 +12,13 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     dotfiles = { url = "github:fbosch/dotfiles/master"; flake = false; };
-    elephant.url = "github:abenz1267/elephant";
+    elephant = { 
+      url = "github:abenz1267/elephant"; 
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     walker = {
       url = "github:abenz1267/walker";
+      inputs.nixpkgs.follows = "nixpkgs";
       inputs.elephant.follows = "elephant";
     };
     flatpaks.url = "github:gmodena/nix-flatpak";

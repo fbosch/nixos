@@ -15,6 +15,7 @@
     extraConfig.credential."https://github.com".username = "fbosch";
     extraConfig.credential.credentialStore = "gpg";
   };
+ # programs.elephant.enable = true;
   programs.walker = {
     enable = true;
     runAsService = true;

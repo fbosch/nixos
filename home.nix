@@ -7,10 +7,10 @@ let
 in {
 	imports = [ 
 		inputs.zen-browser.homeModules.default
-		inputs.walker.homeManagerModules.default
 		inputs.flatpaks.homeManagerModules.nix-flatpak
+		inputs.walker.homeManagerModules.default
 		./modules/services.nix
-		# ./modules/desktop.nix
+		./modules/desktop.nix
 		./modules/programs.nix
 		./modules/flatpak.nix
 	];
