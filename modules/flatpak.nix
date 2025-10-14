@@ -26,7 +26,7 @@
       "com.protonvpn.www"
       "com.bitwarden.desktop"
       "org.gnome.font-viewer"
-      "org.netsurf_browser.NetSurf"
+      # "org.netsurf_browser.NetSurf"
       # "com.google.Chrome"
       # "one.ablaze.floorp"
       # "com.visualstudio.code"

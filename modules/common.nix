@@ -9,6 +9,10 @@ let
     url = "https://babelstone.co.uk/Fonts/Download/BabelStoneRunicElderFuthark.ttf";
     sha256 = "sha256-awYvgb6O07ouxwqg2OgomDia1j4jmVFwyAr7oSacNws=";
   };
+  tahoma = pkgs.fetchurl {
+    url = "https://gitlab.winehq.org/wine/wine/-/raw/master/fonts/tahoma.ttf?ref_type=heads&inline=false";
+    sha256 = "sha256-kPGrrU2gzgPaXSJ37nWpYAzoEtN8kOq3bgg4/6eTflU=";
+  };
 in
 {
   time.timeZone = "Europe/Copenhagen";
@@ -35,7 +39,7 @@ in
   users.users.fbb = {
     isNormalUser = true;
     description = "Frederik Bosch";
-    extraGroups = [ "networkmanager" "wheel" ];
+   extraGroups = [ "networkmanager" "wheel" ];
     packages = with pkgs; [];
   };
 
@@ -45,8 +49,6 @@ in
 
   nix.settings = {
     experimental-features = [ "nix-command" "flakes" ];
-    extra-substituters = ["https://walker.cachix.org"];
-    trusted-public-keys = ["walker.cachix.org-1:fG8q+uAaMqhsMxWjwvk0IMb4mFPFLqHjuvfwQxE4oJM="];
   };
 
   fonts.packages = with pkgs; [
@@ -69,6 +71,15 @@ in
       installPhase = ''
         mkdir -p $out/share/fonts/truetype
         cp $src $out/share/fonts/truetype/BabelStoneRunicElderFuthark.ttf
+      '';
+    })
+    (pkgs.stdenv.mkDerivation {
+      name = "tahoma";
+      src = tahoma;
+      dontUnpack = true;
+      installPhase = ''
+        mkdir -p $out/share/fonts/truetype
+        cp $src $out/share/fonts/truetype/tahoma.ttf
       '';
     })
   ];
@@ -95,6 +106,10 @@ in
     killall
     gparted
     parted
+    wineWowPackages.stable
+    wineWowPackages.fonts
+    wineWowPackages.waylandFull
+    winetricks
   ];
 
   services.flatpak.enable = true;

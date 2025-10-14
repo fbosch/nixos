@@ -22,6 +22,7 @@ in {
 
 	home.packages = with pkgs; [ 
                 hyprpaper
+		hyprprop
 		wezterm
 		kitty
 		rofi
