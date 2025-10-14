@@ -8,6 +8,7 @@ in {
 	imports = [ 
 		inputs.zen-browser.homeModules.default
 		inputs.flatpaks.homeManagerModules.nix-flatpak
+		inputs.hyprshell.homeModules.hyprshell
 		./modules/services.nix
 		./modules/desktop.nix
 		./modules/programs.nix
@@ -17,8 +18,12 @@ in {
 	home.username = "fbb";
 	home.homeDirectory = "/home/fbb";
 	home.stateVersion = "25.05";
+	systemd.user.startServices = "sd-switch";
+
 	home.packages = with pkgs; [ 
-		# GNOME
+                hyprpaper
+		wezterm
+		kitty
 		rofi
 		gtk4
 		gtk4-layer-shell
@@ -28,6 +33,7 @@ in {
 		nautilus
 		whitesur-gtk-theme
 		loupe
+		mako
 		git-credential-manager
 		stow
 		pass
@@ -35,16 +41,16 @@ in {
 		ripgrep
 		zoxide
 		eza
-		fd
 		lf
 		fish
 		starship
 		gnupg
 		pinentry-curses
 		steam
+	        (pkgs.waybar.overrideAttrs (oldAttrs: {
+	            mesonFlags = oldAttrs.mesonFlags ++ [ "-Dexperimental=true" ];
+	        }))
 	]; 
-
-	systemd.user.startServices = "sd-switch";
 
 
 	home.file."dotfiles" = {

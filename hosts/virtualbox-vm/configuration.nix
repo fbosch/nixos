@@ -9,6 +9,7 @@
   boot.loader.grub.enable = true;
   boot.loader.grub.device = "/dev/sda";
   boot.loader.grub.useOSProber = true;
+  boot.loader.grub.configurationLimit = 42;
 
   networking.hostName = "rvn-vm";
   networking.networkmanager.enable = true;
@@ -56,17 +57,7 @@
   };
 
   environment.systemPackages = with pkgs; [ 
-    killall
-    mako
-    wezterm
-    kitty
     foot
-    hyprpaper
-    rofi
-    (pkgs.waybar.overrideAttrs (oldAttrs: {
-      mesonFlags = oldAttrs.mesonFlags ++ [ "-Dexperimental=true" ];
-     })
-    )
   ];
 
   system.stateVersion = "25.05";

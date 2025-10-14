@@ -1,5 +1,4 @@
 { config, pkgs, ... }:
-
 let
   zenbones-mono = pkgs.fetchzip {
     url = "https://github.com/zenbones-theme/zenbones-mono/releases/download/v2.400/Zenbones-Brainy-TTF.zip";
@@ -8,7 +7,7 @@ let
   };
   babelstone-elder-futhark = pkgs.fetchurl {
     url = "https://babelstone.co.uk/Fonts/Download/BabelStoneRunicElderFuthark.ttf";
-    sha256 = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+    sha256 = "sha256-awYvgb6O07ouxwqg2OgomDia1j4jmVFwyAr7oSacNws=";
   };
 in
 {
@@ -53,6 +52,7 @@ in
   fonts.packages = with pkgs; [
     nerd-fonts.symbols-only
     nerd-fonts.jetbrains-mono
+    font-awesome
     (pkgs.stdenv.mkDerivation {
       name = "zenbones-mono";
       src = zenbones-mono;
@@ -92,6 +92,9 @@ in
     tree
     unzip
     uutils-coreutils
+    killall
+    gparted
+    parted
   ];
 
   services.flatpak.enable = true;
