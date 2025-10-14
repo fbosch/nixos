@@ -55,15 +55,12 @@
 
   environment.systemPackages = with pkgs; [ 
     killall
-    gtk4
-    gtk4-layer-shell
     mako
     wezterm
     kitty
     foot
     hyprpaper
     rofi
-    gnome-keyring
     (pkgs.waybar.overrideAttrs (oldAttrs: {
       mesonFlags = oldAttrs.mesonFlags ++ [ "-Dexperimental=true" ];
      })

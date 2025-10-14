@@ -10,6 +10,7 @@ in {
 		inputs.walker.homeManagerModules.default
 		inputs.flatpaks.homeManagerModules.nix-flatpak
 		./modules/services.nix
+		# ./modules/desktop.nix
 		./modules/programs.nix
 		./modules/flatpak.nix
 	];
@@ -18,12 +19,19 @@ in {
 	home.homeDirectory = "/home/fbb";
 	home.stateVersion = "25.05";
 	home.packages = with pkgs; [ 
-		stow
+		# GNOME
+		gtk4
+		gtk4-layer-shell
+		gnome-keyring
+		gnome-tweaks
+		gnomeExtensions.appindicator
+		nautilus
+		whitesur-gtk-theme
+		loupe
 		git-credential-manager
+		stow
 		pass
 		delta
-		loupe
-		nautilus
 		ripgrep
 		zoxide
 		eza
@@ -33,22 +41,11 @@ in {
 		starship
 		gnupg
 		pinentry-curses
-		gnome-tweaks
-		gnomeExtensions.appindicator
 		steam
 	]; 
 
 	systemd.user.startServices = "sd-switch";
 
-	gtk = {
-		enable = true;
-		gtk3.extraConfig = {
-			gtk-application-prefer-dark-theme = true;
-		};
-		gtk4.extraConfig = {
-			gtk-application-prefer-dark-theme = true;
-		};
-	};
 
 	home.file."dotfiles" = {
 		source = inputs.dotfiles;
