@@ -30,7 +30,6 @@ in
   home.file."dotfiles" = {
     source = inputs.dotfiles;
     recursive = true;
-    force = true;
   };
 
   home.packages = with pkgs; [
@@ -82,6 +81,6 @@ in
   home.activation.stowDotFiles = lib.hm.dag.entryAfter [ "setupDotfilesGit" "linkGeneration" ] ''
     		set -euo pipefail
     		cd ${REPO}
-    		$DRY_RUN_CMD ${pkgs.stow}/bin/stow --restow --verbose -t "$HOME" .
+    		$DRY_RUN_CMD ${pkgs.stow}/bin/stow --restow .
     	'';
 }
