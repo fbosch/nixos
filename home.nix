@@ -17,7 +17,6 @@ in
     inputs.zen-browser.homeModules.default
     inputs.flatpaks.homeManagerModules.nix-flatpak
     ./modules/services.nix
-    ./modules/desktop.nix
     ./modules/programs.nix
     ./modules/flatpak.nix
   ];
@@ -84,6 +83,7 @@ in
   home.activation.stowDotFiles = lib.hm.dag.entryAfter [ "setupDotfiles" "linkGeneration" ] ''
     set -euo pipefail
     cd ${REPO}
-    $DRY_RUN_CMD ${pkgs.stow}/bin/stow --adopt --restow --verbose -t "$HOME" .
+    $DRY_RUN_CMD ${pkgs.stow}/bin/stow --restow --adopt --verbose -t "$HOME" .
   '';
+    # $DRY_RUN_CMD ${pkgs.git}/bin/git restore
 }
