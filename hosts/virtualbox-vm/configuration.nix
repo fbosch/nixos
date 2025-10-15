@@ -31,6 +31,7 @@
   };
 
   services.gnome.gnome-keyring.enable = true;
+  services.preload.enable = true;
 
   xdg.portal = {
     enable = true;
