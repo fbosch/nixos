@@ -25,6 +25,12 @@ in
   home.homeDirectory = "/home/fbb";
   home.stateVersion = "25.05";
   systemd.user.startServices = "sd-switch";
+  
+  home.file."dotfiles" = {
+    source = inputs.dotfiles;
+    recursive = true;
+    force = true;
+  };
 
   home.packages = with pkgs; [
     hyprpaper
@@ -37,8 +43,12 @@ in
     gnome-keyring
     gnome-tweaks
     gnomeExtensions.appindicator
-    nautilus
+    gnomeExtensions.blur-my-shell
+    nwg-look
     whitesur-gtk-theme
+    whitesur-cursors
+    whitesur-icon-theme
+    nautilus
     loupe
     mako
     git-credential-manager
@@ -59,10 +69,6 @@ in
     }))
   ];
 
-  home.file."dotfiles" = {
-    source = inputs.dotfiles;
-    recursive = true;
-  };
 
   home.activation.setupDotfilesGit = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     		set -euo pipefail

@@ -17,4 +17,12 @@
       gtk-application-prefer-dark-theme = true;
     };
   };
+  dconf = {
+    enable = true;
+    settings = {
+      "org/gnome/shell/extensions/user-theme" = {
+         name = "WhiteSur-Dark-Solid";
+       };
+    };
+  };
 }

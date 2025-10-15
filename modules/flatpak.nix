@@ -35,7 +35,7 @@
       "com.protonvpn.www"
       "com.bitwarden.desktop"
       "org.gnome.font-viewer"
-      # "org.netsurf_browser.NetSurf"
+      "ca.desrt.dconf-editor"
       # "com.google.Chrome"
       # "one.ablaze.floorp"
       # "com.visualstudio.code"
