@@ -16,7 +16,6 @@ in
   imports = [
     inputs.zen-browser.homeModules.default
     inputs.flatpaks.homeManagerModules.nix-flatpak
-    inputs.hyprshell.homeModules.hyprshell
     ./modules/services.nix
     ./modules/desktop.nix
     ./modules/programs.nix

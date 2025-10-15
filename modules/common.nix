@@ -127,10 +127,10 @@ in
     killall
     gparted
     parted
-    wineWowPackages.stable
-    wineWowPackages.fonts
-    wineWowPackages.waylandFull
-    winetricks
+    # wineWowPackages.stable
+    # wineWowPackages.fonts
+    # wineWowPackages.waylandFull
+    # winetricks
   ];
 
   services.flatpak.enable = true;
