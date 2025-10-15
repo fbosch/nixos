@@ -5,9 +5,9 @@ let
 	];
 in {
 
-   environment.systemPackages = [ pkgs.vmtouch ]:
+   home.packages = [ pkgs.vmtouch ];
 
-   systemd.services.preheat = {
+   services.preheat = {
 	   description = "Preload selected binaries into cache";
 	   after = [ "local-fs.target" ];
 	   wantedBy = [ "multi-user.target" ];
@@ -19,15 +19,5 @@ in {
 	      '';
 	   };
    };
-
-   systemd.timers.preheat = {
-   	wantedBy = [ "timers.target" ];
-	timerConfig = {
-		OnBootSec = "30s";
-		OnUnitActiveSec = "1h";
-		Persistent = true;
-	};
-   };
-
 
 }
