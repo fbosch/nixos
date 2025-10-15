@@ -83,7 +83,6 @@ in
   home.activation.stowDotFiles = lib.hm.dag.entryAfter [ "setupDotfilesGit" "linkGeneration" ] ''
     		set -euo pipefail
     		cd ${REPO}
-    		$DRY_RUN_CMD ${pkgs.stow}/bin/stow --delete . 2>/dev/null || true
-    		$DRY_RUN_CMD ${pkgs.stow}/bin/stow .
+    		$DRY_RUN_CMD ${pkgs.stow}/bin/stow . --restow
     	'';
 }
