@@ -26,13 +26,6 @@ in
   home.homeDirectory = "/home/fbb";
   home.stateVersion = "25.05";
   systemd.user.startServices = "sd-switch";
-  
-  home.file."dotfiles" = {
-    source = inputs.dotfiles;
-    recursive = true;
-    force = true;
-    ignorelinks = true;
-  };
 
   home.packages = with pkgs; [
     hyprpaper
@@ -72,17 +65,25 @@ in
   ];
 
 
-  home.activation.setupDotfilesGit = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-    		set -euo pipefail
-    		if [ ! -d ${REPO}/.git ]; then
-    			$DRY_RUN_CMD ${pkgs.git}/bin/git -C ${REPO} init
-    			$DRY_RUN_CMD ${pkgs.git}/bin/git -C ${REPO} remote add origin ${URL}
-    		fi
-    	'';
+  home.activation.setupDotfiles = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    set -euo pipefail
+    
+    if [ ! -d ${REPO} ]; then
+      $DRY_RUN_CMD ${pkgs.coreutils}/bin/mkdir -p ${REPO}
+    fi
+    
+    $DRY_RUN_CMD ${pkgs.rsync}/bin/rsync -av --delete --chmod=u+w \
+      ${lib.escapeShellArg inputs.dotfiles}/ ${REPO}/
+    
+    if [ ! -d ${REPO}/.git ]; then
+      $DRY_RUN_CMD ${pkgs.git}/bin/git -C ${REPO} init
+      $DRY_RUN_CMD ${pkgs.git}/bin/git -C ${REPO} remote add origin ${URL}
+    fi
+  '';
 
-  home.activation.stowDotFiles = lib.hm.dag.entryAfter [ "setupDotfilesGit" "linkGeneration" ] ''
-    		set -euo pipefail
-    		cd ${REPO}
-    		$DRY_RUN_CMD ${pkgs.stow}/bin/stow --restow --verbose -t "$HOME" .
-    	'';
+  home.activation.stowDotFiles = lib.hm.dag.entryAfter [ "setupDotfiles" "linkGeneration" ] ''
+    set -euo pipefail
+    cd ${REPO}
+    $DRY_RUN_CMD ${pkgs.stow}/bin/stow --adopt --restow --verbose -t "$HOME" .
+  '';
 }
