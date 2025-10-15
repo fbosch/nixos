@@ -16,10 +16,6 @@
 
   services.upower.enable = true;
 
-  virtualisation.virtualbox.guest.enable = true;
-  virtualisation.virtualbox.guest.dragAndDrop = true;
-  virtualisation.virtualbox.guest.clipboard = true;
-
   security.rtkit.enable = true;
 
   services.pipewire = {
