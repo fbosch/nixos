@@ -2,6 +2,7 @@
 {
   imports = [
     ../../modules/common.nix
+    ../../modules/preheat.nix
   ];
 
   hardware.bluetooth.enable = false;

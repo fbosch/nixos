@@ -19,7 +19,6 @@ in
     ./modules/services.nix
     ./modules/desktop.nix
     ./modules/programs.nix
-    ./modules/preheat.nix
   ];
 
   home.username = "fbb";
