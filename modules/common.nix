@@ -39,8 +39,11 @@ in
   users.users.fbb = {
     isNormalUser = true;
     description = "Frederik Bosch";
-   extraGroups = [ "networkmanager" "wheel" ];
-    packages = with pkgs; [];
+    extraGroups = [
+      "networkmanager"
+      "wheel"
+    ];
+    packages = with pkgs; [ ];
   };
 
   services.getty.autologinUser = "fbb";
@@ -48,7 +51,10 @@ in
   nixpkgs.config.allowUnfree = true;
 
   nix.settings = {
-    experimental-features = [ "nix-command" "flakes" ];
+    experimental-features = [
+      "nix-command"
+      "flakes"
+    ];
   };
 
   fonts.packages = with pkgs; [
@@ -84,13 +90,13 @@ in
     })
   ];
 
-  environment.systemPackages = with pkgs; [ 
-    vim   # fallback editor for root
+  environment.systemPackages = with pkgs; [
+    vim # fallback editor for root
     neovim
     nodejs
     fnm
-    wget  # essential download tool
-    git   # system-level git operations
+    wget # essential download tool
+    git # system-level git operations
     curl
     clang
     zig
@@ -115,4 +121,3 @@ in
   services.flatpak.enable = true;
 
 }
-

@@ -1,19 +1,28 @@
-{ config, pkgs, lib, inputs, dotfiles, ... }:
+{
+  config,
+  pkgs,
+  lib,
+  inputs,
+  dotfiles,
+  ...
+}:
 {
   services.flatpak = {
     enable = true;
     uninstallUnmanaged = false;
-    
+
     update = {
       auto.enable = false;
       onActivation = true;
     };
 
-    remotes = [{
-      name = "flathub";
-      location = "https://dl.flathub.com/repo/flathub.flatpakrepo";
-    }];
-    
+    remotes = [
+      {
+        name = "flathub";
+        location = "https://dl.flathub.com/repo/flathub.flatpakrepo";
+      }
+    ];
+
     packages = [
       "com.github.tchx84.Flatseal"
       "io.github.flattool.Ignition"
@@ -35,6 +44,6 @@
       # "tv.plex.Desktop"
       # "io.github.wiiznokes.fan-control"
       # "com.vysp3r.ProtonPlus"
-   ];
+    ];
   };
 }

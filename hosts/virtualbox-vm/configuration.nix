@@ -19,7 +19,7 @@
   virtualisation.virtualbox.guest.enable = true;
   virtualisation.virtualbox.guest.dragAndDrop = true;
   virtualisation.virtualbox.guest.clipboard = true;
- 
+
   security.rtkit.enable = true;
 
   services.pipewire = {
@@ -35,14 +35,14 @@
   xdg.portal = {
     enable = true;
     xdgOpenUsePortal = true;
-    extraPortals = [ 
+    extraPortals = [
       pkgs.xdg-desktop-portal-gtk
       pkgs.xdg-desktop-portal-hyprland
     ];
     config.common.default = "gtk";
   };
 
-  programs.hyprland = { 
+  programs.hyprland = {
     enable = true;
     xwayland.enable = true;
   };
@@ -56,7 +56,7 @@
     WLR_RENDERER_ALLOW_SOFTWARE = "1";
   };
 
-  environment.systemPackages = with pkgs; [ 
+  environment.systemPackages = with pkgs; [
     foot
   ];
 
