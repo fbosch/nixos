@@ -19,6 +19,7 @@ in
     ./modules/services.nix
     ./modules/desktop.nix
     ./modules/programs.nix
+    ./modules/preload.nix
     ./modules/flatpak.nix
   ];
 
