@@ -13,9 +13,13 @@ let
     url = "https://gitlab.winehq.org/wine/wine/-/raw/master/fonts/tahoma.ttf?ref_type=heads&inline=false";
     sha256 = "sha256-kPGrrU2gzgPaXSJ37nWpYAzoEtN8kOq3bgg4/6eTflU=";
   };
+  apple-emojis = pkgs.fetchurl {
+    url = "https://github.com/samuelngs/apple-emoji-linux/releases/download/v18.4/AppleColorEmoji.ttf";
+    sha256 = "sha256-pP0He9EUN7SUDYzwj0CE4e39SuNZ+SVz7FdmUviF6r0=";
+  };
 in
 {
-  time.timeZone = "Europe/Copenhagen";
+  time.timeZone = "Europe/Copnhagen";
 
   i18n.defaultLocale = "en_DK.UTF-8";
 
@@ -57,6 +61,8 @@ in
     ];
   };
 
+
+  fonts.fontDir.enable = true;
   fonts.packages = with pkgs; [
     nerd-fonts.symbols-only
     nerd-fonts.jetbrains-mono
@@ -86,6 +92,15 @@ in
       installPhase = ''
         mkdir -p $out/share/fonts/truetype
         cp $src $out/share/fonts/truetype/tahoma.ttf
+      '';
+    })
+    (pkgs.stdenv.mkDerivation {
+      name = "apple-color-emoji";
+      src = apple-emojis;
+      dontUnpack = true;
+      installPhase = ''
+        mkdir -p $out/share/fonts/truetype
+        cp $src $out/share/fonts/truetype/AppleColorEmoji.ttf
       '';
     })
   ];

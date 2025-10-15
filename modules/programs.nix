@@ -30,22 +30,4 @@
     extraConfig.credential."https://github.com".username = "fbosch";
     extraConfig.credential.credentialStore = "gpg";
   };
-  programs.hyprshell = {
-    enable = true;
-    systemd.args = "-v";
-    settings = {
-      windows = {
-        enable = true;
-        overview = {
-          enable = true;
-          key = "super_l";
-          modifier = "super";
-          launcher = {
-            max_items = 6;
-          };
-        };
-        switch.enable = true;
-      };
-    };
-  };
 }

@@ -8,6 +8,7 @@
 {
   gtk = {
     enable = true;
+    font.name = "Tahoma";
     gtk3.enable = true;
     gtk3.extraConfig = {
       gtk-application-prefer-dark-theme = true;
@@ -16,11 +17,4 @@
       gtk-application-prefer-dark-theme = true;
     };
   };
-
-  # 	dconf.enable = true;
-  # 	dconf.settings = {
-  # 		"org/gnome/shell/extensions/user-theme"  = {
-  # name = "WhiteSure-Dark-Solid";
-  # 		};
-  # 	};
 }
