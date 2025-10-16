@@ -10,7 +10,6 @@
 let
   REPO = lib.escapeShellArg "${config.home.homeDirectory}/dotfiles";
   URL = lib.escapeShellArg "https://github.com/fbosch/dotfiles";
-  REV = lib.escapeShellArg inputs.dotfiles.rev;
 in
 {
   imports = [
@@ -65,23 +64,15 @@ in
     }))
   ];
 
-
   home.activation.setupDotfiles = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     set -euo pipefail
     
-    if [ ! -d ${REPO} ]; then
-      $DRY_RUN_CMD ${pkgs.coreutils}/bin/mkdir -p ${REPO}
-    fi
-    
-    $DRY_RUN_CMD ${pkgs.rsync}/bin/rsync -av --delete --chmod=u+w \
-      ${lib.escapeShellArg inputs.dotfiles}/ ${REPO}/
-    
     if [ ! -d ${REPO}/.git ]; then
-      $DRY_RUN_CMD ${pkgs.git}/bin/git -C ${REPO} init
-      $DRY_RUN_CMD ${pkgs.git}/bin/git -C ${REPO} remote add origin ${URL}
+      $DRY_RUN_CMD ${pkgs.git}/bin/git clone --branch master ${URL} ${REPO}
+    else
+      $DRY_RUN_CMD ${pkgs.git}/bin/git -C ${REPO} pull origin master
     fi
   '';
-      # $DRY_RUN_CMD ${pkgs.git}/bin/git -C ${REPO} branch --set-upstream-to=origin/master
 
   home.activation.stowDotFiles = lib.hm.dag.entryAfter [ "setupDotfiles" "linkGeneration" ] ''
     set -euo pipefail
