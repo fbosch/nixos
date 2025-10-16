@@ -5,11 +5,14 @@ let
     url, 
     name, 
     description,
+    type ? "gtk",
     homepage ? null,
     sha256 ? lib.fakeSha256,
     stripRoot ? true
   }: 
   let
+    targetDir = if type == "gtk" then "themes" else "icons";
+    
     theme = pkgs.stdenv.mkDerivation {
       name = name;
       
@@ -21,11 +24,11 @@ let
       dontConfigure = true;
       
       installPhase = ''
-        mkdir -p $out/share/themes
+        mkdir -p $out/share/${targetDir}
         if [ -d "${name}" ]; then
-          cp -r ${name} $out/share/themes/
+          cp -r ${name} $out/share/${targetDir}/
         else
-          cp -r . $out/share/themes/${name}
+          cp -r . $out/share/${targetDir}/${name}
         fi
       '';
       
@@ -37,12 +40,13 @@ let
   in {
     derivation = theme;
     homeFile = {
-      ".themes/${name}".source = "${theme}/share/themes/${name}";
+      ".local/share/${targetDir}/${name}".source = "${theme}/share/${targetDir}/${name}";
     };
   };
 
   themes = [
     (mkTheme {
+      type = "gtk";
       url = "https://github.com/witalihirsch/Mono-gtk-theme/releases/download/1.3/MonoTheme.zip";
       name = "MonoTheme";
       description = "Mono GTK theme - Light variant";
@@ -50,6 +54,7 @@ let
       sha256 = "sha256-gE0B9vWZTVM3yI1euv9o/vTdhhQ+JlkSwa2m+2ZDfFk=";
     })
     (mkTheme {
+      type = "gtk";
       url = "https://github.com/witalihirsch/Mono-gtk-theme/releases/download/1.3/MonoThemeDark.zip";
       name = "MonoThemeDark";
       description = "Mono GTK theme - Dark variant";
