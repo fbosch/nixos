@@ -127,7 +127,7 @@ let
       repo = "WinSur-white-cursors";
       rev = "master";
       name = "WinSur-white-cursors";
-      sourceDir = "src";
+      sourceDir = "dist";
       description = "WinConceptOS Cursors";
       homepage = "https://github.com/yeyushengfan258/WinSur-white-cursors";
       sha256 = "sha256-EdliC9jZcFmRBq3KCNiev5ECyCWdNlb0lA9c2/JVqwo=";
