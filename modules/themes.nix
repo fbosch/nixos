@@ -22,7 +22,11 @@ let
       
       installPhase = ''
         mkdir -p $out/share/themes
-        cp -r . $out/share/themes/${name}
+        if [ -d "${name}" ]; then
+          cp -r ${name} $out/share/themes/
+        else
+          cp -r . $out/share/themes/${name}
+        fi
       '';
       
       meta = with lib; {
