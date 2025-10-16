@@ -7,7 +7,7 @@ let
     description,
     homepage ? null,
     sha256 ? lib.fakeSha256,
-    stripRoot ? false
+    stripRoot ? true
   }: 
   let
     theme = pkgs.stdenv.mkDerivation {
@@ -40,15 +40,17 @@ let
   themes = [
     (mkTheme {
       url = "https://github.com/witalihirsch/Mono-gtk-theme/releases/download/1.3/MonoTheme.zip";
-      name = "MonoTheme-1.3";
+      name = "MonoTheme";
       description = "Mono GTK theme - Light variant";
       homepage = "https://github.com/witalihirsch/Mono-gtk-theme";
+      sha256 = "sha256-gE0B9vWZTVM3yI1euv9o/vTdhhQ+JlkSwa2m+2ZDfFk=";
     })
     (mkTheme {
-      url = "https://github.com/witalihirsch/Mono-gtk-theme/releases/download/1.3/MonoTheme-dark.zip";
-      name = "MonoTheme-dark-1.3";
+      url = "https://github.com/witalihirsch/Mono-gtk-theme/releases/download/1.3/MonoThemeDark.zip";
+      name = "MonoThemeDark";
       description = "Mono GTK theme - Dark variant";
       homepage = "https://github.com/witalihirsch/Mono-gtk-theme";
+      sha256 = "sha256-wQvRdJr6LWltnk8CMchu2y5zPXM5k7m0EOv4w4R8l9U=";
     })
   ];
 
