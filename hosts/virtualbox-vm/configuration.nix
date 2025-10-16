@@ -1,8 +1,9 @@
-{ config, pkgs, ... }:
+{ config, pkgs, options, ... }:
 
 {
   imports = [
     ../../modules/common.nix
+    ../../modules/fonts.nix
   ];
 
   hardware.bluetooth.enable = false;
@@ -14,6 +15,7 @@
 
   networking.hostName = "rvn-vm";
   networking.networkmanager.enable = true;
+  networking.timeServers = options.networking.timeServers.default ++ [ "time.nist.gov" ];
 
   services.upower.enable = true;
   services.dbus.enable = true;

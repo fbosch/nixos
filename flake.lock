@@ -1,22 +1,5 @@
 {
   "nodes": {
-    "dotfiles": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1760556662,
-        "narHash": "sha256-WB3orLfQOS7+dWWbIyjjSXdBy8zeYJVL1ozB2uraSM8=",
-        "owner": "fbosch",
-        "repo": "dotfiles",
-        "rev": "09f9d88637fdee7c0f4a1eb99d73c8d531e654e2",
-        "type": "github"
-      },
-      "original": {
-        "owner": "fbosch",
-        "ref": "master",
-        "repo": "dotfiles",
-        "type": "github"
-      }
-    },
     "flatpaks": {
       "locked": {
         "lastModified": 1754777568,
@@ -90,7 +73,6 @@
     },
     "root": {
       "inputs": {
-        "dotfiles": "dotfiles",
         "flatpaks": "flatpaks",
         "home-manager": "home-manager",
         "nixpkgs": "nixpkgs",
