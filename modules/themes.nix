@@ -6,7 +6,8 @@ let
     name,
     description,
     type ? "gtk",
-    homepage ? null
+    homepage ? null,
+    sourceDir ? null
   }:
   let
     targetDir = if type == "gtk" then "themes" else "icons";
@@ -22,11 +23,25 @@ let
         runHook preInstall
         
         mkdir -p $out/share/${targetDir}
-        if [ -d "${name}" ]; then
-          cp -r ${name} $out/share/${targetDir}/
-        else
-          cp -r . $out/share/${targetDir}/${name}
-        fi
+        
+        ${if sourceDir != null then ''
+          # Copy from specific subdirectory
+          if [ -d "${sourceDir}/${name}" ]; then
+            cp -r ${sourceDir}/${name} $out/share/${targetDir}/
+          elif [ -d "${sourceDir}" ]; then
+            cp -r ${sourceDir} $out/share/${targetDir}/${name}
+          else
+            echo "Error: sourceDir '${sourceDir}' not found"
+            exit 1
+          fi
+        '' else ''
+          # Original logic: copy from root
+          if [ -d "${name}" ]; then
+            cp -r ${name} $out/share/${targetDir}/
+          else
+            cp -r . $out/share/${targetDir}/${name}
+          fi
+        ''}
         
         runHook postInstall
       '';
@@ -51,10 +66,11 @@ let
     description,
     type ? "gtk",
     homepage ? null,
-    sha256 ? lib.fakeSha256
+    sha256 ? lib.fakeSha256,
+    sourceDir ? null
   }:
     mkTheme {
-      inherit name description type homepage;
+      inherit name description type homepage sourceDir;
       src = pkgs.fetchFromGitHub {
         inherit owner repo rev sha256;
       };
@@ -67,10 +83,11 @@ let
     type ? "gtk",
     homepage ? null,
     sha256 ? lib.fakeSha256,
-    stripRoot ? true
+    stripRoot ? true,
+    sourceDir ? null
   }: 
     mkTheme {
-      inherit name description type homepage;
+      inherit name description type homepage sourceDir;
       src = pkgs.fetchzip {
         inherit url sha256 stripRoot;
       };
@@ -92,6 +109,17 @@ let
       description = "Mono GTK theme - Dark variant";
       homepage = "https://github.com/witalihirsch/Mono-gtk-theme";
       sha256 = "sha256-wQvRdJr6LWltnk8CMchu2y5zPXM5k7m0EOv4w4R8l9U=";
+    })
+    (mkThemeFromSource {
+      type = "icons";
+      owner = "yeyushengfan258";
+      repo = "Win11-icon-theme";
+      rev = "main";
+      name = "Win11";
+      sourceDir = "src";
+      description = "Windows 11 icon theme";
+      homepage = "https://github.com/yeyushengfan258/Win11-icon-theme";
+      sha256 = lib.fakeSha256;
     })
   ];
   themeHomeFiles = lib.mkMerge (map (t: t.homeFile) themes);
