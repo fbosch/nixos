@@ -6,9 +6,7 @@ let
     name,
     description,
     type ? "gtk",
-    homepage ? null,
-    buildScript ? null,
-    buildScriptArgs ? ""
+    homepage ? null
   }:
   let
     targetDir = if type == "gtk" then "themes" else "icons";
@@ -17,21 +15,20 @@ let
       name = name;
       inherit src;
       
-      nativeBuildInputs = lib.optionals (buildScript != null) [ pkgs.bash ];
-      
       dontBuild = true;
       dontConfigure = true;
       
-      installPhase = if buildScript != null then ''
-        mkdir -p $out/share/${targetDir}
-        ${pkgs.bash}/bin/bash ${buildScript} --dest $out/share/${targetDir} ${buildScriptArgs}
-      '' else ''
+      installPhase = ''
+        runHook preInstall
+        
         mkdir -p $out/share/${targetDir}
         if [ -d "${name}" ]; then
           cp -r ${name} $out/share/${targetDir}/
         else
           cp -r . $out/share/${targetDir}/${name}
         fi
+        
+        runHook postInstall
       '';
       
       meta = with lib; {
@@ -54,12 +51,10 @@ let
     description,
     type ? "gtk",
     homepage ? null,
-    sha256 ? lib.fakeSha256,
-    buildScript ? null,
-    buildScriptArgs ? ""
+    sha256 ? lib.fakeSha256
   }:
     mkTheme {
-      inherit name description type homepage buildScript buildScriptArgs;
+      inherit name description type homepage;
       src = pkgs.fetchFromGitHub {
         inherit owner repo rev sha256;
       };
@@ -72,12 +67,10 @@ let
     type ? "gtk",
     homepage ? null,
     sha256 ? lib.fakeSha256,
-    stripRoot ? true,
-    buildScript ? null,
-    buildScriptArgs ? ""
+    stripRoot ? true
   }: 
     mkTheme {
-      inherit name description type homepage buildScript buildScriptArgs;
+      inherit name description type homepage;
       src = pkgs.fetchzip {
         inherit url sha256 stripRoot;
       };
@@ -99,18 +92,6 @@ let
       description = "Mono GTK theme - Dark variant";
       homepage = "https://github.com/witalihirsch/Mono-gtk-theme";
       sha256 = "sha256-wQvRdJr6LWltnk8CMchu2y5zPXM5k7m0EOv4w4R8l9U=";
-    })
-    (mkThemeFromSource {
-      type = "icon";
-      owner = "yeyushengfan258";
-      repo = "Win11-icon-theme";
-      rev = "main";
-      name = "Win11";
-      description = "Windows 11 icon theme for Linux";
-      homepage = "https://github.com/yeyushengfan258/Win11-icon-theme";
-      sha256 = lib.fakeSha256;
-      buildScript = "install.sh";
-      buildScriptArgs = "--theme default";
     })
   ];
   themeHomeFiles = lib.mkMerge (map (t: t.homeFile) themes);
