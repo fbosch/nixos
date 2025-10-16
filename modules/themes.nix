@@ -119,7 +119,18 @@ let
       sourceDir = "src";
       description = "Windows 11 icon theme";
       homepage = "https://github.com/yeyushengfan258/Win11-icon-theme";
-      sha256 = lib.fakeSha256;
+      sha256 = "sha256-vjW2vPIr2FPnlP0inyvn9vxOy62HDmHATqNKUMBf25I=";
+    })
+    (mkThemeFromSource {
+      type = "icons";
+      owner = "yeyushengfan258";
+      repo = "WinSur-white-cursors";
+      rev = "master";
+      name = "WinSur-white-cursors";
+      sourceDir = "src";
+      description = "WinConceptOS Cursors";
+      homepage = "https://github.com/yeyushengfan258/WinSur-white-cursors";
+      sha256 = "sha256-EdliC9jZcFmRBq3KCNiev5ECyCWdNlb0lA9c2/JVqwo=";
     })
   ];
   themeHomeFiles = lib.mkMerge (map (t: t.homeFile) themes);
