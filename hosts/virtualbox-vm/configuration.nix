@@ -28,6 +28,11 @@
 
   services.gnome.gnome-keyring.enable = true;
   services.preload.enable = true;
+  services.ananicy = {
+    enable = true;
+    package = pkgs.ananicy-cpp;
+    rulesProvider = pkgs.ananicy-rules-cachyos;
+  };
 
   xdg.portal = {
     enable = true;
@@ -38,6 +43,8 @@
     ];
     config.common.default = "gtk";
   };
+
+  zramSwap.enable = true;
 
   programs.hyprland = {
     enable = true;
