@@ -19,6 +19,7 @@ in
     ./modules/services.nix
     ./modules/programs.nix
     ./modules/flatpak.nix
+    ./modules/themes.nix
   ];
 
   home.username = "fbb";
