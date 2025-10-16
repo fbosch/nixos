@@ -59,6 +59,7 @@ in
     gnupg
     pinentry-curses
     steam
+    bitwarden-desktop
     (pkgs.waybar.overrideAttrs (oldAttrs: {
       mesonFlags = oldAttrs.mesonFlags ++ [ "-Dexperimental=true" ];
     }))
@@ -80,6 +81,7 @@ in
       $DRY_RUN_CMD ${pkgs.git}/bin/git -C ${REPO} remote add origin ${URL}
     fi
   '';
+      # $DRY_RUN_CMD ${pkgs.git}/bin/git -C ${REPO} branch --set-upstream-to=origin/master
 
   home.activation.stowDotFiles = lib.hm.dag.entryAfter [ "setupDotfiles" "linkGeneration" ] ''
     set -euo pipefail

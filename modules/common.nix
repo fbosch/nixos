@@ -127,6 +127,7 @@ in
     killall
     gparted
     parted
+    nixfmt-rfc-style
     # wineWowPackages.stable
     # wineWowPackages.fonts
     # wineWowPackages.waylandFull

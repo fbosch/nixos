@@ -1,4 +1,5 @@
 { config, pkgs, ... }:
+
 {
   imports = [
     ../../modules/common.nix
@@ -15,8 +16,10 @@
   networking.networkmanager.enable = true;
 
   services.upower.enable = true;
+  services.dbus.enable = true;
 
   security.rtkit.enable = true;
+  security.polkit.enable = true;
 
   services.pipewire = {
     enable = true;
@@ -38,8 +41,8 @@
     enable = true;
     xdgOpenUsePortal = true;
     extraPortals = [
-      pkgs.xdg-desktop-portal-gtk
       pkgs.xdg-desktop-portal-hyprland
+      pkgs.xdg-desktop-portal-gtk
     ];
     config.common.default = "gtk";
   };
@@ -62,6 +65,7 @@
 
   environment.systemPackages = with pkgs; [
     foot
+    xdg-utils
   ];
 
   system.stateVersion = "25.05";

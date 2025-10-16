@@ -33,7 +33,7 @@
       "md.obsidian.Obsidian"
       "me.proton.Mail"
       "com.protonvpn.www"
-      "com.bitwarden.desktop"
+      # "com.bitwarden.desktop"
       "org.gnome.font-viewer"
       "org.gnome.design.IconLibrary"
       "org.gnome.design.AppIconPreview"

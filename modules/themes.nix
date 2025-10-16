@@ -136,6 +136,6 @@ let
   themeHomeFiles = lib.mkMerge (map (t: t.homeFile) themes);
 in
 {
-  gtk.enable = true;
+  # gtk.enable = true;
   home.file = themeHomeFiles;
 }
