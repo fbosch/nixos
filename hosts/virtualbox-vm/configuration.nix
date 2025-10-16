@@ -19,6 +19,7 @@
 
   services.upower.enable = true;
   services.dbus.enable = true;
+  services.timesyncd.enable = true;
 
   security.rtkit.enable = true;
   security.polkit.enable = true;
