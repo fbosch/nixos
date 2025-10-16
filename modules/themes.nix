@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ pkgs, lib, ... }:
 
 let
   mono-gtk-theme = pkgs.stdenv.mkDerivation {
@@ -6,9 +6,9 @@ let
     version = "1.3";
     
     src = pkgs.fetchurl {
-      url = "https://github.com/witalihirsch/Mono-gtk-theme/releases/download/1.3/MonoTheme-1.3.tar.gz";
-      sha256 = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
-    };
+      url = "https://github.com/witalihirsch/Mono-gtk-theme/releases/download/1.3/MonoTheme.tar.xz";
+      sha256 = "sha256-QGJgaKf+ODG49+31p6jySvK0gGdgm2/9flhebvjOC78=";
+   };
     
     installPhase = ''
       mkdir -p $out/share/themes
