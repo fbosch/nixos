@@ -8,7 +8,9 @@ let
     type ? "gtk",
     homepage ? null,
     sha256 ? lib.fakeSha256,
-    stripRoot ? true
+    stripRoot ? true,
+    buildScript ? null,
+    buildScriptArgs ? ""
   }: 
   let
     targetDir = if type == "gtk" then "themes" else "icons";
@@ -20,10 +22,15 @@ let
         inherit url sha256 stripRoot;
       };
       
+      nativeBuildInputs = lib.optionals (buildScript != null) [ pkgs.bash ];
+      
       dontBuild = true;
       dontConfigure = true;
       
-      installPhase = ''
+      installPhase = if buildScript != null then ''
+        mkdir -p $out/share/${targetDir}
+        ${pkgs.bash}/bin/bash ${buildScript} --dest $out/share/${targetDir} ${buildScriptArgs}
+      '' else ''
         mkdir -p $out/share/${targetDir}
         if [ -d "${name}" ]; then
           cp -r ${name} $out/share/${targetDir}/
@@ -61,8 +68,17 @@ let
       homepage = "https://github.com/witalihirsch/Mono-gtk-theme";
       sha256 = "sha256-wQvRdJr6LWltnk8CMchu2y5zPXM5k7m0EOv4w4R8l9U=";
     })
+    (mkTheme {
+      type = "icon";
+      url = "https://github.com/yeyushengfan258/Win11-icon-theme/archive/refs/heads/main.tar.gz";
+      name = "Win11";
+      description = "Windows 11 icon theme for Linux";
+      homepage = "https://github.com/yeyushengfan258/Win11-icon-theme";
+      sha256 = lib.fakeSha256;
+      buildScript = "install.sh";
+      buildScriptArgs = "--theme default";
+    })
   ];
-
   themeHomeFiles = lib.mkMerge (map (t: t.homeFile) themes);
 in
 {
