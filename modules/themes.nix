@@ -1,32 +1,60 @@
 { pkgs, lib, ... }:
 
 let
-  mono-gtk-theme = pkgs.stdenv.mkDerivation rec {
-    pname = "mono-gtk-theme";
-    version = "1.3";
-
+  mkTheme = { 
+    url, 
+    name, 
+    description,
+    homepage ? null,
+    sha256 ? lib.fakeSha256,
+    stripRoot ? false
+  }: pkgs.stdenv.mkDerivation {
+    pname = name;
+    
     src = pkgs.fetchzip {
-      url = "https://github.com/witalihirsch/Mono-gtk-theme/releases/download/${version}/MonoTheme.zip";
-      sha256 = "sha256-/Ysak/WeWY4+svCu3yhi/blfcUsSnGOrWn8/YCyNTYM=";
-      stripRoot = true;
+      inherit url sha256 stripRoot;
     };
-
+    
     dontBuild = true;
     dontConfigure = true;
-
+    
     installPhase = ''
-      	    mkdir -p $out/share/themes
-      	    cp -r . $out/share/themes/MonoTheme-${version}
+      mkdir -p $out/share/themes
+      cp -r . $out/share/themes/${name}
     '';
-
+    
     meta = with lib; {
-      description = "Mono GTK theme";
-      homepage = "https://github.com/witalihirsch/Mono-gtk-theme";
+      inherit description;
       platforms = platforms.linux;
-    };
+    } // lib.optionalAttrs (homepage != null) { inherit homepage; };
+  };
+
+  mono-gtk-theme = mkTheme {
+    url = "https://github.com/witalihirsch/Mono-gtk-theme/releases/download/1.3/MonoTheme.zip";
+    name = "MonoTheme-1.3";
+    description = "Mono GTK theme - Light variant";
+    homepage = "https://github.com/witalihirsch/Mono-gtk-theme";
+  };
+
+  mono-gtk-theme-dark = mkTheme {
+    url = "https://github.com/witalihirsch/Mono-gtk-theme/releases/download/1.3/MonoTheme-dark.zip";
+    name = "MonoTheme-dark-1.3";
+    description = "Mono GTK theme - Dark variant";
+    homepage = "https://github.com/witalihirsch/Mono-gtk-theme";
   };
 in
 {
-  home.packages = [ mono-gtk-theme ];
-
+  home.packages = [ 
+    mono-gtk-theme 
+    mono-gtk-theme-dark
+  ];
+  
+  gtk = {
+    enable = true;
+    theme = {
+      name = "MonoTheme-1.3";
+      package = mono-gtk-theme;
+    };
+  };
 }
+
