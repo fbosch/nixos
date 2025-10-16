@@ -1,26 +1,21 @@
 { pkgs, lib, ... }:
 
 let
-  mkTheme = { 
-    url, 
-    name, 
+  mkTheme = {
+    src,
+    name,
     description,
     type ? "gtk",
     homepage ? null,
-    sha256 ? lib.fakeSha256,
-    stripRoot ? true,
     buildScript ? null,
     buildScriptArgs ? ""
-  }: 
+  }:
   let
     targetDir = if type == "gtk" then "themes" else "icons";
     
     theme = pkgs.stdenv.mkDerivation {
       name = name;
-      
-      src = pkgs.fetchzip {
-        inherit url sha256 stripRoot;
-      };
+      inherit src;
       
       nativeBuildInputs = lib.optionals (buildScript != null) [ pkgs.bash ];
       
@@ -51,8 +46,45 @@ let
     };
   };
 
+  mkThemeFromSource = {
+    owner,
+    repo,
+    rev,
+    name,
+    description,
+    type ? "gtk",
+    homepage ? null,
+    sha256 ? lib.fakeSha256,
+    buildScript ? null,
+    buildScriptArgs ? ""
+  }:
+    mkTheme {
+      inherit name description type homepage buildScript buildScriptArgs;
+      src = pkgs.fetchFromGitHub {
+        inherit owner repo rev sha256;
+      };
+    };
+
+  mkThemeFromZip = { 
+    url, 
+    name, 
+    description,
+    type ? "gtk",
+    homepage ? null,
+    sha256 ? lib.fakeSha256,
+    stripRoot ? true,
+    buildScript ? null,
+    buildScriptArgs ? ""
+  }: 
+    mkTheme {
+      inherit name description type homepage buildScript buildScriptArgs;
+      src = pkgs.fetchzip {
+        inherit url sha256 stripRoot;
+      };
+    };
+
   themes = [
-    (mkTheme {
+    (mkThemeFromZip {
       type = "gtk";
       url = "https://github.com/witalihirsch/Mono-gtk-theme/releases/download/1.3/MonoTheme.zip";
       name = "MonoTheme";
@@ -60,7 +92,7 @@ let
       homepage = "https://github.com/witalihirsch/Mono-gtk-theme";
       sha256 = "sha256-gE0B9vWZTVM3yI1euv9o/vTdhhQ+JlkSwa2m+2ZDfFk=";
     })
-    (mkTheme {
+    (mkThemeFromZip {
       type = "gtk";
       url = "https://github.com/witalihirsch/Mono-gtk-theme/releases/download/1.3/MonoThemeDark.zip";
       name = "MonoThemeDark";
@@ -68,9 +100,11 @@ let
       homepage = "https://github.com/witalihirsch/Mono-gtk-theme";
       sha256 = "sha256-wQvRdJr6LWltnk8CMchu2y5zPXM5k7m0EOv4w4R8l9U=";
     })
-    (mkTheme {
+    (mkThemeFromSource {
       type = "icon";
-      url = "https://github.com/yeyushengfan258/Win11-icon-theme/archive/refs/heads/main.tar.gz";
+      owner = "yeyushengfan258";
+      repo = "Win11-icon-theme";
+      rev = "main";
       name = "Win11";
       description = "Windows 11 icon theme for Linux";
       homepage = "https://github.com/yeyushengfan258/Win11-icon-theme";
