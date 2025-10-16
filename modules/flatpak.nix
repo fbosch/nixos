@@ -35,6 +35,8 @@
       "com.protonvpn.www"
       "com.bitwarden.desktop"
       "org.gnome.font-viewer"
+      "org.gnome.design.IconLibrary"
+      "org.gnome.design.AppIconPreview"
       "ca.desrt.dconf-editor"
       # "com.google.Chrome"
       # "one.ablaze.floorp"
