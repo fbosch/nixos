@@ -30,6 +30,11 @@ in
   home.packages = with pkgs; [
     hyprpaper
     hyprprop
+    hyprpicker
+    wl-clipboard
+    (pkgs.waybar.overrideAttrs (oldAttrs: {
+      mesonFlags = oldAttrs.mesonFlags ++ [ "-Dexperimental=true" ];
+    }))
     wezterm
     pavucontrol
     kitty
@@ -39,12 +44,12 @@ in
     gnome-keyring
     gnome-tweaks
     gnomeExtensions.appindicator
-    # gnomeExtensions.blur-my-shell
+    gnomeExtensions.blur-my-shell
+    nemo-with-extensions
     nwg-look
     whitesur-gtk-theme
     whitesur-cursors
     whitesur-icon-theme
-    nautilus
     loupe
     mako
     git-credential-manager
@@ -62,9 +67,6 @@ in
     steam
     bitwarden-desktop
     code-cursor
-    (pkgs.waybar.overrideAttrs (oldAttrs: {
-      mesonFlags = oldAttrs.mesonFlags ++ [ "-Dexperimental=true" ];
-    }))
   ];
 
   home.activation.setupDotfiles = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
