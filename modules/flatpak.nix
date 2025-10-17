@@ -9,7 +9,7 @@
 {
   services.flatpak = {
     enable = true;
-    uninstallUnmanaged = false;
+    uninstallUnmanaged = true;
 
     update = {
       auto.enable = false;
@@ -25,7 +25,6 @@
 
     packages = [
       "com.github.tchx84.Flatseal"
-      "io.github.flattool.Ignition"
       "io.github.flattool.Warehouse"
       "com.discordapp.Discord"
       "org.signal.Signal"
@@ -35,9 +34,6 @@
       "com.protonvpn.www"
       # "com.bitwarden.desktop"
       "org.gnome.font-viewer"
-      "org.gnome.design.IconLibrary"
-      "org.gnome.design.AppIconPreview"
-      "ca.desrt.dconf-editor"
       # "com.google.Chrome"
       # "one.ablaze.floorp"
       # "com.visualstudio.code"

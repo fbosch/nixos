@@ -56,34 +56,12 @@ let
       cp -ar dist/. $out/
     '';
   };
-
-  themes = [
-    { name = "MonoTheme"; source = monoTheme; }
-    { name = "MonoThemeDark"; source = monoThemeDark; }
-  ];
-
-  icons = [
-    { name = "Win11"; source = win11Icons; }
-    { name = "WinSur-white-cursors"; source = winsurCursors; }
-  ];
-
-  copyItems = dir: items: pkgs.lib.concatMapStringsSep "\n" (item: ''
-    if [ -d "${item.source}" ]; then
-      rm -rf "${dir}/${item.name}"
-      cp -rL "${item.source}" "${dir}/${item.name}"
-    fi
-  '') items;
 in
 {
-  # copy instead of symlink to be able to theme flatpak apps
-  home.activation.copyThemes = ''
-    THEMES_DIR="$HOME/.local/share/themes"
-    ICONS_DIR="$HOME/.local/share/icons"
-
-    mkdir -p "$THEMES_DIR"
-    mkdir -p "$ICONS_DIR"
-
-    ${copyItems "$THEMES_DIR" themes}
-    ${copyItems "$ICONS_DIR" icons}
-  '';
+ home.file = {
+   "./local/share/themes/MonoTheme".source = monoTheme;
+   "./local/share/themes/MonoThemeDark".source = monoThemeDark;
+   "./local/share/icons/Win11".source = win11Icons;
+   "./local/share/icons/WinSur-white-cursors".source = winsurCursors;
+ };
 }

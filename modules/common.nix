@@ -39,6 +39,8 @@
     ];
   };
 
+
+  services.flatpak.enable = true;
   environment.systemPackages = with pkgs; [
     vim # fallback editor for root
     neovim
@@ -62,13 +64,13 @@
     gparted
     parted
     nixfmt-rfc-style
+    # mold
     # wineWowPackages.stable
     # wineWowPackages.fonts
     # wineWowPackages.waylandFull
     # winetricks
   ];
 
-  services.flatpak.enable = true;
 
   fonts.fontconfig.enable = true;
   fonts.fontDir.enable = true;
