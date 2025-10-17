@@ -38,7 +38,7 @@ let
     dontBuild = true;
     installPhase = ''
       mkdir -p $out
-      cp -r src/ $out/
+      cp -ar src/. $out/
     '';
   };
 
@@ -53,7 +53,7 @@ let
     dontBuild = true;
     installPhase = ''
       mkdir -p $out
-      cp -r dist/ $out/
+      cp -ar dist/. $out/
     '';
   };
 in
