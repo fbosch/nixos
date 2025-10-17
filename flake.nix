@@ -12,6 +12,15 @@
       url = "github:0xc000022070/zen-browser-flake";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    hyprland = { url = "github:hyprwm/Hyprland?ref=v0.51.0"; inputs.nixpkgs.follows = "nixpkgs"; };
+    hyprland-plugins = {
+      url = "github:hyprwm/hyprland-plugins";
+      inputs.hyprland.follows = "hyprland";
+    };
+    hy3 = {
+      url = "github:outfoxxed/hy3?ref=hl0.51.0";
+      inputs.hyprland.follows = "hyprland";
+    };
   };
 
   outputs =
@@ -20,6 +29,9 @@
       nixpkgs,
       home-manager,
       flatpaks,
+      hyprland,
+      hyprland-plugins,
+      hy3,
       ...
     }@inputs:
     let
@@ -29,6 +41,7 @@
       nixosConfigurations = {
         rvn-vm = nixpkgs.lib.nixosSystem {
           inherit system;
+	  specialArgs = { inherit inputs; };
           modules = [
             ./hosts/virtualbox-vm/configuration.nix
             ./hosts/virtualbox-vm/hardware-configuration.nix
@@ -37,7 +50,7 @@
             {
               home-manager.useGlobalPkgs = true;
               home-manager.useUserPackages = true;
-	            home-manager.backupFileExtension = "hm-backup";
+              home-manager.backupFileExtension = "hm-backup";
               home-manager.users.fbb = import ./home.nix;
               home-manager.extraSpecialArgs = {
                 inherit inputs system;

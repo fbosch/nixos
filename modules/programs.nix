@@ -9,7 +9,7 @@
 {
 
 
- nix.settings = {
+  nix.settings = {
     builders-use-substitutes = true;
     extra-substituters = [
 	"https://anyrun.cachix.org"

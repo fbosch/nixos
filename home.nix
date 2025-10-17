@@ -59,6 +59,7 @@ in
     pinentry-curses
     steam
     bitwarden-desktop
+    code-cursor
     (pkgs.waybar.overrideAttrs (oldAttrs: {
       mesonFlags = oldAttrs.mesonFlags ++ [ "-Dexperimental=true" ];
     }))
@@ -77,6 +78,7 @@ in
   home.activation.stowDotFiles = lib.hm.dag.entryAfter [ "setupDotfiles" "linkGeneration" ] ''
     set -euo pipefail
     cd ${REPO}
-    $DRY_RUN_CMD ${pkgs.stow}/bin/stow --restow --verbose -t "$HOME" .
+    $DRY_RUN_CMD ${pkgs.stow}/bin/stow --adopt --restow --verbose -t "$HOME" .
+    $DRY_RUN_CMD ${pkgs.git}/bin/git restore .
   '';
 }
