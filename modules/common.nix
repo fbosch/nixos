@@ -70,4 +70,13 @@
 
   services.flatpak.enable = true;
 
+  fonts.fontconfig.enable = true;
+  fonts.fontDir.enable = true;
+  fonts.packages = with pkgs; [
+    nerd-fonts.symbols-only
+    nerd-fonts.jetbrains-mono
+    font-awesome
+  ];
+  
+
 }

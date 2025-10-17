@@ -2,7 +2,6 @@
 {
   imports = [
     ../../modules/common.nix
-    ../../modules/fonts.nix
     ../../modules/hyprland.nix
   ];
 
