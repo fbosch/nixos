@@ -5,7 +5,7 @@ let
     name = "MonoTheme";
     src = pkgs.fetchzip {
       url = "https://github.com/witalihirsch/Mono-gtk-theme/releases/download/1.3/MonoTheme.zip";
-      sha256 = "sha256-gE0B9vWZTVM3yI1euv9o/vTdhhQ+JlkSwa2m+2ZDfFk=";
+      sha256 = "sha256-/Ysak/WeWY4+svCu3yhi/blfcUsSnGOrWn8/YCyNTYM=";
     };
     dontBuild = true;
     installPhase = ''
@@ -38,7 +38,7 @@ let
     dontBuild = true;
     installPhase = ''
       mkdir -p $out
-      cp -r src/Win11 $out/
+      cp -r src/ $out/
     '';
   };
 
@@ -53,7 +53,7 @@ let
     dontBuild = true;
     installPhase = ''
       mkdir -p $out
-      cp -r dist/WinSur-white-cursors $out/
+      cp -r dist/ $out/
     '';
   };
 in
