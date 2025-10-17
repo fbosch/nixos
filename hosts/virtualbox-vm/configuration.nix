@@ -18,6 +18,7 @@
   networking.networkmanager.enable = true;
   networking.timeServers = options.networking.timeServers.default ++ [ "time.nist.gov" ];
 
+  zramSwap.enable = true;
   services.upower.enable = true;
   services.dbus.enable = true;
   services.timesyncd.enable = true;
@@ -40,8 +41,6 @@
     package = pkgs.ananicy-cpp;
     rulesProvider = pkgs.ananicy-rules-cachyos;
   };
-
-  zramSwap.enable = true;
   
   environment.systemPackages = with pkgs; [
     foot

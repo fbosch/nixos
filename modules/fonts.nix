@@ -1,5 +1,5 @@
 
-{ config, pkgs, ... }:
+{ lib, config, pkgs, ... }:
 let
   zenbones-mono = pkgs.fetchzip {
     url = "https://github.com/zenbones-theme/zenbones-mono/releases/download/v2.400/Zenbones-Brainy-TTF.zip";
@@ -18,9 +18,14 @@ let
     url = "https://github.com/samuelngs/apple-emoji-linux/releases/download/v18.4/AppleColorEmoji.ttf";
     sha256 = "sha256-pP0He9EUN7SUDYzwj0CE4e39SuNZ+SVz7FdmUviF6r0=";
   };
+  phosphor-fill = pkgs.fetchurl {
+    url = "https://github.com/phosphor-icons/web/blob/master/src/fill/Phosphor-Fill.ttf";
+    sha256 = "sha256-x90bxwqKW5MfVTDliiBGeh515xwhigS4BGZkgzejHWs=";
+  };
 in
 {
   fonts.fontDir.enable = true;
+  fonts.fontconfig.useEmbeddedBitmaps = true;
   fonts.packages = with pkgs; [
     nerd-fonts.symbols-only
     nerd-fonts.jetbrains-mono
@@ -59,6 +64,15 @@ in
       installPhase = ''
         mkdir -p $out/share/fonts/truetype
         cp $src $out/share/fonts/truetype/AppleColorEmoji.ttf
+      '';
+    })
+    (pkgs.stdenv.mkDerivation {
+      name = "Phosphor-Fill";
+      src = phosphor-fill;
+      dontUnpack = true;
+      installPhase = ''
+        mkdir -p $out/share/fonts/truetype
+        cp $src $out/share/fonts/truetype/Phosphor-Fill.ttf
       '';
     })
   ];

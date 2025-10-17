@@ -30,6 +30,7 @@ in
     hyprpaper
     hyprprop
     wezterm
+    pavucontrol
     kitty
     rofi
     gtk4
@@ -37,7 +38,7 @@ in
     gnome-keyring
     gnome-tweaks
     gnomeExtensions.appindicator
-    gnomeExtensions.blur-my-shell
+    # gnomeExtensions.blur-my-shell
     nwg-look
     whitesur-gtk-theme
     whitesur-cursors
@@ -79,6 +80,5 @@ in
     set -euo pipefail
     cd ${REPO}
     $DRY_RUN_CMD ${pkgs.stow}/bin/stow --adopt --restow --verbose -t "$HOME" .
-    $DRY_RUN_CMD ${pkgs.git}/bin/git restore .
   '';
 }

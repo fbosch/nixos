@@ -6,8 +6,10 @@ with lib; let
   hypr-plugin-dir = pkgs.symlinkJoin {
     name = "hyprland-plugins";
     paths = with hyprPluginPkgs; [
-        inputs.hy3.packages.${pkgs.system}.hy3
         hyprexpo
+	hyprbars
+        inputs.hy3.packages.${pkgs.system}.hy3
+	inputs.hyprspace.packages.${pkgs.system}.Hyprspace
     ];
   };
 in
