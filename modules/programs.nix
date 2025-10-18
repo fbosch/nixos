@@ -44,6 +44,7 @@
   programs.gpg.enable = true;
 
   programs.zen-browser.enable = true;
+  programs.qutebrowser.enable = true;
   programs.neovim.enable = true;
 
   programs.anyrun = {

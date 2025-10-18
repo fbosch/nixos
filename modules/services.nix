@@ -5,7 +5,6 @@
   inputs,
   ...
 }:
-
 {
   services.gpg-agent = {
     enable = true;

@@ -1,18 +1,11 @@
-{
-  config,
-  pkgs,
-  lib,
-  inputs,
-  dotfiles,
-  ...
-}:
+{}:
 {
   services.flatpak = {
     enable = true;
     uninstallUnmanaged = true;
 
     update = {
-      auto.enable = false;
+      auto.enable = true;
       onActivation = true;
     };
 
@@ -32,8 +25,10 @@
       "md.obsidian.Obsidian"
       "me.proton.Mail"
       "com.protonvpn.www"
-      # "com.bitwarden.desktop"
+      "com.bitwarden.desktop"
+      "org.gnome.baobab"
       "org.gnome.font-viewer"
+      # "org.qutebrowser.qutebrowser"
       # "com.google.Chrome"
       # "one.ablaze.floorp"
       # "com.visualstudio.code"

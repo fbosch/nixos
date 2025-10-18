@@ -1,4 +1,4 @@
-{ lib, config, inputs, pkgs, options, ... }:
+{ pkgs, options, ... }:
 {
   imports = [
     ../../modules/common.nix
@@ -45,9 +45,4 @@
     foot
     xdg-utils
   ];
-
-
-  
-
-
 }

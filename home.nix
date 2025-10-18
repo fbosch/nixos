@@ -35,6 +35,7 @@ in
     (pkgs.waybar.overrideAttrs (oldAttrs: {
       mesonFlags = oldAttrs.mesonFlags ++ [ "-Dexperimental=true" ];
     }))
+    qutebrowser
     wezterm
     pavucontrol
     kitty
