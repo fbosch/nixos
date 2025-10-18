@@ -1,13 +1,17 @@
 { pkgs, ... }:
-let 
-  mullvad-autostart = pkgs.makeAutostartItem {
-    name = "mullvad-vpn";
-    package = pkgs.mullvad-vpn;
-  };
-in
 {
   services.mullvad-vpn = {
     enable = true;
     package = pkgs.mullvad-vpn;
   };
+
+  services.tailscale = {
+    enable = true;
+    useRoutingFeatures = "client";
+  };
+
+  environment.systemPackages = with pkgs; [
+    tailscale
+    tailscale-systray
+  ];
 }

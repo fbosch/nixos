@@ -2,7 +2,7 @@
 {
   imports = [
     ./base.nix
-    ./networking.nix
+    ./vpn.nix
     ./packages.nix
     ./security.nix
     ./desktop/hyprland.nix

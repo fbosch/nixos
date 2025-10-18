@@ -24,7 +24,7 @@
     
     ".local/share/fonts/Phosphor-Fill.ttf".source = pkgs.fetchurl {
       url = "https://raw.githubusercontent.com/phosphor-icons/web/master/src/fill/Phosphor-Fill.ttf";
-      sha256 = "sha256-x90bxwqKW5MfVTDliiBGeh515xwhigS4BGZkgzejHWs=";
+      sha256 = "sha256-pT9dJjDKteO3U27LnWnXFRmiGQKYwisfjXcN03vClAo=";
     };
   };
 }
