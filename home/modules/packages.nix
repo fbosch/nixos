@@ -28,6 +28,7 @@ let
       gnomeExtensions.blur-my-shell
       nemo-with-extensions
       loupe
+      gucharmap
     ];
 
     vpn = [ protonvpn-gui protonvpn-cli ];
