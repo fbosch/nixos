@@ -1,5 +1,4 @@
 { pkgs, ... }:
-
 let
   monoTheme = pkgs.stdenv.mkDerivation {
     name = "MonoTheme";
@@ -58,10 +57,10 @@ let
   };
 in
 {
- home.file = {
-   "./local/share/themes/MonoTheme".source = monoTheme;
-   "./local/share/themes/MonoThemeDark".source = monoThemeDark;
-   "./local/share/icons/Win11".source = win11Icons;
-   "./local/share/icons/WinSur-white-cursors".source = winsurCursors;
- };
+  home.file = {
+    ".local/share/themes/MonoTheme".source = monoTheme;
+    ".local/share/themes/MonoThemeDark".source = monoThemeDark;
+    ".local/share/icons/Win11".source = win11Icons;
+    ".local/share/icons/WinSur-white-cursors".source = winsurCursors;
+  };
 }

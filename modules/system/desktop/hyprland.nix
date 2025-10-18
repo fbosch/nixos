@@ -1,5 +1,4 @@
-{ lib, config, inputs, pkgs, options, ... }:
-with lib;
+{ pkgs, inputs, ... }:
 let
   hyprPluginPkgs = inputs.hyprland-plugins.packages.${pkgs.system};
   hypr-plugin-dir = pkgs.symlinkJoin {
@@ -11,12 +10,12 @@ let
       inputs.hyprspace.packages.${pkgs.system}.Hyprspace
     ];
   };
-in {
+in
+{
   xdg.portal = {
     enable = true;
     xdgOpenUsePortal = true;
     extraPortals = [
-      # pkgs.xdg-desktop-portal-hyprland
       inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.xdg-desktop-portal-hyprland
       pkgs.xdg-desktop-portal-gtk
     ];
@@ -41,5 +40,4 @@ in {
     WLR_RENDERER_ALLOW_SOFTWARE = "1";
     HYPR_PLUGIN_DIR = hypr-plugin-dir;
   };
-
 }

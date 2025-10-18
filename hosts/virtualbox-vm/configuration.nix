@@ -1,8 +1,7 @@
 { pkgs, options, ... }:
 {
   imports = [
-    ../../modules/common.nix
-    ../../modules/hyprland.nix
+    ../../modules/system
   ];
 
   system.stateVersion = "25.05";
@@ -22,18 +21,8 @@
   services.dbus.enable = true;
   services.timesyncd.enable = true;
 
-  security.rtkit.enable = true;
   security.polkit.enable = true;
 
-  services.pipewire = {
-    enable = true;
-    alsa.enable = true;
-    alsa.support32Bit = true;
-    pulse.enable = true;
-    jack.enable = true;
-  };
-
-  services.gnome.gnome-keyring.enable = true;
   services.preload.enable = true;
   services.ananicy = {
     enable = true;

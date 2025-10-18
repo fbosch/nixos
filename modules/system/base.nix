@@ -1,4 +1,5 @@
-{ config, pkgs, ... }: {
+{ config, pkgs, ... }:
+{
   time.timeZone = "Europe/Copnhagen";
   i18n.defaultLocale = "en_DK.UTF-8";
   i18n.extraLocaleSettings = {
@@ -24,52 +25,10 @@
     extraGroups = [ "networkmanager" "wheel" ];
   };
 
-  services.getty.autologinUser = "fbb";
   nixpkgs.config.allowUnfree = true;
-
   nix.settings = { experimental-features = [ "nix-command" "flakes" ]; };
 
-  services.gnome.gnome-keyring.enable = true;
-  security.pam.services.hyrpland.enableGnomeKeyring = true;
   services.flatpak.enable = true;
-  services.mullvad-vpn = {
-    enable = true;
-    package = pkgs.mullvad-vpn;
-  };
-
-  environment.systemPackages = with pkgs; [
-    vim # fallback editor for root
-    neovim
-    nodejs
-    fnm
-    wget # essential download tool
-    git # system-level git operations
-    curl
-    clang
-    cargo
-    rustc
-    zig
-    gcc
-    cmake
-    gnumake
-    ripgrep
-    jq
-    fd
-    tree
-    unzip
-    uutils-coreutils
-    killall
-    gparted
-    polkit
-    polkit_gnome
-    parted
-    nixfmt-rfc-style
-    # mold
-    # wineWowPackages.stable
-    # wineWowPackages.fonts
-    # wineWowPackages.waylandFull
-    # winetricks
-  ];
 
   fonts.fontconfig.enable = true;
   fonts.fontDir.enable = true;
@@ -78,5 +37,4 @@
     nerd-fonts.jetbrains-mono
     font-awesome
   ];
-
 }
