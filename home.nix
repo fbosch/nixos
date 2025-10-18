@@ -69,6 +69,7 @@ in
     bitwarden-desktop
     code-cursor
     cursor-cli
+    lua-language-server
   ];
 
   home.activation.setupDotfiles = lib.hm.dag.entryAfter [ "writeBoundary" ] ''

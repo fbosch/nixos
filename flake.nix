@@ -25,10 +25,6 @@
       url = "github:KZDKM/Hyprspace";
       inputs.hyprland.follows = "hyprland";
     };
-    pre-commit-hooks = {
-      url = "github:cachix/pre-commit-hooks.nix";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
   };
 
   outputs =
@@ -45,13 +41,12 @@
     }@inputs:
     let
       system = "x86_64-linux";
-      pkgs = nixpkgs.legacyPackages.${system};
     in
     {
       nixosConfigurations = {
         rvn-vm = nixpkgs.lib.nixosSystem {
           inherit system;
-	  specialArgs = { inherit inputs; };
+          specialArgs = { inherit inputs; };
           modules = [
             ./hosts/virtualbox-vm/configuration.nix
             ./hosts/virtualbox-vm/hardware-configuration.nix
@@ -68,26 +63,6 @@
             }
           ];
         };
-      };
-
-      checks.${system}.pre-commit = pre-commit-hooks.lib.${system}.run {
-        src = ./.;
-        hooks = {
-          nixfmt-rfc-style = {
-            enable = true;
-            package = pkgs.nixfmt-rfc-style;
-          };
-        };
-      };
-
-      devShells.${system}.default = pkgs.mkShell {
-        shellHook = ''
-          ${self.checks.${system}.pre-commit.shellHook}
-        '';
-        packages = with pkgs; [
-          nixfmt-rfc-style
-          git
-        ];
       };
     };
 }
