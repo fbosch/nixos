@@ -24,17 +24,24 @@ let
       gtk4-layer-shell
       gnome-keyring
       gnome-tweaks
+      gnome-themes-extra
       gnomeExtensions.appindicator
       gnomeExtensions.blur-my-shell
       nemo-with-extensions
       loupe
       gucharmap
+      networkmanagerapplet
+      mission-center
     ];
 
     vpn = [ protonvpn-gui protonvpn-cli ];
 
-    theming =
-      [ nwg-look whitesur-gtk-theme whitesur-cursors whitesur-icon-theme ];
+    theming = [
+      nwg-look
+      adw-gtk3
+      graphite-gtk-theme
+      colloid-gtk-theme
+    ];
 
     development = [
       code-cursor
@@ -45,7 +52,7 @@ let
       delta
     ];
 
-    shell = [ ripgrep zoxide eza lf fish starship ];
+    shell = [ ripgrep zoxide eza lf fish starship htop ];
 
     security = [ pass gnupg pinentry-curses bitwarden-desktop ];
 
