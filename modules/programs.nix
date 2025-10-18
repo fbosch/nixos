@@ -1,25 +1,12 @@
-{
-  config,
-  pkgs,
-  lib,
-  inputs,
-  ...
-}:
-
-{
-
+{  pkgs, ... }: {
 
   nix.settings = {
     builders-use-substitutes = true;
-    extra-substituters = [
-	"https://anyrun.cachix.org"
-    ];
+    extra-substituters = [ "https://anyrun.cachix.org" ];
 
-    extra-trusted-public-keys = [
-	"anyrun.cachix.org-1:pqBobmOjI7nKlsUMV25u9QHa9btJK65/C8vnO3p346s="
-    ];
-  };  
-
+    extra-trusted-public-keys =
+      [ "anyrun.cachix.org-1:pqBobmOjI7nKlsUMV25u9QHa9btJK65/C8vnO3p346s=" ];
+  };
 
   programs.bash = {
     enable = true;
@@ -44,17 +31,15 @@
   programs.gpg.enable = true;
 
   programs.zen-browser.enable = true;
-  programs.qutebrowser.enable = true;
   programs.neovim.enable = true;
-  programs.protonvpn.enable = true;
 
   programs.anyrun = {
-     enable = true;
-     config = {
-	     plugins = [
-	       "${pkgs.anyrun}/lib/libapplications.so"
-	       "${pkgs.anyrun}/lib/libsymbols.so"
-	     ];
-     };
+    enable = true;
+    config = {
+      plugins = [
+        "${pkgs.anyrun}/lib/libapplications.so"
+        "${pkgs.anyrun}/lib/libsymbols.so"
+      ];
+    };
   };
 }

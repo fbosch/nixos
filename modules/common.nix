@@ -1,11 +1,4 @@
-{ config, pkgs, ... }:
-let 
-  mullvad-autostart = pkgs.makeAutostartItem {
-    name = "mullvad-vpn";
-    package = pkgs.mullvad-vpn;
-  };
-in
-{
+{ config, pkgs, ... }: {
   time.timeZone = "Europe/Copnhagen";
   i18n.defaultLocale = "en_DK.UTF-8";
   i18n.extraLocaleSettings = {
@@ -28,33 +21,23 @@ in
   users.users.fbb = {
     isNormalUser = true;
     description = "Frederik Bosch";
-    extraGroups = [
-      "networkmanager"
-      "wheel"
-    ];
+    extraGroups = [ "networkmanager" "wheel" ];
   };
 
   services.getty.autologinUser = "fbb";
   nixpkgs.config.allowUnfree = true;
 
-  nix.settings = {
-    experimental-features = [
-      "nix-command"
-      "flakes"
-    ];
-  };
-
+  nix.settings = { experimental-features = [ "nix-command" "flakes" ]; };
 
   services.gnome.gnome-keyring.enable = true;
   security.pam.services.hyrpland.enableGnomeKeyring = true;
   services.flatpak.enable = true;
-  services.mullvad-vpn.enable = {
+  services.mullvad-vpn = {
     enable = true;
     package = pkgs.mullvad-vpn;
   };
 
   environment.systemPackages = with pkgs; [
-    mullvad-autostart
     vim # fallback editor for root
     neovim
     nodejs
@@ -88,7 +71,6 @@ in
     # winetricks
   ];
 
-
   fonts.fontconfig.enable = true;
   fonts.fontDir.enable = true;
   fonts.packages = with pkgs; [
@@ -96,6 +78,5 @@ in
     nerd-fonts.jetbrains-mono
     font-awesome
   ];
-  
 
 }

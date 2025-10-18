@@ -48,7 +48,6 @@ in
     gnomeExtensions.blur-my-shell
     protonvpn-gui
     protonvpn-cli
-    mullvad-vpn
     nemo-with-extensions
     nwg-look
     whitesur-gtk-theme
