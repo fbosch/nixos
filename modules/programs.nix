@@ -46,6 +46,7 @@
   programs.zen-browser.enable = true;
   programs.qutebrowser.enable = true;
   programs.neovim.enable = true;
+  programs.protonvpn.enable = true;
 
   programs.anyrun = {
      enable = true;

@@ -1,4 +1,10 @@
 { config, pkgs, ... }:
+let 
+  mullvad-autostart = pkgs.makeAutostartItem {
+    name = "mullvad-vpn";
+    package = pkgs.mullvad-vpn;
+  };
+in
 {
   time.timeZone = "Europe/Copnhagen";
   i18n.defaultLocale = "en_DK.UTF-8";
@@ -42,8 +48,13 @@
   services.gnome.gnome-keyring.enable = true;
   security.pam.services.hyrpland.enableGnomeKeyring = true;
   services.flatpak.enable = true;
+  services.mullvad-vpn.enable = {
+    enable = true;
+    package = pkgs.mullvad-vpn;
+  };
 
   environment.systemPackages = with pkgs; [
+    mullvad-autostart
     vim # fallback editor for root
     neovim
     nodejs
