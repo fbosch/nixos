@@ -36,7 +36,6 @@
       hyprland,
       hyprland-plugins,
       hy3,
-      pre-commit-hooks,
       ...
     }@inputs:
     let

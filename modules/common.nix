@@ -26,7 +26,6 @@
       "networkmanager"
       "wheel"
     ];
-    packages = with pkgs; [ ];
   };
 
   services.getty.autologinUser = "fbb";
@@ -40,7 +39,10 @@
   };
 
 
+  services.gnome.gnome-keyring.enable = true;
+  security.pam.services.hyrpland.enableGnomeKeyring = true;
   services.flatpak.enable = true;
+
   environment.systemPackages = with pkgs; [
     vim # fallback editor for root
     neovim
@@ -64,6 +66,8 @@
     uutils-coreutils
     killall
     gparted
+    polkit
+    polkit_gnome
     parted
     nixfmt-rfc-style
     # mold
