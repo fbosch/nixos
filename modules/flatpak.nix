@@ -24,7 +24,7 @@
       "org.keepassxc.KeePassXC"
       "md.obsidian.Obsidian"
       "me.proton.Mail"
-      "com.protonvpn.www"
+      #"com.protonvpn.www"
       "com.bitwarden.desktop"
       "org.gnome.baobab"
       "org.gnome.font-viewer"
