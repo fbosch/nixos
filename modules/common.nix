@@ -52,6 +52,8 @@
     git # system-level git operations
     curl
     clang
+    cargo
+    rustc
     zig
     gcc
     cmake
