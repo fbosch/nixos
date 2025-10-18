@@ -53,6 +53,7 @@ in
     loupe
     mako
     git-credential-manager
+    lazygit
     stow
     pass
     delta
@@ -67,6 +68,7 @@ in
     steam
     bitwarden-desktop
     code-cursor
+    cursor-cli
   ];
 
   home.activation.setupDotfiles = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
