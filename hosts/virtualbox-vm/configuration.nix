@@ -1,4 +1,7 @@
-{ pkgs, inputs, system, options, ... }: {
+{ pkgs, inputs, options, system, ... }: 
+let 
+  theme = inputs.distro-grub-themes.packages.${system}.asus-tuf-grub-theme;
+in {
 
   imports = [ ../../modules/system ];
 
@@ -9,6 +12,8 @@
   boot.loader.grub.device = "/dev/sda";
   boot.loader.grub.useOSProber = true;
   boot.loader.grub.configurationLimit = 42;
+  boot.loader.grub.theme = theme; 
+  boot.loader.grub.splashImage = "${theme}/splash_image.jpg";
 
   nixpkgs.overlays = [ inputs.mac-style-plymouth.overlays.default ];
   boot.plymouth = {
