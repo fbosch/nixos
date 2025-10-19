@@ -55,6 +55,21 @@ let
       cp -ar dist/. $out/
     '';
   };
+
+  we10xIcons = pkgs.stdenv.mkDerivation {
+    name = "We10X";
+    src = pkgs.fetchFromGitHub {
+      owner = "yeyushengfan258";
+      repo = "We10X-icon-theme";
+      rev = "master";
+      sha256 = "sha256-nSZm0YjLmMejiMLCkHJZszbCaOaJU7yi6ijK0caVL5g=";
+    };
+    dontBuild = true;
+    installPhase = ''
+      mkdir -p $out
+      cp -ar src/. $out/
+    '';
+  };
 in
 {
   home.file = {
@@ -62,5 +77,6 @@ in
     ".local/share/themes/MonoThemeDark".source = monoThemeDark;
     ".local/share/icons/Win11".source = win11Icons;
     ".local/share/icons/WinSur-white-cursors".source = winsurCursors;
+    ".local/share/icons/We10X".source = we10xIcons;
   };
 }

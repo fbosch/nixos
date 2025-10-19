@@ -9,7 +9,7 @@ let
       (waybar.overrideAttrs (oldAttrs: {
         mesonFlags = oldAttrs.mesonFlags ++ [ "-Dexperimental=true" ];
       }))
-      mako
+      # mako
       rofi
     ];
 
@@ -52,7 +52,7 @@ let
       delta
     ];
 
-    shell = [ ripgrep zoxide eza lf fish starship htop ];
+    shell = [ ripgrep zoxide eza lf fish zsh starship htop ];
 
     security = [ pass gnupg pinentry-curses bitwarden-desktop ];
 

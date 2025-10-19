@@ -1,5 +1,4 @@
-{ config, pkgs, ... }:
-{
+{ config, pkgs, ... }: {
   time.timeZone = "Europe/Copnhagen";
   i18n.defaultLocale = "en_DK.UTF-8";
   i18n.extraLocaleSettings = {
@@ -27,6 +26,11 @@
 
   nixpkgs.config.allowUnfree = true;
   nix.settings = { experimental-features = [ "nix-command" "flakes" ]; };
+  console = {
+    earlySetup = true;
+    packages = with pkgs; [ terminus_font ];
+    font = "${pkgs.terminus_font}/share/consolefonts/ter-u28n.psf.gz";
+  };
 
   services.flatpak.enable = true;
 
@@ -35,6 +39,5 @@
   fonts.packages = with pkgs; [
     nerd-fonts.symbols-only
     nerd-fonts.jetbrains-mono
-    font-awesome
   ];
 }
