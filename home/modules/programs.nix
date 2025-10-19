@@ -45,11 +45,6 @@
     };
   };
 
-  services.swaync = {
-    enable = true;
-    package = pkgs.swaynotificationcenter;
-  };
-
   programs.waybar-nixos-updates = {
     enable = true;
     updateInterval = 3600; # every hour

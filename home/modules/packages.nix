@@ -11,6 +11,8 @@ let
       }))
       # mako
       rofi
+      swaynotificationcenter
+      libnotify
     ];
 
     terminals = [ wezterm kitty ];
