@@ -1,8 +1,4 @@
 {
-  config,
-  system,
-  pkgs,
-  lib,
   inputs,
   ...
 }:
@@ -10,6 +6,7 @@
   imports = [
     inputs.zen-browser.homeModules.default
     inputs.flatpaks.homeManagerModules.nix-flatpak
+    inputs.waybar-nixos-updates.homeManagerModules.default
     ./home/modules
   ];
 

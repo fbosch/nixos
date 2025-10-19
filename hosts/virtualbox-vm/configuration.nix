@@ -1,8 +1,6 @@
-{ pkgs, options, ... }:
-{
-  imports = [
-    ../../modules/system
-  ];
+{ pkgs, inputs, system, options, ... }: {
+
+  imports = [ ../../modules/system ];
 
   system.stateVersion = "25.05";
   hardware.bluetooth.enable = false;
@@ -12,9 +10,17 @@
   boot.loader.grub.useOSProber = true;
   boot.loader.grub.configurationLimit = 42;
 
+  nixpkgs.overlays = [ inputs.mac-style-plymouth.overlays.default ];
+  boot.plymouth = {
+    enable = true;
+    theme = "mac-style";
+    themePackages = [ pkgs.mac-style-plymouth ];
+  };
+
   networking.hostName = "rvn-vm";
   networking.networkmanager.enable = true;
-  networking.timeServers = options.networking.timeServers.default ++ [ "time.nist.gov" ];
+  networking.timeServers = options.networking.timeServers.default
+    ++ [ "time.nist.gov" ];
 
   zramSwap.enable = true;
   services.upower.enable = true;
@@ -29,9 +35,6 @@
     package = pkgs.ananicy-cpp;
     rulesProvider = pkgs.ananicy-rules-cachyos;
   };
-  
-  environment.systemPackages = with pkgs; [
-    foot
-    xdg-utils
-  ];
+
+  environment.systemPackages = with pkgs; [ foot xdg-utils ];
 }

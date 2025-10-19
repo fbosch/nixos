@@ -1,5 +1,4 @@
-{ pkgs, ... }:
-{
+{ pkgs, config, ... }: {
   nix.settings = {
     builders-use-substitutes = true;
     extra-substituters = [ "https://anyrun.cachix.org" ];
@@ -25,8 +24,9 @@
     extraConfig.credential.credentialStore = "gpg";
   };
 
+  programs.fzf.enable = true;
+  programs.bat.enable = true;
   programs.gpg.enable = true;
-
   services.gpg-agent = {
     enable = true;
     pinentry.package = pkgs.pinentry-curses;
@@ -35,7 +35,6 @@
 
   programs.neovim.enable = true;
   programs.zen-browser.enable = true;
-
   programs.anyrun = {
     enable = true;
     config = {
@@ -46,6 +45,12 @@
     };
   };
 
-  programs.fzf.enable = true;
-  programs.bat.enable = true;
+  programs.waybar-nixos-updates = {
+    enable = true;
+    updateInterval = 3600; # every hour
+    nixosConfigPath = "~/nixos";
+    skipAfterBoot = true;
+    gracePeriod = 60;
+    updateLockFile = true;
+  };
 }

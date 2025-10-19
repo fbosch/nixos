@@ -7,6 +7,7 @@
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    waybar-nixos-updates.url = "github:fbosch/waybar-nixos-updates";
     flatpaks.url = "github:gmodena/nix-flatpak";
     zen-browser = {
       url = "github:0xc000022070/zen-browser-flake";
@@ -25,6 +26,10 @@
       url = "github:KZDKM/Hyprspace";
       inputs.hyprland.follows = "hyprland";
     };
+    mac-style-plymouth = {
+      url  = "github:SergioRibera/s4rchiso-plymouth-theme";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -36,6 +41,7 @@
       hyprland,
       hyprland-plugins,
       hy3,
+      mac-style-plymouth,
       ...
     }@inputs:
     let
