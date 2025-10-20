@@ -19,9 +19,9 @@
 
   programs.git = {
     enable = true;
-    extraConfig.credential.helper = "manager";
-    extraConfig.credential."https://github.com".username = "fbosch";
-    extraConfig.credential.credentialStore = "gpg";
+    settings.credential.helper = "manager";
+    settings.credential."https://github.com".username = "fbosch";
+    settings.credential.credentialStore = "gpg";
   };
 
   programs.fzf.enable = true;

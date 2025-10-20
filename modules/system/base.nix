@@ -1,4 +1,5 @@
 { config, pkgs, ... }: {
+  programs.nix-ld.enable = true;
   time.timeZone = "Europe/Copnhagen";
   i18n.defaultLocale = "en_DK.UTF-8";
   i18n.extraLocaleSettings = {
