@@ -29,25 +29,13 @@ jobs:
       - name: Enable Nix cache
         uses: DeterminateSystems/magic-nix-cache-action@v8
 
-      - name: Lint + build + scan all hosts
+      - name: Security scans
         run: |
-          nix-shell -p statix deadnix gitleaks vulnix jq \
+          nix-shell -p gitleaks vulnix jq \
             --run 'set -euo pipefail
-
-              echo "::group::Statix"
-              statix check .
-              echo "::endgroup::"
-
-              echo "::group::Deadnix"
-              deadnix --fail --no-lambda-pattern-names .
-              echo "::endgroup::"
 
               echo "::group::Gitleaks"
               gitleaks detect --no-banner --redact
-              echo "::endgroup::"
-
-              echo "::group::Flake check"
-              nix flake check --print-build-logs --keep-going
               echo "::endgroup::"
 
               mapfile -t HOSTS < <(nix eval --json .#nixosConfigurations | jq -r "keys[]")

@@ -28,6 +28,18 @@ jobs:
       - name: Enable Nix cache
         uses: DeterminateSystems/magic-nix-cache-action@v8
 
+      - name: Lint
+        run: |
+          nix-shell -p statix deadnix --run 'set -euo pipefail
+
+            echo "::group::Statix"
+            statix check .
+            echo "::endgroup::"
+
+            echo "::group::Deadnix"
+            deadnix --fail --no-lambda-pattern-names .
+            echo "::endgroup::"'
+
       - name: Flake checks
         run: nix flake check --print-build-logs --keep-going
 
