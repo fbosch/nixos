@@ -1,10 +1,11 @@
 [formatter.nix]
-command = "nixfmt"
+command = "nixfmt-rfc-style"
 includes = ["*.nix"]
 
 [formatter.shell]
 command = "shfmt"
 includes = ["*.sh"]
+options = ["-i", "2", "-s"]
 
 [formatter.prettier]
 command = "prettier"
