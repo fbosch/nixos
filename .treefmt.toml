@@ -1,0 +1,13 @@
+treefmt.toml
+[formatter.nix]
+command = "nixfmt"
+includes = ["*.nix"]
+
+[formatter.shell]
+command = "shfmt"
+includes = ["*.sh"]
+
+[formatter.prettier]
+command = "prettier"
+options = ["--write"]
+includes = ["*.json", "*.yaml", "*.yml", "*.md"]
