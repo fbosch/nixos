@@ -6,106 +6,56 @@ on:
   pull_request:
     branches: [main, master]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}-validate
+  cancel-in-progress: true
+
+env:
+  NIX_CONFIG: "extra-experimental-features = nix-command flakes"
+
 jobs:
   validate:
-    name: Validate Configuration
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Install Nix
-        uses: cachix/install-nix-action@v25
+        uses: DeterminateSystems/nix-installer-action@v12
 
-      - name: Validate flake
-        run: nix flake check
+      - name: Enable Nix cache
+        uses: DeterminateSystems/magic-nix-cache-action@v8
 
-      - name: Evaluate all NixOS configurations
+      - name: Flake checks
+        run: nix flake check --print-build-logs --keep-going
+
+      - name: Evaluate and build flake outputs
         run: |
-          echo "🔍 Evaluating all NixOS configurations..."
-          
-          # Get all NixOS configuration names
-          CONFIGS=$(nix flake show --json | jq -r '.nixosConfigurations | keys[]' 2>/dev/null || echo "")
-          
-          if [ -z "$CONFIGS" ]; then
-            echo "⚠️  No NixOS configurations found in flake"
-            exit 0
-          fi
-          
-          # Evaluate each configuration
-          for config in $CONFIGS; do
-            echo "Evaluating configuration: $config"
-            if nix eval .#nixosConfigurations.$config.config.system.build.toplevel --json > /dev/null; then
-              echo "✅ $config evaluated successfully"
+          nix-shell -p jq --run 'set -euo pipefail
+
+            mapfile -t configs < <(nix eval --json .#nixosConfigurations | jq -r "keys[]" 2>/dev/null || true)
+            if [ ${#configs[@]} -eq 0 ]; then
+              echo "No NixOS configurations found."
             else
-              echo "❌ $config failed to evaluate"
-              exit 1
-            fi
-          done
-          
-          echo "🎉 All configurations evaluated successfully!"
-
-      - name: Show flake structure
-        run: |
-          echo "📋 Flake structure:"
-          nix flake show || echo "Could not show flake structure"
-          
-          echo -e "\n📋 Available NixOS configurations:"
-          nix flake show --json | jq -r '.nixosConfigurations | keys[]' || echo "No NixOS configurations found"
-
-      - name: Build all NixOS configurations
-        run: |
-          echo "🔨 Building all NixOS configurations..."
-          
-          # Get all NixOS configuration names
-          CONFIGS=$(nix flake show --json | jq -r '.nixosConfigurations | keys[]' 2>/dev/null || echo "")
-          
-          if [ -z "$CONFIGS" ]; then
-            echo "⚠️  No NixOS configurations found in flake"
-            exit 0
-          fi
-          
-          # Build each configuration
-          for config in $CONFIGS; do
-            echo "Building configuration: $config"
-            if nix build .#nixosConfigurations.$config.config.system.build.toplevel --dry-run; then
-              echo "✅ $config built successfully"
-            else
-              echo "❌ $config failed to build"
-              exit 1
-            fi
-          done
-          
-          echo "🎉 All configurations built successfully!"
-
-      - name: Build other flake outputs
-        run: |
-          echo "🔨 Building other flake outputs..."
-          
-          # Get all available outputs
-          ALL_OUTPUTS=$(nix flake show --json | jq -r 'keys[]' 2>/dev/null || echo "")
-          
-          for output_type in $ALL_OUTPUTS; do
-            echo "Checking output type: $output_type"
-            
-            # Skip nixosConfigurations as we already built them
-            if [ "$output_type" = "nixosConfigurations" ]; then
-              continue
-            fi
-            
-            # Get outputs of this type
-            OUTPUTS=$(nix flake show --json | jq -r ".$output_type | keys[]" 2>/dev/null || echo "")
-            
-            if [ -n "$OUTPUTS" ]; then
-              echo "Building $output_type outputs:"
-              for output in $OUTPUTS; do
-                echo "  Building: $output_type.$output"
-                if nix build .#$output_type.$output --dry-run 2>/dev/null; then
-                  echo "  ✅ $output_type.$output built successfully"
-                else
-                  echo "  ⚠️  $output_type.$output failed to build (may not be buildable)"
-                fi
+              echo "Configurations: ${configs[*]}"
+              for cfg in "${configs[@]}"; do
+                echo "Evaluating ${cfg}"
+                nix eval ".#nixosConfigurations.${cfg}.config.system.build.toplevel" --json > /dev/null
+              done
+              for cfg in "${configs[@]}"; do
+                echo "Dry-run build ${cfg}"
+                nix build ".#nixosConfigurations.${cfg}.config.system.build.toplevel" --dry-run --print-build-logs
               done
             fi
-          done
+
+            mapfile -t categories < <(nix flake show --json | jq -r "keys[]")
+            for category in "${categories[@]}"; do
+              [ "$category" = "nixosConfigurations" ] && continue
+              mapfile -t outputs < <(nix flake show --json | jq -r ".${category} | keys[]" 2>/dev/null || true)
+              for output in "${outputs[@]}"; do
+                echo "Dry-run build ${category}.${output}"
+                nix build ".#${category}.${output}" --dry-run --print-build-logs || true
+              done
+            done'

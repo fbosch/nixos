@@ -2,120 +2,92 @@ name: Update
 
 on:
   schedule:
-    # Run every Monday at 2 AM UTC
     - cron: "0 2 * * 1"
   workflow_dispatch:
 
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: ci-${{ github.ref }}-update
+  cancel-in-progress: true
+
+env:
+  NIX_CONFIG: "extra-experimental-features = nix-command flakes"
+
 jobs:
   update-flake:
-    name: Update Flake Inputs
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           token: ${{ secrets.PAT_TOKEN }}
 
       - name: Install Nix
-        uses: cachix/install-nix-action@v25
+        uses: DeterminateSystems/nix-installer-action@v12
 
-      - name: Install jq
+      - name: Enable Nix cache
+        uses: DeterminateSystems/magic-nix-cache-action@v8
+
+      - name: Update flake inputs
+        id: update
         run: |
-          sudo apt-get update
-          sudo apt-get install -y jq
+          nix-shell -p git jq --run 'set -euo pipefail
 
-      - name: Update flake inputs and capture changes
-        id: update-flake
-        run: |
-          echo "🔄 Updating flake inputs..."
+            update_output=$(nix flake update 2>&1)
+            printf "%s\n" "$update_output"
 
-          # Capture the output of nix flake update
-          UPDATE_OUTPUT=$(nix flake update 2>&1)
-          echo "$UPDATE_OUTPUT"
-
-          # Check if flake.lock was modified
-          if [ -n "$(git status --porcelain flake.lock)" ]; then
-            echo "changed=true" >> $GITHUB_OUTPUT
-            
-            # Parse the update output to extract input names and version changes
-            echo "📋 Analyzing changes..."
-            
-            # Create a temporary file to build the detailed changes
-            DETAILED_CHANGES=""
-            INPUT_COUNT=0
-            
-            # Parse each "• Updated input" section
-            while IFS= read -r line; do
-              if [[ "$line" =~ "• Updated input '" ]]; then
-                # Extract input name
-                INPUT_NAME=$(echo "$line" | sed "s/• Updated input '//" | sed "s/':.*//")
-                
-                # Extract repository info from flake.lock
-                REPO_OWNER=$(jq -r ".nodes.\"${INPUT_NAME}\".locked.owner // empty" flake.lock 2>/dev/null)
-                REPO_NAME=$(jq -r ".nodes.\"${INPUT_NAME}\".locked.repo // empty" flake.lock 2>/dev/null)
-                REPO_TYPE=$(jq -r ".nodes.\"${INPUT_NAME}\".locked.type // empty" flake.lock 2>/dev/null)
-                
-                # Get commit hashes from the update output (first 7 characters, like GitHub)
-                FROM_REV=$(echo "$UPDATE_OUTPUT" | grep -A 3 "• Updated input '$INPUT_NAME'" | grep -v "• Updated input" | grep -v "→" | head -1 | sed 's/.*\///' | sed 's/ (.*//' | cut -c1-7)
-                TO_REV=$(echo "$UPDATE_OUTPUT" | grep -A 3 "• Updated input '$INPUT_NAME'" | grep "→" | sed 's/.*\///' | sed 's/ (.*//' | cut -c1-7)
-                
-                # Create package link to the specific commit
-                if [[ "$REPO_TYPE" == "github" ]] && [[ -n "$REPO_OWNER" ]] && [[ -n "$REPO_NAME" ]]; then
-                  # Get the full commit hash for the link
-                  TO_FULL_REV=$(echo "$UPDATE_OUTPUT" | grep -A 3 "• Updated input '$INPUT_NAME'" | grep "→" | sed 's/.*\///' | sed "s/ (.*//" | sed "s/'$//")
-                  PACKAGE_LINK="[${INPUT_NAME}](https://github.com/${REPO_OWNER}/${REPO_NAME}/commit/${TO_FULL_REV})"
-                else
-                  PACKAGE_LINK="\`${INPUT_NAME}\`"
-                fi
-                
-                DETAILED_CHANGES="${DETAILED_CHANGES}- ${PACKAGE_LINK}\n\`\`\`diff\n-${FROM_REV}\n+${TO_REV}\n\`\`\`\n"
-                INPUT_COUNT=$((INPUT_COUNT + 1))
-              fi
-            done <<< "$(echo "$UPDATE_OUTPUT" | grep "• Updated input")"
-            
-            # Create simple comma-separated list for backward compatibility
-            UPDATED_INPUTS=$(echo "$UPDATE_OUTPUT" | grep "• Updated input" | sed "s/• Updated input '//" | sed "s/':.*//" | tr '\n' ', ' | sed 's/,$//')
-            
-            if [ -n "$UPDATED_INPUTS" ] && [ "$INPUT_COUNT" -gt 0 ]; then
-              echo "updated_inputs=$UPDATED_INPUTS" >> $GITHUB_OUTPUT
-              echo "input_count=$INPUT_COUNT" >> $GITHUB_OUTPUT
-              echo "detailed_changes<<EOF" >> $GITHUB_OUTPUT
-              echo -e "$DETAILED_CHANGES" >> $GITHUB_OUTPUT
-              echo "EOF" >> $GITHUB_OUTPUT
-            else
-              echo "updated_inputs=flake.lock" >> $GITHUB_OUTPUT
-              echo "input_count=1" >> $GITHUB_OUTPUT
-              echo "detailed_changes=- \`flake.lock\`\n\`\`\`diff\n-previous version\n+updated version\n\`\`\`" >> $GITHUB_OUTPUT
+            if [ -z "$(git status --porcelain flake.lock)" ]; then
+              echo "changed=false" >> "$GITHUB_OUTPUT"
+              exit 0
             fi
-          else
-            echo "changed=false" >> $GITHUB_OUTPUT
-          fi
 
-      - name: Create Pull Request
-        if: steps.update-flake.outputs.changed == 'true'
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+
+            mapfile -t inputs < <(printf "%s\n" "$update_output" | grep "• Updated input" | sed "s/• Updated input '//" | sed "s/':.*//")
+
+            input_count=${#inputs[@]}
+            [ "$input_count" -eq 0 ] && inputs=("flake.lock") && input_count=1
+
+            echo "input_count=$input_count" >> "$GITHUB_OUTPUT"
+            echo "updated_inputs=$(printf "%s" "${inputs[*]}")" >> "$GITHUB_OUTPUT"
+
+            printf "detailed_changes<<'EOF'\n" >> "$GITHUB_OUTPUT"
+            for name in "${inputs[@]}"; do
+              owner=$(jq -r ".nodes.\"${name}\".locked.owner // empty" flake.lock 2>/dev/null)
+              repo=$(jq -r ".nodes.\"${name}\".locked.repo // empty" flake.lock 2>/dev/null)
+              type=$(jq -r ".nodes.\"${name}\".locked.type // empty" flake.lock 2>/dev/null)
+              from=$(printf "%s\n" "$update_output" | grep -A 3 "• Updated input '${name}'" | grep -v "• Updated input" | grep -v "→" | head -1 | sed "s/.*\///" | sed "s/ (.*//" | cut -c1-7)
+              to=$(printf "%s\n" "$update_output" | grep -A 3 "• Updated input '${name}'" | grep "→" | sed "s/.*\///" | sed "s/ (.*//" | cut -c1-7)
+              ref=$(printf "%s\n" "$update_output" | grep -A 3 "• Updated input '${name}'" | grep "→" | sed "s/.*\///" | sed "s/ (.*//" | sed "s/'$//")
+
+              if [ "$type" = "github" ] && [ -n "$owner" ] && [ -n "$repo" ] && [ -n "$ref" ]; then
+                label="[${name}](https://github.com/${owner}/${repo}/commit/${ref})"
+              else
+                label="\`${name}\`"
+              fi
+
+              printf "%s\n" "- ${label}" >> "$GITHUB_OUTPUT"
+              printf "\`\`\`diff\n-%s\n+%s\n\`\`\`\n" "$from" "$to" >> "$GITHUB_OUTPUT"
+            done
+            printf "EOF\n" >> "$GITHUB_OUTPUT"'
+
+      - name: Create pull request
+        if: steps.update.outputs.changed == 'true'
         uses: peter-evans/create-pull-request@v5
         with:
           token: ${{ secrets.PAT_TOKEN }}
           commit-message: |
             Update flake inputs
 
-            ${{ steps.update-flake.outputs.detailed_changes }}
+            ${{ steps.update.outputs.detailed_changes }}
 
             Co-authored-by: GitHub Actions <actions@github.com>
-          title: "Update flake inputs: ${{ steps.update-flake.outputs.input_count }} packages updated"
+          title: "Update flake inputs"
           body: |
-            This PR updates flake inputs to their latest versions.
+            Inputs updated: ${{ steps.update.outputs.updated_inputs }}
 
-            **Updated inputs:**
-            ${{ steps.update-flake.outputs.detailed_changes }}
-
-            **Summary:**
-            - Updated ${{ steps.update-flake.outputs.input_count }} packages: ${{ steps.update-flake.outputs.updated_inputs }}
-            - Updated flake.lock with latest input versions
-
+            ${{ steps.update.outputs.detailed_changes }}
           branch: update-flake-inputs
           delete-branch: true
