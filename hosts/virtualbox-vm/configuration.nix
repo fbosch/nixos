@@ -15,19 +15,24 @@ in
   system.stateVersion = "25.05";
   hardware.bluetooth.enable = false;
 
-  boot.loader.grub.enable = true;
-  boot.loader.grub.device = "/dev/sda";
-  boot.loader.grub.useOSProber = true;
-  boot.loader.grub.configurationLimit = 42;
-  boot.loader.grub.theme = theme;
-  boot.loader.grub.splashImage = "${theme}/splash_image.jpg";
+  boot = {
+    loader.grub = {
+      enable = true;
+      device = "/dev/sda";
+      useOSProber = true;
+      configurationLimit = 42;
+      theme = theme;
+      splashImage = "${theme}/splash_image.jpg";
+    };
+
+    plymouth = {
+      enable = true;
+      theme = "mac-style";
+      themePackages = [ pkgs.mac-style-plymouth ];
+    };
+  };
 
   nixpkgs.overlays = [ inputs.mac-style-plymouth.overlays.default ];
-  boot.plymouth = {
-    enable = true;
-    theme = "mac-style";
-    themePackages = [ pkgs.mac-style-plymouth ];
-  };
 
   networking = {
     hostName = "rvn-vm";
@@ -36,17 +41,18 @@ in
   };
 
   zramSwap.enable = true;
-  services.upower.enable = true;
-  services.dbus.enable = true;
-  services.timesyncd.enable = true;
-
   security.polkit.enable = true;
 
-  services.preload.enable = true;
-  services.ananicy = {
-    enable = true;
-    package = pkgs.ananicy-cpp;
-    rulesProvider = pkgs.ananicy-rules-cachyos;
+  services = {
+    upower.enable = true;
+    dbus.enable = true;
+    timesyncd.enable = true;
+    preload.enable = true;
+    ananicy = {
+      enable = true;
+      package = pkgs.ananicy-cpp;
+      rulesProvider = pkgs.ananicy-rules-cachyos;
+    };
   };
 
   environment.systemPackages = with pkgs; [
