@@ -31,7 +31,7 @@ jobs:
 
       - name: Lint + build + scan all hosts
         run: |
-          nix-shell -p treefmt statix deadnix gitleaks vulnix jq \
+          nix-shell -p treefmt nixfmt-rfc-style shfmt nodePackages.prettier statix deadnix gitleaks vulnix jq \
             --run 'set -euo pipefail
 
               echo "::group::Formatting"
