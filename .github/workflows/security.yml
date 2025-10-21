@@ -38,7 +38,7 @@ jobs:
               gitleaks detect --no-banner --redact
               echo "::endgroup::"
 
-              mapfile -t HOSTS < <(nix eval --json .#nixosConfigurations | jq -r "keys[]")
+              mapfile -t HOSTS < <(nix flake show --json | jq -r ".nixosConfigurations | keys[]")
               echo "Hosts: ${HOSTS[*]}"
 
               for h in "${HOSTS[@]}"; do
