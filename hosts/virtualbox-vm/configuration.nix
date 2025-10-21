@@ -21,7 +21,7 @@ in
       device = "/dev/sda";
       useOSProber = true;
       configurationLimit = 42;
-      theme = theme;
+      inherit theme;
       splashImage = "${theme}/splash_image.jpg";
     };
 
