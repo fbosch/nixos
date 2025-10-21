@@ -1,4 +1,4 @@
-name: Validate NixOS Configuration
+name: Validate
 
 on:
   push:

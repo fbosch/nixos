@@ -1,5 +1,4 @@
-name: Security Checks
-
+name: Security
 on:
   push:
     branches: [main, master]
