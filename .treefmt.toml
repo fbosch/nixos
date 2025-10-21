@@ -1,4 +1,3 @@
-treefmt.toml
 [formatter.nix]
 command = "nixfmt"
 includes = ["*.nix"]
