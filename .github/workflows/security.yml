@@ -1,0 +1,44 @@
+name: security
+on:
+  pull_request:
+  push: { branches: [main, master] }
+  schedule: [{ cron: "0 6 * * 1" }] # weekly lockfile update
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Install Nix + cache
+      - uses: DeterminateSystems/nix-installer-action@v12
+      - uses: DeterminateSystems/magic-nix-cache-action@v8
+
+      # 1) Flake input audit
+      - uses: DeterminateSystems/flake-checker-action@v9
+
+      # 2) Lint/format (treefmt-nix, statix, deadnix)
+      - name: treefmt
+        run: nix run .#treefmt -- --no-cache --ci
+      - name: statix
+        run: nix run nixpkgs#statix -- check .
+      - name: deadnix
+        run: nix run nixpkgs#deadnix -- --fail --no-lambda-pattern-names .
+
+      # 3) Evaluate + build a host
+      - name: flake check
+        run: nix flake check --print-build-logs
+      - name: build host
+        run: nix build .#nixosConfigurations.${{ env.HOST || 'rvn-vm' }}.config.system.build.toplevel
+
+      # 4) CVE scan of the closure
+      - name: vulnix scan
+        run: |
+          nix profile install nixpkgs#vulnix
+          result_path=$(readlink -f result)
+          vulnix -w "$result_path" # exit nonzero on findings
+
+      # 5) Secrets leak scan
+      - name: gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        with: { args: detect --no-banner --redact }
