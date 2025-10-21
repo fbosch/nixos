@@ -1,8 +1,22 @@
-name: security
+name: ci
+
 on:
+  push:
+    branches: [main, master]
   pull_request:
-  push: { branches: [main, master] }
-  schedule: [{ cron: "0 6 * * 1" }] # weekly lockfile update
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * *" # daily
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NIX_CONFIG: "extra-experimental-features = nix-command flakes"
 
 jobs:
   checks:
@@ -10,35 +24,50 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Install Nix + cache
-      - uses: DeterminateSystems/nix-installer-action@v12
-      - uses: DeterminateSystems/magic-nix-cache-action@v8
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v12
 
-      # 1) Flake input audit
-      - uses: DeterminateSystems/flake-checker-action@v9
+      - name: Enable Nix cache
+        uses: DeterminateSystems/magic-nix-cache-action@v8
 
-      # 2) Lint/format (treefmt-nix, statix, deadnix)
-      - name: treefmt
-        run: nix run .#treefmt -- --no-cache --ci
-      - name: statix
-        run: nix run nixpkgs#statix -- check .
-      - name: deadnix
-        run: nix run nixpkgs#deadnix -- --fail --no-lambda-pattern-names .
-
-      # 3) Evaluate + build a host
-      - name: flake check
-        run: nix flake check --print-build-logs
-      - name: build host
-        run: nix build .#nixosConfigurations.${{ env.HOST || 'rvn-vm' }}.config.system.build.toplevel
-
-      # 4) CVE scan of the closure
-      - name: vulnix scan
+      - name: Lint + build + scan all hosts
         run: |
-          nix profile install nixpkgs#vulnix
-          result_path=$(readlink -f result)
-          vulnix -w "$result_path" # exit nonzero on findings
+          nix-shell -p treefmt statix deadnix gitleaks vulnix jq \
+            --run 'set -euo pipefail
 
-      # 5) Secrets leak scan
-      - name: gitleaks
-        uses: gitleaks/gitleaks-action@v2
-        with: { args: detect --no-banner --redact }
+              echo "::group::Formatting"
+              treefmt --no-cache --ci
+              echo "::endgroup::"
+
+              echo "::group::Statix"
+              statix check .
+              echo "::endgroup::"
+
+              echo "::group::Deadnix"
+              deadnix --fail --no-lambda-pattern-names .
+              echo "::endgroup::"
+
+              echo "::group::Gitleaks"
+              gitleaks detect --no-banner --redact
+              echo "::endgroup::"
+
+              echo "::group::Flake check"
+              nix flake check --print-build-logs --keep-going
+              echo "::endgroup::"
+
+              mapfile -t HOSTS < <(nix eval --json .#nixosConfigurations | jq -r "keys[]")
+              echo "Hosts: ${HOSTS[*]}"
+
+              for h in "${HOSTS[@]}"; do
+                echo "::group::Build $h"
+                out="result-$h"
+                nix build ".#nixosConfigurations.${h}.config.system.build.toplevel" -o "$out" --print-build-logs
+                rp=$(readlink -f "$out")
+                echo "Built $h -> $rp"
+                echo "::endgroup::"
+
+                echo "::group::CVE scan $h"
+                vulnix "$rp"
+                echo "::endgroup::"
+              done
+            '
