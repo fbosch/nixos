@@ -21,5 +21,91 @@ jobs:
       - name: Validate flake
         run: nix flake check
 
-      - name: Build configuration
-        run: nix build .#nixosConfigurations.rvn-vm.config.system.build.toplevel --dry-run
+      - name: Evaluate all NixOS configurations
+        run: |
+          echo "🔍 Evaluating all NixOS configurations..."
+          
+          # Get all NixOS configuration names
+          CONFIGS=$(nix flake show --json | jq -r '.nixosConfigurations | keys[]' 2>/dev/null || echo "")
+          
+          if [ -z "$CONFIGS" ]; then
+            echo "⚠️  No NixOS configurations found in flake"
+            exit 0
+          fi
+          
+          # Evaluate each configuration
+          for config in $CONFIGS; do
+            echo "Evaluating configuration: $config"
+            if nix eval .#nixosConfigurations.$config.config.system.build.toplevel --json > /dev/null; then
+              echo "✅ $config evaluated successfully"
+            else
+              echo "❌ $config failed to evaluate"
+              exit 1
+            fi
+          done
+          
+          echo "🎉 All configurations evaluated successfully!"
+
+      - name: Show flake structure
+        run: |
+          echo "📋 Flake structure:"
+          nix flake show || echo "Could not show flake structure"
+          
+          echo -e "\n📋 Available NixOS configurations:"
+          nix flake show --json | jq -r '.nixosConfigurations | keys[]' || echo "No NixOS configurations found"
+
+      - name: Build all NixOS configurations
+        run: |
+          echo "🔨 Building all NixOS configurations..."
+          
+          # Get all NixOS configuration names
+          CONFIGS=$(nix flake show --json | jq -r '.nixosConfigurations | keys[]' 2>/dev/null || echo "")
+          
+          if [ -z "$CONFIGS" ]; then
+            echo "⚠️  No NixOS configurations found in flake"
+            exit 0
+          fi
+          
+          # Build each configuration
+          for config in $CONFIGS; do
+            echo "Building configuration: $config"
+            if nix build .#nixosConfigurations.$config.config.system.build.toplevel --dry-run; then
+              echo "✅ $config built successfully"
+            else
+              echo "❌ $config failed to build"
+              exit 1
+            fi
+          done
+          
+          echo "🎉 All configurations built successfully!"
+
+      - name: Build other flake outputs
+        run: |
+          echo "🔨 Building other flake outputs..."
+          
+          # Get all available outputs
+          ALL_OUTPUTS=$(nix flake show --json | jq -r 'keys[]' 2>/dev/null || echo "")
+          
+          for output_type in $ALL_OUTPUTS; do
+            echo "Checking output type: $output_type"
+            
+            # Skip nixosConfigurations as we already built them
+            if [ "$output_type" = "nixosConfigurations" ]; then
+              continue
+            fi
+            
+            # Get outputs of this type
+            OUTPUTS=$(nix flake show --json | jq -r ".$output_type | keys[]" 2>/dev/null || echo "")
+            
+            if [ -n "$OUTPUTS" ]; then
+              echo "Building $output_type outputs:"
+              for output in $OUTPUTS; do
+                echo "  Building: $output_type.$output"
+                if nix build .#$output_type.$output --dry-run 2>/dev/null; then
+                  echo "  ✅ $output_type.$output built successfully"
+                else
+                  echo "  ⚠️  $output_type.$output failed to build (may not be buildable)"
+                fi
+              done
+            fi
+          done
