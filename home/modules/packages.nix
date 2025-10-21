@@ -52,9 +52,11 @@ let
       git-credential-manager
       lazygit
       delta
+      python3
+      python3Packages.evdev
     ];
 
-    shell = [ ripgrep zoxide eza lf fish zsh starship htop ];
+    shell = [ ripgrep zoxide eza lf fish zsh dash starship htop ];
 
     security = [ pass gnupg pinentry-curses bitwarden-desktop ];
 
