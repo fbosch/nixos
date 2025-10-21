@@ -39,9 +39,18 @@
     };
   };
 
-  outputs = { self, nixpkgs, home-manager, flatpaks, ... }@inputs:
-    let system = "x86_64-linux";
-    in {
+  outputs =
+    {
+      self,
+      nixpkgs,
+      home-manager,
+      flatpaks,
+      ...
+    }@inputs:
+    let
+      system = "x86_64-linux";
+    in
+    {
       nixosConfigurations = {
         rvn-vm = nixpkgs.lib.nixosSystem {
           inherit system;
@@ -52,11 +61,13 @@
             home-manager.nixosModules.home-manager
             flatpaks.nixosModules.nix-flatpak
             {
-              home-manager.useGlobalPkgs = true;
-              home-manager.useUserPackages = true;
-              home-manager.backupFileExtension = "hm-backup";
-              home-manager.users.fbb = import ./home.nix;
-              home-manager.extraSpecialArgs = { inherit inputs system; };
+              home-manager = {
+                useGlobalPkgs = true;
+                useUserPackages = true;
+                backupFileExtension = "hm-backup";
+                users.fbb = import ./home.nix;
+                extraSpecialArgs = { inherit inputs system; };
+              };
             }
           ];
         };

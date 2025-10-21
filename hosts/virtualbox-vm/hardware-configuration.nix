@@ -12,17 +12,21 @@
 {
   imports = [ ];
 
-  boot.initrd.availableKernelModules = [
-    "ata_piix"
-    "ohci_pci"
-    "ehci_pci"
-    "ahci"
-    "sd_mod"
-    "sr_mod"
-  ];
-  boot.initrd.kernelModules = [ ];
-  boot.kernelModules = [ ];
-  boot.extraModulePackages = [ ];
+  boot = {
+    initrd = {
+      availableKernelModules = [
+        "ata_piix"
+        "ohci_pci"
+        "ehci_pci"
+        "ahci"
+        "sd_mod"
+        "sr_mod"
+      ];
+      kernelModules = [ ];
+    };
+    kernelModules = [ ];
+    extraModulePackages = [ ];
+  };
 
   fileSystems."/" = {
     device = "/dev/disk/by-uuid/e845efb7-148c-40c7-ba4c-e4d1f03e0ab6";
@@ -42,7 +46,9 @@
 
   nixpkgs.hostPlatform = lib.mkDefault "x86_64-linux";
 
-  virtualisation.virtualbox.guest.enable = true;
-  virtualisation.virtualbox.guest.dragAndDrop = true;
-  virtualisation.virtualbox.guest.clipboard = true;
+  virtualisation.virtualbox.guest = {
+    enable = true;
+    dragAndDrop = true;
+    clipboard = true;
+  };
 }

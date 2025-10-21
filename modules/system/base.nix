@@ -1,4 +1,5 @@
-{ config, pkgs, ... }: {
+{ config, pkgs, ... }:
+{
   programs.nix-ld.enable = true;
   time.timeZone = "Europe/Copnhagen";
   i18n.defaultLocale = "en_DK.UTF-8";
@@ -22,11 +23,19 @@
   users.users.fbb = {
     isNormalUser = true;
     description = "Frederik Bosch";
-    extraGroups = [ "networkmanager" "wheel" ];
+    extraGroups = [
+      "networkmanager"
+      "wheel"
+    ];
   };
 
   nixpkgs.config.allowUnfree = true;
-  nix.settings = { experimental-features = [ "nix-command" "flakes" ]; };
+  nix.settings = {
+    experimental-features = [
+      "nix-command"
+      "flakes"
+    ];
+  };
   console = {
     earlySetup = true;
     packages = with pkgs; [ terminus_font ];
@@ -35,10 +44,12 @@
 
   services.flatpak.enable = true;
 
-  fonts.fontconfig.enable = true;
-  fonts.fontDir.enable = true;
-  fonts.packages = with pkgs; [
-    nerd-fonts.symbols-only
-    nerd-fonts.jetbrains-mono
-  ];
+  fonts = {
+    fontconfig.enable = true;
+    fontDir.enable = true;
+    packages = with pkgs; [
+      nerd-fonts.symbols-only
+      nerd-fonts.jetbrains-mono
+    ];
+  };
 }

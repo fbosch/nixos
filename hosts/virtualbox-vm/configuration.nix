@@ -1,7 +1,14 @@
-{ pkgs, inputs, options, system, ... }: 
-let 
+{
+  pkgs,
+  inputs,
+  options,
+  system,
+  ...
+}:
+let
   theme = inputs.distro-grub-themes.packages.${system}.asus-tuf-grub-theme;
-in {
+in
+{
 
   imports = [ ../../modules/system ];
 
@@ -12,7 +19,7 @@ in {
   boot.loader.grub.device = "/dev/sda";
   boot.loader.grub.useOSProber = true;
   boot.loader.grub.configurationLimit = 42;
-  boot.loader.grub.theme = theme; 
+  boot.loader.grub.theme = theme;
   boot.loader.grub.splashImage = "${theme}/splash_image.jpg";
 
   nixpkgs.overlays = [ inputs.mac-style-plymouth.overlays.default ];
@@ -22,10 +29,11 @@ in {
     themePackages = [ pkgs.mac-style-plymouth ];
   };
 
-  networking.hostName = "rvn-vm";
-  networking.networkmanager.enable = true;
-  networking.timeServers = options.networking.timeServers.default
-    ++ [ "time.nist.gov" ];
+  networking = {
+    hostName = "rvn-vm";
+    networkmanager.enable = true;
+    timeServers = options.networking.timeServers.default ++ [ "time.nist.gov" ];
+  };
 
   zramSwap.enable = true;
   services.upower.enable = true;
@@ -41,5 +49,8 @@ in {
     rulesProvider = pkgs.ananicy-rules-cachyos;
   };
 
-  environment.systemPackages = with pkgs; [ foot xdg-utils ];
+  environment.systemPackages = with pkgs; [
+    foot
+    xdg-utils
+  ];
 }

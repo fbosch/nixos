@@ -10,8 +10,10 @@
     ./home/modules
   ];
 
-  home.username = "fbb";
-  home.homeDirectory = "/home/fbb";
-  home.stateVersion = "25.05";
+  home = {
+    username = "fbb";
+    homeDirectory = "/home/fbb";
+    stateVersion = "25.05";
+  };
   systemd.user.startServices = "sd-switch";
 }
