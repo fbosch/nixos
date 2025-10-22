@@ -18,11 +18,8 @@ env:
   NIX_CONFIG: "extra-experimental-features = nix-command flakes"
 
 jobs:
-  scan:
+  secrets-scan:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        host: [rvn-vm]
     steps:
       - uses: actions/checkout@v4
 
@@ -33,18 +30,34 @@ jobs:
         run: |
           nix-shell -p gitleaks --run 'gitleaks detect --no-banner --redact'
 
+  scan-nixos:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        host: [rvn-vm]
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: DeterminateSystems/nix-installer-action@v12
+      - uses: DeterminateSystems/magic-nix-cache-action@v8
+
       - name: Build system closure
         run: nix build .#nixosConfigurations.${{ matrix.host }}.config.system.build.toplevel -o result
 
-      - name: Run CVE scan
-        uses: intel/cve-bin-tool-action@main
-        with:
-          target: result
-          output-file: cve-report-${{ matrix.host }}.json
-        continue-on-error: true
+      - name: Run vulnix
+        env:
+          LANG: C.UTF-8
+        run: |
+          nix run github:nix-community/vulnix -- --json result > vulnix.json
+          if [ "$(jq 'length' vulnix.json)" != "0" ]; then
+            echo "Vulnerabilities found"
+            jq '.[0:20]' vulnix.json
+            exit 1
+          fi
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: cve-report-${{ matrix.host }}
-          path: cve-report-${{ matrix.host }}.json
+          name: vulnix-${{ matrix.host }}
+          path: vulnix.json
