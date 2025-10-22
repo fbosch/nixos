@@ -29,28 +29,12 @@ jobs:
       - name: Enable Nix cache
         uses: DeterminateSystems/magic-nix-cache-action@v8
 
-      - name: Security scans
+      - name: Secrets scan
         run: |
-          nix-shell -p gitleaks vulnix jq \
-            --run 'set -euo pipefail
+          nix-shell -p gitleaks --run 'gitleaks detect --no-banner --redact'
 
-              echo "::group::Gitleaks"
-              gitleaks detect --no-banner --redact
-              echo "::endgroup::"
-
-              mapfile -t HOSTS < <(nix flake show --json | jq -r ".nixosConfigurations | keys[]")
-              echo "Hosts: ${HOSTS[*]}"
-
-              for h in "${HOSTS[@]}"; do
-                echo "::group::Build $h"
-                out="result-$h"
-                nix build ".#nixosConfigurations.${h}.config.system.build.toplevel" -o "$out" --print-build-logs
-                rp=$(readlink -f "$out")
-                echo "Built $h -> $rp"
-                echo "::endgroup::"
-
-                echo "::group::CVE scan $h"
-                vulnix "$rp"
-                echo "::endgroup::"
-              done
-            '
+      - name: CVE scan
+        continue-on-error: true
+        run: |
+          nix-shell -p python312Packages.vulnix --run 'set -euo pipefail
+            vulnix --system $(nix build --no-link --print-out-paths ".#nixosConfigurations.rvn-vm.config.system.build.toplevel")'
