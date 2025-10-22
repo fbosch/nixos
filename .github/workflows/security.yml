@@ -40,16 +40,19 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: DeterminateSystems/nix-installer-action@v12
+        with:
+          extra-args: --prefer-upstream-nix
       - uses: DeterminateSystems/magic-nix-cache-action@v8
 
-      - name: Build system closure
-        run: nix build .#nixosConfigurations.${{ matrix.host }}.config.system.build.toplevel -o result
+      - name: Build and capture store path
+        id: build
+        run: echo "out=$(nix build .#nixosConfigurations.${{ matrix.host }}.config.system.build.toplevel --print-out-paths)" >> "$GITHUB_OUTPUT"
 
-      - name: Run vulnix
+      - name: Run vulnix on store path
         env:
           LANG: C.UTF-8
         run: |
-          nix run github:nix-community/vulnix -- --json result > vulnix.json
+          nix run github:nix-community/vulnix -- --json "${{ steps.build.outputs.out }}" > vulnix.json
           if [ "$(jq 'length' vulnix.json)" != "0" ]; then
             echo "Vulnerabilities found"
             jq '.[0:20]' vulnix.json

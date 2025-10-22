@@ -23,6 +23,8 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: DeterminateSystems/nix-installer-action@v12
+        with:
+          extra-args: --prefer-upstream-nix
       - uses: DeterminateSystems/magic-nix-cache-action@v8
 
       - name: Lint with Statix
@@ -47,6 +49,8 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: DeterminateSystems/nix-installer-action@v12
+        with:
+          extra-args: --prefer-upstream-nix
       - uses: DeterminateSystems/magic-nix-cache-action@v8
 
       - name: Evaluate ${{ matrix.host }}
