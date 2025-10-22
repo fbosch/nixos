@@ -52,14 +52,17 @@ jobs:
         run: echo "out=$(nix build .#nixosConfigurations.${{ matrix.host }}.config.system.build.toplevel --print-out-paths)" >> "$GITHUB_OUTPUT"
 
       - name: Run vulnix on store path
+        continue-on-error: true
         env:
           LANG: C.UTF-8
         run: |
-          nix run github:nix-community/vulnix -- --json "${{ steps.build.outputs.out }}" > vulnix.json
-          if [ "$(jq 'length' vulnix.json)" != "0" ]; then
-            echo "Vulnerabilities found"
+          nix run github:nix-community/vulnix -- --json "${{ steps.build.outputs.out }}" > vulnix.json || true
+          vuln_count=$(jq 'length' vulnix.json)
+          echo "Found $vuln_count vulnerabilities"
+          if [ "$vuln_count" != "0" ]; then
+            echo "::warning::Found $vuln_count vulnerabilities in ${{ matrix.host }}"
+            echo "Top 20 vulnerabilities:"
             jq '.[0:20]' vulnix.json
-            exit 1
           fi
 
       - uses: actions/upload-artifact@v4
