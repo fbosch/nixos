@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 concurrency:
   group: ci-${{ github.ref }}-validate
@@ -17,57 +18,50 @@ env:
   NIX_CONFIG: "extra-experimental-features = nix-command flakes"
 
 jobs:
-  validate:
+  lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@v12
+      - uses: DeterminateSystems/nix-installer-action@v12
+        with:
+          extra-args: --prefer-upstream-nix
+      - uses: DeterminateSystems/magic-nix-cache-action@v8
+        with:
+          use-flakehub: false
 
-      - name: Enable Nix cache
-        uses: DeterminateSystems/magic-nix-cache-action@v8
-
-      - name: Lint
+      - name: Lint with Statix
         run: |
-          nix-shell -p statix deadnix --run 'set -euo pipefail
+          nix-shell -p statix --run 'statix check .'
 
-            echo "::group::Statix"
-            statix check .
-            echo "::endgroup::"
-
-            echo "::group::Deadnix"
-            deadnix --fail --no-lambda-pattern-names .
-            echo "::endgroup::"'
+      - name: Lint with Deadnix
+        run: |
+          nix-shell -p deadnix --run 'deadnix --fail --no-lambda-pattern-names .'
 
       - name: Flake checks
         run: nix flake check --print-build-logs --keep-going
 
-      - name: Evaluate and build flake outputs
+  build-nixos:
+    runs-on: ubuntu-latest
+    needs: lint
+    strategy:
+      matrix:
+        host: [rvn-vm]
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: DeterminateSystems/nix-installer-action@v12
+        with:
+          extra-args: --prefer-upstream-nix
+      - uses: DeterminateSystems/magic-nix-cache-action@v8
+        with:
+          use-flakehub: false
+
+      - name: Evaluate ${{ matrix.host }}
         run: |
-          nix-shell -p jq --run 'set -euo pipefail
+          nix eval ".#nixosConfigurations.${{ matrix.host }}.config.system.build.toplevel" --json > /dev/null
 
-            mapfile -t configs < <(nix eval --json .#nixosConfigurations | jq -r "keys[]" 2>/dev/null || true)
-            if [ ${#configs[@]} -eq 0 ]; then
-              echo "No NixOS configurations found."
-            else
-              echo "Configurations: ${configs[*]}"
-              for cfg in "${configs[@]}"; do
-                echo "Evaluating ${cfg}"
-                nix eval ".#nixosConfigurations.${cfg}.config.system.build.toplevel" --json > /dev/null
-              done
-              for cfg in "${configs[@]}"; do
-                echo "Dry-run build ${cfg}"
-                nix build ".#nixosConfigurations.${cfg}.config.system.build.toplevel" --dry-run --print-build-logs
-              done
-            fi
-
-            mapfile -t categories < <(nix flake show --json | jq -r "keys[]")
-            for category in "${categories[@]}"; do
-              [ "$category" = "nixosConfigurations" ] && continue
-              mapfile -t outputs < <(nix flake show --json | jq -r ".${category} | keys[]" 2>/dev/null || true)
-              for output in "${outputs[@]}"; do
-                echo "Dry-run build ${category}.${output}"
-                nix build ".#${category}.${output}" --dry-run --print-build-logs || true
-              done
-            done'
+      - name: Dry-run build ${{ matrix.host }}
+        run: |
+          nix build ".#nixosConfigurations.${{ matrix.host }}.config.system.build.toplevel" --dry-run --print-build-logs

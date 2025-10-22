@@ -41,6 +41,10 @@
       url = "github:vicinaehq/vicinae";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    dotfiles = {
+      url = "github:fbosch/dotfiles";
+      flake = false;
+    };
   };
 
   outputs =
@@ -49,6 +53,7 @@
       nixpkgs,
       home-manager,
       flatpaks,
+      dotfiles,
       ...
     }@inputs:
     let

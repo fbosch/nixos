@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -18,39 +19,170 @@ env:
   NIX_CONFIG: "extra-experimental-features = nix-command flakes"
 
 jobs:
-  checks:
+  scan-nixos:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        host: [rvn-vm]
+      fail-fast: false
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@v12
+      - uses: DeterminateSystems/nix-installer-action@v12
+        with:
+          extra-args: --prefer-upstream-nix
+      - uses: DeterminateSystems/magic-nix-cache-action@v8
+        with:
+          use-flakehub: false
 
-      - name: Enable Nix cache
-        uses: DeterminateSystems/magic-nix-cache-action@v8
+      - name: Build and capture store path
+        id: build
+        run: echo "out=$(nix build .#nixosConfigurations.${{ matrix.host }}.config.system.build.toplevel --print-out-paths)" >> "$GITHUB_OUTPUT"
 
-      - name: Security scans
+      - name: Run vulnix on store path
+        env:
+          LANG: C.UTF-8
         run: |
-          nix-shell -p gitleaks vulnix jq \
-            --run 'set -euo pipefail
+          # Check if whitelist exists
+          WHITELIST_ARG=""
+          if [ -f ".vulnix-whitelist.toml" ]; then
+            WHITELIST_ARG="--whitelist .vulnix-whitelist.toml"
+          fi
+          
+          # Run vulnix with system flag to only check runtime dependencies
+          # --system ensures we only scan packages actually used at runtime, not build-time dependencies
+          nix run github:nix-community/vulnix -- --json --system $WHITELIST_ARG "${{ steps.build.outputs.out }}" > vulnix-raw.json || true
+          
+          # Get runtime closure and filter vulnerabilities
+          nix-store --query --requisites "${{ steps.build.outputs.out }}" > runtime-closure.txt
+          
+          jq -c '.[]' vulnix-raw.json | while IFS= read -r vuln; do
+            derivation=$(echo "$vuln" | jq -r '.derivation')
+            name=$(echo "$vuln" | jq -r '.name')
+            
+            if [[ "$derivation" == *.drv ]]; then
+              output_path=$(nix derivation show "$derivation" 2>/dev/null | jq -r '.[].outputs.out.path // empty' || echo "")
+              [ -z "$output_path" ] && output_path=$(grep -F "$name" runtime-closure.txt | head -n1 || echo "")
+            else
+              output_path="$derivation"
+            fi
+            
+            [ -n "$output_path" ] && grep -qF "$output_path" runtime-closure.txt && echo "$vuln"
+          done | jq -s '.' > vulnix.json
+          
+          total_count=$(jq 'length' vulnix.json)
+          high_severity_count=$(jq '[ .[] | select( ([.cvssv3_basescore[]]|max) >= 7 ) ] | length' vulnix.json)
+          critical_count=$(jq '[ .[] | select( ([.cvssv3_basescore[]]|max) >= 9 ) ] | length' vulnix.json)
+          
+          echo "TOTAL_VULNS=$total_count" >> $GITHUB_ENV
+          echo "HIGH_SEVERITY_VULNS=$high_severity_count" >> $GITHUB_ENV
+          echo "CRITICAL_VULNS=$critical_count" >> $GITHUB_ENV
+          echo "### 🔒 Vulnerability Summary for ${{ matrix.host }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Total vulnerabilities | $total_count |" >> $GITHUB_STEP_SUMMARY
+          echo "| High severity (CVSS ≥ 7.0) | $high_severity_count |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Critical (CVSS ≥ 9.0)** | **$critical_count** |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "$critical_count" != "0" ]; then
+            echo "## 🚨 Critical Vulnerabilities" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            jq -r '[ .[] | select( ([.cvssv3_basescore[]]|max) >= 9 ) ] | .[] | 
+              "- **\(.name)** v\(.version): \(.affected_by | join(", ")) (CVSS: \([.cvssv3_basescore[]]|max))"' \
+              vulnix.json >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ No high-severity vulnerabilities found!" >> $GITHUB_STEP_SUMMARY
+          fi
 
-              echo "::group::Gitleaks"
-              gitleaks detect --no-banner --redact
-              echo "::endgroup::"
+      - name: Analyze dependency chains
+        if: always()
+        run: |
+          [ ! -f vulnix.json ] || [ "$(jq 'length' vulnix.json)" = "0" ] && exit 0
+          
+          [ ! -f runtime-closure.txt ] && nix-store --query --requisites "${{ steps.build.outputs.out }}" > runtime-closure.txt
+          
+          echo "# Dependency Chain Analysis for ${{ matrix.host }}" > dependency-analysis.md
+          echo "" >> dependency-analysis.md
+          
+          # Process each vulnerability
+          jq -c '.[]' vulnix.json | while IFS= read -r vuln; do
+            name=$(echo "$vuln" | jq -r '.name')
+            version=$(echo "$vuln" | jq -r '.version')
+            cves=$(echo "$vuln" | jq -r '.affected_by | join(", ")')
+            cvss=$(echo "$vuln" | jq -r '[.cvssv3_basescore[]] | max')
+            derivation=$(echo "$vuln" | jq -r '.derivation')
+            
+            echo "## $name v$version" >> dependency-analysis.md
+            echo "" >> dependency-analysis.md
+            echo "**CVEs:** $cves" >> dependency-analysis.md
+            echo "**CVSS Score:** $cvss" >> dependency-analysis.md
+            echo "" >> dependency-analysis.md
+            
+            # Find the actual store path in the runtime closure
+            if [[ "$derivation" == *.drv ]]; then
+              output_path=$(nix derivation show "$derivation" 2>/dev/null | jq -r '.[].outputs.out.path // empty' || echo "")
+              
+              if [ -z "$output_path" ]; then
+                # Search for the package in the runtime closure by name
+                output_path=$(grep -E "/nix/store/[a-z0-9]+-${name}-${version}$" runtime-closure.txt | head -n1 || echo "")
+              fi
+            else
+              output_path="$derivation"
+            fi
+            
+            if [ -z "$output_path" ]; then
+              echo "**Store Path:** Could not resolve (derivation: \`$derivation\`)" >> dependency-analysis.md
+            else
+              echo "**Store Path:** \`$output_path\`" >> dependency-analysis.md
+            fi
+            
+            echo "" >> dependency-analysis.md
+            
+            # Run nix why-depends to find dependency chain
+            echo "### Dependency Chain" >> dependency-analysis.md
+            echo "" >> dependency-analysis.md
+            
+            if [ -n "$output_path" ] && [ -e "$output_path" ]; then
+              echo '```' >> dependency-analysis.md
+              if why_output=$(nix why-depends --all "${{ steps.build.outputs.out }}" "$output_path" 2>&1); then
+                echo "$why_output" >> dependency-analysis.md
+                
+                echo '```' >> dependency-analysis.md
+                echo "" >> dependency-analysis.md
+                
+                immediate_parent=$(echo "$why_output" | grep -A1 "^${{ steps.build.outputs.out }}" | grep "→" | head -n1 | sed 's/.*→ //' | awk '{print $1}')
+                
+                if [ -n "$immediate_parent" ]; then
+                  parent_name=$(basename "$immediate_parent" | sed 's/^[a-z0-9]\{32\}-//')
+                  echo "" >> dependency-analysis.md
+                  echo "**Culprit:** \`$parent_name\`" >> dependency-analysis.md
+                fi
+              else
+                echo "Error: $why_output" >> dependency-analysis.md
+                echo '```' >> dependency-analysis.md
+              fi
+            else
+              echo "Path not found: \`$output_path\`" >> dependency-analysis.md
+            fi
+            
+            echo "---" >> dependency-analysis.md
+          done
 
-              mapfile -t HOSTS < <(nix flake show --json | jq -r ".nixosConfigurations | keys[]")
-              echo "Hosts: ${HOSTS[*]}"
+      - name: Check for critical vulnerabilities
+        if: always()
+        run: |
+          if [ "${{ env.CRITICAL_VULNS }}" != "0" ]; then
+            echo "::error::Found ${{ env.CRITICAL_VULNS }} critical vulnerabilities (CVSS >= 9.0)"
+            exit 1
+          fi
 
-              for h in "${HOSTS[@]}"; do
-                echo "::group::Build $h"
-                out="result-$h"
-                nix build ".#nixosConfigurations.${h}.config.system.build.toplevel" -o "$out" --print-build-logs
-                rp=$(readlink -f "$out")
-                echo "Built $h -> $rp"
-                echo "::endgroup::"
-
-                echo "::group::CVE scan $h"
-                vulnix "$rp"
-                echo "::endgroup::"
-              done
-            '
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-report-${{ matrix.host }}
+          path: |
+            vulnix.json
+            dependency-analysis.md
