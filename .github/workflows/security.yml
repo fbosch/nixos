@@ -125,6 +125,7 @@ jobs:
           echo "# Dependency Chain Analysis for ${{ matrix.host }}" > dependency-analysis.md
           echo "" >> dependency-analysis.md
           echo "This report shows which packages depend on vulnerable packages." >> dependency-analysis.md
+          echo "Each vulnerability is traced back to the top-level packages that pull it in." >> dependency-analysis.md
           echo "" >> dependency-analysis.md
           
           # Process each vulnerability
@@ -139,21 +140,72 @@ jobs:
             echo "" >> dependency-analysis.md
             echo "**CVEs:** $cves" >> dependency-analysis.md
             echo "**CVSS Score:** $cvss" >> dependency-analysis.md
-            echo "**Store Path:** \`$derivation\`" >> dependency-analysis.md
+            echo "**Derivation:** \`$derivation\`" >> dependency-analysis.md
             echo "" >> dependency-analysis.md
+            
+            # Convert .drv path to output path
+            # The derivation path ends in .drv, we need to build it to get the output
+            if [[ "$derivation" == *.drv ]]; then
+              echo "Resolving output path for $name..." >&2
+              
+              # Try to get the output path from the derivation
+              output_path=$(nix derivation show "$derivation" 2>/dev/null | jq -r '.[].outputs.out.path // empty' || echo "")
+              
+              if [ -z "$output_path" ]; then
+                # Fallback: search in the store for a matching path
+                output_path=$(find /nix/store -maxdepth 1 -name "*$(basename "$derivation" .drv)*" -type d 2>/dev/null | head -n1 || echo "")
+              fi
+              
+              if [ -n "$output_path" ] && [ -e "$output_path" ]; then
+                echo "Found output path: $output_path" >&2
+                target_path="$output_path"
+              else
+                echo "Could not resolve output path for $derivation" >&2
+                target_path="$derivation"
+              fi
+            else
+              target_path="$derivation"
+            fi
             
             # Run nix why-depends to find dependency chain
             echo "### Dependency Chain" >> dependency-analysis.md
             echo "" >> dependency-analysis.md
             echo '```' >> dependency-analysis.md
             
-            if nix why-depends "${{ steps.build.outputs.out }}" "$derivation" 2>/dev/null; then
-              echo "Successfully traced dependency chain"
+            if output=$(nix why-depends --all "${{ steps.build.outputs.out }}" "$target_path" 2>&1); then
+              echo "$output" >> dependency-analysis.md
             else
-              echo "Unable to determine dependency chain (package may not be directly reachable)"
-            fi >> dependency-analysis.md
+              echo "Unable to determine dependency chain for $name" >> dependency-analysis.md
+              echo "" >> dependency-analysis.md
+              echo "Attempted path: $target_path" >> dependency-analysis.md
+              echo "" >> dependency-analysis.md
+              echo "This may indicate:" >> dependency-analysis.md
+              echo "- The package is not actually used in the final system" >> dependency-analysis.md
+              echo "- The package path could not be resolved" >> dependency-analysis.md
+              echo "- The vulnerability is a false positive" >> dependency-analysis.md
+            fi
             
             echo '```' >> dependency-analysis.md
+            echo "" >> dependency-analysis.md
+            
+            # Add actionable information
+            echo "### Recommended Actions" >> dependency-analysis.md
+            echo "" >> dependency-analysis.md
+            
+            if [ -n "$output" ]; then
+              # Extract the first package in the chain (the culprit)
+              first_dep=$(echo "$output" | grep -oP '(?<=→ ).*' | head -n1 | awk '{print $1}' || echo "")
+              if [ -n "$first_dep" ]; then
+                echo "- **Culprit package:** \`$first_dep\`" >> dependency-analysis.md
+              fi
+              echo "- Review if this package is necessary for your configuration" >> dependency-analysis.md
+              echo "- Check if updating this package resolves the vulnerability" >> dependency-analysis.md
+              echo "- Consider removing or replacing this package if not essential" >> dependency-analysis.md
+            else
+              echo "- Verify if this package is actually used in your system" >> dependency-analysis.md
+              echo "- This might be a false positive - add to \`.vulnix-whitelist.toml\` if confirmed" >> dependency-analysis.md
+            fi
+            
             echo "" >> dependency-analysis.md
             echo "---" >> dependency-analysis.md
             echo "" >> dependency-analysis.md
@@ -166,9 +218,14 @@ jobs:
           echo "## Summary" >> dependency-analysis.md
           echo "" >> dependency-analysis.md
           echo "Review the dependency chains above to:" >> dependency-analysis.md
-          echo "1. Identify which top-level packages are pulling in vulnerable dependencies" >> dependency-analysis.md
-          echo "2. Decide whether to update, replace, or remove the culprit packages" >> dependency-analysis.md
-          echo "3. Check if the vulnerability actually affects your usage" >> dependency-analysis.md
+          echo "" >> dependency-analysis.md
+          echo "1. **Identify culprit packages** - Look at the first package in each chain" >> dependency-analysis.md
+          echo "2. **Assess impact** - Determine if the vulnerable code path is actually used" >> dependency-analysis.md
+          echo "3. **Take action:**" >> dependency-analysis.md
+          echo "   - Run \`nix flake update\` to update all dependencies" >> dependency-analysis.md
+          echo "   - Remove packages that aren't needed" >> dependency-analysis.md
+          echo "   - Replace packages with alternatives if updates don't fix the issue" >> dependency-analysis.md
+          echo "   - Add confirmed false positives to \`.vulnix-whitelist.toml\`" >> dependency-analysis.md
           
           # Add link to summary
           echo "" >> $GITHUB_STEP_SUMMARY
