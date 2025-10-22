@@ -37,7 +37,7 @@ jobs:
         run: nix build .#nixosConfigurations.${{ matrix.host }}.config.system.build.toplevel -o result
 
       - name: Run CVE scan
-        uses: intel/cve-bin-tool-action@v.9
+        uses: intel/cve-bin-tool-action@main
         with:
           target: result
           output-file: cve-report-${{ matrix.host }}.json
