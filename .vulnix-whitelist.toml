@@ -1,40 +1,14 @@
 # Vulnix Whitelist Configuration
 # Use this file to exclude known false positives or accepted risks
-# Each entry should have an expiry date for periodic review
 
-# =============================================================================
-# USAGE INSTRUCTIONS
-# =============================================================================
-# After reviewing scan results, add entries for confirmed false positives:
-#
-# [[packages]]
-# name = "package-name"           # Exact package name from scan
-# cve = "CVE-YYYY-XXXXX"          # Specific CVE to whitelist
-# comment = "Detailed reason"     # Why this is safe to ignore
-# expiry = "2026-06-01"           # Review date (max 1 year)
-
-# =============================================================================
-# FALSE POSITIVES - Package Name Collisions
-# =============================================================================
-# Common patterns to watch for when reviewing:
-# - Haskell/Rust library names matching unrelated commercial software
-# - Jenkins plugins vs CLI tools (git plugin vs git CLI)
-# - Python/Node packages vs system utilities
-# - Mobile apps vs command-line tools
-# - Development dependencies not in runtime closure
-
-# Add verified false positives below:
-
-# =============================================================================
-# FALSE POSITIVES - Package Name Collisions & Version Mismatches
-# =============================================================================
-
+# Package name collision: CVE affects Diff-1.0.2, not GNU diffutils
 [[packages]]
 name = "diff"
 cve = "CVE-2024-13278"
 comment = "Package name collision: CVE affects Diff-1.0.2, not GNU diffutils in nixpkgs"
 expiry = "2025-12-31"
 
+# Version mismatch: CVE affects curl-0.4.46, we use libcurl 8.x
 [[packages]]
 name = "curl"
 cve = "CVE-2020-8284"
@@ -107,6 +81,7 @@ cve = "CVE-2023-28322"
 comment = "Version mismatch: CVE affects curl-0.4.46, we use libcurl 8.x"
 expiry = "2025-12-31"
 
+# Version mismatch: CVE affects zlib-0.7.1.1, we use zlib 1.3.x
 [[packages]]
 name = "zlib"
 cve = "CVE-2022-37434"
@@ -125,6 +100,7 @@ cve = "CVE-2023-6992"
 comment = "Version mismatch: CVE affects zlib-0.7.1.1, we use zlib 1.3.x"
 expiry = "2025-12-31"
 
+# Python 2.7 is EOL and not in runtime closure, likely build dependency
 [[packages]]
 name = "python"
 cve = "CVE-2020-1171"
@@ -245,6 +221,7 @@ cve = "CVE-2025-49714"
 comment = "Python 2.7 is EOL and not in runtime closure, likely build dependency"
 expiry = "2025-12-31"
 
+# Package name collision: CVE likely affects different network package than Haskell network library
 [[packages]]
 name = "network"
 cve = "CVE-2021-35047"
@@ -323,6 +300,7 @@ cve = "CVE-2022-24394"
 comment = "Package name collision: CVE likely affects different network package than Haskell network library"
 expiry = "2025-12-31"
 
+# Package name collision: CVE likely affects different cereal package than C++ serialization library
 [[packages]]
 name = "cereal"
 cve = "CVE-2020-11104"
@@ -334,20 +312,3 @@ name = "cereal"
 cve = "CVE-2020-11105"
 comment = "Package name collision: CVE likely affects different cereal package than C++ serialization library"
 expiry = "2025-12-31"
-
-
-# =============================================================================
-# ACCEPTED RISKS - With Mitigation or Low Impact
-# =============================================================================
-# Document risks accepted due to configuration, mitigations, or low impact
-
-# Add accepted risks below:
-
-
-# =============================================================================
-# REVIEW SCHEDULE
-# =============================================================================
-# - Review this file quarterly (March, June, September, December)
-# - Remove expired entries or extend if still valid
-# - Update with new false positives from scan reports
-# - Document any newly accepted risks
