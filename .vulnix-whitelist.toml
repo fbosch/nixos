@@ -1,0 +1,43 @@
+# Vulnix Whitelist Configuration
+# Use this file to exclude known false positives or accepted risks
+# Each entry should have an expiry date for periodic review
+
+# =============================================================================
+# USAGE INSTRUCTIONS
+# =============================================================================
+# After reviewing scan results, add entries for confirmed false positives:
+#
+# [[packages]]
+# name = "package-name"           # Exact package name from scan
+# cve = "CVE-YYYY-XXXXX"          # Specific CVE to whitelist
+# comment = "Detailed reason"     # Why this is safe to ignore
+# expiry = "2026-06-01"           # Review date (max 1 year)
+
+# =============================================================================
+# FALSE POSITIVES - Package Name Collisions
+# =============================================================================
+# Common patterns to watch for when reviewing:
+# - Haskell/Rust library names matching unrelated commercial software
+# - Jenkins plugins vs CLI tools (git plugin vs git CLI)
+# - Python/Node packages vs system utilities
+# - Mobile apps vs command-line tools
+# - Development dependencies not in runtime closure
+
+# Add verified false positives below:
+
+
+# =============================================================================
+# ACCEPTED RISKS - With Mitigation or Low Impact
+# =============================================================================
+# Document risks accepted due to configuration, mitigations, or low impact
+
+# Add accepted risks below:
+
+
+# =============================================================================
+# REVIEW SCHEDULE
+# =============================================================================
+# - Review this file quarterly (March, June, September, December)
+# - Remove expired entries or extend if still valid
+# - Update with new false positives from scan reports
+# - Document any newly accepted risks

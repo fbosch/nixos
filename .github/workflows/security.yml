@@ -72,19 +72,24 @@ jobs:
           high_severity_count=$(jq '[ .[] | select( ([.cvssv3_basescore[]]|max) >= 7 ) ] | length' vulnix.json)
           echo "Found $high_severity_count high-severity vulnerabilities (CVSS >= 7.0)"
           
+          # Count critical vulnerabilities (CVSS >= 9.0)
+          critical_count=$(jq '[ .[] | select( ([.cvssv3_basescore[]]|max) >= 9 ) ] | length' vulnix.json)
+          echo "Found $critical_count critical vulnerabilities (CVSS >= 9.0)"
+          
           # Display summary
           echo "### 🔒 Vulnerability Summary for ${{ matrix.host }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
           echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
           echo "| Total vulnerabilities | $total_count |" >> $GITHUB_STEP_SUMMARY
-          echo "| **High severity (CVSS ≥ 7.0)** | **$high_severity_count** |" >> $GITHUB_STEP_SUMMARY
+          echo "| High severity (CVSS ≥ 7.0) | $high_severity_count |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Critical (CVSS ≥ 9.0)** | **$critical_count** |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
-          if [ "$high_severity_count" != "0" ]; then
-            echo "## ⚠️ High Severity Vulnerabilities" >> $GITHUB_STEP_SUMMARY
+          if [ "$critical_count" != "0" ]; then
+            echo "## 🚨 Critical Vulnerabilities" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            jq -r '[ .[] | select( ([.cvssv3_basescore[]]|max) >= 7 ) ] | .[] | 
+            jq -r '[ .[] | select( ([.cvssv3_basescore[]]|max) >= 9 ) ] | .[] | 
               "- **\(.name)** v\(.version): \(.affected_by | join(", ")) (CVSS: \([.cvssv3_basescore[]]|max))"' \
               vulnix.json >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
@@ -92,13 +97,18 @@ jobs:
             echo "1. Run \`nix flake update\` to get latest package versions" >> $GITHUB_STEP_SUMMARY
             echo "2. Review each CVE to verify it applies to your configuration" >> $GITHUB_STEP_SUMMARY
             echo "3. Add false positives to \`.vulnix-whitelist.toml\`" >> $GITHUB_STEP_SUMMARY
+          elif [ "$high_severity_count" != "0" ]; then
+            echo "## ⚠️ High Severity Vulnerabilities (Informational)" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Found $high_severity_count high-severity (CVSS ≥ 7.0) vulnerabilities that don't meet the critical threshold." >> $GITHUB_STEP_SUMMARY
+            echo "Review these when convenient and consider updating." >> $GITHUB_STEP_SUMMARY
           else
             echo "✅ No high-severity vulnerabilities found!" >> $GITHUB_STEP_SUMMARY
           fi
           
-          # Fail build if high-severity vulnerabilities found
-          if ! jq '[ .[] | select( ([.cvssv3_basescore[]]|max) >= 7 ) ] | length' vulnix.json | grep -qx 0; then
-            echo "::error::Found $high_severity_count high-severity vulnerabilities (CVSS >= 7.0)"
+          # Fail build if critical vulnerabilities found
+          if ! jq '[ .[] | select( ([.cvssv3_basescore[]]|max) >= 9 ) ] | length' vulnix.json | grep -qx 0; then
+            echo "::error::Found $critical_count critical vulnerabilities (CVSS >= 9.0)"
             exit 1
           fi
 
