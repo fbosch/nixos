@@ -22,13 +22,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - uses: DeterminateSystems/nix-installer-action@v12
-      - uses: DeterminateSystems/magic-nix-cache-action@v8
+        with:
+          fetch-depth: 0
 
       - name: Secrets scan
-        run: |
-          nix-shell -p gitleaks --run 'gitleaks detect --no-banner --redact'
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   scan-nixos:
     runs-on: ubuntu-latest
