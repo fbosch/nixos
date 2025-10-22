@@ -32,6 +32,8 @@ jobs:
 
       - name: Enable Nix cache
         uses: DeterminateSystems/magic-nix-cache-action@v8
+        with:
+          use-flakehub: false
 
       - name: Update flake inputs
         id: update

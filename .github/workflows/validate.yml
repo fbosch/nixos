@@ -27,6 +27,8 @@ jobs:
         with:
           extra-args: --prefer-upstream-nix
       - uses: DeterminateSystems/magic-nix-cache-action@v8
+        with:
+          use-flakehub: false
 
       - name: Lint with Statix
         run: |
@@ -53,6 +55,8 @@ jobs:
         with:
           extra-args: --prefer-upstream-nix
       - uses: DeterminateSystems/magic-nix-cache-action@v8
+        with:
+          use-flakehub: false
 
       - name: Evaluate ${{ matrix.host }}
         run: |

@@ -44,6 +44,8 @@ jobs:
         with:
           extra-args: --prefer-upstream-nix
       - uses: DeterminateSystems/magic-nix-cache-action@v8
+        with:
+          use-flakehub: false
 
       - name: Build and capture store path
         id: build
