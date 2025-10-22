@@ -52,21 +52,58 @@ jobs:
         run: echo "out=$(nix build .#nixosConfigurations.${{ matrix.host }}.config.system.build.toplevel --print-out-paths)" >> "$GITHUB_OUTPUT"
 
       - name: Run vulnix on store path
-        continue-on-error: true
         env:
           LANG: C.UTF-8
         run: |
-          nix run github:nix-community/vulnix -- --json "${{ steps.build.outputs.out }}" > vulnix.json || true
-          vuln_count=$(jq 'length' vulnix.json)
-          echo "Found $vuln_count vulnerabilities"
-          if [ "$vuln_count" != "0" ]; then
-            echo "::warning::Found $vuln_count vulnerabilities in ${{ matrix.host }}"
-            echo "Top 20 vulnerabilities:"
-            jq '.[0:20]' vulnix.json
+          # Check if whitelist exists
+          WHITELIST_ARG=""
+          if [ -f ".vulnix-whitelist.toml" ]; then
+            WHITELIST_ARG="--whitelist .vulnix-whitelist.toml"
+          fi
+          
+          # Run vulnix
+          nix run github:nix-community/vulnix -- --json $WHITELIST_ARG "${{ steps.build.outputs.out }}" > vulnix.json || true
+          
+          # Count total vulnerabilities
+          total_count=$(jq 'length' vulnix.json)
+          echo "Found $total_count total vulnerabilities"
+          
+          # Count high-severity vulnerabilities (CVSS >= 7.0)
+          high_severity_count=$(jq '[ .[] | select( ([.cvssv3_basescore[]]|max) >= 7 ) ] | length' vulnix.json)
+          echo "Found $high_severity_count high-severity vulnerabilities (CVSS >= 7.0)"
+          
+          # Display summary
+          echo "### 🔒 Vulnerability Summary for ${{ matrix.host }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Total vulnerabilities | $total_count |" >> $GITHUB_STEP_SUMMARY
+          echo "| **High severity (CVSS ≥ 7.0)** | **$high_severity_count** |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "$high_severity_count" != "0" ]; then
+            echo "## ⚠️ High Severity Vulnerabilities" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            jq -r '[ .[] | select( ([.cvssv3_basescore[]]|max) >= 7 ) ] | .[] | 
+              "- **\(.name)** v\(.version): \(.affected_by | join(", ")) (CVSS: \([.cvssv3_basescore[]]|max))"' \
+              vulnix.json >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Actions:**" >> $GITHUB_STEP_SUMMARY
+            echo "1. Run \`nix flake update\` to get latest package versions" >> $GITHUB_STEP_SUMMARY
+            echo "2. Review each CVE to verify it applies to your configuration" >> $GITHUB_STEP_SUMMARY
+            echo "3. Add false positives to \`.vulnix-whitelist.toml\`" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ No high-severity vulnerabilities found!" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Fail build if high-severity vulnerabilities found
+          if ! jq '[ .[] | select( ([.cvssv3_basescore[]]|max) >= 7 ) ] | length' vulnix.json | grep -qx 0; then
+            echo "::error::Found $high_severity_count high-severity vulnerabilities (CVSS >= 7.0)"
+            exit 1
           fi
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: vulnix-${{ matrix.host }}
+          name: vulnix-report-${{ matrix.host }}
           path: vulnix.json
