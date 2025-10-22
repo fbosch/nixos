@@ -112,6 +112,72 @@ jobs:
             exit 1
           fi
 
+      - name: Analyze dependency chains
+        if: always()
+        run: |
+          # Create dependency analysis report
+          echo "# Dependency Chain Analysis for ${{ matrix.host }}" > dependency-analysis.md
+          echo "" >> dependency-analysis.md
+          echo "This report shows which packages depend on vulnerable packages." >> dependency-analysis.md
+          echo "" >> dependency-analysis.md
+          
+          # Process each vulnerability
+          jq -c '.[]' vulnix.json | while IFS= read -r vuln; do
+            name=$(echo "$vuln" | jq -r '.name')
+            version=$(echo "$vuln" | jq -r '.version')
+            cves=$(echo "$vuln" | jq -r '.affected_by | join(", ")')
+            cvss=$(echo "$vuln" | jq -r '[.cvssv3_basescore[]] | max')
+            derivation=$(echo "$vuln" | jq -r '.derivation')
+            
+            echo "## $name v$version" >> dependency-analysis.md
+            echo "" >> dependency-analysis.md
+            echo "**CVEs:** $cves" >> dependency-analysis.md
+            echo "**CVSS Score:** $cvss" >> dependency-analysis.md
+            echo "**Store Path:** \`$derivation\`" >> dependency-analysis.md
+            echo "" >> dependency-analysis.md
+            
+            # Run nix why-depends to find dependency chain
+            echo "### Dependency Chain" >> dependency-analysis.md
+            echo "" >> dependency-analysis.md
+            echo '```' >> dependency-analysis.md
+            
+            if nix why-depends "${{ steps.build.outputs.out }}" "$derivation" 2>/dev/null; then
+              echo "Successfully traced dependency chain"
+            else
+              echo "Unable to determine dependency chain (package may not be directly reachable)"
+            fi >> dependency-analysis.md
+            
+            echo '```' >> dependency-analysis.md
+            echo "" >> dependency-analysis.md
+            echo "---" >> dependency-analysis.md
+            echo "" >> dependency-analysis.md
+          done
+          
+          echo "✅ Dependency analysis complete"
+          
+          # Add summary section
+          echo "" >> dependency-analysis.md
+          echo "## Summary" >> dependency-analysis.md
+          echo "" >> dependency-analysis.md
+          echo "Review the dependency chains above to:" >> dependency-analysis.md
+          echo "1. Identify which top-level packages are pulling in vulnerable dependencies" >> dependency-analysis.md
+          echo "2. Decide whether to update, replace, or remove the culprit packages" >> dependency-analysis.md
+          echo "3. Check if the vulnerability actually affects your usage" >> dependency-analysis.md
+          
+          # Add link to summary if there are vulnerabilities
+          if [ "$(jq 'length' vulnix.json)" != "0" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "📊 **[View detailed dependency analysis](dependency-analysis.md)**" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-report-${{ matrix.host }}
+          path: |
+            vulnix.json
+            dependency-analysis.md
+
       - uses: actions/upload-artifact@v4
         if: always()
         with:
