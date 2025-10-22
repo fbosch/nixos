@@ -38,45 +38,45 @@ jobs:
       - name: Update flake inputs
         id: update
         run: |
-          nix-shell -p git jq --run 'set -euo pipefail
+          set -euo pipefail
 
-            update_output=$(nix flake update 2>&1)
-            printf "%s\n" "$update_output"
+          update_output=$(nix flake update 2>&1)
+          printf "%s\n" "$update_output"
 
-            if [ -z "$(git status --porcelain flake.lock)" ]; then
-              echo "changed=false" >> "$GITHUB_OUTPUT"
-              exit 0
+          if [ -z "$(git status --porcelain flake.lock)" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+          mapfile -t inputs < <(printf "%s\n" "$update_output" | grep "• Updated input" | sed "s/• Updated input '//" | sed "s/':.*//")
+
+          input_count=${#inputs[@]}
+          [ "$input_count" -eq 0 ] && inputs=("flake.lock") && input_count=1
+
+          echo "input_count=$input_count" >> "$GITHUB_OUTPUT"
+          echo "updated_inputs=$(printf "%s" "${inputs[*]}")" >> "$GITHUB_OUTPUT"
+
+          printf "detailed_changes<<'EOF'\n" >> "$GITHUB_OUTPUT"
+          for name in "${inputs[@]}"; do
+            owner=$(jq -r ".nodes.\"${name}\".locked.owner // empty" flake.lock 2>/dev/null)
+            repo=$(jq -r ".nodes.\"${name}\".locked.repo // empty" flake.lock 2>/dev/null)
+            type=$(jq -r ".nodes.\"${name}\".locked.type // empty" flake.lock 2>/dev/null)
+            from=$(printf "%s\n" "$update_output" | grep -A 3 "• Updated input '${name}'" | grep -v "• Updated input" | grep -v "→" | head -1 | sed "s/.*\///" | sed "s/ (.*//" | cut -c1-7)
+            to=$(printf "%s\n" "$update_output" | grep -A 3 "• Updated input '${name}'" | grep "→" | sed "s/.*\///" | sed "s/ (.*//" | cut -c1-7)
+            ref=$(printf "%s\n" "$update_output" | grep -A 3 "• Updated input '${name}'" | grep "→" | sed "s/.*\///" | sed "s/ (.*//" | sed "s/'$//")
+
+            if [ "$type" = "github" ] && [ -n "$owner" ] && [ -n "$repo" ] && [ -n "$ref" ]; then
+              label="[${name}](https://github.com/${owner}/${repo}/commit/${ref})"
+            else
+              label="\`${name}\`"
             fi
 
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-
-            mapfile -t inputs < <(printf "%s\n" "$update_output" | grep "• Updated input" | sed "s/• Updated input '//" | sed "s/':.*//")
-
-            input_count=${#inputs[@]}
-            [ "$input_count" -eq 0 ] && inputs=("flake.lock") && input_count=1
-
-            echo "input_count=$input_count" >> "$GITHUB_OUTPUT"
-            echo "updated_inputs=$(printf "%s" "${inputs[*]}")" >> "$GITHUB_OUTPUT"
-
-            printf "detailed_changes<<'EOF'\n" >> "$GITHUB_OUTPUT"
-            for name in "${inputs[@]}"; do
-              owner=$(jq -r ".nodes.\"${name}\".locked.owner // empty" flake.lock 2>/dev/null)
-              repo=$(jq -r ".nodes.\"${name}\".locked.repo // empty" flake.lock 2>/dev/null)
-              type=$(jq -r ".nodes.\"${name}\".locked.type // empty" flake.lock 2>/dev/null)
-              from=$(printf "%s\n" "$update_output" | grep -A 3 "• Updated input '${name}'" | grep -v "• Updated input" | grep -v "→" | head -1 | sed "s/.*\///" | sed "s/ (.*//" | cut -c1-7)
-              to=$(printf "%s\n" "$update_output" | grep -A 3 "• Updated input '${name}'" | grep "→" | sed "s/.*\///" | sed "s/ (.*//" | cut -c1-7)
-              ref=$(printf "%s\n" "$update_output" | grep -A 3 "• Updated input '${name}'" | grep "→" | sed "s/.*\///" | sed "s/ (.*//" | sed "s/'$//")
-
-              if [ "$type" = "github" ] && [ -n "$owner" ] && [ -n "$repo" ] && [ -n "$ref" ]; then
-                label="[${name}](https://github.com/${owner}/${repo}/commit/${ref})"
-              else
-                label="\`${name}\`"
-              fi
-
-              printf "%s\n" "- ${label}" >> "$GITHUB_OUTPUT"
-              printf "\`\`\`diff\n-%s\n+%s\n\`\`\`\n" "$from" "$to" >> "$GITHUB_OUTPUT"
-            done
-            printf "EOF\n" >> "$GITHUB_OUTPUT"'
+            printf "%s\n" "- ${label}" >> "$GITHUB_OUTPUT"
+            printf "\`\`\`diff\n-%s\n+%s\n\`\`\`\n" "$from" "$to" >> "$GITHUB_OUTPUT"
+          done
+          printf "EOF\n" >> "$GITHUB_OUTPUT"
 
       - name: Create pull request
         if: steps.update.outputs.changed == 'true'
