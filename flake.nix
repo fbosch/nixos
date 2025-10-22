@@ -37,6 +37,10 @@
       url = "github:AdisonCavani/distro-grub-themes";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    vicinae = {
+      url = "github:vicinaehq/vicinae";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =

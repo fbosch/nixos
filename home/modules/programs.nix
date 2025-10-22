@@ -32,17 +32,6 @@
     gpg.enable = true;
     neovim.enable = true;
     zen-browser.enable = true;
-
-    anyrun = {
-      enable = true;
-      config = {
-        plugins = [
-          "${pkgs.anyrun}/lib/libapplications.so"
-          "${pkgs.anyrun}/lib/libsymbols.so"
-        ];
-      };
-    };
-
     waybar-nixos-updates = {
       enable = true;
       updateInterval = 3600;
@@ -58,4 +47,6 @@
     pinentry.package = pkgs.pinentry-curses;
     enableSshSupport = true;
   };
+
+  services.vicinae.enable = true;
 }
