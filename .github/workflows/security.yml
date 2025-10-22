@@ -76,6 +76,11 @@ jobs:
           critical_count=$(jq '[ .[] | select( ([.cvssv3_basescore[]]|max) >= 9 ) ] | length' vulnix.json)
           echo "Found $critical_count critical vulnerabilities (CVSS >= 9.0)"
           
+          # Store counts for later steps
+          echo "TOTAL_VULNS=$total_count" >> $GITHUB_ENV
+          echo "HIGH_SEVERITY_VULNS=$high_severity_count" >> $GITHUB_ENV
+          echo "CRITICAL_VULNS=$critical_count" >> $GITHUB_ENV
+          
           # Display summary
           echo "### 🔒 Vulnerability Summary for ${{ matrix.host }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -94,9 +99,10 @@ jobs:
               vulnix.json >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "**Actions:**" >> $GITHUB_STEP_SUMMARY
-            echo "1. Run \`nix flake update\` to get latest package versions" >> $GITHUB_STEP_SUMMARY
-            echo "2. Review each CVE to verify it applies to your configuration" >> $GITHUB_STEP_SUMMARY
-            echo "3. Add false positives to \`.vulnix-whitelist.toml\`" >> $GITHUB_STEP_SUMMARY
+            echo "1. Review the dependency analysis below to identify culprit packages" >> $GITHUB_STEP_SUMMARY
+            echo "2. Run \`nix flake update\` to get latest package versions" >> $GITHUB_STEP_SUMMARY
+            echo "3. Consider removing or replacing packages that pull in vulnerabilities" >> $GITHUB_STEP_SUMMARY
+            echo "4. Add verified false positives to \`.vulnix-whitelist.toml\`" >> $GITHUB_STEP_SUMMARY
           elif [ "$high_severity_count" != "0" ]; then
             echo "## ⚠️ High Severity Vulnerabilities (Informational)" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
@@ -105,16 +111,16 @@ jobs:
           else
             echo "✅ No high-severity vulnerabilities found!" >> $GITHUB_STEP_SUMMARY
           fi
-          
-          # Fail build if critical vulnerabilities found
-          if ! jq '[ .[] | select( ([.cvssv3_basescore[]]|max) >= 9 ) ] | length' vulnix.json | grep -qx 0; then
-            echo "::error::Found $critical_count critical vulnerabilities (CVSS >= 9.0)"
-            exit 1
-          fi
 
       - name: Analyze dependency chains
         if: always()
         run: |
+          # Skip if no vulnerabilities found
+          if [ "$(jq 'length' vulnix.json)" = "0" ]; then
+            echo "No vulnerabilities to analyze"
+            exit 0
+          fi
+          
           # Create dependency analysis report
           echo "# Dependency Chain Analysis for ${{ matrix.host }}" > dependency-analysis.md
           echo "" >> dependency-analysis.md
@@ -164,10 +170,26 @@ jobs:
           echo "2. Decide whether to update, replace, or remove the culprit packages" >> dependency-analysis.md
           echo "3. Check if the vulnerability actually affects your usage" >> dependency-analysis.md
           
-          # Add link to summary if there are vulnerabilities
-          if [ "$(jq 'length' vulnix.json)" != "0" ]; then
+          # Add link to summary
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 📊 Dependency Analysis" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Download the \`security-report-${{ matrix.host }}\` artifact to view the complete dependency chain analysis." >> $GITHUB_STEP_SUMMARY
+          echo "The report includes \`nix why-depends\` output for each vulnerable package to help identify culprit packages." >> $GITHUB_STEP_SUMMARY
+
+      - name: Check for critical vulnerabilities
+        if: always()
+        run: |
+          # Fail build if critical vulnerabilities found
+          if [ "${{ env.CRITICAL_VULNS }}" != "0" ]; then
+            echo "::error::Found ${{ env.CRITICAL_VULNS }} critical vulnerabilities (CVSS >= 9.0)"
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "📊 **[View detailed dependency analysis](dependency-analysis.md)**" >> $GITHUB_STEP_SUMMARY
+            echo "---" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "❌ **Build failed due to critical vulnerabilities. Review the dependency analysis above to identify and fix the issues.**" >> $GITHUB_STEP_SUMMARY
+            exit 1
           fi
 
       - uses: actions/upload-artifact@v4
