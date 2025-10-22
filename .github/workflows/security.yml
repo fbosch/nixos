@@ -61,27 +61,34 @@ jobs:
             WHITELIST_ARG="--whitelist .vulnix-whitelist.toml"
           fi
           
-          # Run vulnix
-          nix run github:nix-community/vulnix -- --json $WHITELIST_ARG "${{ steps.build.outputs.out }}" > vulnix.json || true
+          # Run vulnix with system flag to only check runtime dependencies
+          # --system ensures we only scan packages actually used at runtime, not build-time dependencies
+          nix run github:nix-community/vulnix -- --json --system $WHITELIST_ARG "${{ steps.build.outputs.out }}" > vulnix-raw.json || true
           
-          # Count total vulnerabilities
+          # Get runtime closure and filter vulnerabilities
+          nix-store --query --requisites "${{ steps.build.outputs.out }}" > runtime-closure.txt
+          
+          jq -c '.[]' vulnix-raw.json | while IFS= read -r vuln; do
+            derivation=$(echo "$vuln" | jq -r '.derivation')
+            name=$(echo "$vuln" | jq -r '.name')
+            
+            if [[ "$derivation" == *.drv ]]; then
+              output_path=$(nix derivation show "$derivation" 2>/dev/null | jq -r '.[].outputs.out.path // empty' || echo "")
+              [ -z "$output_path" ] && output_path=$(grep -F "$name" runtime-closure.txt | head -n1 || echo "")
+            else
+              output_path="$derivation"
+            fi
+            
+            [ -n "$output_path" ] && grep -qF "$output_path" runtime-closure.txt && echo "$vuln"
+          done | jq -s '.' > vulnix.json
+          
           total_count=$(jq 'length' vulnix.json)
-          echo "Found $total_count total vulnerabilities"
-          
-          # Count high-severity vulnerabilities (CVSS >= 7.0)
           high_severity_count=$(jq '[ .[] | select( ([.cvssv3_basescore[]]|max) >= 7 ) ] | length' vulnix.json)
-          echo "Found $high_severity_count high-severity vulnerabilities (CVSS >= 7.0)"
-          
-          # Count critical vulnerabilities (CVSS >= 9.0)
           critical_count=$(jq '[ .[] | select( ([.cvssv3_basescore[]]|max) >= 9 ) ] | length' vulnix.json)
-          echo "Found $critical_count critical vulnerabilities (CVSS >= 9.0)"
           
-          # Store counts for later steps
           echo "TOTAL_VULNS=$total_count" >> $GITHUB_ENV
           echo "HIGH_SEVERITY_VULNS=$high_severity_count" >> $GITHUB_ENV
           echo "CRITICAL_VULNS=$critical_count" >> $GITHUB_ENV
-          
-          # Display summary
           echo "### 🔒 Vulnerability Summary for ${{ matrix.host }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
@@ -98,16 +105,6 @@ jobs:
               "- **\(.name)** v\(.version): \(.affected_by | join(", ")) (CVSS: \([.cvssv3_basescore[]]|max))"' \
               vulnix.json >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Actions:**" >> $GITHUB_STEP_SUMMARY
-            echo "1. Review the dependency analysis below to identify culprit packages" >> $GITHUB_STEP_SUMMARY
-            echo "2. Run \`nix flake update\` to get latest package versions" >> $GITHUB_STEP_SUMMARY
-            echo "3. Consider removing or replacing packages that pull in vulnerabilities" >> $GITHUB_STEP_SUMMARY
-            echo "4. Add verified false positives to \`.vulnix-whitelist.toml\`" >> $GITHUB_STEP_SUMMARY
-          elif [ "$high_severity_count" != "0" ]; then
-            echo "## ⚠️ High Severity Vulnerabilities (Informational)" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Found $high_severity_count high-severity (CVSS ≥ 7.0) vulnerabilities that don't meet the critical threshold." >> $GITHUB_STEP_SUMMARY
-            echo "Review these when convenient and consider updating." >> $GITHUB_STEP_SUMMARY
           else
             echo "✅ No high-severity vulnerabilities found!" >> $GITHUB_STEP_SUMMARY
           fi
@@ -115,17 +112,11 @@ jobs:
       - name: Analyze dependency chains
         if: always()
         run: |
-          # Skip if no vulnerabilities found
-          if [ "$(jq 'length' vulnix.json)" = "0" ]; then
-            echo "No vulnerabilities to analyze"
-            exit 0
-          fi
+          [ ! -f vulnix.json ] || [ "$(jq 'length' vulnix.json)" = "0" ] && exit 0
           
-          # Create dependency analysis report
+          [ ! -f runtime-closure.txt ] && nix-store --query --requisites "${{ steps.build.outputs.out }}" > runtime-closure.txt
+          
           echo "# Dependency Chain Analysis for ${{ matrix.host }}" > dependency-analysis.md
-          echo "" >> dependency-analysis.md
-          echo "This report shows which packages depend on vulnerable packages." >> dependency-analysis.md
-          echo "Each vulnerability is traced back to the top-level packages that pull it in." >> dependency-analysis.md
           echo "" >> dependency-analysis.md
           
           # Process each vulnerability
@@ -140,112 +131,63 @@ jobs:
             echo "" >> dependency-analysis.md
             echo "**CVEs:** $cves" >> dependency-analysis.md
             echo "**CVSS Score:** $cvss" >> dependency-analysis.md
-            echo "**Derivation:** \`$derivation\`" >> dependency-analysis.md
             echo "" >> dependency-analysis.md
             
-            # Convert .drv path to output path
-            # The derivation path ends in .drv, we need to build it to get the output
+            # Find the actual store path in the runtime closure
             if [[ "$derivation" == *.drv ]]; then
-              echo "Resolving output path for $name..." >&2
-              
-              # Try to get the output path from the derivation
               output_path=$(nix derivation show "$derivation" 2>/dev/null | jq -r '.[].outputs.out.path // empty' || echo "")
               
               if [ -z "$output_path" ]; then
-                # Fallback: search in the store for a matching path
-                output_path=$(find /nix/store -maxdepth 1 -name "*$(basename "$derivation" .drv)*" -type d 2>/dev/null | head -n1 || echo "")
-              fi
-              
-              if [ -n "$output_path" ] && [ -e "$output_path" ]; then
-                echo "Found output path: $output_path" >&2
-                target_path="$output_path"
-              else
-                echo "Could not resolve output path for $derivation" >&2
-                target_path="$derivation"
+                # Search for the package in the runtime closure by name
+                output_path=$(grep -E "/nix/store/[a-z0-9]+-${name}-${version}$" runtime-closure.txt | head -n1 || echo "")
               fi
             else
-              target_path="$derivation"
+              output_path="$derivation"
             fi
+            
+            if [ -z "$output_path" ]; then
+              echo "**Store Path:** Could not resolve (derivation: \`$derivation\`)" >> dependency-analysis.md
+            else
+              echo "**Store Path:** \`$output_path\`" >> dependency-analysis.md
+            fi
+            
+            echo "" >> dependency-analysis.md
             
             # Run nix why-depends to find dependency chain
             echo "### Dependency Chain" >> dependency-analysis.md
             echo "" >> dependency-analysis.md
-            echo '```' >> dependency-analysis.md
             
-            if output=$(nix why-depends --all "${{ steps.build.outputs.out }}" "$target_path" 2>&1); then
-              echo "$output" >> dependency-analysis.md
-            else
-              echo "Unable to determine dependency chain for $name" >> dependency-analysis.md
-              echo "" >> dependency-analysis.md
-              echo "Attempted path: $target_path" >> dependency-analysis.md
-              echo "" >> dependency-analysis.md
-              echo "This may indicate:" >> dependency-analysis.md
-              echo "- The package is not actually used in the final system" >> dependency-analysis.md
-              echo "- The package path could not be resolved" >> dependency-analysis.md
-              echo "- The vulnerability is a false positive" >> dependency-analysis.md
-            fi
-            
-            echo '```' >> dependency-analysis.md
-            echo "" >> dependency-analysis.md
-            
-            # Add actionable information
-            echo "### Recommended Actions" >> dependency-analysis.md
-            echo "" >> dependency-analysis.md
-            
-            if [ -n "$output" ]; then
-              # Extract the first package in the chain (the culprit)
-              first_dep=$(echo "$output" | grep -oP '(?<=→ ).*' | head -n1 | awk '{print $1}' || echo "")
-              if [ -n "$first_dep" ]; then
-                echo "- **Culprit package:** \`$first_dep\`" >> dependency-analysis.md
+            if [ -n "$output_path" ] && [ -e "$output_path" ]; then
+              echo '```' >> dependency-analysis.md
+              if why_output=$(nix why-depends --all "${{ steps.build.outputs.out }}" "$output_path" 2>&1); then
+                echo "$why_output" >> dependency-analysis.md
+                
+                echo '```' >> dependency-analysis.md
+                echo "" >> dependency-analysis.md
+                
+                immediate_parent=$(echo "$why_output" | grep -A1 "^${{ steps.build.outputs.out }}" | grep "→" | head -n1 | sed 's/.*→ //' | awk '{print $1}')
+                
+                if [ -n "$immediate_parent" ]; then
+                  parent_name=$(basename "$immediate_parent" | sed 's/^[a-z0-9]\{32\}-//')
+                  echo "" >> dependency-analysis.md
+                  echo "**Culprit:** \`$parent_name\`" >> dependency-analysis.md
+                fi
+              else
+                echo "Error: $why_output" >> dependency-analysis.md
+                echo '```' >> dependency-analysis.md
               fi
-              echo "- Review if this package is necessary for your configuration" >> dependency-analysis.md
-              echo "- Check if updating this package resolves the vulnerability" >> dependency-analysis.md
-              echo "- Consider removing or replacing this package if not essential" >> dependency-analysis.md
             else
-              echo "- Verify if this package is actually used in your system" >> dependency-analysis.md
-              echo "- This might be a false positive - add to \`.vulnix-whitelist.toml\` if confirmed" >> dependency-analysis.md
+              echo "Path not found: \`$output_path\`" >> dependency-analysis.md
             fi
             
-            echo "" >> dependency-analysis.md
             echo "---" >> dependency-analysis.md
-            echo "" >> dependency-analysis.md
           done
-          
-          echo "✅ Dependency analysis complete"
-          
-          # Add summary section
-          echo "" >> dependency-analysis.md
-          echo "## Summary" >> dependency-analysis.md
-          echo "" >> dependency-analysis.md
-          echo "Review the dependency chains above to:" >> dependency-analysis.md
-          echo "" >> dependency-analysis.md
-          echo "1. **Identify culprit packages** - Look at the first package in each chain" >> dependency-analysis.md
-          echo "2. **Assess impact** - Determine if the vulnerable code path is actually used" >> dependency-analysis.md
-          echo "3. **Take action:**" >> dependency-analysis.md
-          echo "   - Run \`nix flake update\` to update all dependencies" >> dependency-analysis.md
-          echo "   - Remove packages that aren't needed" >> dependency-analysis.md
-          echo "   - Replace packages with alternatives if updates don't fix the issue" >> dependency-analysis.md
-          echo "   - Add confirmed false positives to \`.vulnix-whitelist.toml\`" >> dependency-analysis.md
-          
-          # Add link to summary
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "---" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "## 📊 Dependency Analysis" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Download the \`security-report-${{ matrix.host }}\` artifact to view the complete dependency chain analysis." >> $GITHUB_STEP_SUMMARY
-          echo "The report includes \`nix why-depends\` output for each vulnerable package to help identify culprit packages." >> $GITHUB_STEP_SUMMARY
 
       - name: Check for critical vulnerabilities
         if: always()
         run: |
-          # Fail build if critical vulnerabilities found
           if [ "${{ env.CRITICAL_VULNS }}" != "0" ]; then
             echo "::error::Found ${{ env.CRITICAL_VULNS }} critical vulnerabilities (CVSS >= 9.0)"
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "---" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "❌ **Build failed due to critical vulnerabilities. Review the dependency analysis above to identify and fix the issues.**" >> $GITHUB_STEP_SUMMARY
             exit 1
           fi
 
@@ -256,9 +198,3 @@ jobs:
           path: |
             vulnix.json
             dependency-analysis.md
-
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: vulnix-report-${{ matrix.host }}
-          path: vulnix.json
