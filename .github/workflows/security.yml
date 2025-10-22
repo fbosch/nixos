@@ -18,21 +18,33 @@ env:
   NIX_CONFIG: "extra-experimental-features = nix-command flakes"
 
 jobs:
-  checks:
+  scan:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        host: [rvn-vm]
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@v12
-
-      - name: Enable Nix cache
-        uses: DeterminateSystems/magic-nix-cache-action@v8
+      - uses: DeterminateSystems/nix-installer-action@v12
+      - uses: DeterminateSystems/magic-nix-cache-action@v8
 
       - name: Secrets scan
         run: |
           nix-shell -p gitleaks --run 'gitleaks detect --no-banner --redact'
 
-      - name: CVE scan
-        uses: intel/cve-bin-tool-action@main
+      - name: Build system closure
+        run: nix build .#nixosConfigurations.${{ matrix.host }}.config.system.build.toplevel -o result
+
+      - name: Run CVE scan
+        uses: intel/cve-bin-tool-action@v.9
+        with:
+          target: result
+          output-file: cve-report-${{ matrix.host }}.json
         continue-on-error: true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cve-report-${{ matrix.host }}
+          path: cve-report-${{ matrix.host }}.json
