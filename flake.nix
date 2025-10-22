@@ -37,6 +37,10 @@
       url = "github:AdisonCavani/distro-grub-themes";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    dotfiles = {
+      url = "github:fbosch/dotfiles";
+      flake = false;
+    };
   };
 
   outputs =
@@ -45,6 +49,7 @@
       nixpkgs,
       home-manager,
       flatpaks,
+      dotfiles,
       ...
     }@inputs:
     let
