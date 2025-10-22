@@ -58,7 +58,7 @@ jobs:
           echo "input_count=$input_count" >> "$GITHUB_OUTPUT"
           echo "updated_inputs=$(printf "%s" "${inputs[*]}")" >> "$GITHUB_OUTPUT"
 
-          printf "detailed_changes<<'EOF'\n" >> "$GITHUB_OUTPUT"
+          detailed_changes=""
           for name in "${inputs[@]}"; do
             owner=$(jq -r ".nodes.\"${name}\".locked.owner // empty" flake.lock 2>/dev/null)
             repo=$(jq -r ".nodes.\"${name}\".locked.repo // empty" flake.lock 2>/dev/null)
@@ -73,10 +73,15 @@ jobs:
               label="\`${name}\`"
             fi
 
-            printf "%s\n" "- ${label}" >> "$GITHUB_OUTPUT"
-            printf "\`\`\`diff\n-%s\n+%s\n\`\`\`\n" "$from" "$to" >> "$GITHUB_OUTPUT"
+            detailed_changes+="- ${label}"$'\n'
+            detailed_changes+="\`\`\`diff"$'\n'
+            detailed_changes+="-${from}"$'\n'
+            detailed_changes+="+${to}"$'\n'
+            detailed_changes+="\`\`\`"$'\n'
           done
-          printf "EOF\n" >> "$GITHUB_OUTPUT"
+          echo "detailed_changes<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$detailed_changes" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
 
       - name: Create pull request
         if: steps.update.outputs.changed == 'true'
