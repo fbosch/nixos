@@ -24,8 +24,6 @@ _: {
       "md.obsidian.Obsidian"
       "me.proton.Mail"
       "org.gnome.baobab"
-      "org.gnome.font-viewer"
-      "org.qutebrowser.qutebrowser"
     ];
   };
 }

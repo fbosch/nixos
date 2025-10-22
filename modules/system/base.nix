@@ -52,4 +52,5 @@
       nerd-fonts.jetbrains-mono
     ];
   };
+
 }

@@ -68,7 +68,6 @@
             ./hosts/virtualbox-vm/configuration.nix
             ./hosts/virtualbox-vm/hardware-configuration.nix
             home-manager.nixosModules.home-manager
-            flatpaks.nixosModules.nix-flatpak
             {
               home-manager = {
                 useGlobalPkgs = true;

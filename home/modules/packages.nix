@@ -56,10 +56,12 @@ let
       python3Packages.evdev
     ];
 
-    shell = [ ripgrep zoxide eza lf fish zsh dash starship htop ];
+    shell = [ ripgrep zoxide eza lf fish zsh dash starship htop btop dust mprocs ];
 
     security = [ pass gnupg pinentry-curses bitwarden-desktop ];
 
     gaming = [ steam ];
   };
-in { home.packages = lib.flatten (lib.attrValues packages); }
+in { 
+  home.packages = lib.flatten (lib.attrValues packages);
+}

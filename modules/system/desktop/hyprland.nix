@@ -34,6 +34,7 @@ in
   };
 
   environment.sessionVariables = {
+    EMOJI_FONT = "Apple Color Emoji";
     NIXOS_OZONE_WL = "1";
     GDK_BACKEND = "wayland,x11";
     QT_QPA_PLATFORM = "wayland";

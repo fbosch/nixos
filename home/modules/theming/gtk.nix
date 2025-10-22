@@ -70,6 +70,22 @@ let
       cp -ar src/. $out/
     '';
   };
+
+  mkosBigSurIcons = pkgs.stdenv.mkDerivation {
+    name = "Mkos-Big-Sur";
+    src = pkgs.fetchFromGitHub {
+      owner = "zayronxio";
+      repo = "Mkos-Big-Sur";
+      rev = "29772d17999a5c771873420f3379888d66d2e3c1";
+      sha256 = "sha256-8qAADWjAvhIlq1uxGIfvfguc90FivXKPToKW1dxPpDs=";
+    };
+    dontBuild = true;
+    dontFixup = true;
+    installPhase = ''
+      mkdir -p $out
+      cp -ar . $out/
+    '';
+  };
 in
 {
   home.file = {
@@ -78,5 +94,6 @@ in
     ".local/share/icons/Win11".source = win11Icons;
     ".local/share/icons/WinSur-white-cursors".source = winsurCursors;
     ".local/share/icons/We10X".source = we10xIcons;
+    ".local/share/icons/Mkos-Big-Sur".source = mkosBigSurIcons;
   };
 }
