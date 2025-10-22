@@ -34,7 +34,5 @@ jobs:
           nix-shell -p gitleaks --run 'gitleaks detect --no-banner --redact'
 
       - name: CVE scan
-        uses: intel/cve-bin-tool-action@v1
-        with:
-          target: '.'
-          continue-on-error: true
+        uses: intel/cve-bin-tool-action@main
+        continue-on-error: true
