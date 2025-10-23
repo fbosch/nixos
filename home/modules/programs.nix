@@ -18,7 +18,6 @@
       '';
     };
 
-
     git = {
       enable = true;
       settings.credential = {
@@ -32,7 +31,6 @@
     bat.enable = true;
     gpg.enable = true;
     neovim.enable = true;
-    zen-browser.enable = true;
     waybar-nixos-updates = {
       enable = true;
       updateInterval = 3600;

@@ -15,9 +15,10 @@ let
       libnotify
     ];
 
-    terminals = [ wezterm kitty ];
-
-    browsers = [ qutebrowser ];
+    terminals = [
+      wezterm
+      kitty
+    ];
 
     audio = [ pavucontrol ];
 
@@ -36,7 +37,10 @@ let
       mission-center
     ];
 
-    vpn = [ protonvpn-gui protonvpn-cli ];
+    vpn = [
+      protonvpn-gui
+      protonvpn-cli
+    ];
 
     theming = [
       nwg-look
@@ -56,12 +60,31 @@ let
       python3Packages.evdev
     ];
 
-    shell = [ ripgrep zoxide eza lf fish zsh dash starship htop btop dust mprocs ];
+    shell = [
+      ripgrep
+      zoxide
+      eza
+      lf
+      fish
+      zsh
+      dash
+      starship
+      htop
+      btop
+      dust
+      mprocs
+    ];
 
-    security = [ pass gnupg pinentry-curses bitwarden-desktop ];
+    security = [
+      pass
+      gnupg
+      pinentry-curses
+      bitwarden-desktop
+    ];
 
     gaming = [ steam ];
   };
-in { 
+in
+{
   home.packages = lib.flatten (lib.attrValues packages);
 }
