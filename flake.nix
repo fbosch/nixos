@@ -7,6 +7,10 @@
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    dotfiles = {
+      url = "github:fbosch/dotfiles";
+      flake = false;
+    };
     waybar-nixos-updates.url = "github:fbosch/waybar-nixos-updates";
     flatpaks.url = "github:gmodena/nix-flatpak";
     zen-browser = {
@@ -20,6 +24,10 @@
     hyprland-plugins = {
       url = "github:hyprwm/hyprland-plugins";
       inputs.hyprland.follows = "hyprland";
+    };
+    hyprland-contrib = {
+      url = "github:hyprwm/contrib";
+      inputs.nixpkgs.follows = "nixpkgs";
     };
     hy3 = {
       url = "github:outfoxxed/hy3?ref=hl0.51.0";
@@ -40,10 +48,6 @@
     vicinae = {
       url = "github:vicinaehq/vicinae";
       inputs.nixpkgs.follows = "nixpkgs";
-    };
-    dotfiles = {
-      url = "github:fbosch/dotfiles";
-      flake = false;
     };
   };
 

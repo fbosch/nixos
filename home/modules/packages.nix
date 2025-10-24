@@ -1,4 +1,4 @@
-{ pkgs, lib, ... }:
+{ pkgs, inputs, lib, ... }:
 let
   packages = with pkgs; {
     hyprland = [
@@ -9,10 +9,9 @@ let
       (waybar.overrideAttrs (oldAttrs: {
         mesonFlags = oldAttrs.mesonFlags ++ [ "-Dexperimental=true" ];
       }))
-      # mako
-      rofi
       swaynotificationcenter
       libnotify
+      inputs.hyprland-contrib.packages.${pkgs.system}.grimblast
     ];
 
     terminals = [ wezterm kitty ];
@@ -38,12 +37,9 @@ let
 
     vpn = [ protonvpn-gui protonvpn-cli ];
 
-    theming = [
-      nwg-look
-      adw-gtk3
-      graphite-gtk-theme
-      colloid-gtk-theme
-    ];
+    theming = [ nwg-look adw-gtk3 colloid-gtk-theme ];
+
+    creative = [ gimp ];
 
     development = [
       code-cursor
@@ -56,12 +52,11 @@ let
       python3Packages.evdev
     ];
 
-    shell = [ ripgrep zoxide eza lf fish zsh dash starship htop btop dust mprocs ];
+    shell =
+      [ ripgrep zoxide eza lf fish zsh dash starship htop btop dust mprocs ];
 
     security = [ pass gnupg pinentry-curses bitwarden-desktop ];
 
     gaming = [ steam ];
   };
-in { 
-  home.packages = lib.flatten (lib.attrValues packages);
-}
+in { home.packages = lib.flatten (lib.attrValues packages); }
