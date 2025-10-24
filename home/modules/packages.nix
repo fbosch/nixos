@@ -48,6 +48,7 @@ let
     development = [
       code-cursor
       cursor-cli
+      codex
       lua-language-server
       git-credential-manager
       lazygit

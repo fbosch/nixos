@@ -1,4 +1,4 @@
-{ pkgs, inputs, ... }:
+{ pkgs, lib, inputs, ... }:
 let
   hyprPluginPkgs = inputs.hyprland-plugins.packages.${pkgs.system};
   hypr-plugin-dir = pkgs.symlinkJoin {
@@ -33,6 +33,7 @@ in
     xwayland.enable = true;
   };
 
+
   environment.sessionVariables = {
     EMOJI_FONT = "Apple Color Emoji";
     NIXOS_OZONE_WL = "1";
@@ -42,5 +43,8 @@ in
     WLR_NO_HARDWARE_CURSORS = "1";
     WLR_RENDERER_ALLOW_SOFTWARE = "1";
     HYPR_PLUGIN_DIR = hypr-plugin-dir;
+    GTK_IM_MODULE = "ibus";
+    QT_IM_MODULE = "ibus";
+    XMODIFIERS = "@im=ibus";
   };
 }
