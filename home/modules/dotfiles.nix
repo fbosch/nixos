@@ -13,6 +13,9 @@ in
 {
   home = {
     activation = {
+      # Clone repository with revision from flake.lock
+      # only if there is not already a git repository instantiated
+      # this preserves any local changes or customizations between rebuilds
       setupDotfiles = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
         set -euo pipefail
 
@@ -25,6 +28,7 @@ in
         fi
       '';
 
+      # create symlinks from dotfiles to home directory
       stowDotFiles = lib.hm.dag.entryAfter [ "setupDotfiles" "linkGeneration" ] ''
         set -euo pipefail
         cd ${REPO}
