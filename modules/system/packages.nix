@@ -18,6 +18,11 @@ let
       nixfmt-rfc-style
     ];
 
-    system = [ gparted polkit polkit_gnome parted ];
+    system = [
+      gparted
+      polkit
+      polkit_gnome
+      parted
+    ];
   };
 in { environment.systemPackages = lib.flatten (lib.attrValues packages); }

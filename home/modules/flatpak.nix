@@ -8,12 +8,10 @@ _: {
       onActivation = true;
     };
 
-    remotes = [
-      {
-        name = "flathub";
-        location = "https://dl.flathub.com/repo/flathub.flatpakrepo";
-      }
-    ];
+    remotes = [{
+      name = "flathub";
+      location = "https://dl.flathub.com/repo/flathub.flatpakrepo";
+    }];
 
     packages = [
       "com.github.tchx84.Flatseal"
@@ -34,6 +32,7 @@ _: {
       "com.mattjakeman.ExtensionManager"
       "com.plexamp.Plexamp"
       "app.zen_browser.zen"
+      "org.qutebrowser.qutebrowser"
       "dev.zed.Zed"
     ];
   };

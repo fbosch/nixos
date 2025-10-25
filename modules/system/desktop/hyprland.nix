@@ -10,8 +10,7 @@ let
       inputs.hyprspace.packages.${pkgs.system}.Hyprspace
     ];
   };
-in
-{
+in {
   xdg.portal = {
     enable = true;
     xdgOpenUsePortal = true;
@@ -33,7 +32,6 @@ in
     xwayland.enable = true;
   };
 
-
   environment.sessionVariables = {
     EMOJI_FONT = "Apple Color Emoji";
     NIXOS_OZONE_WL = "1";
@@ -43,8 +41,7 @@ in
     WLR_NO_HARDWARE_CURSORS = "1";
     WLR_RENDERER_ALLOW_SOFTWARE = "1";
     HYPR_PLUGIN_DIR = hypr-plugin-dir;
-    GTK_IM_MODULE = "ibus";
-    QT_IM_MODULE = "ibus";
-    XMODIFIERS = "@im=ibus";
+    GTK_IM_MODULE = "wayland";
+    QT_IM_MODULE = "wayland";
   };
 }

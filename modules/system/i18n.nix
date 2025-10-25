@@ -11,9 +11,6 @@
     LC_TELEPHONE = "da_DK.UTF-8";
     LC_TIME = "da_DK.UTF-8";
   };
-  i18n.inputMethod = {
-    type = "ibus";
-  };
   services.xserver.xkb = {
     layout = "us";
     variant = "";
