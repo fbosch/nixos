@@ -11,7 +11,6 @@
       url = "github:fbosch/dotfiles";
       flake = false;
     };
-    waybar-nixos-updates.url = "github:fbosch/waybar-nixos-updates";
     flatpaks.url = "github:gmodena/nix-flatpak";
     zen-browser = {
       url = "github:0xc000022070/zen-browser-flake";
@@ -28,10 +27,6 @@
     hyprland-contrib = {
       url = "github:hyprwm/contrib";
       inputs.nixpkgs.follows = "nixpkgs";
-    };
-    hy3 = {
-      url = "github:outfoxxed/hy3?ref=hl0.51.0";
-      inputs.hyprland.follows = "hyprland";
     };
     hyprspace = {
       url = "github:KZDKM/Hyprspace";

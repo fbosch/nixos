@@ -8,7 +8,6 @@
   imports = [
     inputs.zen-browser.homeModules.default
     inputs.flatpaks.homeManagerModules.nix-flatpak
-    inputs.waybar-nixos-updates.homeManagerModules.default
     inputs.vicinae.homeManagerModules.default
     ./home/modules
   ];

@@ -6,7 +6,6 @@ let
     paths = with hyprPluginPkgs; [
       hyprexpo
       hyprbars
-      inputs.hy3.packages.${pkgs.system}.hy3
       inputs.hyprspace.packages.${pkgs.system}.Hyprspace
     ];
   };

@@ -31,14 +31,6 @@
     bat.enable = true;
     gpg.enable = true;
     neovim.enable = true;
-    waybar-nixos-updates = {
-      enable = true;
-      updateInterval = 3600;
-      nixosConfigPath = "~/nixos";
-      skipAfterBoot = true;
-      gracePeriod = 60;
-      updateLockFile = true;
-    };
   };
 
   services.gpg-agent = {

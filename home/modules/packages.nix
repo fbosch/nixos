@@ -11,6 +11,7 @@ let
       }))
       swaynotificationcenter
       libnotify
+      rofi
       inputs.hyprland-contrib.packages.${pkgs.system}.grimblast
     ];
 
