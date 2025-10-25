@@ -22,3 +22,4 @@ secrets/
 
 # Nix
 .nix-*
+.cache
