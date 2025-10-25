@@ -55,6 +55,7 @@ let
       delta
       python3
       python3Packages.evdev
+      tesseract
     ];
 
     shell = [
