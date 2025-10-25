@@ -11,6 +11,7 @@
       url = "github:fbosch/dotfiles";
       flake = false;
     };
+    flake-parts.url = "github:hercules-ci/flake-parts";
     flatpaks.url = "github:gmodena/nix-flatpak";
     zen-browser = {
       url = "github:0xc000022070/zen-browser-flake";
@@ -47,22 +48,28 @@
   };
 
   outputs =
-    {
+    inputs@{
       self,
       nixpkgs,
       home-manager,
+      flake-parts,
       flatpaks,
       dotfiles,
       ...
-    }@inputs:
+    }:
     let
-      system = "x86_64-linux";
+      primarySystem = "x86_64-linux";
     in
-    {
-      nixosConfigurations = {
-        rvn-vm = nixpkgs.lib.nixosSystem {
-          inherit system;
-          specialArgs = { inherit inputs system; };
+    flake-parts.lib.mkFlake { inherit inputs; } {
+      systems = [ primarySystem ];
+
+      flake = {
+        nixosConfigurations.rvn-vm = nixpkgs.lib.nixosSystem {
+          system = primarySystem;
+          specialArgs = {
+            inherit inputs;
+            system = primarySystem;
+          };
           modules = [
             ./hosts/virtualbox-vm/configuration.nix
             ./hosts/virtualbox-vm/hardware-configuration.nix
@@ -73,7 +80,10 @@
                 useUserPackages = true;
                 backupFileExtension = "hm-backup";
                 users.fbb = import ./home.nix;
-                extraSpecialArgs = { inherit inputs system; };
+                extraSpecialArgs = {
+                  inherit inputs;
+                  system = primarySystem;
+                };
               };
             }
           ];

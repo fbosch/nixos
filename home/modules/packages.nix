@@ -72,6 +72,7 @@ let
       btop
       dust
       mprocs
+      yazi
     ];
 
     security = [
