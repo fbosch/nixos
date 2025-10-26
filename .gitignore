@@ -23,3 +23,5 @@ secrets/
 # Nix
 .nix-*
 .cache
+result
+nixpkgs
