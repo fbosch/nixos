@@ -23,11 +23,9 @@ _: {
       "me.proton.Mail"
       "org.gnome.baobab"
       "be.alexandervanhee.gradia"
-      "page.tesk.Refine"
-      "com.mattjakeman.ExtensionManager"
       "com.plexamp.Plexamp"
       "app.zen_browser.zen"
-      "org.qutebrowser.qutebrowser"
+      #"org.qutebrowser.qutebrowser"
       "dev.zed.Zed"
     ];
   };

@@ -13,10 +13,6 @@
     };
     flake-parts.url = "github:hercules-ci/flake-parts";
     flatpaks.url = "github:gmodena/nix-flatpak";
-    zen-browser = {
-      url = "github:0xc000022070/zen-browser-flake";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
     hyprland = {
       url = "github:hyprwm/Hyprland?submodules=1&ref=v0.51.0";
       inputs.nixpkgs.follows = "nixpkgs";

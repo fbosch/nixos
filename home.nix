@@ -6,7 +6,6 @@
 }:
 {
   imports = [
-    inputs.zen-browser.homeModules.default
     inputs.flatpaks.homeManagerModules.nix-flatpak
     inputs.vicinae.homeManagerModules.default
     ./home/modules
