@@ -37,6 +37,10 @@ let
       mission-center
     ];
 
+    browsers = [
+      (pkgs.callPackage ../../packages/helium-browser { })
+    ];
+
     vpn = [
       protonvpn-gui
       protonvpn-cli

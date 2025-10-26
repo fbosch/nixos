@@ -59,6 +59,10 @@
     flake-parts.lib.mkFlake { inherit inputs; } {
       systems = [ primarySystem ];
 
+      perSystem = { pkgs, ... }: {
+        packages.helium-browser = pkgs.callPackage ./packages/helium-browser { };
+      };
+
       flake = {
         nixosConfigurations.rvn-vm = nixpkgs.lib.nixosSystem {
           system = primarySystem;
