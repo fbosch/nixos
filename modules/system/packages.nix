@@ -10,6 +10,7 @@ let
       curl
       ripgrep
       jq
+      socat
       fd
       tree
       unzip

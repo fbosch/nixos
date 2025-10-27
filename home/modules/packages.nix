@@ -5,6 +5,7 @@ let
       hyprpaper
       hyprprop
       hyprpicker
+      waycorner
       wl-clipboard
       (waybar.overrideAttrs (oldAttrs: {
         mesonFlags = oldAttrs.mesonFlags ++ [ "-Dexperimental=true" ];
@@ -18,6 +19,7 @@ let
     terminals = [
       wezterm
       kitty
+      ghostty
     ];
 
     audio = [ pavucontrol ];
@@ -64,7 +66,6 @@ let
     ];
 
     shell = [
-      ripgrep
       zoxide
       eza
       lf
@@ -77,6 +78,7 @@ let
       dust
       mprocs
       yazi
+      aichat
     ];
 
     security = [
