@@ -20,7 +20,6 @@ _: {
       "org.signal.Signal"
       "org.keepassxc.KeePassXC"
       "md.obsidian.Obsidian"
-      "me.proton.Mail"
       "org.gnome.baobab"
       "be.alexandervanhee.gradia"
       "com.plexamp.Plexamp"

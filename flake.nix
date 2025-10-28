@@ -43,25 +43,12 @@
     };
   };
 
-  outputs =
-    inputs@{
-      self,
-      nixpkgs,
-      home-manager,
-      flake-parts,
-      flatpaks,
-      dotfiles,
-      ...
-    }:
+  outputs = inputs@{ self, nixpkgs, home-manager, flake-parts, flatpaks
+    , dotfiles, ... }:
     let
       primarySystem = "x86_64-linux";
-    in
-    flake-parts.lib.mkFlake { inherit inputs; } {
+    in flake-parts.lib.mkFlake { inherit inputs; } {
       systems = [ primarySystem ];
-
-      perSystem = { pkgs, ... }: {
-        packages.helium-browser = pkgs.callPackage ./packages/helium-browser { };
-      };
 
       flake = {
         nixosConfigurations.rvn-vm = nixpkgs.lib.nixosSystem {

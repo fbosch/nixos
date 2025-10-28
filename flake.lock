@@ -722,11 +722,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1761095432,
-        "narHash": "sha256-kQ5Q7zj6hsTiQBLEeNsWV6L11F8EJdrVJO99pdRK0cE=",
+        "lastModified": 1761677449,
+        "narHash": "sha256-BBwJ6kp41bCFdkeaKvVQfi365ATxyV24vJ/EwW9atdU=",
         "owner": "vicinaehq",
         "repo": "vicinae",
-        "rev": "17576c8a741ebe80d17360acce0ed9c31bec146e",
+        "rev": "aae272fffd3c95cdc9d403e12b874bf739db3d6d",
         "type": "github"
       },
       "original": {

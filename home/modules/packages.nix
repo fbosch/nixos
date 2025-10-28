@@ -24,12 +24,15 @@ let
 
     audio = [ pavucontrol ];
 
+    theming = [ nwg-look adw-gtk3 colloid-gtk-theme ];
+
     gnome = [
       gtk4
       gtk4-layer-shell
       gnome-keyring
       gnome-tweaks
       gnome-themes-extra
+      gnome-calculator
       gnomeExtensions.appindicator
       gnomeExtensions.blur-my-shell
       nemo-with-extensions
@@ -48,9 +51,11 @@ let
       protonvpn-cli
     ];
 
-    theming = [ nwg-look adw-gtk3 colloid-gtk-theme ];
 
-    creative = [ gimp ];
+    productivity = [ 
+      gimp 
+      (pkgs.callPackage ../../packages/morgen { })
+    ];
 
     development = [
       code-cursor

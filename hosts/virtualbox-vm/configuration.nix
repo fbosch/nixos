@@ -53,6 +53,7 @@ in
       package = pkgs.ananicy-cpp;
       rulesProvider = pkgs.ananicy-rules-cachyos;
     };
+    spice-vdagentd.enable = true;
   };
 
   environment.systemPackages = with pkgs; [
