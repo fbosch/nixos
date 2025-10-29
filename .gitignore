@@ -1,6 +1,7 @@
 # Build results
 result
 result-*
+*.log
 
 # Secrets
 secrets/

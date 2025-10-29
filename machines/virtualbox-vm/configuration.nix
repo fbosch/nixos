@@ -10,7 +10,7 @@ let
 in
 {
 
-  imports = [ ../../modules/system ];
+  imports = [ ../../modules-system ];
 
   system.stateVersion = "25.05";
   hardware.bluetooth.enable = false;
@@ -32,7 +32,10 @@ in
     };
   };
 
-  nixpkgs.overlays = [ inputs.mac-style-plymouth.overlays.default ];
+  nixpkgs = {
+    overlays = [ inputs.mac-style-plymouth.overlays.default ];
+    config.allowUnfree = true;
+  };
 
   networking = {
     hostName = "rvn-vm";

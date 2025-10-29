@@ -1,100 +1,96 @@
 { pkgs, inputs, lib, ... }:
-let
-  packages = with pkgs; {
-    hyprland = [
-      hyprpaper
-      hyprprop
-      hyprpicker
-      waycorner
-      wl-clipboard
-      (waybar.overrideAttrs (oldAttrs: {
-        mesonFlags = oldAttrs.mesonFlags ++ [ "-Dexperimental=true" ];
-      }))
-      swaynotificationcenter
-      libnotify
-      rofi
-      inputs.hyprland-contrib.packages.${pkgs.system}.grimblast
-    ];
 
-    terminals = [
-      wezterm
-      kitty
-      ghostty
-    ];
+{
+  nixpkgs.overlays = [
+    inputs.self.overlays.default
+  ];
 
-    audio = [ pavucontrol ];
+  home.packages = with pkgs; [
+    # Hyprland packages
+    hyprpaper
+    hyprprop
+    hyprpicker
+    waycorner
+    wl-clipboard
+    waybar
+    swaynotificationcenter
+    libnotify
+    rofi
+    inputs.hyprland-contrib.packages.${pkgs.system}.grimblast
 
-    theming = [ nwg-look adw-gtk3 colloid-gtk-theme ];
+    # Terminals
+    wezterm
+    kitty
+    ghostty
 
-    gnome = [
-      gtk4
-      gtk4-layer-shell
-      gnome-keyring
-      gnome-tweaks
-      gnome-themes-extra
-      gnome-calculator
-      gnomeExtensions.appindicator
-      gnomeExtensions.blur-my-shell
-      nemo-with-extensions
-      loupe
-      gucharmap
-      networkmanagerapplet
-      mission-center
-    ];
+    # Audio
+    pavucontrol
 
-    browsers = [
-      (pkgs.callPackage ../../packages/helium-browser { })
-    ];
+    # Theming
+    nwg-look
+    adw-gtk3
+    colloid-gtk-theme
 
-    vpn = [
-      protonvpn-gui
-      protonvpn-cli
-    ];
+    # GNOME
+    gtk4
+    gtk4-layer-shell
+    gnome-keyring
+    gnome-tweaks
+    gnome-themes-extra
+    gnome-calculator
+    gnomeExtensions.appindicator
+    gnomeExtensions.blur-my-shell
+    nemo-with-extensions
+    loupe
+    gucharmap
+    networkmanagerapplet
+    mission-center
 
+    # Browsers
+    pkgs.local.helium-browser
 
-    productivity = [ 
-      gimp 
-      (pkgs.callPackage ../../packages/morgen { })
-    ];
+    # VPN
+    protonvpn-gui
+    protonvpn-cli
 
-    development = [
-      code-cursor
-      cursor-cli
-      codex
-      lua-language-server
-      git-credential-manager
-      lazygit
-      delta
-      python3
-      python3Packages.evdev
-      tesseract
-    ];
+    # Productivity
+    gimp
+    pkgs.local.morgen
 
-    shell = [
-      zoxide
-      eza
-      lf
-      fish
-      zsh
-      dash
-      starship
-      htop
-      btop
-      dust
-      mprocs
-      yazi
-      aichat
-    ];
+    # Development
+    code-cursor
+    cursor-cli
+    codex
+    lua-language-server
+    git-credential-manager
+    lazygit
+    delta
+    python3
+    python3Packages.evdev
+    tesseract
 
-    security = [
-      pass
-      gnupg
-      pinentry-curses
-      bitwarden-desktop
-    ];
+    # Shell
+    zoxide
+    eza
+    lf
+    fish
+    zsh
+    dash
+    starship
+    htop
+    btop
+    dust
+    mprocs
+    yazi
+    aichat
 
-    gaming = [ steam ];
-  };
-in { 
-  home.packages = lib.flatten (lib.attrValues packages);
+    # Security
+    pass
+    gnupg
+    pinentry-curses
+    bitwarden-desktop
+
+    # Gaming
+    steam
+  ];
 }

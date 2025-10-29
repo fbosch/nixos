@@ -41,40 +41,10 @@
       url = "github:vicinaehq/vicinae";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    pkgs-by-name-for-flake-parts.url = "github:drupol/pkgs-by-name-for-flake-parts";
+    nix-webapps.url = "github:TLATER/nix-webapps";
+    import-tree.url = "github:vic/import-tree";
   };
 
-  outputs = inputs@{ self, nixpkgs, home-manager, flake-parts, flatpaks
-    , dotfiles, ... }:
-    let
-      primarySystem = "x86_64-linux";
-    in flake-parts.lib.mkFlake { inherit inputs; } {
-      systems = [ primarySystem ];
-
-      flake = {
-        nixosConfigurations.rvn-vm = nixpkgs.lib.nixosSystem {
-          system = primarySystem;
-          specialArgs = {
-            inherit inputs;
-            system = primarySystem;
-          };
-          modules = [
-            ./hosts/virtualbox-vm/configuration.nix
-            ./hosts/virtualbox-vm/hardware-configuration.nix
-            home-manager.nixosModules.home-manager
-            {
-              home-manager = {
-                useGlobalPkgs = true;
-                useUserPackages = true;
-                backupFileExtension = "hm-backup";
-                users.fbb = import ./home.nix;
-                extraSpecialArgs = {
-                  inherit inputs;
-                  system = primarySystem;
-                };
-              };
-            }
-          ];
-        };
-      };
-    };
+  outputs = inputs: inputs.flake-parts.lib.mkFlake { inherit inputs; } (inputs.import-tree ./modules);
 }
