@@ -1,9 +1,12 @@
-{ pkgs, inputs, lib, ... }:
+{ pkgs, inputs, ... }: {
+  programs.home-manager.enable = true;
+  systemd.user.startServices = "sd-switch";
 
-{
-  nixpkgs.overlays = [
-    inputs.self.overlays.default
-  ];
+  home = {
+    username = "fbb";
+    homeDirectory = "/home/fbb";
+    stateVersion = "25.05";
+  };
 
   home.packages = with pkgs; [
     # Hyprland packages

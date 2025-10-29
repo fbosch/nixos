@@ -26,3 +26,5 @@ secrets/
 .cache
 result
 nixpkgs
+.nix-cache
+.nix-state

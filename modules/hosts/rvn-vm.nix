@@ -18,7 +18,14 @@
           backupFileExtension = "hm-backup";
           users.fbb = {
             imports = [
-              inputs.self.modules.homeManager.base
+              ../../home-manager-modules/base.nix
+              ../../home-manager-modules/dotfiles/default.nix
+              ../../home-manager-modules/programs/default.nix
+              ../../home-manager-modules/flatpak/default.nix
+              ../../home-manager-modules/theming/fonts.nix
+              ../../home-manager-modules/theming/gtk.nix
+              inputs.flatpaks.homeManagerModules.nix-flatpak
+              inputs.vicinae.homeManagerModules.default
             ];
           };
           extraSpecialArgs = {
