@@ -1,5 +1,5 @@
 {
-  flake.modules.homeManager."applications/productivity" = { pkgs, ... }: {
+  flake.modules.homeManager.applications = { pkgs, ... }: {
     home.packages = with pkgs; [
       gimp
       pkgs.local.morgen

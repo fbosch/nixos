@@ -1,5 +1,5 @@
 {
-  flake.modules.homeManager."shell/utilities" = { pkgs, ... }: {
+  flake.modules.homeManager.shell = { pkgs, ... }: {
     home.packages = with pkgs; [
       eza
       lf

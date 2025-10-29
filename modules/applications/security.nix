@@ -1,5 +1,5 @@
 {
-  flake.modules.homeManager."applications/security" = { pkgs, ... }: {
+  flake.modules.homeManager.applications = { pkgs, ... }: {
     home.packages = with pkgs; [
       pass
       gnupg

@@ -1,5 +1,5 @@
 {
-  flake.modules.homeManager."desktop/terminals" = { pkgs, ... }: {
+  flake.modules.homeManager.desktop = { pkgs, ... }: {
     home.packages = with pkgs; [
       wezterm
       kitty

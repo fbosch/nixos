@@ -1,5 +1,5 @@
 {
-  flake.modules.homeManager."shell/monitoring" = { pkgs, ... }: {
+  flake.modules.homeManager.shell = { pkgs, ... }: {
     home.packages = with pkgs; [
       htop
       btop

@@ -1,7 +1,7 @@
 { inputs, ... }:
 
 {
-  flake.modules.homeManager."desktop/wayland" = { pkgs, ... }: {
+  flake.modules.homeManager.desktop = { pkgs, ... }: {
     home.packages = with pkgs; [
       hyprpaper
       hyprprop

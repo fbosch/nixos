@@ -1,5 +1,5 @@
 {
-  flake.modules.homeManager."desktop/theming" = { pkgs, ... }: {
+  flake.modules.homeManager.desktop = { pkgs, ... }: {
     home.packages = with pkgs; [
       pavucontrol
       nwg-look

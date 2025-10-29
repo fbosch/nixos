@@ -1,5 +1,5 @@
 {
-  flake.modules.homeManager."desktop/gnome" = { pkgs, ... }: {
+  flake.modules.homeManager.desktop = { pkgs, ... }: {
     home.packages = with pkgs; [
       gtk4
       gtk4-layer-shell

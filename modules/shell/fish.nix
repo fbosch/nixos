@@ -1,5 +1,5 @@
 {
-  flake.modules.homeManager."shell/fish" = { pkgs, ... }: {
+  flake.modules.homeManager.shell = { pkgs, ... }: {
     home.packages = with pkgs; [
       fish
       zsh

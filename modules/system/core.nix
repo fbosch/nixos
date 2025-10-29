@@ -1,5 +1,5 @@
 {
-  flake.modules.nixos."system/core" = {
+  flake.modules.nixos.system = {
     programs.nix-ld.enable = true;
 
     nixpkgs.config.allowUnfree = true;

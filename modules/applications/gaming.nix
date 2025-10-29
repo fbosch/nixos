@@ -1,5 +1,5 @@
 {
-  flake.modules.homeManager."applications/gaming" = { pkgs, ... }: {
+  flake.modules.homeManager.applications = { pkgs, ... }: {
     home.packages = with pkgs; [
       steam
     ];

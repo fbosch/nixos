@@ -1,5 +1,5 @@
 {
-  flake.modules.nixos."users/fbb/system" = {
+  flake.modules.nixos.users = {
     users.users.fbb = {
       isNormalUser = true;
       description = "Frederik Bosch";
