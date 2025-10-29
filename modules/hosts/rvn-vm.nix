@@ -1,47 +1,39 @@
-{ inputs, ... }:
+{ inputs, config, ... }:
 
 {
-  flake.nixosConfigurations.rvn-vm = inputs.nixpkgs.lib.nixosSystem {
-    system = "x86_64-linux";
-    specialArgs = {
-      inherit inputs;
-      system = "x86_64-linux";
-    };
-    modules = [
+  flake.modules.nixos."hosts/rvn-vm" = {
+    imports = [
+      # Base system modules from dendritic tree
+      config.flake.modules.nixos.base
+      config.flake.modules.nixos.i18n
+      config.flake.modules.nixos.vpn
+      config.flake.modules.nixos.packages
+      config.flake.modules.nixos.security
+      config.flake.modules.nixos.hyprland
+      config.flake.modules.nixos.audio
+      
+      # Machine-specific configuration (auto-generated on install)
       ../../machines/virtualbox-vm/configuration.nix
       ../../machines/virtualbox-vm/hardware-configuration.nix
-      inputs.home-manager.nixosModules.home-manager
+      
+      # Home Manager integration
       {
-        home-manager = {
-          useGlobalPkgs = true;
-          useUserPackages = true;
-          backupFileExtension = "hm-backup";
-          users.fbb = {
-            imports = [
-              ../../home-manager-modules/base.nix
-              ../../home-manager-modules/dotfiles/default.nix
-              ../../home-manager-modules/programs/default.nix
-              ../../home-manager-modules/flatpak/default.nix
-              ../../home-manager-modules/theming/fonts.nix
-              ../../home-manager-modules/theming/gtk.nix
-              inputs.flatpaks.homeManagerModules.nix-flatpak
-              inputs.vicinae.homeManagerModules.default
-            ];
-          };
-          extraSpecialArgs = {
-            inherit inputs;
-            system = "x86_64-linux";
-            pkgs = import inputs.nixpkgs {
-              system = "x86_64-linux";
-              config.allowUnfree = true;
-              overlays = [
-                inputs.self.overlays.default
-                inputs.nix-webapps.overlays.lib
-                inputs.nix-webapps.overlays.default
-              ];
-            };
-          };
+        home-manager.users.fbb = {
+          imports = [
+            config.flake.modules.homeManager.base
+            config.flake.modules.homeManager.dotfiles
+            config.flake.modules.homeManager.programs
+            config.flake.modules.homeManager.flatpak
+            config.flake.modules.homeManager.fonts
+            config.flake.modules.homeManager.gtk
+            inputs.flatpaks.homeManagerModules.nix-flatpak
+            inputs.vicinae.homeManagerModules.default
+          ];
         };
+        
+        home-manager.useGlobalPkgs = true;
+        home-manager.useUserPackages = true;
+        home-manager.backupFileExtension = "hm-backup";
       }
     ];
   };

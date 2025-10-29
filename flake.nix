@@ -1,5 +1,7 @@
 {
-  description = "NixOS Configuration";
+  description = "fbosch/nix";
+  
+  outputs = inputs: inputs.flake-parts.lib.mkFlake { inherit inputs; } (inputs.import-tree ./modules);
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
@@ -46,5 +48,4 @@
     import-tree.url = "github:vic/import-tree";
   };
 
-  outputs = inputs: inputs.flake-parts.lib.mkFlake { inherit inputs; } (inputs.import-tree ./modules);
 }

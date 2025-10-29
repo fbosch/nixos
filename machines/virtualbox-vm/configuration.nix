@@ -9,9 +9,6 @@ let
   theme = inputs.distro-grub-themes.packages.${system}.asus-tuf-grub-theme;
 in
 {
-
-  imports = [ ../../modules-system ];
-
   system.stateVersion = "25.05";
   hardware.bluetooth.enable = false;
 
