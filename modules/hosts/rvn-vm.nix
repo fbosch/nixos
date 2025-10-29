@@ -9,6 +9,7 @@
       config.flake.modules.nixos.vpn
       config.flake.modules.nixos.packages
       config.flake.modules.nixos.security
+      config.flake.modules.nixos.fonts
       config.flake.modules.nixos.hyprland
       config.flake.modules.nixos.audio
       

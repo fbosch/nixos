@@ -31,15 +31,7 @@ in
               ];
               
               home-manager.extraSpecialArgs = specialArgs;
-              home-manager.sharedModules = [
-                {
-                  nixpkgs.overlays = [
-                    inputs.self.overlays.default
-                    inputs.nix-webapps.overlays.lib
-                    inputs.nix-webapps.overlays.default
-                  ];
-                }
-              ];
+              home-manager.useGlobalPkgs = true;
             }
           ];
         };

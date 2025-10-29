@@ -10,6 +10,11 @@ secrets/
 *.age
 *.asc
 
+# Markdown
+*.md
+!README.md
+!AGENTS.md
+
 # System state
 .direnv/
 .envrc
@@ -28,3 +33,4 @@ result
 nixpkgs
 .nix-cache
 .nix-state
+

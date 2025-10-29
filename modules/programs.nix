@@ -14,12 +14,10 @@
 
       git = {
         enable = true;
-        extraConfig = {
-          credential = {
-            helper = "manager";
-            "https://github.com".username = "fbosch";
-            credentialStore = "gpg";
-          };
+        settings.credential = {
+          helper = "manager";
+          "https://github.com".username = "fbosch";
+          credentialStore = "gpg";
         };
       };
 
@@ -31,7 +29,7 @@
 
     services.gpg-agent = {
       enable = true;
-      pinentryPackage = pkgs.pinentry-curses;
+      pinentry.package = pkgs.pinentry-curses;
       enableSshSupport = true;
     };
 
