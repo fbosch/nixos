@@ -59,6 +59,7 @@
     # Productivity
     gimp
     pkgs.local.morgen
+    pkgs.local.chromium-protonmail
 
     # Development
     code-cursor
