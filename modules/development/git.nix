@@ -1,5 +1,11 @@
 {
-  flake.modules.homeManager.development = {
+  flake.modules.homeManager.development = { pkgs, ... }: {
+    home.packages = with pkgs; [
+      git-credential-manager
+      lazygit
+      delta
+    ];
+    
     programs.git = {
       enable = true;
       settings.credential = {
