@@ -29,18 +29,22 @@ Host definitions list module names; the loader in `modules/flake-parts/hosts.nix
 
 The `dotfiles.nix` module clones [fbosch/dotfiles](https://github.com/fbosch/dotfiles) and applies it via GNU Stow:
 
+This allows for more flexibility when configuring and using shared configs in non-nix environments.
+
 ```nix
 # modules/dotfiles.nix
 home.activation.stowDotFiles = ...
   stow --adopt --restow -t "$HOME" .
 ```
 
-## Resources
+---
 
-### Dendritic Nix Pattern
-- [Dendrix Documentation](https://vic.github.io/dendrix/) - The dendritic-style flake pattern this configuration follows
+### Resources
 
-### Inspiration
+#### Dendritic Nix Pattern
+- [Dendrix Documentation](https://vic.github.io/dendrix/) 
+
+#### Inspiration
 - [MrSom3body/dotfiles](https://github.com/MrSom3body/dotfiles) - NixOS configuration reference
 - [drupol/infra](https://github.com/drupol/infra) - Infrastructure configuration reference
 
