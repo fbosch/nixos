@@ -1,7 +1,7 @@
 { inputs, ... }:
 
 {
-  flake.modules.nixos.hyprland = { pkgs, ... }:
+  flake.modules.nixos.desktop = { pkgs, ... }:
     let
       hyprPluginPkgs = inputs.hyprland-plugins.packages.${pkgs.system};
       hypr-plugin-dir = pkgs.symlinkJoin {

@@ -1,6 +1,12 @@
 {
-  flake.modules.nixos.flatpak = { 
+  flake.modules.nixos.flatpak = { pkgs, ... }: {
     services.flatpak.enable = true;
+    
+    xdg.portal = {
+      enable = true;
+      extraPortals = [ pkgs.xdg-desktop-portal-gtk ];
+      config.common.default = "gtk";  # Use GTK portal by default
+    };
   };
   flake.modules.homeManager.flatpak = {
     services.flatpak = {

@@ -1,5 +1,5 @@
 {
-  flake.modules.homeManager.gtk = { pkgs, ... }:
+  flake.modules.homeManager.desktop = { pkgs, ... }:
     let
       monoTheme = pkgs.stdenv.mkDerivation {
         name = "MonoTheme";

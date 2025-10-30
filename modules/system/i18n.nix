@@ -1,5 +1,5 @@
 {
-  flake.modules.nixos.i18n = {
+  flake.modules.nixos.system = {
     i18n.defaultLocale = "en_DK.UTF-8";
     i18n.extraLocaleSettings = {
       LC_ADDRESS = "da_DK.UTF-8";
