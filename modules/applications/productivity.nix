@@ -4,6 +4,7 @@
       gimp
       pkgs.local.morgen
       pkgs.local.chromium-protonmail
+      pkgs.local.chromium-protoncalendar
     ];
   };
 }
