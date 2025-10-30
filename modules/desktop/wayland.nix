@@ -8,6 +8,9 @@
       hyprpicker
       waycorner
       wl-clipboard
+      wl-clipboard-x11
+      xsel
+      cliphist
       waybar
       swaynotificationcenter
       libnotify
