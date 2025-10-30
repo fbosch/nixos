@@ -12,6 +12,7 @@
       uutils-coreutils
       killall
       nixfmt-rfc-style
+      freshfetch
     ];
   };
   flake.modules.homeManager.shell = { pkgs, ... }: {

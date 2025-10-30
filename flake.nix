@@ -36,7 +36,7 @@
     };
     hyprlock = {
       url = "github:hyprwm/hyprlock";
-      inputs.hyprland.follows = "hyprland";
+      inputs.nixpkgs.follows = "nixpkgs";
     };
     mac-style-plymouth = {
       url = "github:SergioRibera/s4rchiso-plymouth-theme";

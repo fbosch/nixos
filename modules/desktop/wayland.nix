@@ -6,7 +6,7 @@
       hyprpaper
       hyprprop
       hyprpicker
-      waycorner
+      # waycorner
       wl-clipboard
       waybar
       swaynotificationcenter
