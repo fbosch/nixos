@@ -12,6 +12,8 @@
           inputs.hyprspace.packages.${pkgs.system}.Hyprspace
         ];
       };
+      hyprlockPackages = inputs.hyprlock.packages.${pkgs.stdenv.hostPlatform.system};
+      hyprlockPackage = hyprlockPackages.hyprlock or hyprlockPackages.default;
     in
     {
       xdg.portal = {
@@ -45,5 +47,14 @@
         GTK_IM_MODULE = "wayland";
         QT_IM_MODULE = "wayland";
       };
+
+      environment.systemPackages = [
+        hyprlockPackage
+      ];
+
+      security.pam.services.hyprlock.text = ''
+        auth include login
+        account include login
+      '';
     };
 }

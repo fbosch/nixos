@@ -14,6 +14,9 @@
       flake = false;
     };
     flake-parts.url = "github:hercules-ci/flake-parts";
+    pkgs-by-name-for-flake-parts.url = "github:drupol/pkgs-by-name-for-flake-parts";
+    nix-webapps.url = "github:TLATER/nix-webapps";
+    import-tree.url = "github:vic/import-tree";
     flatpaks.url = "github:gmodena/nix-flatpak";
     hyprland = {
       url = "github:hyprwm/Hyprland?submodules=1&ref=v0.51.0";
@@ -31,6 +34,10 @@
       url = "github:KZDKM/Hyprspace";
       inputs.hyprland.follows = "hyprland";
     };
+    hyprlock = {
+      url = "github:hyprwm/hyprlock";
+      inputs.hyprland.follows = "hyprland";
+    };
     mac-style-plymouth = {
       url = "github:SergioRibera/s4rchiso-plymouth-theme";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -43,9 +50,6 @@
       url = "github:vicinaehq/vicinae";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    pkgs-by-name-for-flake-parts.url = "github:drupol/pkgs-by-name-for-flake-parts";
-    nix-webapps.url = "github:TLATER/nix-webapps";
-    import-tree.url = "github:vic/import-tree";
   };
 
 }

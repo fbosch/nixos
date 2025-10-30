@@ -3,6 +3,7 @@
   inputs,
   options,
   system,
+  lib,
   ...
 }:
 let

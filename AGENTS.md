@@ -46,3 +46,4 @@
 - Use attribute name conventions (`nixos.<group>`, `homeManager.<group>`) to keep the tree discoverable.
 - Document host-specific quirks inside their `hostConfig` record so modules remain generic.
 - Keep secrets and credentials in SOPS or similar, and surface only references through metadata.
+
