@@ -3,11 +3,10 @@
     home.packages = with pkgs; [
       fnm
       nodejs_22
+      bun
       nodePackages.pnpm
       nodePackages.yarn
       nodePackages.typescript
-      nodePackages.typescript-language-server
-      nodePackages.vscode-langservers-extracted
       nodePackages.prettier
       nodePackages.eslint
       nodePackages.vercel
