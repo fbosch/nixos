@@ -5,6 +5,7 @@
       polkit
       polkit_gnome
       parted
+      usbutils
     ];
   };
 }

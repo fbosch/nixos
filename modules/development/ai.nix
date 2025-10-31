@@ -4,6 +4,7 @@
     home.packages = with pkgs; [
       codex
       cursor-cli
+      aichat
     ];
   };
 }

@@ -17,6 +17,7 @@
       "desktop"
       "development"
       "shell"
+      "hardware/fingerprint"
     ];
 
     homeManager = [

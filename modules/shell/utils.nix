@@ -20,7 +20,6 @@
       eza
       lf
       yazi
-      aichat
     ];
   };
 }
