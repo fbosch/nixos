@@ -30,41 +30,18 @@
         "com.plexamp.Plexamp"
         "app.zen_browser.zen"
         "dev.zed.Zed"
-        "nz.mega.MEGAsync"
+        "org.localsend.localsend_app"
       ];
 
       overrides = {
         global = {
           Context = {
-            sockets = [
-              "wayland"
-              "fallback-x11"
-            ];
-            devices = [
-              "dri"
-            ];
+            sockets = [ "wayland" "fallback-x11" ];
+            devices = [ "dri" ];
           };
           Environment = {
             WAYLAND_DISPLAY = "wayland-1";
             XDG_SESSION_TYPE = "wayland";
-          };
-        };
-
-        "nz.mega.MEGAsync" = {
-          Context = {
-            sockets = [
-              "wayland"
-              "fallback-x11"
-              "x11"
-            ];
-            filesystems = [
-              "xdg-run/X11"
-              "/tmp/.X11-unix"
-            ];
-          };
-          Environment = {
-            QT_QPA_PLATFORM = "wayland;xcb";
-            DISABLE_WAYLAND = "0";
           };
         };
       };

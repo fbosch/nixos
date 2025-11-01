@@ -26,7 +26,7 @@
           cd ${REPO}
           CURRENT_REV=$(${pkgs.git}/bin/git rev-parse --short HEAD 2>/dev/null || echo "unknown")
           echo "Stowing dotfiles from current revision: $CURRENT_REV"
-          $DRY_RUN_CMD ${pkgs.stow}/bin/stow --adopt --restow --verbose -t "$HOME" .
+          $DRY_RUN_CMD ${pkgs.stow}/bin/stow --restow --verbose -t "$HOME" .
         '';
       };
 
