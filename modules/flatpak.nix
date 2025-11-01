@@ -24,6 +24,7 @@
         "org.signal.Signal"
         "org.keepassxc.KeePassXC"
         "md.obsidian.Obsidian"
+        "com.usebottles.bottles"
         "org.gnome.baobab"
         "be.alexandervanhee.gradia"
         "com.plexamp.Plexamp"

@@ -6,6 +6,7 @@
       hyprprop
       hyprpicker
       inputs.hyprland-contrib.packages.${pkgs.system}.grimblast
+      (pkgs.callPackage "${inputs.self}/pkgs/by-name/hypr-dock/package.nix" {})
     ];
   };
 
