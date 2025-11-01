@@ -1,5 +1,4 @@
-{ inputs, ... }:
-{
+{ inputs, ... }: {
 
   flake.modules.homeManager.desktop = { pkgs, ... }: {
     home.packages = with pkgs; [
@@ -10,7 +9,7 @@
     ];
   };
 
-  flake.modules.nixos.desktop = { pkgs, ... }:
+  flake.modules.nixos.desktop = { pkgs, lib, hostConfig, ... }:
     let
       hyprPluginPkgs = inputs.hyprland-plugins.packages.${pkgs.system};
       hypr-plugin-dir = pkgs.symlinkJoin {
@@ -31,9 +30,11 @@
         extraPortals = [
           inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.xdg-desktop-portal-hyprland
           pkgs.xdg-desktop-portal-gtk
-          pkgs.xdg-desktop-portal-wlr
         ];
-        config.common.default = "gtk";
+        config = {
+          common = { default = [ "gtk" ]; };
+          hyprland = { default = [ "hyprland" "gtk" ]; };
+        };
       };
 
       programs.hyprland = {
@@ -51,15 +52,16 @@
         NIXOS_OZONE_WL = "1";
         GDK_BACKEND = "wayland,x11";
         QT_QPA_PLATFORM = "wayland";
-        GSK_RENDERER = "cairo";
         WLR_NO_HARDWARE_CURSORS = "1";
-        WLR_RENDERER_ALLOW_SOFTWARE = "1";
         HYPR_PLUGIN_DIR = hypr-plugin-dir;
         GTK_IM_MODULE = "wayland";
         QT_IM_MODULE = "wayland";
         __JAVA_AWT_WM_NONREPARENTING = "1";
         MOZ_ENABLE_WAYLAND = "1";
         XDG_SESSION_TYPE = "wayland";
+      } // lib.optionalAttrs (hostConfig.name == "rvn-vm") {
+        GSK_RENDERER = "cairo";
+        WLR_RENDERER_ALLOW_SOFTWARE = "1";
       };
 
       environment.systemPackages = [ hyprlockPackage ];

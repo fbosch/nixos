@@ -1,12 +1,6 @@
 {
   flake.modules.nixos.flatpak = { pkgs, ... }: {
     services.flatpak.enable = true;
-    
-    xdg.portal = {
-      enable = true;
-      extraPortals = [ pkgs.xdg-desktop-portal-gtk ];
-      config.common.default = "gtk";  # Use GTK portal by default
-    };
   };
   flake.modules.homeManager.flatpak = {
     services.flatpak = {
@@ -39,10 +33,38 @@
       ];
 
       overrides = {
+        global = {
+          Context = {
+            sockets = [
+              "wayland"
+              "fallback-x11"
+            ];
+            devices = [
+              "dri"
+            ];
+          };
+          Environment = {
+            WAYLAND_DISPLAY = "wayland-1";
+            XDG_SESSION_TYPE = "wayland";
+          };
+        };
+
         "nz.mega.MEGAsync" = {
-          Context.filesystems = [
-            "/dev/dri:ro"
-          ];
+          Context = {
+            sockets = [
+              "wayland"
+              "fallback-x11"
+              "x11"
+            ];
+            filesystems = [
+              "xdg-run/X11"
+              "/tmp/.X11-unix"
+            ];
+          };
+          Environment = {
+            QT_QPA_PLATFORM = "wayland;xcb";
+            DISABLE_WAYLAND = "0";
+          };
         };
       };
     };
