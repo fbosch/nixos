@@ -1,6 +1,12 @@
 {
-  flake.modules.homeManager.development = { pkgs, ... }: {
-    home.packages = with pkgs; [
+  flake.modules.nixos.development = { pkgs, ... }: {
+    environment.systemPackages = with pkgs; [
+      fnm
+      git
+      cargo
+      gcc
+      cmake
+      gnumake
       tesseract
     ];
   };

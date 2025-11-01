@@ -4,6 +4,7 @@
       git-credential-manager
       lazygit
       delta
+      gh
     ];
     
     programs.git = {
