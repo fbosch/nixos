@@ -1,6 +1,15 @@
 { inputs, ... }:
-
 {
+
+  flake.modules.homeManager.desktop = { pkgs, ... }: {
+    home.packages = with pkgs; [
+      hyprpaper
+      hyprprop
+      hyprpicker
+      inputs.hyprland-contrib.packages.${pkgs.system}.grimblast
+    ];
+  };
+
   flake.modules.nixos.desktop = { pkgs, ... }:
     let
       hyprPluginPkgs = inputs.hyprland-plugins.packages.${pkgs.system};
@@ -12,10 +21,10 @@
           inputs.hyprspace.packages.${pkgs.system}.Hyprspace
         ];
       };
-      hyprlockPackages = inputs.hyprlock.packages.${pkgs.stdenv.hostPlatform.system};
+      hyprlockPackages =
+        inputs.hyprlock.packages.${pkgs.stdenv.hostPlatform.system};
       hyprlockPackage = hyprlockPackages.hyprlock or hyprlockPackages.default;
-    in
-    {
+    in {
       xdg.portal = {
         enable = true;
         xdgOpenUsePortal = true;
@@ -30,8 +39,10 @@
       programs.hyprland = {
         enable = true;
         withUWSM = true;
-        package = inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.hyprland;
-        portalPackage = inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.xdg-desktop-portal-hyprland;
+        package =
+          inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.hyprland;
+        portalPackage =
+          inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.xdg-desktop-portal-hyprland;
         xwayland.enable = true;
       };
 
@@ -46,11 +57,12 @@
         HYPR_PLUGIN_DIR = hypr-plugin-dir;
         GTK_IM_MODULE = "wayland";
         QT_IM_MODULE = "wayland";
+        __JAVA_AWT_WM_NONREPARENTING = "1";
+        MOZ_ENABLE_WAYLAND = "1";
+        XDG_SESSION_TYPE = "wayland";
       };
 
-      environment.systemPackages = [
-        hyprlockPackage
-      ];
+      environment.systemPackages = [ hyprlockPackage ];
 
       security.pam.services.hyprlock.text = ''
         auth include login

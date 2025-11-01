@@ -35,7 +35,16 @@
         "com.plexamp.Plexamp"
         "app.zen_browser.zen"
         "dev.zed.Zed"
+        "nz.mega.MEGAsync"
       ];
+
+      overrides = {
+        "nz.mega.MEGAsync" = {
+          Context.filesystems = [
+            "/dev/dri:ro"
+          ];
+        };
+      };
     };
   };
 }
