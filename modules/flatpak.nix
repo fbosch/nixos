@@ -32,7 +32,6 @@
         "dev.zed.Zed"
         "com.rustdesk.RustDesk"
         "org.localsend.localsend_app"
-        "io.github.zaedus.spider"
         # "com.bitwarden.desktop"
       ];
     };
