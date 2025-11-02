@@ -31,6 +31,7 @@
       "development"
       "shell"
       "services"
+      "applications/firejail"
     ];
 
     extraHomeManager = [
