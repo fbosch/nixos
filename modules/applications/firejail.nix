@@ -21,6 +21,12 @@
           profile = "${pkgs.firejail}/etc/firejail/chromium.profile";
           desktop = "${pkgs.local.chromium-youtubemusic}/share/applications/chromium-youtubemusic.desktop";
         };
+        chromium-notion = {
+          executable =
+            "${pkgs.local.chromium-notion}/bin/chromium-notion";
+          profile = "${pkgs.firejail}/etc/firejail/chromium.profile";
+          desktop = "${pkgs.local.chromium-notion}/share/applications/chromium-notion.desktop";
+        };
       };
     };
   };

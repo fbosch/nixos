@@ -6,7 +6,10 @@ pkgs.nix-webapps-lib.mkChromiumApp {
   class = "chromium-notion";
   desktopName = "Notion";
   comment = "All-in-one workspace for notes and collaboration";
-  icon = ./Notion-logo.svg;
+  icon = ./notion-logo.png;
   profile = "NotionProfile";
   url = "https://www.notion.so";
+  hardening = {
+    extraFlags = [ "--hide-scrollbars" ];
+  };
 }

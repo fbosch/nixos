@@ -9,4 +9,7 @@ pkgs.nix-webapps-lib.mkChromiumApp {
   icon = ./proton-mail-seeklogo.svg;
   profile = "ProtonmailProfile";
   url = "https://mail.proton.me";
+  hardening = {
+    extraFlags = [ "--hide-scrollbars" ];
+  };
 }

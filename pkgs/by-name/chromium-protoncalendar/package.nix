@@ -9,4 +9,7 @@ pkgs.nix-webapps-lib.mkChromiumApp {
   icon = ./proton-calendar.svg;
   profile = "ProtonCalendarProfile";
   url = "https://calendar.proton.me";
+  hardening = {
+    extraFlags = [ "--hide-scrollbars" ];
+  };
 }

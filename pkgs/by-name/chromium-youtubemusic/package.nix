@@ -9,4 +9,7 @@ pkgs.nix-webapps-lib.mkChromiumApp {
   icon = ./Youtube_Music_icon.svg;
   profile = "YoutubeMusicProfile";
   url = "https://music.youtube.com";
+  hardening = {
+    extraFlags = [ "--hide-scrollbars" ];
+  };
 }
