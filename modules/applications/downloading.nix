@@ -1,5 +1,5 @@
 {
   flake.modules.homeManager.applications = { pkgs, ... }: {
-    home.packages = with pkgs; [ p7zip megasync ];
+    home.packages = with pkgs; [ p7zip ];
   };
 }

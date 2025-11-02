@@ -61,7 +61,7 @@
                   "--site-per-process"
                   "--isolate-origins=${args.url}"
                   "--disable-features=TranslateUI"
-                ];
+                ] ++ lib.optional (args ? class) "--class=${args.class}";
                 hardenedFlags = lib.lists.unique (defaultFlags ++ extraFlags);
                 policyBase = {
                   ExtensionInstallBlocklist = [ "*" ];

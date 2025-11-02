@@ -16,6 +16,7 @@
       "security"
       "desktop"
       "development"
+      "applications"
       "shell"
       "hardware/fingerprint"
     ];

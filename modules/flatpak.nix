@@ -26,13 +26,13 @@
         "md.obsidian.Obsidian"
         "com.usebottles.bottles"
         "org.gnome.baobab"
+        "org.gnome.FileRoller"
         "be.alexandervanhee.gradia"
         "com.plexamp.Plexamp"
         "app.zen_browser.zen"
         "dev.zed.Zed"
         "com.rustdesk.RustDesk"
         "org.localsend.localsend_app"
-        # "com.bitwarden.desktop"
       ];
     };
   };
