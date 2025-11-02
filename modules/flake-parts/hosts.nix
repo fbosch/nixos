@@ -127,6 +127,7 @@ in
                 inputs.self.overlays.default
                 inputs.nix-webapps.overlays.lib
                 inputs.nix-webapps.overlays.default
+                inputs.self.overlays.chromium-webapps-hardening
               ];
               
               home-manager.extraSpecialArgs = specialArgs;

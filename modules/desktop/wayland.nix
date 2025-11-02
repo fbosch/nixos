@@ -3,11 +3,11 @@
   flake.modules.nixos.desktop = { pkgs, ... }: {
     environment.systemPackages = with pkgs; [
       xwayland
-      xorg.xrdb
-      xorg.xhost
-      xorg.xrandr
-      xorg.xprop
-      xorg.xwininfo
+      # xorg.xrdb
+      # xorg.xhost
+      # xorg.xrandr
+      # xorg.xprop
+      # xorg.xwininfo
     ];
   };
 

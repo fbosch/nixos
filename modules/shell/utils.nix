@@ -6,6 +6,7 @@
       ripgrep
       jq
       socat
+      xdg-utils
       fd
       tree
       unzip

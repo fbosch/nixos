@@ -4,9 +4,8 @@
       pass
       gnupg
       pinentry-curses
-      bitwarden-desktop
       protonvpn-gui
-      protonvpn-cli
+      bitwarden-desktop
     ];
   };
 }

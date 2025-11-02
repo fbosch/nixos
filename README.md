@@ -34,17 +34,16 @@ This allows for more flexibility when configuring and using shared configs in no
 ```nix
 # modules/dotfiles.nix
 home.activation.stowDotFiles = ...
-  stow --adopt --restow -t "$HOME" .
+  stow --restow -t "$HOME" .
 ```
-
----
 
 ### Resources
 
 #### Dendritic Nix Pattern
-- [Dendrix Documentation](https://vic.github.io/dendrix/) 
+
+- [Dendrix Documentation](https://vic.github.io/dendrix/)
 
 #### Inspiration
+
 - [MrSom3body/dotfiles](https://github.com/MrSom3body/dotfiles) - NixOS configuration reference
 - [drupol/infra](https://github.com/drupol/infra) - Infrastructure configuration reference
-

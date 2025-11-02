@@ -30,21 +30,11 @@
         "com.plexamp.Plexamp"
         "app.zen_browser.zen"
         "dev.zed.Zed"
+        "com.rustdesk.RustDesk"
         "org.localsend.localsend_app"
+        "io.github.zaedus.spider"
+        # "com.bitwarden.desktop"
       ];
-
-      overrides = {
-        global = {
-          Context = {
-            sockets = [ "wayland" "fallback-x11" ];
-            devices = [ "dri" ];
-          };
-          Environment = {
-            WAYLAND_DISPLAY = "wayland-1";
-            XDG_SESSION_TYPE = "wayland";
-          };
-        };
-      };
     };
   };
 }
