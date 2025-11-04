@@ -9,7 +9,7 @@
 
   perSystem = { system, ... }: {
     pkgsDirectory = ../../pkgs/by-name;
-    
+
     _module.args.pkgs = import inputs.nixpkgs {
       inherit system;
       config.allowUnfree = true;
@@ -34,7 +34,7 @@
 
     overlays.chromium-webapps-hardening = final: prev:
       let
-        lib = prev.lib;
+        inherit (prev) lib;
         hasChromiumLib = lib.hasAttrByPath [ "nix-webapps-lib" "mkChromiumApp" ] prev;
       in
       if !hasChromiumLib then { }
@@ -76,7 +76,7 @@
                 policyFile = final.writeText "${args.appName}-managed-policy.json" (builtins.toJSON policy);
                 flagArgs = lib.concatMapStringsSep " " (flag: ''--add-flags ${lib.escapeShellArg flag}'') hardenedFlags;
               in
-              baseDrv.overrideAttrs (finalAttrs: prevAttrs:
+              baseDrv.overrideAttrs (_finalAttrs: prevAttrs:
                 let
                   basePostInstall = prevAttrs.postInstall or "";
                   wrapCommand = ''wrapProgram "$out/bin/${args.appName}" --set CHROME_POLICY_FILES_DIR "$out/share/chromium/policies"''
@@ -91,8 +91,8 @@
                   '';
                   passthru = (prevAttrs.passthru or { }) // {
                     hardenedChromium = {
+                      inherit policyFile;
                       flags = hardenedFlags;
-                      policyFile = policyFile;
                     };
                   };
                 }

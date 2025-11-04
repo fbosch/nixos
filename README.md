@@ -27,20 +27,11 @@ Host definitions list module names; the loader in `modules/flake-parts/hosts.nix
 
 ## Development
 
-### Pre-commit Hooks
-
-This repository uses pre-commit hooks to automatically lint and format Nix code:
+**Tools used:**
 
 - **statix**: Catches anti-patterns and common mistakes
-- **deadnix**: Removes unused code
-- **nixpkgs-fmt**: Auto-formats Nix files
-
-**Setup (one-time):**
-```bash
-nix develop
-```
-
-This installs the git hooks automatically. All subsequent commits will be linted and formatted.
+- **deadnix**: Detects unused code
+- **nixpkgs-fmt**: Formats Nix files
 
 ## Dotfiles Integration
 
