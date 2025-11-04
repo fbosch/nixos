@@ -14,90 +14,22 @@ concurrency:
   group: ci-${{ github.ref }}-update
   cancel-in-progress: true
 
-env:
-  NIX_CONFIG: "extra-experimental-features = nix-command flakes"
-
 jobs:
   update-flake:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.PAT_TOKEN }}
 
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@v12
-        with:
-          extra-args: --prefer-upstream-nix
 
       - name: Enable Nix cache
         uses: DeterminateSystems/magic-nix-cache-action@v8
-        with:
-          use-flakehub: false
 
-      - name: Update flake inputs
-        id: update
-        run: |
-          set -euo pipefail
-
-          update_output=$(nix flake update 2>&1)
-          printf "%s\n" "$update_output"
-
-          if [ -z "$(git status --porcelain flake.lock)" ]; then
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          echo "changed=true" >> "$GITHUB_OUTPUT"
-
-          mapfile -t inputs < <(printf "%s\n" "$update_output" | grep "• Updated input" | sed "s/• Updated input '//" | sed "s/':.*//")
-
-          input_count=${#inputs[@]}
-          [ "$input_count" -eq 0 ] && inputs=("flake.lock") && input_count=1
-
-          echo "input_count=$input_count" >> "$GITHUB_OUTPUT"
-          echo "updated_inputs=$(printf "%s" "${inputs[*]}")" >> "$GITHUB_OUTPUT"
-
-          detailed_changes=""
-          for name in "${inputs[@]}"; do
-            owner=$(jq -r ".nodes.\"${name}\".locked.owner // empty" flake.lock 2>/dev/null)
-            repo=$(jq -r ".nodes.\"${name}\".locked.repo // empty" flake.lock 2>/dev/null)
-            type=$(jq -r ".nodes.\"${name}\".locked.type // empty" flake.lock 2>/dev/null)
-            from=$(printf "%s\n" "$update_output" | grep -A 3 "• Updated input '${name}'" | grep -v "• Updated input" | grep -v "→" | head -1 | sed "s/.*\///" | sed "s/ (.*//" | cut -c1-7)
-            to=$(printf "%s\n" "$update_output" | grep -A 3 "• Updated input '${name}'" | grep "→" | sed "s/.*\///" | sed "s/ (.*//" | cut -c1-7)
-            ref=$(printf "%s\n" "$update_output" | grep -A 3 "• Updated input '${name}'" | grep "→" | sed "s/.*\///" | sed "s/ (.*//" | sed "s/'$//")
-
-            if [ "$type" = "github" ] && [ -n "$owner" ] && [ -n "$repo" ] && [ -n "$ref" ]; then
-              label="[${name}](https://github.com/${owner}/${repo}/commit/${ref})"
-            else
-              label="\`${name}\`"
-            fi
-
-            detailed_changes+="- ${label}"$'\n'
-            detailed_changes+="\`\`\`diff"$'\n'
-            detailed_changes+="-${from}"$'\n'
-            detailed_changes+="+${to}"$'\n'
-            detailed_changes+="\`\`\`"$'\n'
-          done
-          echo "detailed_changes<<EOF" >> "$GITHUB_OUTPUT"
-          echo "$detailed_changes" >> "$GITHUB_OUTPUT"
-          echo "EOF" >> "$GITHUB_OUTPUT"
-
-      - name: Create pull request
-        if: steps.update.outputs.changed == 'true'
-        uses: peter-evans/create-pull-request@v5
+      - name: Update flake.lock
+        uses: DeterminateSystems/update-flake-lock@v24
         with:
           token: ${{ secrets.PAT_TOKEN }}
-          commit-message: |
-            Update flake inputs
-
-            ${{ steps.update.outputs.detailed_changes }}
-
-            Co-authored-by: GitHub Actions <actions@github.com>
-          title: "Update flake inputs"
-          body: |
-            Inputs updated: ${{ steps.update.outputs.updated_inputs }}
-
-            ${{ steps.update.outputs.detailed_changes }}
+          pr-title: "Update flake inputs"
+          pr-labels: dependencies
           branch: update-flake-inputs
-          delete-branch: true
