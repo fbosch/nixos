@@ -24,19 +24,11 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: DeterminateSystems/nix-installer-action@v12
-        with:
-          extra-args: --prefer-upstream-nix
       - uses: DeterminateSystems/magic-nix-cache-action@v8
-        with:
-          use-flakehub: false
 
-      - name: Lint with Statix
+      - name: Run pre-commit checks
         run: |
-          nix-shell -p statix --run 'statix check .'
-
-      - name: Lint with Deadnix
-        run: |
-          nix-shell -p deadnix --run 'deadnix --fail --no-lambda-pattern-names .'
+          nix develop --command pre-commit run --all-files
 
       - name: Flake checks
         run: nix flake check --print-build-logs --keep-going
@@ -52,11 +44,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: DeterminateSystems/nix-installer-action@v12
-        with:
-          extra-args: --prefer-upstream-nix
       - uses: DeterminateSystems/magic-nix-cache-action@v8
-        with:
-          use-flakehub: false
 
       - name: Evaluate ${{ matrix.host }}
         run: |

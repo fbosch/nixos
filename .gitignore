@@ -34,3 +34,4 @@ nixpkgs
 .nix-cache
 .nix-state
 
+.pre-commit-config.yaml

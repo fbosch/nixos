@@ -25,6 +25,23 @@ Each file exports under `flake.modules.nixos.*` or `flake.modules.homeManager.*`
 
 Host definitions list module names; the loader in `modules/flake-parts/hosts.nix` assembles configurations and wires Home Manager automatically.
 
+## Development
+
+### Pre-commit Hooks
+
+This repository uses pre-commit hooks to automatically lint and format Nix code:
+
+- **statix**: Catches anti-patterns and common mistakes
+- **deadnix**: Removes unused code
+- **nixpkgs-fmt**: Auto-formats Nix files
+
+**Setup (one-time):**
+```bash
+nix develop
+```
+
+This installs the git hooks automatically. All subsequent commits will be linted and formatted.
+
 ## Dotfiles Integration
 
 The `dotfiles.nix` module clones [fbosch/dotfiles](https://github.com/fbosch/dotfiles) and applies it via GNU Stow:
