@@ -27,7 +27,7 @@ jobs:
       - uses: DeterminateSystems/magic-nix-cache-action@v8
 
       - name: Lint Nix code
-        run: nix run .#lint
+        run: nix run '.#lint'
 
       - name: Flake checks
         run: nix flake check --print-build-logs --keep-going

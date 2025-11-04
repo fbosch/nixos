@@ -6,7 +6,7 @@
       clean.extraArgs = "--keep-since 7d --keep 15";
       flake = "/home/fbb/nixos";
     };
-    
+
     environment.systemPackages = [ pkgs.nh ];
   };
 }

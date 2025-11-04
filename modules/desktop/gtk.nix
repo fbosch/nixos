@@ -89,7 +89,8 @@
           cp -ar . $out/
         '';
       };
-    in {
+    in
+    {
       home.file = {
         ".local/share/themes/MonoTheme".source = monoTheme;
         ".local/share/themes/MonoThemeDark".source = monoThemeDark;

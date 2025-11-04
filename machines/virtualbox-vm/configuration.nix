@@ -1,10 +1,9 @@
-{
-  pkgs,
-  inputs,
-  options,
-  system,
-  lib,
-  ...
+{ pkgs
+, inputs
+, options
+, system
+, lib
+, ...
 }:
 let
   theme = inputs.distro-grub-themes.packages.${system}.asus-tuf-grub-theme;

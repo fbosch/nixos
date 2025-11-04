@@ -30,15 +30,7 @@
    - Checks, formatters, dev shells, and packages should be defined under `perSystem` so every supported platform gets consistent tooling.
 7. **Prefer data over conditionals**
    - Pass environment-specific values (host role, install mode, usernames) in `specialArgs` to keep modules declarative and easily testable.
-
-## Migration Checklist
-
-- [ ] Mirror the `flake.nix` pattern: delegate outputs to `flake-parts.lib.mkFlake … (inputs.import-tree ./modules)`.
-- [ ] Recreate the `modules/flake` helpers (hosts loader, overlays, checks, treefmt, shell, systems, images) and adjust inputs as needed.
-- [ ] Populate `flake.meta` with project-wide appearance, program defaults, and user credentials; audit modules to read from metadata instead of literals.
-- [ ] Port feature modules by rewriting them to export under the dendritic keys and consume dependencies via `config.flake.modules`.
-- [ ] Define host or ISO entries that simply list module names and rely on the loader for assembly.
-- [ ] Ensure any packages, dev shells, or CI hooks are moved under `perSystem`.
+8. **Don't update the readme unless specifically asked to**
 
 ## Tips
 
@@ -46,4 +38,3 @@
 - Use attribute name conventions (`nixos.<group>`, `homeManager.<group>`) to keep the tree discoverable.
 - Document host-specific quirks inside their `hostConfig` record so modules remain generic.
 - Keep secrets and credentials in SOPS or similar, and surface only references through metadata.
-

@@ -23,7 +23,8 @@
       hyprlockPackages =
         inputs.hyprlock.packages.${pkgs.stdenv.hostPlatform.system};
       hyprlockPackage = hyprlockPackages.hyprlock or hyprlockPackages.default;
-    in {
+    in
+    {
       xdg.portal = {
         enable = true;
         xdgOpenUsePortal = true;
