@@ -27,11 +27,30 @@ Host definitions list module names; the loader in `modules/flake-parts/hosts.nix
 
 ## Development
 
+### Linting
+
+Run linting checks on all Nix files:
+
+```bash
+nix run '.#lint'   # Check code quality
+nix run '.#fmt'    # Auto-format code
+```
+
 **Tools used:**
 
 - **statix**: Catches anti-patterns and common mistakes
 - **deadnix**: Detects unused code
 - **nixpkgs-fmt**: Formats Nix files
+
+### Pre-commit Hooks
+
+Automatic linting on every commit. **Setup (one-time):**
+
+```bash
+nix develop
+```
+
+This installs git hooks that run the linter before each commit.
 
 ## Dotfiles Integration
 
