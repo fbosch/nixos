@@ -17,7 +17,6 @@
         paths = with hyprPluginPkgs; [
           hyprexpo
           hyprbars
-          inputs.hyprspace.packages.${pkgs.system}.Hyprspace
         ];
       };
       hyprlockPackages =

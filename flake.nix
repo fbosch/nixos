@@ -19,7 +19,7 @@
     import-tree.url = "github:vic/import-tree";
     flatpaks.url = "github:gmodena/nix-flatpak";
     hyprland = {
-      url = "github:hyprwm/Hyprland?submodules=1&ref=v0.51.0";
+      url = "github:hyprwm/Hyprland?submodules=1";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     hyprland-plugins = {
@@ -29,10 +29,6 @@
     hyprland-contrib = {
       url = "github:hyprwm/contrib";
       inputs.nixpkgs.follows = "nixpkgs";
-    };
-    hyprspace = {
-      url = "github:KZDKM/Hyprspace";
-      inputs.hyprland.follows = "hyprland";
     };
     hyprlock = {
       url = "github:hyprwm/hyprlock";
