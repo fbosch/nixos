@@ -9,7 +9,7 @@
     ];
   };
 
-  flake.modules.nixos.desktop = { pkgs, lib, hostConfig, meta, ... }:
+  flake.modules.nixos.desktop = { pkgs, lib, meta, ... }:
     let
       hyprPluginPkgs = inputs.hyprland-plugins.packages.${pkgs.system};
       hypr-plugin-dir = pkgs.symlinkJoin {
@@ -59,9 +59,6 @@
         __JAVA_AWT_WM_NONREPARENTING = "1";
         MOZ_ENABLE_WAYLAND = "1";
         XDG_SESSION_TYPE = "wayland";
-      } // lib.optionalAttrs (hostConfig.name == "rvn-vm") {
-        GSK_RENDERER = "cairo";
-        WLR_RENDERER_ALLOW_SOFTWARE = "1";
       };
 
       environment.systemPackages = [ hyprlockPackage ];

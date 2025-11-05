@@ -60,4 +60,9 @@ in
     foot
     xdg-utils
   ];
+
+  environment.sessionVariables = {
+    GSK_RENDERER = "cairo";
+    WLR_RENDERER_ALLOW_SOFTWARE = "1";
+  };
 }

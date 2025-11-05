@@ -1,6 +1,5 @@
 _:
 {
-  # Global project metadata for reuse across modules
   flake.meta = {
     user = {
       username = "fbb";
