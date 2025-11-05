@@ -9,46 +9,42 @@
           set +e
           exit_code=0
           
-          gum style --border rounded --padding "0 1" --bold "Linting NixOS configuration"
+          gum style --bold --border rounded --padding "0 1" "Linting NixOS Configuration"
           echo
           
-          # Statix check
+          # Statix
           if gum spin --spinner dot --title "Running statix..." -- statix check . > /tmp/statix-output 2>&1; then
-            gum style --foreground 2 "[PASS] statix"
+            printf $'\u2713 statix\n' | gum style --foreground 2
           else
-            gum style --foreground 1 "[FAIL] statix found issues"
+            printf $'\u2717 statix\n' | gum style --foreground 1
             cat /tmp/statix-output
             exit_code=1
           fi
-          echo
           
-          # Deadnix check
+          # Deadnix
           if gum spin --spinner dot --title "Running deadnix..." -- deadnix --fail --no-lambda-pattern-names . > /tmp/deadnix-output 2>&1; then
-            gum style --foreground 2 "[PASS] deadnix"
+            printf $'\u2713 deadnix\n' | gum style --foreground 2
           else
-            gum style --foreground 1 "[FAIL] deadnix found unused code"
+            printf $'\u2717 deadnix\n' | gum style --foreground 1
             cat /tmp/deadnix-output
             exit_code=1
           fi
-          echo
           
-          # Format check
-          if gum spin --spinner dot --title "Checking formatting..." -- nixpkgs-fmt --check . > /tmp/fmt-output 2>&1; then
-            gum style --foreground 2 "[PASS] All files properly formatted"
+          # Format
+          if gum spin --spinner dot --title "Checking format..." -- nixpkgs-fmt --check . > /tmp/fmt-output 2>&1; then
+            printf $'\u2713 format\n' | gum style --foreground 2
           else
-            gum style --foreground 1 "[FAIL] Files need formatting"
+            printf $'\u2717 format\n' | gum style --foreground 1
             cat /tmp/fmt-output
-            echo
-            gum style --foreground 3 "Hint: Run 'nix run .#fmt' to auto-format"
+            printf $'  \u2192 Run nix run .#fmt to fix\n' | gum style --foreground 3
             exit_code=1
           fi
-          echo
           
-          # Final result
+          echo
           if [ $exit_code -ne 0 ]; then
-            printf "LINT FAILED\n\nFix issues above and re-run 'nix run .#lint'" | gum style --border double --border-foreground 1 --padding "0 1" --bold
+            gum style --foreground 1 --bold "Failed"
           else
-            echo "ALL CHECKS PASSED" | gum style --border double --border-foreground 2 --padding "0 1" --bold
+            gum style --foreground 2 --bold "All checks passed"
           fi
           
           exit $exit_code
