@@ -9,42 +9,40 @@
           set +e
           exit_code=0
           
-          gum style --bold --border rounded --padding "0 1" "Linting NixOS Configuration"
-          echo
+          gum style --foreground 244 "Linting..."
           
           # Statix
-          if gum spin --spinner dot --title "Running statix..." -- statix check . > /tmp/statix-output 2>&1; then
-            printf $'\u2713 statix\n' | gum style --foreground 2
+          if gum spin --spinner dot --title "statix" -- statix check . > /tmp/statix-output 2>&1; then
+            echo "$(gum style --foreground 2 '[OK]') statix"
           else
-            printf $'\u2717 statix\n' | gum style --foreground 1
+            echo "$(gum style --foreground 1 '[FAIL]') statix"
             cat /tmp/statix-output
             exit_code=1
           fi
           
           # Deadnix
-          if gum spin --spinner dot --title "Running deadnix..." -- deadnix --fail --no-lambda-pattern-names . > /tmp/deadnix-output 2>&1; then
-            printf $'\u2713 deadnix\n' | gum style --foreground 2
+          if gum spin --spinner dot --title "deadnix" -- deadnix --fail --no-lambda-pattern-names . > /tmp/deadnix-output 2>&1; then
+            echo "$(gum style --foreground 2 '[OK]') deadnix"
           else
-            printf $'\u2717 deadnix\n' | gum style --foreground 1
+            echo "$(gum style --foreground 1 '[FAIL]') deadnix"
             cat /tmp/deadnix-output
             exit_code=1
           fi
           
           # Format
-          if gum spin --spinner dot --title "Checking format..." -- nixpkgs-fmt --check . > /tmp/fmt-output 2>&1; then
-            printf $'\u2713 format\n' | gum style --foreground 2
+          if gum spin --spinner dot --title "format" -- nixpkgs-fmt --check . > /tmp/fmt-output 2>&1; then
+            echo "$(gum style --foreground 2 '[OK]') format"
           else
-            printf $'\u2717 format\n' | gum style --foreground 1
+            echo "$(gum style --foreground 1 '[FAIL]') format"
             cat /tmp/fmt-output
-            printf $'  \u2192 Run nix run .#fmt to fix\n' | gum style --foreground 3
+            echo "  $(gum style --foreground 3 '[HINT]') Run nix run .#fmt to fix"
             exit_code=1
           fi
           
-          echo
           if [ $exit_code -ne 0 ]; then
-            gum style --foreground 1 --bold "Failed"
+            echo "$(gum style --foreground 1 '[ERROR]') Lint failed"
           else
-            gum style --foreground 2 --bold "All checks passed"
+            echo "$(gum style --foreground 2 '[DONE]') All checks passed"
           fi
           
           exit $exit_code
