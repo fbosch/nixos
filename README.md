@@ -23,9 +23,11 @@ nix run .#fmt    # nixpkgs-fmt
 
 ## Dotfiles
 
-Applied via a Home Manager module that runs stow.
-Useful when you need the same dotfiles on non‑nix hosts and for tinkering with configs without having to rebuild all of the time.
-Still made reproducible by cloning a specific ref.
+My dotfiles (https://github.com/fbosch/dotfiles) are applied via a Home Manager module that runs stow.
+
+This is useful when you need the same dotfiles on non‑nix hosts and for tinkering with configs.
+
+Still made reproducible by initially cloning a specific ref but can then be switched to master and modified without rebuiling.
 
 ## Credits
 
