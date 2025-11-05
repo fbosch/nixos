@@ -1,11 +1,11 @@
 { inputs, ... }:
 
 {
-  flake.modules.homeManager.dotfiles = { config, pkgs, lib, ... }:
+  flake.modules.homeManager.dotfiles = { config, pkgs, lib, meta, ... }:
     let
       REPO = lib.escapeShellArg "${config.home.homeDirectory}/dotfiles";
       DOTFILES_REV = inputs.dotfiles.rev or "master";
-      DOTFILES_URL = "https://github.com/fbosch/dotfiles";
+      DOTFILES_URL = meta.dotfiles.url;
     in
     {
       home.activation = {

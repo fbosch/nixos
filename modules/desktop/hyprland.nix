@@ -9,7 +9,7 @@
     ];
   };
 
-  flake.modules.nixos.desktop = { pkgs, lib, hostConfig, ... }:
+  flake.modules.nixos.desktop = { pkgs, lib, hostConfig, meta, ... }:
     let
       hyprPluginPkgs = inputs.hyprland-plugins.packages.${pkgs.system};
       hypr-plugin-dir = pkgs.symlinkJoin {
@@ -48,7 +48,7 @@
       };
 
       environment.sessionVariables = {
-        EMOJI_FONT = "Apple Color Emoji";
+        EMOJI_FONT = meta.ui.emojiFont;
         NIXOS_OZONE_WL = "1";
         GDK_BACKEND = "wayland,x11";
         QT_QPA_PLATFORM = "wayland";

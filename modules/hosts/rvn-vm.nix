@@ -39,6 +39,6 @@
       inputs.vicinae.homeManagerModules.default
     ];
 
-    username = "fbb";
+    inherit (config.flake.meta.user) username;
   };
 }

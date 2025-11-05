@@ -1,6 +1,6 @@
 {
-  flake.modules.nixos.security = {
-    services.getty.autologinUser = "fbb";
+  flake.modules.nixos.security = { meta, ... }: {
+    services.getty.autologinUser = meta.user.username;
     services.gnome.gnome-keyring.enable = true;
     security.pam.services.hyprland.enableGnomeKeyring = true;
 
