@@ -1,8 +1,8 @@
 # ❄️ NixOS
 
-This is my personal nix configuration repository.
+This is my personal NixOS configuration.
 
-It contains configurations for my machines and follows the dendritic pattern for modularity.
+It uses a dendritic module layout with flake-parts.
 
 ## Layout
 
@@ -14,7 +14,7 @@ modules/
 pkgs/by-name/    local packages
 ```
 
-## Lint & Format
+## Lint & format
 
 ```sh
 nix run .#lint   # statix + deadnix
@@ -23,15 +23,14 @@ nix run .#fmt    # nixpkgs-fmt
 
 ## Dotfiles
 
-Applied via a Home Manager module that runs stow.
-Useful when you need the same dotfiles on non‑nix hosts and for tinkering with configs without having to rebuild all of the time.
-Still made reproducible by cloning a specific ref.
+My dotfiles (https://github.com/fbosch/dotfiles) are applied via a Home Manager module that runs GNU Stow.
+
+Useful when you need the same dotfiles on non‑Nix hosts.
+
+For reproducibility, the repository is initially pinned to a specific ref. You can switch to the default branch to iterate without rebuilding Nix every time.
 
 ## Credits
 
 - Dendritic pattern — https://vic.github.io/dendrix/
-
-### Inspiration
-
-- https://github.com/MrSom3body/dotfiles
-- https://github.com/drupol/infra
+- Inspiration — https://github.com/MrSom3body/dotfiles
+- Inspiration — https://github.com/drupol/infra
