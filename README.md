@@ -1,46 +1,33 @@
-## NixOS
+# ❄️ NixOS
 
-A compact, fast-to-navigate NixOS + Home Manager setup built around a single tree of modules and a central loader.
+It follows a dendritic layout with flake-parts:
+modules export under `flake.modules.nixos.*` or `flake.modules.homeManager.*`, hosts live in `modules/hosts/<name>.nix`, and a shared loader turns those into `nixosConfigurations` and wires Home Manager.
 
-### Quick start
+## Layout
 
-```bash
-# Switch this machine to host <name>
-sudo nixos-rebuild switch --flake .#<name>
-
-# Example
-sudo nixos-rebuild switch --flake .#rvn-vm
+```text
+modules/
+  flake-parts/   host loader, overlays, meta
+  hosts/         one file per machine → nixosConfigurations.<name>
+  *.nix          single-purpose modules (desktop, apps, dev, shell, system)
+pkgs/by-name/    local packages
 ```
 
-### Layout
+## Lint & Format
 
-- **modules/**: NixOS and Home Manager feature modules
-  - **flake-parts/**: host loader, nixpkgs/overlays, project metadata
-  - **hosts/**: one file per machine (becomes `nixosConfigurations.<name>`)
-  - other `*.nix`: single-purpose modules (desktop, apps, dev tools, security, etc.)
-- **pkgs/by-name/**: custom packages
-
-### Dendritic pattern (with flake-parts)
-
-- **Single module tree**: each file exports under `flake.modules.nixos.*` or `flake.modules.homeManager.*`.
-- **Central loader**: `modules/flake-parts/hosts.nix` assembles `nixosConfigurations` and wires Home Manager.
-- **Global metadata**: shared facts live under `flake.meta` and are read as `config.flake.meta`.
-- **perSystem tooling**: exposes `.#lint`, `.#fmt`, dev shells, and checks uniformly across platforms.
-
-### Lint and format
-
-```bash
+```sh
 nix run .#lint   # statix + deadnix
 nix run .#fmt    # nixpkgs-fmt
 ```
 
-### Dotfiles integration
+## Dotfiles
 
-Home Manager module applies external dotfiles via stow for portability.
+Applied via a Home Manager module that runs stow.
+Useful when you need the same dotfiles on non‑nix hosts and for tinkering with configs without having to rebuild all of the time.
+Still made reproducible by cloning a specific ref.
 
-### Resources & inspiration
+## Credits
 
-- Dendritic pattern: `https://vic.github.io/dendrix/`
-- Inspiration: `https://github.com/MrSom3body/dotfiles`
-- Inspiration: `https://github.com/drupol/infra`
-
+Dendritic pattern — https://vic.github.io/dendrix/
+Inspiration — https://github.com/MrSom3body/dotfiles
+Inspiration — https://github.com/drupol/infra
