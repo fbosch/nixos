@@ -1,6 +1,8 @@
 # ❄️ NixOS
 
-Uses a simple dendritic layout with flake-parts. Modules export to `flake.modules.nixos.*` or `flake.modules.homeManager.*`. Each host lives in `modules/hosts/<name>.nix`. A small loader assembles `nixosConfigurations` and wires Home Manager.
+This is my personal nix configuration repository.
+
+It contains configurations for my machines and follows the dendritic pattern for modularity.
 
 ## Layout
 
