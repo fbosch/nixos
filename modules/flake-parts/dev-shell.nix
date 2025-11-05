@@ -4,46 +4,51 @@
     let
       lintScript = pkgs.writeShellApplication {
         name = "lint";
-        runtimeInputs = with pkgs; [ statix deadnix nixpkgs-fmt ];
+        runtimeInputs = with pkgs; [ statix deadnix nixpkgs-fmt gum ];
         text = ''
+          set +e
           exit_code=0
           
-          echo "=== Running statix (Nix linter) ==="
-          if ! statix check .; then
-            echo "? statix found issues (see output above)"
-            exit_code=1
-          else
-            echo "? statix passed"
-          fi
-          echo ""
+          gum style --border rounded --padding "0 1" --bold "Linting NixOS configuration"
+          echo
           
-          echo "=== Running deadnix (unused code detector) ==="
-          if ! deadnix --fail --no-lambda-pattern-names .; then
-            echo "? deadnix found unused code (see output above)"
-            exit_code=1
+          # Statix check
+          if gum spin --spinner dot --title "Running statix..." -- statix check . > /tmp/statix-output 2>&1; then
+            gum style --foreground 2 "[PASS] statix"
           else
-            echo "? deadnix passed"
-          fi
-          echo ""
-          
-          echo "=== Running nixpkgs-fmt (formatting check) ==="
-          unformatted_files=$(nixpkgs-fmt --check . 2>&1 | grep -v "formatted" || true)
-          if [ -n "$unformatted_files" ]; then
-            echo "? The following files need formatting:"
-            echo "$unformatted_files"
-            echo ""
-            echo "Run 'nix run .#fmt' to fix formatting issues"
+            gum style --foreground 1 "[FAIL] statix found issues"
+            cat /tmp/statix-output
             exit_code=1
-          else
-            echo "? All files are properly formatted"
           fi
-          echo ""
+          echo
           
+          # Deadnix check
+          if gum spin --spinner dot --title "Running deadnix..." -- deadnix --fail --no-lambda-pattern-names . > /tmp/deadnix-output 2>&1; then
+            gum style --foreground 2 "[PASS] deadnix"
+          else
+            gum style --foreground 1 "[FAIL] deadnix found unused code"
+            cat /tmp/deadnix-output
+            exit_code=1
+          fi
+          echo
+          
+          # Format check
+          if gum spin --spinner dot --title "Checking formatting..." -- nixpkgs-fmt --check . > /tmp/fmt-output 2>&1; then
+            gum style --foreground 2 "[PASS] All files properly formatted"
+          else
+            gum style --foreground 1 "[FAIL] Files need formatting"
+            cat /tmp/fmt-output
+            echo
+            gum style --foreground 3 "Hint: Run 'nix run .#fmt' to auto-format"
+            exit_code=1
+          fi
+          echo
+          
+          # Final result
           if [ $exit_code -ne 0 ]; then
-            echo "=== LINT FAILED ==="
-            echo "Please fix the issues above and run 'nix run .#lint' again"
+            printf "LINT FAILED\n\nFix issues above and re-run 'nix run .#lint'" | gum style --border double --border-foreground 1 --padding "0 1" --bold
           else
-            echo "=== ALL CHECKS PASSED ==="
+            echo "ALL CHECKS PASSED" | gum style --border double --border-foreground 2 --padding "0 1" --bold
           fi
           
           exit $exit_code
@@ -91,6 +96,7 @@
           statix
           deadnix
           nixpkgs-fmt
+          gum
           lintScript
           formatScript
         ];
