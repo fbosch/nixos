@@ -6,13 +6,47 @@
         name = "lint";
         runtimeInputs = with pkgs; [ statix deadnix nixpkgs-fmt ];
         text = ''
-          set -e
-          echo "Running statix..."
-          statix check .
-          echo "Running deadnix..."
-          deadnix --fail --no-lambda-pattern-names .
-          echo "Running nixpkgs-fmt..."
-          nixpkgs-fmt --check .
+          exit_code=0
+          
+          echo "=== Running statix (Nix linter) ==="
+          if ! statix check .; then
+            echo "? statix found issues (see output above)"
+            exit_code=1
+          else
+            echo "? statix passed"
+          fi
+          echo ""
+          
+          echo "=== Running deadnix (unused code detector) ==="
+          if ! deadnix --fail --no-lambda-pattern-names .; then
+            echo "? deadnix found unused code (see output above)"
+            exit_code=1
+          else
+            echo "? deadnix passed"
+          fi
+          echo ""
+          
+          echo "=== Running nixpkgs-fmt (formatting check) ==="
+          unformatted_files=$(nixpkgs-fmt --check . 2>&1 | grep -v "formatted" || true)
+          if [ -n "$unformatted_files" ]; then
+            echo "? The following files need formatting:"
+            echo "$unformatted_files"
+            echo ""
+            echo "Run 'nix run .#fmt' to fix formatting issues"
+            exit_code=1
+          else
+            echo "? All files are properly formatted"
+          fi
+          echo ""
+          
+          if [ $exit_code -ne 0 ]; then
+            echo "=== LINT FAILED ==="
+            echo "Please fix the issues above and run 'nix run .#lint' again"
+          else
+            echo "=== ALL CHECKS PASSED ==="
+          fi
+          
+          exit $exit_code
         '';
       };
 

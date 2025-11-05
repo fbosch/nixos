@@ -9,7 +9,7 @@
 
       overrides = {
         global = {
-          Context.sockets = ["wayland" "!x11" "!fallback-x11"];
+          Context.sockets = [ "wayland" "!x11" "!fallback-x11" ];
           Context.filesystems = [
             "xdg-config/fontconfig:ro"
             "~/.local/share/fonts:ro"
