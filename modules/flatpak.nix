@@ -7,9 +7,23 @@
       enable = true;
       uninstallUnmanaged = true;
 
+      overrides = {
+        global = {
+          Context.sockets = ["wayland" "!x11" "!fallback-x11"];
+          Context.filesystems = [
+            "xdg-config/fontconfig:ro"
+            "~/.local/share/fonts:ro"
+            "/nix/store:ro"
+          ];
+        };
+      };
+
       update = {
-        auto.enable = true;
         onActivation = true;
+        auto = {
+          enable = true;
+          onCalendar = "weekly";
+        };
       };
 
       remotes = [{

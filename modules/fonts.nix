@@ -10,6 +10,8 @@
     };
   };
   flake.modules.homeManager.fonts = { pkgs, ... }: {
+    xdg.configFile."fontconfig/fonts.conf".text = builtins.readFile ../configs/fontconfig/fonts.conf;
+
     home.file = {
       ".local/share/fonts/zenbones-mono".source = pkgs.fetchzip {
         url = "https://github.com/zenbones-theme/zenbones-mono/releases/download/v2.400/Zenbones-Brainy-TTF.zip";
