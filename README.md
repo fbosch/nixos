@@ -1,76 +1,46 @@
-# ❄️ NixOS Configuration
+## NixOS
 
-Dendritic-style flake configuration using [import-tree](https://github.com/vic/import-tree) and [flake-parts](https://flake.parts) for automatic module discovery.
+A compact, fast-to-navigate NixOS + Home Manager setup built around a single tree of modules and a central loader.
 
-## Architecture
-
-```
-flake.nix                    # Entry point - delegates to import-tree
-|-- modules/
-    |-- flake-parts/         # Infrastructure (host loader, overlays, meta)
-    |-- hosts/               # Per-machine definitions -> nixosConfigurations
-    |-- applications/        # Browser, productivity, gaming apps
-    |-- desktop/             # Hyprland, GNOME, audio, theming
-    |-- development/         # Languages, editors, AI tools
-    |-- shell/               # Fish, bash, CLI utilities
-    |-- system/              # Core system config
-    |-- users/fbb/           # User-specific NixOS + Home Manager
-    |-- *.nix                # Single-purpose modules
-|-- pkgs/by-name/            # Custom packages
-```
-
-## Module System
-
-Each file exports under `flake.modules.nixos.*` or `flake.modules.homeManager.*`.
-
-Host definitions list module names; the loader in `modules/flake-parts/hosts.nix` assembles configurations and wires Home Manager automatically.
-
-## Development
-
-### Linting
-
-Run linting checks on all Nix files:
+### Quick start
 
 ```bash
-nix run '.#lint'   # Check code quality
-nix run '.#fmt'    # Auto-format code
+# Switch this machine to host <name>
+sudo nixos-rebuild switch --flake .#<name>
+
+# Example
+sudo nixos-rebuild switch --flake .#rvn-vm
 ```
 
-**Tools used:**
+### Layout
 
-- **statix**: Catches anti-patterns and common mistakes
-- **deadnix**: Detects unused code
-- **nixpkgs-fmt**: Formats Nix files
+- **modules/**: NixOS and Home Manager feature modules
+  - **flake-parts/**: host loader, nixpkgs/overlays, project metadata
+  - **hosts/**: one file per machine (becomes `nixosConfigurations.<name>`)
+  - other `*.nix`: single-purpose modules (desktop, apps, dev tools, security, etc.)
+- **pkgs/by-name/**: custom packages
 
-### Pre-commit Hooks
+### Dendritic pattern (with flake-parts)
 
-Automatic linting on every commit. **Setup (one-time):**
+- **Single module tree**: each file exports under `flake.modules.nixos.*` or `flake.modules.homeManager.*`.
+- **Central loader**: `modules/flake-parts/hosts.nix` assembles `nixosConfigurations` and wires Home Manager.
+- **Global metadata**: shared facts live under `flake.meta` and are read as `config.flake.meta`.
+- **perSystem tooling**: exposes `.#lint`, `.#fmt`, dev shells, and checks uniformly across platforms.
+
+### Lint and format
 
 ```bash
-nix develop
+nix run .#lint   # statix + deadnix
+nix run .#fmt    # nixpkgs-fmt
 ```
 
-This installs git hooks that run the linter before each commit.
+### Dotfiles integration
 
-## Dotfiles Integration
+Home Manager module applies external dotfiles via stow for portability.
 
-The `dotfiles.nix` module clones [fbosch/dotfiles](https://github.com/fbosch/dotfiles) and applies it via GNU Stow:
+### Resources & inspiration
 
-This allows for more flexibility when configuring and using shared configs in non-nix environments.
+- Dendritic pattern: `https://vic.github.io/dendrix/`
+- Inspiration: `https://github.com/MrSom3body/dotfiles`
+- Inspiration: `https://github.com/drupol/infra`
 
-```nix
-# modules/dotfiles.nix
-home.activation.stowDotFiles = ...
-  stow --restow -t "$HOME" .
-```
-
-### Resources
-
-#### Dendritic Nix Pattern
-
-- [Dendrix Documentation](https://vic.github.io/dendrix/)
-
-#### Inspiration
-
-- [MrSom3body/dotfiles](https://github.com/MrSom3body/dotfiles) - NixOS configuration reference
-- [drupol/infra](https://github.com/drupol/infra) - Infrastructure configuration reference
