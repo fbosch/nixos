@@ -1,7 +1,6 @@
 # ❄️ NixOS
 
-It follows a dendritic layout with flake-parts:
-modules export under `flake.modules.nixos.*` or `flake.modules.homeManager.*`, hosts live in `modules/hosts/<name>.nix`, and a shared loader turns those into `nixosConfigurations` and wires Home Manager.
+Uses a simple dendritic layout with flake-parts. Modules export to `flake.modules.nixos.*` or `flake.modules.homeManager.*`. Each host lives in `modules/hosts/<name>.nix`. A small loader assembles `nixosConfigurations` and wires Home Manager.
 
 ## Layout
 
@@ -28,6 +27,9 @@ Still made reproducible by cloning a specific ref.
 
 ## Credits
 
-Dendritic pattern — https://vic.github.io/dendrix/
-Inspiration — https://github.com/MrSom3body/dotfiles
-Inspiration — https://github.com/drupol/infra
+- Dendritic pattern — https://vic.github.io/dendrix/
+
+### Inspiration
+
+- https://github.com/MrSom3body/dotfiles
+- https://github.com/drupol/infra
