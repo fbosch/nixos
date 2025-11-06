@@ -1,13 +1,11 @@
 {
-  flake.modules.nixos.security = { meta, ... }: {
-    services.getty.autologinUser = meta.user.username;
+  flake.modules.nixos.security = _: {
     services.gnome.gnome-keyring.enable = true;
     security.pam.services.hyprland.enableGnomeKeyring = true;
 
     security.sudo.extraConfig = ''
       Defaults lecture = never
       Defaults pwfeedback
-      Defaults timestamp_timeout = 120
     '';
   };
 

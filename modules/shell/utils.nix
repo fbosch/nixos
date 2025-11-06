@@ -10,7 +10,6 @@
       fd
       tree
       unzip
-      uutils-coreutils
       killall
       nixfmt-rfc-style
       freshfetch

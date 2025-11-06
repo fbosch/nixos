@@ -35,5 +35,11 @@ _:
         homeManager = [ "users" "dotfiles" "shell" "development" "security" ];
       };
     };
+
+    unfree = {
+      allowList = [
+        "git-credential-manager"
+      ];
+    };
   };
 }

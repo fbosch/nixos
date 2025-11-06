@@ -5,12 +5,18 @@
     hostImports = [
       ../../machines/virtualbox-vm/configuration.nix
       ../../machines/virtualbox-vm/hardware-configuration.nix
-      {
+      ({ meta, ... }: {
+        boot.plymouth.enable = false;
         environment.sessionVariables = {
           GSK_RENDERER = "cairo";
           WLR_RENDERER_ALLOW_SOFTWARE = "1";
         };
-      }
+
+        services.getty.autologinUser = meta.user.username;
+        security.sudo.extraConfig = ''
+          Defaults timestamp_timeout = 120
+        '';
+      })
     ];
 
     nixos = [

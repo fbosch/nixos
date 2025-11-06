@@ -1,4 +1,4 @@
-{ inputs, ... }:
+{ inputs, lib, config, ... }:
 {
   flake.modules.nixos.system = {
     # Centralize nixpkgs overlays for all NixOS hosts
@@ -10,7 +10,10 @@
     ];
     programs.nix-ld.enable = true;
 
-    nixpkgs.config.allowUnfree = true;
+    nixpkgs.config = {
+      allowUnfreePredicate = pkg:
+        let name = lib.getName pkg; in builtins.elem name (config.flake.meta.unfree.allowList or [ ]);
+    };
 
     nix = {
       settings = {
@@ -20,6 +23,14 @@
         ];
         trusted-users = [ "root" "@wheel" ];
         auto-optimise-store = true;
+        substituters = [
+          "https://cache.nixos.org"
+          "https://nix-community.cachix.org"
+        ];
+        trusted-public-keys = [
+          "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ5QK1Z5X2N7A5AZGk="
+          "nix-community.cachix.org-1:mB9FQ9Zf9hKXf2n1eEF2Q84F1Jr9H1+GJdG6HCmYf8w="
+        ];
       };
 
       gc = {
