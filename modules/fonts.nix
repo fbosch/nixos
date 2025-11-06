@@ -41,7 +41,7 @@ in
       ];
     };
   };
-  flake.modules.homeManager.fonts = { pkgs, lib, ... }: {
+  flake.modules.homeManager.fonts = { pkgs, lib, config, ... }: {
     xdg.configFile."fontconfig/fonts.conf".text = builtins.readFile ../configs/fontconfig/fonts.conf;
 
     home.packages = with pkgs; [
@@ -53,7 +53,7 @@ in
       fontconfig
     ];
 
-    home.activation.installProprietaryFonts = lib.hm.dag.entryAfter [ "writeBoundary" ] (
+    home.activation.installProprietaryFonts = lib.mkIf (config.nixpkgs.config.allowUnfree or false) (lib.hm.dag.entryAfter [ "writeBoundary" ] (
       let
         curlBin = "${pkgs.curl}/bin/curl";
         unzipBin = "${pkgs.unzip}/bin/unzip";
@@ -88,6 +88,6 @@ in
 
         ${fcCacheBin} -f "$fonts_dir" || ${fcCacheBin} -f
       ''
-    );
+    ));
   };
 }

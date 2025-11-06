@@ -1,12 +1,11 @@
 { pkgs
 , inputs
 , options
-, system
 , lib
 , ...
 }:
 let
-  theme = inputs.distro-grub-themes.packages.${system}.asus-tuf-grub-theme;
+  theme = inputs.distro-grub-themes.packages.${pkgs.stdenv.hostPlatform.system}.asus-tuf-grub-theme;
 in
 {
   system.stateVersion = "25.05";
