@@ -840,6 +840,21 @@
         "type": "github"
       }
     },
+    "nixos-hardware": {
+      "locked": {
+        "lastModified": 1762427122,
+        "narHash": "sha256-sQJuoiqsaIvKiIOmF/3FDV5dM2TGL2jBv1PeQSt83YE=",
+        "owner": "NixOS",
+        "repo": "nixos-hardware",
+        "rev": "24084931d8098fce300fabea9e48fa96292228d7",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "repo": "nixos-hardware",
+        "type": "github"
+      }
+    },
     "nixpkgs": {
       "locked": {
         "lastModified": 1734424634,
@@ -967,6 +982,7 @@
         "import-tree": "import-tree",
         "mac-style-plymouth": "mac-style-plymouth",
         "nix-webapps": "nix-webapps",
+        "nixos-hardware": "nixos-hardware",
         "nixpkgs": "nixpkgs_2",
         "pkgs-by-name-for-flake-parts": "pkgs-by-name-for-flake-parts_2",
         "vicinae": "vicinae",

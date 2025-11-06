@@ -9,20 +9,25 @@ in
       (name: module:
         let
           hostId = lib.removePrefix prefix name;
+          evalSystem =
+            if (config ? systems) && (config.systems != [ ])
+            then builtins.head config.systems
+            else "x86_64-linux";
           specialArgs = {
             inherit inputs;
             inherit (config.flake) meta;
-            system = "x86_64-linux";
             hostConfig = module // { name = hostId; };
           };
+          hmSpecialArgs = specialArgs // { system = evalSystem; };
         in
         {
           name = hostId;
           value = inputs.nixpkgs.lib.nixosSystem {
-            inherit specialArgs;
+            system = evalSystem;
+            specialArgs = hmSpecialArgs;
             modules = module.imports ++ [
               inputs.home-manager.nixosModules.home-manager
-              { home-manager.extraSpecialArgs = specialArgs; }
+              { home-manager.extraSpecialArgs = hmSpecialArgs; }
             ];
           };
         }

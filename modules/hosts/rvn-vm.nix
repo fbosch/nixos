@@ -6,7 +6,6 @@
       ../../machines/virtualbox-vm/configuration.nix
       ../../machines/virtualbox-vm/hardware-configuration.nix
       ({ meta, ... }: {
-        boot.plymouth.enable = false;
         environment.sessionVariables = {
           GSK_RENDERER = "cairo";
           WLR_RENDERER_ALLOW_SOFTWARE = "1";

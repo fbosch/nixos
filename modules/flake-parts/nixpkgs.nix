@@ -1,7 +1,7 @@
 { inputs, withSystem, ... }:
 
 {
-  systems = [ "x86_64-linux" ];
+  systems = [ "x86_64-linux" "aarch64-linux" ];
 
   imports = [
     inputs.pkgs-by-name-for-flake-parts.flakeModule
