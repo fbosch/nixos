@@ -57,11 +57,11 @@
     "dotfiles": {
       "flake": false,
       "locked": {
-        "lastModified": 1762325703,
-        "narHash": "sha256-RKHvLoL1WYegxNoWB8BioBtJiLzVM7Nj/gX9TkH2x+U=",
+        "lastModified": 1762376958,
+        "narHash": "sha256-k5wvxAD8vwtdvwcKeAWVbM38asKdwY7Twr3dTkiTpB0=",
         "owner": "fbosch",
         "repo": "dotfiles",
-        "rev": "d32264ab6a6af9838664af7d9a032f31442c7dab",
+        "rev": "1a324a4c056f149b11468044324a75673c52f24e",
         "type": "github"
       },
       "original": {
@@ -311,11 +311,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1762351818,
-        "narHash": "sha256-0ptUDbYwxv1kk/uzEX4+NJjY2e16MaAhtzAOJ6K0TG0=",
+        "lastModified": 1762367206,
+        "narHash": "sha256-c/164YOPkV09BH8KIUdvVvJs3VF2LNIbE2piKGgXPxk=",
         "owner": "nix-community",
         "repo": "home-manager",
-        "rev": "b959c67241cae17fc9e4ee7eaf13dfa8512477ea",
+        "rev": "af119feb17cb242398e0fb97f92b867d25882522",
         "type": "github"
       },
       "original": {
@@ -429,11 +429,11 @@
         "xdph": "xdph"
       },
       "locked": {
-        "lastModified": 1762269308,
-        "narHash": "sha256-3fTMnF1E7BsZ7NlmFmPo6+SRFm4FELP45IDLHcGLZ1s=",
+        "lastModified": 1762387591,
+        "narHash": "sha256-dbxpwgat8W/+P/cYnLXzoj5Gi8WKdtMgvqHuEzIU8fs=",
         "owner": "hyprwm",
         "repo": "Hyprland",
-        "rev": "46b71eda6423cc9c3b19cb310c3344e81ac624c5",
+        "rev": "c757fd375cce299e3da922190ddf1a0622ce807c",
         "type": "github"
       },
       "original": {
@@ -1102,11 +1102,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1762327833,
-        "narHash": "sha256-mw+2Tylv6otpiXpyN5bBqxrsZvEVYPSKgaNUI2yzazQ=",
+        "lastModified": 1762428490,
+        "narHash": "sha256-lSxqXofTvyUxLMMUQBdJ86ogLaASSZssyTI6kNlIrA0=",
         "owner": "vicinaehq",
         "repo": "vicinae",
-        "rev": "de12226d691f084bd2033239be8243a11451f3c3",
+        "rev": "e508349f6ed1e1bb90bbf060bbe7ab2906c878e3",
         "type": "github"
       },
       "original": {
@@ -1125,11 +1125,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1762327087,
-        "narHash": "sha256-EnK+6yBpxv7fQvjHNIMZEGqkvWS1WIVbdTjHuSARXQo=",
+        "lastModified": 1762415361,
+        "narHash": "sha256-po1Ao4hmrC4+o0fvLLT4LN2z1hJ7XPRxpEpzF3cSarQ=",
         "owner": "winapps-org",
         "repo": "winapps",
-        "rev": "744c6091a5483bc8f8afb7b2030f3b525064a400",
+        "rev": "c088928440fdf80946de9131e81e081528a5e47a",
         "type": "github"
       },
       "original": {
