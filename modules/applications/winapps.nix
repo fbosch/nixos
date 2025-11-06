@@ -6,17 +6,21 @@
     ];
   };
 
-  flake.modules.homeManager.winapps = { pkgs, inputs, ... }: {
-    home.packages = [
-      inputs.winapps.packages.${pkgs.system}.winapps
-      inputs.winapps.packages.${pkgs.system}.winapps-launcher
-      pkgs.freerdp
-    ];
+  flake.modules.homeManager.winapps = { pkgs, inputs, ... }:
+    let
+      inherit (pkgs.stdenv.hostPlatform) system;
+    in
+    {
+      home.packages = [
+        inputs.winapps.packages.${system}.winapps
+        inputs.winapps.packages.${system}.winapps-launcher
+        pkgs.freerdp
+      ];
 
-    # XDG desktop integration
-    xdg.mimeApps.enable = true;
+      # XDG desktop integration
+      xdg.mimeApps.enable = true;
 
-    # Create winapps configuration directory
-    home.file.".config/winapps/.keep".text = "";
-  };
+      # Create winapps configuration directory
+      home.file.".config/winapps/.keep".text = "";
+    };
 }

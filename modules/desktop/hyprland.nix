@@ -1,17 +1,22 @@
 { inputs, ... }: {
 
-  flake.modules.homeManager.desktop = { pkgs, ... }: {
-    home.packages = with pkgs; [
-      hyprpaper
-      hyprprop
-      hyprpicker
-      inputs.hyprland-contrib.packages.${pkgs.system}.grimblast
-    ];
-  };
+  flake.modules.homeManager.desktop = { pkgs, ... }:
+    let
+      inherit (pkgs.stdenv.hostPlatform) system;
+    in
+    {
+      home.packages = with pkgs; [
+        hyprpaper
+        hyprprop
+        hyprpicker
+        inputs.hyprland-contrib.packages.${system}.grimblast
+      ];
+    };
 
   flake.modules.nixos.desktop = { pkgs, lib, meta, ... }:
     let
-      hyprPluginPkgs = inputs.hyprland-plugins.packages.${pkgs.system};
+      inherit (pkgs.stdenv.hostPlatform) system;
+      hyprPluginPkgs = inputs.hyprland-plugins.packages.${system};
       hypr-plugin-dir = pkgs.symlinkJoin {
         name = "hyprland-plugins";
         paths = with hyprPluginPkgs; [
@@ -19,8 +24,7 @@
           hyprbars
         ];
       };
-      hyprlockPackages =
-        inputs.hyprlock.packages.${pkgs.stdenv.hostPlatform.system};
+      hyprlockPackages = inputs.hyprlock.packages.${system};
       hyprlockPackage = hyprlockPackages.hyprlock or hyprlockPackages.default;
     in
     {
@@ -28,7 +32,7 @@
         enable = true;
         xdgOpenUsePortal = true;
         extraPortals = [
-          inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.xdg-desktop-portal-hyprland
+          inputs.hyprland.packages.${system}.xdg-desktop-portal-hyprland
           pkgs.xdg-desktop-portal-gtk
         ];
         config = {
@@ -40,10 +44,9 @@
       programs.hyprland = {
         enable = true;
         withUWSM = true;
-        package =
-          inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.hyprland;
+        package = inputs.hyprland.packages.${system}.hyprland;
         portalPackage =
-          inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.xdg-desktop-portal-hyprland;
+          inputs.hyprland.packages.${system}.xdg-desktop-portal-hyprland;
         xwayland.enable = true;
       };
 
