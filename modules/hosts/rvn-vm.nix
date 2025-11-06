@@ -2,9 +2,15 @@
 
 {
   flake.modules.nixos."hosts/rvn-vm" = config.flake.lib.mkHost {
-    hardware = [
+    hostImports = [
       ../../machines/virtualbox-vm/configuration.nix
       ../../machines/virtualbox-vm/hardware-configuration.nix
+      {
+        environment.sessionVariables = {
+          GSK_RENDERER = "cairo";
+          WLR_RENDERER_ALLOW_SOFTWARE = "1";
+        };
+      }
     ];
 
     nixos = [
