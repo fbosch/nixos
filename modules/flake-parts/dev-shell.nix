@@ -71,6 +71,12 @@
       };
     in
     {
+      formatter = pkgs.nixpkgs-fmt;
+
+      checks = {
+        pre-commit = pre-commit-check;
+      };
+
       apps = {
         lint = {
           type = "app";
