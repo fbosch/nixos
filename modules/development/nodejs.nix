@@ -10,6 +10,10 @@
           package = "swpm@2.6.0";
           hash = "sha256-ZE722zmYt0trh9kP4eq2BkOKssbgz6wsHFW1930oM5Q=";
         }
+        {
+          package = "@fsouza/prettierd@0.26.2";
+          hash = "sha256-o3Fu5K3sU2kok4XN5O2enw3okeMz0wpUIXaE/6hnDeE=";
+        }
       ];
     in
     {

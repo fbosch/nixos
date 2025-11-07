@@ -7,6 +7,9 @@
       cmake
       gnumake
       tesseract
+      ghostscript
+      tectonic
+      imagemagick
     ];
   };
 }
