@@ -70,5 +70,9 @@
         auth include login
         account include login
       '';
+
+      services.ly = {
+        enable = true;
+      };
     };
 }

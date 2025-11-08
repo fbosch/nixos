@@ -11,7 +11,6 @@
           WLR_RENDERER_ALLOW_SOFTWARE = "1";
         };
 
-        services.getty.autologinUser = meta.user.username;
         security.sudo.extraConfig = ''
           Defaults timestamp_timeout = 120
         '';
