@@ -1,0 +1,1 @@
+text=bright_white;container=black;border=white;prompt=bright_white;input=bright_white;action=white;time=white;greet=bright_white;title=white;button=white
