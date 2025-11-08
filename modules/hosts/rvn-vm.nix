@@ -30,6 +30,7 @@
       "applications"
       "shell"
       "hardware/fingerprint"
+      "nas"
     ];
 
     homeManager = [
