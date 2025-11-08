@@ -57,9 +57,33 @@
         '';
       };
 
+      formatStagedScript = pkgs.writeShellApplication {
+        name = "fmt-staged";
+        runtimeInputs = with pkgs; [ nixpkgs-fmt git ];
+        text = ''
+          set -e
+          
+          staged_files=$(git diff --cached --name-only --diff-filter=ACM | grep '\.nix$' || true)
+          
+          if [ -z "$staged_files" ]; then
+            exit 0
+          fi
+          
+          echo "$staged_files" | xargs -r nixpkgs-fmt
+          echo "$staged_files" | xargs -r git add
+        '';
+      };
+
       pre-commit-check = inputs.git-hooks.lib.${pkgs.stdenv.hostPlatform.system}.run {
         src = ./../..;
         hooks = {
+          format = {
+            enable = true;
+            entry = "${formatStagedScript}/bin/fmt-staged";
+            language = "system";
+            files = "\\.nix$";
+            pass_filenames = false;
+          };
           lint = {
             enable = true;
             entry = "${lintScript}/bin/lint";

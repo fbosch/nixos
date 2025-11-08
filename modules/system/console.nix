@@ -1,8 +1,7 @@
 {
   flake.modules.nixos.system = {
-    # Zenwritten dark theme colors for virtual console (TTY)
-    # Based on zenbones.nvim dark theme colors
-    # 16-color palette: colors 0-15 (hex without # prefix)
+    console.font = "Lat2-Terminus16";
+
     console.colors = [
       # Standard colors (0-7)
       "191714" # 0: black (background - sand)
