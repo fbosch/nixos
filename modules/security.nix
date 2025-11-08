@@ -5,7 +5,6 @@
     security = {
       pam.services = {
         hyprland.enableGnomeKeyring = true;
-        ly.enableGnomeKeyring = true;
       };
 
       sudo.extraConfig = ''
