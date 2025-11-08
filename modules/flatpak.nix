@@ -47,6 +47,7 @@
         "dev.zed.Zed"
         "com.rustdesk.RustDesk"
         "org.localsend.localsend_app"
+        "org.videolan.VLC"
       ];
     };
   };

@@ -10,6 +10,7 @@
       ghostscript
       tectonic
       imagemagick
+      lnav
     ];
   };
 }
