@@ -2,7 +2,7 @@
   flake.modules.homeManager.services = {
     services.vicinae = {
       enable = true;
-      autoStart = true;
+      # autoStart = true;
     };
 
     # issue: 558
