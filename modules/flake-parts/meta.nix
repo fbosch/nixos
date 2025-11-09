@@ -39,6 +39,8 @@ _:
     unfree = {
       allowList = [
         "git-credential-manager"
+        "steam"
+        "steam-unwrapped"
       ];
     };
   };

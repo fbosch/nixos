@@ -48,6 +48,7 @@
         "com.rustdesk.RustDesk"
         "org.localsend.localsend_app"
         "org.videolan.VLC"
+        "io.github.wiiznokes.fan-control"
       ];
     };
   };
