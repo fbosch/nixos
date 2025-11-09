@@ -27,6 +27,7 @@
       "development"
       "applications"
       "shell"
+      "hardware"
       "hardware/fingerprint"
       "nas"
     ];
@@ -40,7 +41,6 @@
       "applications"
       "development"
       "shell"
-      "services"
     ];
 
     extraHomeManager = [

@@ -11,6 +11,7 @@
       tectonic
       imagemagick
       lnav
+      evemu
     ];
   };
 }

@@ -14,6 +14,7 @@
   flake.modules.homeManager.desktop = { pkgs, ... }: {
     home.packages = with pkgs; [
       # waycorner
+      wev
       nwg-look
       nwg-displays
       wl-clipboard
@@ -25,6 +26,7 @@
       swayimg
       libnotify
       rofi
+      swayosd
     ];
 
     systemd.user.services.cliphist = {

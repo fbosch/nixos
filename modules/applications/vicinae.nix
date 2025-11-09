@@ -1,5 +1,5 @@
 { lib, ... }: {
-  flake.modules.homeManager.services = {
+  flake.modules.homeManager.applications = {
     services.vicinae = {
       enable = true;
       autoStart = true;
