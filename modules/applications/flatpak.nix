@@ -1,8 +1,8 @@
 {
-  flake.modules.nixos.flatpak = { pkgs, ... }: {
+  flake.modules.nixos.applications = { pkgs, ... }: {
     services.flatpak.enable = true;
   };
-  flake.modules.homeManager.flatpak = {
+  flake.modules.homeManager.applications = {
     services.flatpak = {
       enable = true;
       uninstallUnmanaged = true;

@@ -1,5 +1,5 @@
 {
-  flake.modules.homeManager.development = { pkgs, ... }: {
+  flake.modules.homeManager.development = { pkgs, meta, ... }: {
     home.packages = with pkgs; [
       git-credential-manager
       lazygit
@@ -11,7 +11,7 @@
       enable = true;
       settings.credential = {
         helper = "manager";
-        "https://github.com".username = "fbosch";
+        "https://github.com".username = meta.user.github.username;
         credentialStore = "gpg";
       };
     };

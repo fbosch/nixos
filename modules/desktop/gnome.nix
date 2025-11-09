@@ -10,8 +10,6 @@
       gnomeExtensions.appindicator
       gnomeExtensions.blur-my-shell
       gnomeExtensions.mock-tray
-      nemo-with-extensions
-      loupe
       gucharmap
       networkmanagerapplet
       mission-center
