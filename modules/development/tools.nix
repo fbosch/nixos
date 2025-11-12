@@ -3,6 +3,7 @@
     environment.systemPackages = with pkgs; [
       git
       cargo
+      uv
       gcc
       cmake
       gnumake
