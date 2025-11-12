@@ -4,7 +4,6 @@
       htop
       btop
       dust
-      mprocs
     ];
   };
 }

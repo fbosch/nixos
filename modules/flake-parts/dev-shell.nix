@@ -73,31 +73,26 @@
         '';
       };
 
-      pre-commit-check =
-        inputs.git-hooks.lib.${pkgs.stdenv.hostPlatform.system}.run {
-          src = ./../..;
-          hooks = {
-            format = {
-              enable = true;
-              entry = "${formatStagedScript}/bin/fmt-staged";
-              language = "system";
-              files = "\\.nix$";
-              pass_filenames = false;
-            };
-            lint = {
-              enable = true;
-              entry = "${lintScript}/bin/lint";
-              language = "system";
-              files = "\\.nix$";
-              pass_filenames = false;
-            };
-          };
-        };
+      precommitWrapper = pkgs.writeShellApplication {
+        name = "pre-commit-wrapper";
+        runtimeInputs = with pkgs; [ git ];
+        text = ''
+          # Run format on staged files
+          staged_files=$(git diff --cached --name-only --diff-filter=ACM | grep '\.nix$' || true)
+          
+          if [ -n "$staged_files" ]; then
+            echo "$staged_files" | xargs -r ${formatStagedScript}/bin/fmt-staged
+          fi
+          
+          # Run lint
+          ${lintScript}/bin/lint
+        '';
+      };
     in
     {
       formatter = pkgs.nixpkgs-fmt;
 
-      checks = { pre-commit = pre-commit-check; };
+      checks = { };
 
       apps = {
         lint = {
@@ -112,7 +107,17 @@
 
       devShells.default = pkgs.mkShell {
         shellHook = ''
-          ${pre-commit-check.shellHook}
+                    # Install pre-commit hook wrapper (no hardcoded store paths)
+                    if [ ! -f .git/hooks/pre-commit ]; then
+                      mkdir -p .git/hooks
+                      cat > .git/hooks/pre-commit << 'EOF'
+          #!/usr/bin/env bash
+          # Wrapper that always uses current flake environment
+          exec ${precommitWrapper}/bin/pre-commit-wrapper "$@"
+          EOF
+                      chmod +x .git/hooks/pre-commit
+                      echo "Installed pre-commit hook"
+                    fi
         '';
         packages = with pkgs; [
           statix

@@ -20,6 +20,8 @@
       eza
       lf
       yazi
+      mprocs
+      gum
     ];
   };
 }
