@@ -944,23 +944,6 @@
         "type": "github"
       }
     },
-    "opencode-src": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1763062951,
-        "narHash": "sha256-xk8yz3pFvtT9YgLW2lFw5sPw9HTXqnGVvhTs7omhtqY=",
-        "owner": "sst",
-        "repo": "opencode",
-        "rev": "829d86840ab793511cd98ad629014b6a08c8c369",
-        "type": "github"
-      },
-      "original": {
-        "owner": "sst",
-        "ref": "dev",
-        "repo": "opencode",
-        "type": "github"
-      }
-    },
     "pkgs-by-name-for-flake-parts": {
       "locked": {
         "lastModified": 1727519927,
@@ -1031,7 +1014,6 @@
         "nix-webapps": "nix-webapps",
         "nixos-hardware": "nixos-hardware",
         "nixpkgs": "nixpkgs_2",
-        "opencode-src": "opencode-src",
         "pkgs-by-name-for-flake-parts": "pkgs-by-name-for-flake-parts_2",
         "vicinae": "vicinae",
         "winapps": "winapps"

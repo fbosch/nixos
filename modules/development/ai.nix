@@ -4,7 +4,6 @@
       codex
       cursor-cli
       aichat
-      opencode
     ];
   };
 }
