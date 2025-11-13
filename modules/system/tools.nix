@@ -6,6 +6,7 @@
       polkit_gnome
       parted
       usbutils
+      lsof
     ];
   };
 }
