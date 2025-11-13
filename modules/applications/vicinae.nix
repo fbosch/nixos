@@ -2,13 +2,30 @@
   flake.modules.homeManager.applications = {
     services.vicinae = {
       enable = true;
-      autoStart = true;
-    };
-
-    # issue: 558
-    systemd.user.services.vicinae = {
-      Service.Environment = lib.mkForce [ "USE_LAYER_SHELL=0" ];
-      Service.EnvironmentFile = lib.mkForce [ ];
+      useLayerShell = false;
+      settings = {
+        closeOnFocusLoss = true;
+        faviconService = "twenty";
+        font = {
+          normal = "SF Pro Rounded";
+          size = 10.5;
+        };
+        keybinding = "default";
+        keybinds = { };
+        popToRootOnClose = true;
+        rootSearch = {
+          searchFiles = true;
+        };
+        theme = {
+          iconTheme = "Win11";
+          name = "vicinae-dark";
+        };
+        window = {
+          csd = true;
+          opacity = 0.88;
+          rounding = 10;
+        };
+      };
     };
   };
 }

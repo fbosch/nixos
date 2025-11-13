@@ -19,6 +19,14 @@
           else
             echo "Dotfiles repository already exists, skipping checkout to preserve local changes..."
           fi
+
+          # Ensure remote uses SSH instead of HTTPS
+          CURRENT_URL=$(${pkgs.git}/bin/git -C ${REPO} remote get-url origin 2>/dev/null || echo "")
+          if [[ "$CURRENT_URL" == https://github.com/* ]]; then
+            SSH_URL=$(echo "$CURRENT_URL" | sed 's|https://github.com/|git@github.com:|')
+            echo "Switching remote from HTTPS to SSH: $SSH_URL"
+            $DRY_RUN_CMD ${pkgs.git}/bin/git -C ${REPO} remote set-url origin "$SSH_URL"
+          fi
         '';
 
         stowDotFiles = lib.hm.dag.entryAfter [ "setupDotfiles" "linkGeneration" ] ''
