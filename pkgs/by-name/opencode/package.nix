@@ -83,7 +83,7 @@ stdenvNoCC.mkDerivation (finalAttrs: {
 
   patches = [
     ./local-models-dev.patch
-    ./skip-npm-pack.patch
+    ./skip-bun-install.patch
   ];
 
   postPatch = ''

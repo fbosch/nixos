@@ -1,0 +1,23 @@
+diff --git a/packages/opencode/script/build.ts b/packages/opencode/script/build.ts
+index original..patched 100755
+--- a/packages/opencode/script/build.ts
++++ b/packages/opencode/script/build.ts
+@@ -77,7 +77,7 @@ const allTargets: {
+ ]
+ 
+ const targets = singleFlag
+-  ? allTargets.filter((item) => item.os === process.platform && item.arch === process.arch)
++  ? allTargets.filter((item) => item.os === process.platform && item.arch === process.arch && item.avx2 === undefined && item.abi === undefined)
+   : allTargets
+ 
+ await $`rm -rf dist`
+@@ -85,8 +85,9 @@ await $`rm -rf dist`
+ const binaries: Record<string, string> = {}
+-await $`bun install --os="*" --cpu="*" @opentui/core@${pkg.dependencies["@opentui/core"]}`
+-await $`bun install --os="*" --cpu="*" @parcel/watcher@${pkg.dependencies["@parcel/watcher"]}`
++// Skip bun install - packages already installed in node_modules by Nix
++// await $`bun install --os="*" --cpu="*" @opentui/core@${pkg.dependencies["@opentui/core"]}`
++// await $`bun install --os="*" --cpu="*" @parcel/watcher@${pkg.dependencies["@parcel/watcher"]}`
+ for (const item of targets) {
+   const name = [
+     pkg.name,
