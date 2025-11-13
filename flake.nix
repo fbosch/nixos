@@ -57,6 +57,10 @@
     nixos-hardware = {
       url = "github:NixOS/nixos-hardware";
     };
+    opencode-src = {
+      url = "github:sst/opencode/dev";
+      flake = false;
+    };
   };
 
 }

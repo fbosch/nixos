@@ -57,11 +57,11 @@
     "dotfiles": {
       "flake": false,
       "locked": {
-        "lastModified": 1763042079,
-        "narHash": "sha256-GOK7Xk4iRDjNwGW2Ki30x1CR1M8nZWKzfNvnFUpyN0w=",
+        "lastModified": 1763050373,
+        "narHash": "sha256-nkD9KxYgeXXV50Q3SH9zFCMd/UK3anZLu1xLjdHIRIA=",
         "owner": "fbosch",
         "repo": "dotfiles",
-        "rev": "5310898bb6baf55dc718344651fba2fa36f43004",
+        "rev": "4a901743fc954d43ae6401175ba0e680f6d12624",
         "type": "github"
       },
       "original": {
@@ -944,6 +944,23 @@
         "type": "github"
       }
     },
+    "opencode-src": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1763062951,
+        "narHash": "sha256-xk8yz3pFvtT9YgLW2lFw5sPw9HTXqnGVvhTs7omhtqY=",
+        "owner": "sst",
+        "repo": "opencode",
+        "rev": "829d86840ab793511cd98ad629014b6a08c8c369",
+        "type": "github"
+      },
+      "original": {
+        "owner": "sst",
+        "ref": "dev",
+        "repo": "opencode",
+        "type": "github"
+      }
+    },
     "pkgs-by-name-for-flake-parts": {
       "locked": {
         "lastModified": 1727519927,
@@ -1014,6 +1031,7 @@
         "nix-webapps": "nix-webapps",
         "nixos-hardware": "nixos-hardware",
         "nixpkgs": "nixpkgs_2",
+        "opencode-src": "opencode-src",
         "pkgs-by-name-for-flake-parts": "pkgs-by-name-for-flake-parts_2",
         "vicinae": "vicinae",
         "winapps": "winapps"

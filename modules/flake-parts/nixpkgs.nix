@@ -27,7 +27,13 @@
       withSystem prev.stdenv.hostPlatform.system (
         { config, ... }:
         {
-          local = config.packages;
+          local = config.packages // {
+            # Override opencode to use the flake input source
+            opencode = config.packages.opencode.override {
+              inherit (inputs) opencode-src;
+              opencode-version = inputs.opencode-src.shortRev or "dev";
+            };
+          };
           buildNpmGlobalPackage = import "${inputs.self}/pkgs/lib/buildNpmGlobalPackage.nix" { pkgs = final; };
         }
       );

@@ -1,0 +1,8 @@
+{
+  "node_modules": {
+    "aarch64-darwin": "sha256-ocgmxMx+V6uBMLZTrHfYAqO4l38WQVCrQ2AbUWagaoM=",
+    "aarch64-linux": "sha256-ocgmxMx+V6uBMLZTrHfYAqO4l38WQVCrQ2AbUWagaoM=",
+    "x86_64-darwin": "sha256-ocgmxMx+V6uBMLZTrHfYAqO4l38WQVCrQ2AbUWagaoM=",
+    "x86_64-linux": "sha256-gUqiTqczMp75LTQul/3vvFlpEDEj5f4SbwDKXrXp2Jc="
+  }
+}
