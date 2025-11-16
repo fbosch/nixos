@@ -13,6 +13,7 @@
       imagemagick
       lnav
       evemu
+      flake-checker
     ];
   };
 }
