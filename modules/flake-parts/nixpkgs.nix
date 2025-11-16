@@ -6,7 +6,6 @@
   imports = [
     inputs.pkgs-by-name-for-flake-parts.flakeModule
     ./overlays/chromium-webapps-hardening.nix
-    ./overlays/proton-core-fix.nix
   ];
 
   perSystem = { system, ... }: {
@@ -20,7 +19,6 @@
         inputs.nix-webapps.overlays.lib
         inputs.nix-webapps.overlays.default
         inputs.self.overlays.chromium-webapps-hardening
-        inputs.self.overlays.proton-core-fix
       ];
     };
   };

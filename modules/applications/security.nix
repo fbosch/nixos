@@ -4,7 +4,6 @@
       pass
       gnupg
       pinentry-curses
-      protonvpn-gui
       bitwarden-desktop
     ];
   };

@@ -7,7 +7,6 @@
       inputs.nix-webapps.overlays.lib
       inputs.nix-webapps.overlays.default
       inputs.self.overlays.chromium-webapps-hardening
-      inputs.self.overlays.proton-core-fix
     ];
     programs.nix-ld.enable = true;
 
