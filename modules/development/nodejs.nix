@@ -2,7 +2,7 @@
   flake.modules.homeManager.development = { pkgs, lib, config, ... }:
     let
       npmGlobalPackages =
-        [ "pokemonshow@4.0.0" "swpm@2.6.0" "@fsouza/prettierd@0.26.2" "opencode-ai@1.0.64" ];
+        [ "pokemonshow" "swpm" "@fsouza/prettierd" "opencode-ai" ];
     in
     {
       home = {
