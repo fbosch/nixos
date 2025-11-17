@@ -11,6 +11,7 @@
         hyprpicker
         inputs.hyprland-contrib.packages.${system}.grimblast
       ];
+
     };
 
   flake.modules.nixos.desktop = { pkgs, lib, meta, ... }:
