@@ -32,9 +32,40 @@
    - Pass environment-specific values (host role, install mode, usernames) in `specialArgs` to keep modules declarative and easily testable.
 8. **Don't update the readme unless specifically asked to**
 
+## Common Linting Rules (Statix)
+
+### W20: Avoid repeated keys in attribute sets
+**Problem**: Using the same attribute key multiple times in one scope.
+```nix
+# ❌ Wrong - repeated 'inputs' key
+winapps = {
+  url = "...";
+  inputs.nixpkgs.follows = "nixpkgs";
+  inputs.flake-utils.follows = "dedupe_flake-utils";
+  inputs.flake-compat.follows = "dedupe_flake-compat";
+};
+
+# ✅ Correct - nested under single 'inputs' key
+winapps = {
+  url = "...";
+  inputs = {
+    nixpkgs.follows = "nixpkgs";
+    flake-utils.follows = "dedupe_flake-utils";
+    flake-compat.follows = "dedupe_flake-compat";
+  };
+};
+```
+
+### Other Common Rules
+- **Avoid empty let blocks**: Remove `let` if no bindings are defined
+- **Avoid legacy attribute syntax**: Use `inherit` instead of repeating names
+- **Prefer `lib.mkIf` over nested if expressions**: Keep conditionals readable
+- **Use `mkEnableOption` for boolean options**: Standard way to create enable flags
+
 ## Tips
 
 - Start with a minimal set of modules (e.g. `base`, `shell`) and validate the loader before porting complex services.
 - Use attribute name conventions (`nixos.<group>`, `homeManager.<group>`) to keep the tree discoverable.
 - Document host-specific quirks inside their `hostConfig` record so modules remain generic.
 - Keep secrets and credentials in SOPS or similar, and surface only references through metadata.
+- Run linters (`statix`, `deadnix`) before committing to catch common issues early.
