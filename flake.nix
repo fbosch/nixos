@@ -17,10 +17,7 @@
     pkgs-by-name-for-flake-parts.url = "github:drupol/pkgs-by-name-for-flake-parts";
     nix-webapps = {
       url = "github:TLATER/nix-webapps";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-        systems.follows = "dedupe_systems";
-      };
+      inputs.nixpkgs.follows = "nixpkgs";
     };
 
     # Dotfiles (modules/dotfiles.nix)
@@ -32,10 +29,7 @@
     # Hyprland desktop environment (modules/desktop/hyprland.nix)
     hyprland = {
       url = "github:hyprwm/Hyprland?submodules=1";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-        systems.follows = "dedupe_systems";
-      };
+      inputs.nixpkgs.follows = "nixpkgs";
     };
     hyprland-plugins = {
       url = "github:hyprwm/hyprland-plugins";
@@ -47,10 +41,7 @@
     };
     hyprlock = {
       url = "github:hyprwm/hyprlock";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-        systems.follows = "dedupe_systems";
-      };
+      inputs.nixpkgs.follows = "nixpkgs";
     };
 
     # Applications
@@ -58,49 +49,22 @@
     vicinae = {
       # modules/applications/vicinae.nix
       url = "github:vicinaehq/vicinae";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-        flake-utils.follows = "dedupe_flake-utils";
-      };
+      inputs.nixpkgs.follows = "nixpkgs";
     };
     winapps = {
       # modules/applications/winapps.nix
       url = "github:winapps-org/winapps";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-        flake-utils.follows = "dedupe_flake-utils";
-        flake-compat.follows = "dedupe_flake-compat";
-      };
+      inputs.nixpkgs.follows = "nixpkgs";
     };
 
     # Boot theming for VMs (machines/virtualbox-vm/configuration.nix)
     mac-style-plymouth = {
       url = "github:SergioRibera/s4rchiso-plymouth-theme";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-        flake-utils.follows = "dedupe_flake-utils";
-      };
+      inputs.nixpkgs.follows = "nixpkgs";
     };
     distro-grub-themes = {
       url = "github:AdisonCavani/distro-grub-themes";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-        flake-utils.follows = "dedupe_flake-utils";
-      };
+      inputs.nixpkgs.follows = "nixpkgs";
     };
-
-    # Inputs used only for deduplication via .follows
-    # These are targets of at least one <input>.inputs.<input>.follows above.
-    # If all .follows targeting these are removed, these inputs should be removed too.
-    # Prefixed with dedupe_ for easy identification.
-    dedupe_systems.url = "github:nix-systems/default";
-
-    dedupe_flake-utils = {
-      url = "github:numtide/flake-utils";
-      inputs.systems.follows = "dedupe_systems";
-    };
-
-    dedupe_flake-compat.url = "github:edolstra/flake-compat";
   };
-
 }
