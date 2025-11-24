@@ -29,6 +29,17 @@ in
   hardware.bluetooth.enable = false;
 
   boot = {
+    # Hide boot messages for clean splash screen experience
+    consoleLogLevel = 3; # Show only errors and critical messages
+    kernelParams = [
+      "quiet" # Suppress most kernel messages
+      "splash" # Enable splash screen
+      "vt.global_cursor_default=0" # Hide cursor
+      "udev.log_level=3" # Reduce udev verbosity
+      "rd.systemd.show_status=auto" # Only show status on errors
+      "rd.udev.log_level=3" # Reduce initrd udev verbosity
+    ];
+
     loader.grub = {
       enable = true;
       device = "/dev/sda";
