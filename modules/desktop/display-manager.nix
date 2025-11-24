@@ -1,12 +1,15 @@
 _: {
   flake.modules.nixos.desktop = { pkgs, lib, meta, ... }:
     let
-      startHyprlandScript = pkgs.writeShellScriptBin "start-hyprland"
-        (builtins.readFile ../../configs/tuigreet/start-hyprland.sh);
       tuigreetTheme = builtins.readFile ../../configs/tuigreet/theme.txt;
     in
     {
       environment.etc."issue".text = builtins.readFile ../../configs/tuigreet/issue.txt;
+
+      environment.etc."tuigreet/session" = {
+        text = builtins.readFile ../../configs/tuigreet/start-hyprland.sh;
+        mode = "0755";
+      };
 
       services.greetd = {
         enable = true;
@@ -15,7 +18,7 @@ _: {
             command =
               "${pkgs.tuigreet}/bin/tuigreet --time --remember --asterisks --issue --greet-align center --theme ${
                 lib.escapeShellArg (lib.removeSuffix "\n" tuigreetTheme)
-              } --cmd ${startHyprlandScript}/bin/start-hyprland";
+              } --cmd /etc/tuigreet/session";
             user = "greeter";
           };
         };
