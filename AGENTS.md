@@ -61,6 +61,20 @@ winapps = {
 - **Avoid legacy attribute syntax**: Use `inherit` instead of repeating names
 - **Prefer `lib.mkIf` over nested if expressions**: Keep conditionals readable
 - **Use `mkEnableOption` for boolean options**: Standard way to create enable flags
+- **Use `stdenv.hostPlatform.system` instead of `system`**: The `system` parameter is deprecated
+  ```nix
+  # ❌ Wrong - deprecated 'system' parameter
+  { pkgs, system, ... }:
+  let
+    package = inputs.self.packages.${system}.foo;
+  in { }
+  
+  # ✅ Correct - use stdenv.hostPlatform.system
+  { pkgs, ... }:
+  let
+    package = inputs.self.packages.${pkgs.stdenv.hostPlatform.system}.foo;
+  in { }
+  ```
 
 ## Tips
 

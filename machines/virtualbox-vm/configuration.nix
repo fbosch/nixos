@@ -2,11 +2,10 @@
 , inputs
 , options
 , lib
-, system
 , ...
 }:
 let
-  theme = inputs.self.packages.${system}.primitivistical-grub;
+  theme = inputs.self.packages.${pkgs.stdenv.hostPlatform.system}.primitivistical-grub;
 
   # Create GRUB splash matching Plymouth's visual layout
   # GRUB will stretch to fit screen, so create at common 4:3 ratio (1024x768)
