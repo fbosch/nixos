@@ -2,24 +2,28 @@
 , inputs
 , options
 , lib
+, system
 , ...
 }:
 let
-  theme = inputs.self.packages.${pkgs.stdenv.hostPlatform.system}.primitivistical-grub;
+  theme = inputs.self.packages.${system}.primitivistical-grub;
 
-  # Create a splash image matching Plymouth: NixOS logo centered on black background
-  plymouthSplash = pkgs.runCommand "grub-plymouth-splash.png"
-    {
-      nativeBuildInputs = [ pkgs.imagemagick ];
-    } ''
-    # Get the NixOS logo from Plymouth theme
-    logo="${pkgs.mac-style-plymouth}/share/plymouth/themes/mac-style/images/header-image.png"
+  # Create GRUB splash with Plymouth logo positioned exactly like Plymouth (59% vertical)
+  plymouthSplash = pkgs.runCommand "grub-splash.png"
+    { nativeBuildInputs = [ pkgs.imagemagick ]; }
+    ''
+      # Use Plymouth's exact header image, positioned to match visual appearance
+      logo="${pkgs.mac-style-plymouth}/share/plymouth/themes/mac-style/images/header-image.png"
     
-    # Create 1920x1080 black background with centered logo
-    magick -size 1920x1080 xc:black \
-      "$logo" -gravity center -composite \
-      $out
-  '';
+      # Plymouth has both logo and progress bar at 59% vertical (they overlap)
+      # Move logo up to leave space for where progress bar would be
+      # Logo: 245px tall, place it so bottom is just above 59% line
+      # 59% of 1080 = 636, logo height 245, so top = 636 - 245 - 30 (gap) = 361
+      magick -size 1920x1080 xc:black -colorspace sRGB \
+        \( "$logo" -colorspace sRGB \) -gravity north -geometry +0+361 -composite \
+        -type TrueColor -depth 8 -define png:color-type=2 \
+        $out
+    '';
 in
 {
   system.stateVersion = "25.05";
@@ -33,6 +37,8 @@ in
       configurationLimit = 42;
       inherit theme;
       splashImage = plymouthSplash; # NixOS logo on black background matching Plymouth theme
+      gfxmodeEfi = "1920x1080";
+      gfxmodeBios = "1920x1080";
     };
 
     plymouth = {
