@@ -40,6 +40,9 @@ stdenvNoCC.mkDerivation rec {
     # Copy the appropriate font based on scaling
     cp "Fonts/DejaVuSans${toString fontSize}.pf2" $out/DejaVuSans.pf2
 
+    # Add NixOS icon
+    cp ${./nixos.png} $out/icons/nixos.png
+
     # Substitute placeholders in theme.txt
     substituteInPlace $out/theme.txt \
       --replace-fail "ICON_WIDTH" "${toString iconWidth}" \
