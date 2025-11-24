@@ -2,7 +2,13 @@
   flake.modules.nixos.applications = { pkgs, ... }: {
     environment.systemPackages = with pkgs; [
       selectdefaultapplication
+      nemo-with-extensions
     ];
+
+    xdg.mime.defaultApplications = {
+      "inode/directory" = "nemo.desktop";
+      "application/x-directory" = "nemo.desktop";
+    };
   };
 
   flake.modules.homeManager.applications = { pkgs, ... }:
@@ -11,7 +17,7 @@
       defaultImageViewer = "loupe.desktop";
     in
     {
-      home.packages = with pkgs; [ nemo-with-extensions loupe xdg-utils ];
+      home.packages = with pkgs; [ loupe xdg-utils ];
 
       xdg.mimeApps.defaultApplications = {
         "inode/directory" = [ defaultFileExplorer ];
