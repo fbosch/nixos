@@ -64,6 +64,10 @@
         flake-compat.follows = "dedupe_flake-compat";
       };
     };
+    ags = {
+      url = "github:aylur/ags";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
     # Boot theming for VMs (machines/virtualbox-vm/configuration.nix)
     mac-style-plymouth = {

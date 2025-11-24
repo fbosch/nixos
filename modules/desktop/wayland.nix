@@ -14,7 +14,7 @@
   flake.modules.homeManager.desktop = { pkgs, ... }: {
     home.packages = with pkgs; [
       # waycorner
-      ags
+      inputs.ags.packages.${system}.default
       wev
       nwg-look
       nwg-displays

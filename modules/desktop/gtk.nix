@@ -100,6 +100,6 @@
         ".local/share/icons/Mkos-Big-Sur".source = mkosBigSurIcons;
       };
 
-      home.packages = with pkgs; [ adw-gtk3 colloid-gtk-theme ];
+      home.packages = with pkgs; [ gtk4 adw-gtk3 colloid-gtk-theme ];
     };
 }

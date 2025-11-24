@@ -103,21 +103,25 @@
           type = "app";
           program = "${formatScript}/bin/fmt";
         };
+        pre-commit-wrapper = {
+          type = "app";
+          program = "${precommitWrapper}/bin/pre-commit-wrapper";
+        };
       };
 
       devShells.default = pkgs.mkShell {
         shellHook = ''
-                    # Install pre-commit hook wrapper (no hardcoded store paths)
-                    if [ ! -f .git/hooks/pre-commit ]; then
-                      mkdir -p .git/hooks
-                      cat > .git/hooks/pre-commit << 'EOF'
+                              # Install pre-commit hook wrapper (no hardcoded store paths)
+                              if [ ! -f .git/hooks/pre-commit ]; then
+                                mkdir -p .git/hooks
+                                cat > .git/hooks/pre-commit << 'EOF'
           #!/usr/bin/env bash
           # Wrapper that always uses current flake environment
-          exec ${precommitWrapper}/bin/pre-commit-wrapper "$@"
+          exec nix run .#pre-commit-wrapper "$@"
           EOF
-                      chmod +x .git/hooks/pre-commit
-                      echo "Installed pre-commit hook"
-                    fi
+                                chmod +x .git/hooks/pre-commit
+                                echo "Installed pre-commit hook"
+                              fi
         '';
         packages = with pkgs; [
           statix
