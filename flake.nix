@@ -53,7 +53,6 @@
       # modules/applications/vicinae.nix
       url = "github:vicinaehq/vicinae";
       inputs.nixpkgs.follows = "nixpkgs";
-      inputs.flake-utils.follows = "dedupe_flake-utils";
     };
     winapps = {
       # modules/applications/winapps.nix

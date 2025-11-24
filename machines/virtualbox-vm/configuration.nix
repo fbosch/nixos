@@ -5,7 +5,7 @@
 , ...
 }:
 let
-  theme = inputs.distro-grub-themes.packages.${pkgs.stdenv.hostPlatform.system}.asus-tuf-grub-theme;
+  theme = inputs.self.packages.${pkgs.stdenv.hostPlatform.system}.primitivistical-grub;
 in
 {
   system.stateVersion = "25.05";
@@ -18,7 +18,6 @@ in
       useOSProber = true;
       configurationLimit = 42;
       inherit theme;
-      splashImage = "${theme}/splash_image.jpg";
     };
 
     plymouth = {
