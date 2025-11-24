@@ -1,19 +1,15 @@
 { inputs, ... }: {
 
-  flake.modules.homeManager.desktop = { pkgs, ... }:
-    let
-      inherit (pkgs.stdenv.hostPlatform) system;
-    in
-    {
-      home.packages = with pkgs; [
-        hyprpaper
-        hyprprop
-        hyprpicker
-        inputs.hyprland-contrib.packages.${system}.grimblast
-      ];
-    };
+  flake.modules.homeManager.desktop = { pkgs, inputs, ... }: {
+    home.packages = with pkgs; [
+      hyprpaper
+      hyprprop
+      hyprpicker
+      inputs.hyprland-contrib.packages.${pkgs.stdenv.hostPlatform.system}.grimblast
+    ];
+  };
 
-  flake.modules.nixos.desktop = { pkgs, lib, meta, ... }:
+  flake.modules.nixos.desktop = { pkgs, lib, meta, inputs, ... }:
     let
       inherit (pkgs.stdenv.hostPlatform) system;
       hyprPluginPkgs = inputs.hyprland-plugins.packages.${system};

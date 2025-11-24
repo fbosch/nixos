@@ -11,10 +11,10 @@
     ];
   };
 
-  flake.modules.homeManager.desktop = { pkgs, ... }: {
+  flake.modules.homeManager.desktop = { pkgs, inputs, ... }: {
     home.packages = with pkgs; [
       # waycorner
-      inputs.ags.packages.${system}.default
+      inputs.ags.packages.${pkgs.stdenv.hostPlatform.system}.default
       wev
       nwg-look
       nwg-displays
