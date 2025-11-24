@@ -37,8 +37,7 @@ in
       configurationLimit = 42;
       inherit theme;
       splashImage = plymouthSplash; # NixOS logo on black background matching Plymouth theme
-      gfxmodeEfi = "1920x1080";
-      gfxmodeBios = "1920x1080";
+      gfxmodeBios = "1920x1080,1024x768,auto"; # Try 1920x1080, fallback to 1024x768, then auto
     };
 
     plymouth = {
