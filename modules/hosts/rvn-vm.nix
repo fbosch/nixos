@@ -19,22 +19,14 @@
 
     nixos = [
       "system"
-      "users"
       "vpn"
-      "fonts"
-      "security"
-      "desktop"
-      "development"
-      "applications"
-      "shell"
       "hardware"
       "hardware/fingerprint"
       "nas"
     ];
 
-    homeManager = [
+    modules = [
       "users"
-      "dotfiles"
       "fonts"
       "security"
       "desktop"
@@ -44,6 +36,7 @@
     ];
 
     extraHomeManager = [
+      config.flake.modules.homeManager.dotfiles
       inputs.flatpaks.homeManagerModules.nix-flatpak
       inputs.vicinae.homeManagerModules.default
     ];

@@ -35,7 +35,7 @@
           owner = "yeyushengfan258";
           repo = "Win11-icon-theme";
           rev = "main";
-          sha256 = "sha256-vjW2vPIr2FPnlP0inyvn9vxOy62HDmHATqNKUMBf25I=";
+          sha256 = "sha256-+GtOkOVSWlNTdKSs0R86LhnpbBZ21Y0ML3V8pwDUUSc=";
         };
         dontBuild = true;
         installPhase = ''
@@ -65,7 +65,7 @@
           owner = "yeyushengfan258";
           repo = "We10X-icon-theme";
           rev = "master";
-          sha256 = "sha256-nSZm0YjLmMejiMLCkHJZszbCaOaJU7yi6ijK0caVL5g=";
+          sha256 = "sha256-EPhq5WCFdF76lQMGC4GhwSh9Gu9uyL8KwvLYxP8FUxs=";
         };
         dontBuild = true;
         installPhase = ''
