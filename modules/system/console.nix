@@ -4,7 +4,7 @@
 
     console.colors = [
       # Standard colors (0-7)
-      "191714" # 0: black (background - sand)
+      "000000" # 0: black (background)
       "d86659" # 1: red (rose)
       "7aca6c" # 2: green (leaf)
       "c69761" # 3: yellow (wood)

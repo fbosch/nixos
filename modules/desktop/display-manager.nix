@@ -6,12 +6,14 @@ _: {
       tuigreetTheme = builtins.readFile ../../configs/tuigreet/theme.txt;
     in
     {
+      environment.etc."issue".text = builtins.readFile ../../configs/tuigreet/issue.txt;
+
       services.greetd = {
         enable = true;
         settings = {
           default_session = {
             command =
-              "${pkgs.tuigreet}/bin/tuigreet --time --remember --asterisks --theme ${
+              "${pkgs.tuigreet}/bin/tuigreet --time --remember --asterisks --issue --greet-align center --theme ${
                 lib.escapeShellArg (lib.removeSuffix "\n" tuigreetTheme)
               } --cmd ${startHyprlandScript}/bin/start-hyprland";
             user = "greeter";
