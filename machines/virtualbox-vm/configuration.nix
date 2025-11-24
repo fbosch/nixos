@@ -18,8 +18,9 @@ let
     
       # Create 1024x768 canvas (common GRUB resolution, 4:3 aspect ratio)
       # Position logo centered, matching Plymouth's layout
-      magick -size 1024x768 xc:black \
-        "$logo" -gravity center -composite \
+      magick -size 1024x768 xc:black -colorspace sRGB \
+        \( "$logo" -colorspace sRGB \) -gravity center -composite \
+        -type TrueColor -depth 8 -define png:color-type=2 \
         $out
     '';
 in
