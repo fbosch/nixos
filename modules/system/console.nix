@@ -1,9 +1,9 @@
 {
   flake.modules.nixos.system = { pkgs, ... }: {
-    environment.systemPackages = [ pkgs.terminus_font ];
     console = {
       earlySetup = true;
       font = "Lat2-Terminus16";
+      packages = with pkgs; [ terminus_font ];
       colors = [
         # Standard colors (0-7)
         "000000" # 0: black (background)
