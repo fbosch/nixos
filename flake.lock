@@ -789,22 +789,6 @@
         "type": "github"
       }
     },
-    "nix-ansi": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1742711628,
-        "narHash": "sha256-QmoyLTDZu7gmkmU25FX6eNZfqqdYoqPaWGJnsSC+kg4=",
-        "owner": "4DBug",
-        "repo": "nix-ansi",
-        "rev": "3be6d1d5c45c93f63f5acf2e4a9cc0111199b83b",
-        "type": "github"
-      },
-      "original": {
-        "owner": "4DBug",
-        "repo": "nix-ansi",
-        "type": "github"
-      }
-    },
     "nix-filter": {
       "locked": {
         "lastModified": 1731533336,
@@ -958,7 +942,6 @@
         "hyprlock": "hyprlock",
         "import-tree": "import-tree",
         "mac-style-plymouth": "mac-style-plymouth",
-        "nix-ansi": "nix-ansi",
         "nix-webapps": "nix-webapps",
         "nixpkgs": "nixpkgs",
         "pkgs-by-name-for-flake-parts": "pkgs-by-name-for-flake-parts_2",

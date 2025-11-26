@@ -7,6 +7,9 @@
       flake = "/home/${meta.user.username}/nixos";
     };
 
-    environment.systemPackages = [ pkgs.nh ];
+    environment.systemPackages = with pkgs; [
+      nh
+      nix-output-monitor
+    ];
   };
 }
