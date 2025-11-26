@@ -34,3 +34,4 @@ For reproducibility, the repository is initially pinned to a specific ref. You c
 - Dendritic pattern — https://vic.github.io/dendrix/
 - Inspiration — https://github.com/MrSom3body/dotfiles
 - Inspiration — https://github.com/drupol/infra
+- Fastfetch ANSI art — https://github.com/4DBug/nix-ansi
