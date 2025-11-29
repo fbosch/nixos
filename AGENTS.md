@@ -15,7 +15,7 @@
 
 ## Authoring Rules
 
-1. **Declare modules, don’t import paths**
+1. **Declare modules, don't import paths**
    - Each module file exports the configuration snippet under its desired key in `flake.modules.*`.
    - Consumers reference `config.flake.modules.<namespace>.<name>` by attribute path only.
 2. **Keep NixOS and Home Manager siblings together when related**
@@ -30,7 +30,19 @@
    - Checks, formatters, dev shells, and packages should be defined under `perSystem` so every supported platform gets consistent tooling.
 7. **Prefer data over conditionals**
    - Pass environment-specific values (host role, install mode, usernames) in `specialArgs` to keep modules declarative and easily testable.
-8. **Don't update the readme unless specifically asked to**
+8. **Don't configure dotfiles-managed programs**
+   - User dotfiles are managed in a separate repository at `~/dotfiles` using GNU Stow
+   - **NEVER configure these programs** in this NixOS flake - they are managed exclusively through dotfiles:
+     - **Shell configurations**: Fish, Zsh, Bash (aliases, functions, scripts, abbreviations)
+     - **Editors**: Neovim, VSCode/Cursor
+     - **Terminal emulators**: Kitty, Foot, WezTerm
+     - **Desktop environment**: Hyprland, Hypr-dock, Waybar, Waycorner, Rofi, SwayNC
+     - **CLI tools**: Bat, Btop, fd, ripgrep, Lazygit, Gitui, Tmux, Mprocs, Vivid
+     - **Theming**: GTK-3.0, GTK-4.0, Starship
+     - **Other**: AGS, Vicinae, Palettum, OpenCode, nwg-look, Zeal, Astro
+   - Only install packages for these programs in NixOS; leave all configuration to dotfiles
+   - If unsure whether a program is dotfiles-managed, check if it has a directory in `~/dotfiles/.config/`
+9. **Don't update the readme unless specifically asked to**
 
 ## Common Linting Rules (Statix)
 
