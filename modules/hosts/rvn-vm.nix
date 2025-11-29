@@ -5,7 +5,7 @@
     hostImports = [
       ../../machines/virtualbox-vm/configuration.nix
       ../../machines/virtualbox-vm/hardware-configuration.nix
-      ({ meta, ... }: {
+      (_: {
         environment.sessionVariables = {
           GSK_RENDERER = "cairo";
           WLR_RENDERER_ALLOW_SOFTWARE = "1";

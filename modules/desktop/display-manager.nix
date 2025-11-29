@@ -1,5 +1,5 @@
 _: {
-  flake.modules.nixos.desktop = { pkgs, lib, meta, ... }:
+  flake.modules.nixos.desktop = { pkgs, lib, ... }:
     let
       tuigreetTheme = builtins.readFile ../../configs/tuigreet/theme.txt;
     in

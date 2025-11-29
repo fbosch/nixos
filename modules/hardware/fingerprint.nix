@@ -1,5 +1,5 @@
 {
-  flake.modules.nixos."hardware/fingerprint" = { pkgs, ... }: {
+  flake.modules.nixos."hardware/fingerprint" = _: {
     services.fprintd.enable = true;
 
     security.pam.services = {

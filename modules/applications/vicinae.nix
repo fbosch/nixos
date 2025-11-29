@@ -1,4 +1,4 @@
-{ lib, ... }: {
+_: {
   flake.modules.homeManager.applications = {
     services.vicinae = {
       enable = true;

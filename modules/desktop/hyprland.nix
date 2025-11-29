@@ -1,4 +1,4 @@
-{ inputs, ... }: {
+_: {
 
   flake.modules.homeManager.desktop = { pkgs, inputs, ... }: {
     home.packages = with pkgs; [
@@ -9,7 +9,7 @@
     ];
   };
 
-  flake.modules.nixos.desktop = { pkgs, lib, meta, inputs, ... }:
+  flake.modules.nixos.desktop = { pkgs, meta, inputs, ... }:
     let
       inherit (pkgs.stdenv.hostPlatform) system;
       hyprPluginPkgs = inputs.hyprland-plugins.packages.${system};

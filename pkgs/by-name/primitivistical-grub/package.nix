@@ -1,7 +1,7 @@
 { lib
 , stdenvNoCC
 , fetchFromGitLab
-, substituteAll
+
 }:
 
 stdenvNoCC.mkDerivation rec {

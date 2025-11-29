@@ -1,5 +1,5 @@
-{ inputs, ... }: {
-  perSystem = { pkgs, lib, ... }:
+_: {
+  perSystem = { pkgs, ... }:
     let
       lintScript = pkgs.writeShellApplication {
         name = "lint";

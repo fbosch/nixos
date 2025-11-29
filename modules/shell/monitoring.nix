@@ -1,6 +1,6 @@
 {
   flake.modules.homeManager.shell =
-    { pkgs, config, ... }:
+    { pkgs, ... }:
     {
       home.packages = with pkgs; [
         htop

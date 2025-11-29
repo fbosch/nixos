@@ -39,7 +39,7 @@
      - **Desktop environment**: Hyprland, Hypr-dock, Waybar, Waycorner, Rofi, SwayNC
      - **CLI tools**: Bat, Btop, fd, ripgrep, Lazygit, Gitui, Tmux, Mprocs, Vivid
      - **Theming**: GTK-3.0, GTK-4.0, Starship
-     - **Other**: AGS, Vicinae, Palettum, OpenCode, nwg-look, Zeal, Astro
+     - **Other**: AGS, Palettum, OpenCode, nwg-look, Zeal, Astro
    - Only install packages for these programs in NixOS; leave all configuration to dotfiles
    - If unsure whether a program is dotfiles-managed, check if it has a directory in `~/dotfiles/.config/`
 9. **Don't update the readme unless specifically asked to**
@@ -47,7 +47,9 @@
 ## Common Linting Rules (Statix)
 
 ### W20: Avoid repeated keys in attribute sets
+
 **Problem**: Using the same attribute key multiple times in one scope.
+
 ```nix
 # ❌ Wrong - repeated 'inputs' key
 winapps = {
@@ -69,18 +71,20 @@ winapps = {
 ```
 
 ### Other Common Rules
+
 - **Avoid empty let blocks**: Remove `let` if no bindings are defined
 - **Avoid legacy attribute syntax**: Use `inherit` instead of repeating names
 - **Prefer `lib.mkIf` over nested if expressions**: Keep conditionals readable
 - **Use `mkEnableOption` for boolean options**: Standard way to create enable flags
 - **Use `stdenv.hostPlatform.system` instead of `system`**: The `system` parameter is deprecated
+
   ```nix
   # ❌ Wrong - deprecated 'system' parameter
   { pkgs, system, ... }:
   let
     package = inputs.self.packages.${system}.foo;
   in { }
-  
+
   # ✅ Correct - use stdenv.hostPlatform.system
   { pkgs, ... }:
   let

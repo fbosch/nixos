@@ -1,5 +1,5 @@
 {
-  flake.modules.nixos.applications = { pkgs, ... }: {
+  flake.modules.nixos.applications = _: {
     services.flatpak.enable = true;
   };
   flake.modules.homeManager.applications = {
