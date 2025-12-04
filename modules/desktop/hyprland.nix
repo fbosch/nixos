@@ -18,6 +18,7 @@ _: {
         paths = with hyprPluginPkgs; [
           hyprexpo
           hyprbars
+          borders-plus-plus
         ];
       };
       hyprlockPackages = inputs.hyprlock.packages.${system};
