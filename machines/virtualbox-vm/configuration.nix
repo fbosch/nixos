@@ -73,7 +73,6 @@ in
     upower.enable = true;
     dbus.enable = true;
     timesyncd.enable = true;
-    preload.enable = true;
     ananicy = {
       enable = true;
       package = pkgs.ananicy-cpp;

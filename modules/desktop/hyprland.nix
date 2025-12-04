@@ -9,18 +9,40 @@ _: {
     ];
   };
 
-  flake.modules.nixos.desktop = { pkgs, meta, inputs, ... }:
+  flake.modules.nixos.desktop = { pkgs, meta, inputs, lib, ... }:
     let
       inherit (pkgs.stdenv.hostPlatform) system;
+      hyprlandPkg = inputs.hyprland.packages.${system}.hyprland;
+
+      # Fix the hyprland.pc file to have proper pkg-config syntax
+      # The issue is "xkbcommon >=1.11.0" should be "xkbcommon >= 1.11.0" (space before >=)
+      hyprlandPkgFixed = hyprlandPkg.dev.overrideAttrs (old: {
+        postInstall = (old.postInstall or "") + ''
+          # Fix pkg-config file syntax - add space before >= operators
+          sed -i 's/xkbcommon >=\([0-9]\)/xkbcommon >= \1/g' $out/share/pkgconfig/hyprland.pc
+        '';
+      });
+
+      # Build plugins from hyprland-plugins flake with proper Hyprland dependency
       hyprPluginPkgs = inputs.hyprland-plugins.packages.${system};
+
+      # Override each plugin to use the fixed Hyprland version in buildInputs
+      mkPlugin = plugin: plugin.overrideAttrs (old: {
+        buildInputs =
+          # Filter out any hyprland package and replace with our fixed version
+          (lib.filter (input: !(lib.hasInfix "hyprland" (input.pname or input.name or ""))) old.buildInputs)
+          ++ [ hyprlandPkgFixed ];
+      });
+
       hypr-plugin-dir = pkgs.symlinkJoin {
         name = "hyprland-plugins";
-        paths = with hyprPluginPkgs; [
-          hyprexpo
-          hyprbars
-          borders-plus-plus
+        paths = [
+          (mkPlugin hyprPluginPkgs.hyprexpo)
+          (mkPlugin hyprPluginPkgs.hyprbars)
+          (mkPlugin hyprPluginPkgs.borders-plus-plus)
         ];
       };
+
       hyprlockPackages = inputs.hyprlock.packages.${system};
       hyprlockPackage = hyprlockPackages.hyprlock or hyprlockPackages.default;
     in
