@@ -27,19 +27,22 @@ _: {
       hyprPluginPkgs = inputs.hyprland-plugins.packages.${system};
 
       # Override each plugin to use the fixed Hyprland version in buildInputs
-      mkPlugin = plugin: plugin.overrideAttrs (old: {
-        buildInputs =
-          # Filter out any hyprland package and replace with our fixed version
-          (lib.filter (input: !(lib.hasInfix "hyprland" (input.pname or input.name or ""))) old.buildInputs)
-          ++ [ hyprlandPkgFixed ];
-      });
+      mkPlugin = plugin:
+        plugin.overrideAttrs (old: {
+          buildInputs =
+            # Filter out any hyprland package and replace with our fixed version
+            (lib.filter
+              (input:
+                !(lib.hasInfix "hyprland" (input.pname or input.name or "")))
+              old.buildInputs) ++ [ hyprlandPkgFixed ];
+        });
 
       hypr-plugin-dir = pkgs.symlinkJoin {
         name = "hyprland-plugins";
         paths = [
           (mkPlugin hyprPluginPkgs.hyprexpo)
           (mkPlugin hyprPluginPkgs.hyprbars)
-          (mkPlugin hyprPluginPkgs.borders-plus-plus)
+          # (mkPlugin hyprPluginPkgs.borders-plus-plus)
         ];
       };
 
@@ -69,9 +72,7 @@ _: {
         xwayland.enable = true;
       };
 
-      systemd.user.services.hyprland-session = {
-        enable = false;
-      };
+      systemd.user.services.hyprland-session = { enable = false; };
 
       environment.sessionVariables = {
         EMOJI_FONT = meta.ui.emojiFont;
