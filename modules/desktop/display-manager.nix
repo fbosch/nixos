@@ -3,7 +3,7 @@ _: {
     let
       tuigreetTheme = builtins.readFile ../../configs/tuigreet/theme.txt;
       nixosVersion =
-        "${config.system.nixos.release} (${config.system.nixos.codeName})";
+        "${config.system.nixos.release} ${config.system.nixos.codeName}";
       issueText = builtins.readFile ../../configs/tuigreet/issue.txt;
     in
     {
