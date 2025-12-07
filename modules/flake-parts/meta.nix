@@ -6,6 +6,11 @@ _:
       fullName = "Frederik Bosch";
       email = "fbb.privacy+gpg@protonmail.com";
       github = { username = "fbosch"; };
+      gpg = {
+        keyId = "5C49A562D850322A";
+        fingerprint = "5E0F EC74 518E D5FE AA5E  A33E 5C49 A562 D850 322A";
+        publicKeyFile = ../../configs/gpg/public-key.asc;
+      };
     };
 
     dotfiles = {

@@ -6,6 +6,7 @@ set -e
 
 GPG_KEY_ID="fbb.privacy+gpg@protonmail.com"
 GPG_FINGERPRINT="5E0FEC74518ED5FEAA5EA33E5C49A562D850322A"
+BW_KEY_NOTE="GPG Private Key"
 
 echo "=== NixOS GPG Bootstrap ==="
 echo
@@ -48,11 +49,11 @@ echo
 
 # Import GPG key
 echo "Importing GPG key from Bitwarden..."
-if bw get notes "GPG Key" | gpg --import 2>&1; then
+if bw get notes "$BW_KEY_NOTE" | gpg --import 2>&1; then
     echo "GPG key imported successfully!"
 else
     echo "Error: Failed to import GPG key from Bitwarden."
-    echo "Make sure you have a secure note named 'GPG Key' in your vault."
+    echo "Make sure you have a secure note named '$BW_KEY_NOTE' in your vault."
     exit 1
 fi
 echo

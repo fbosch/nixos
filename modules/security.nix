@@ -14,7 +14,7 @@
     };
   };
 
-  flake.modules.homeManager.security = { pkgs, config, ... }: {
+  flake.modules.homeManager.security = { pkgs, meta, ... }: {
     programs.gpg.enable = true;
 
     services.gpg-agent = {
@@ -28,7 +28,7 @@
 
     # Configure Bitwarden server URL
     home.file.".config/Bitwarden CLI/data.json".text = builtins.toJSON {
-      inherit (config.flake.meta.bitwarden) serverUrl;
+      inherit (meta.bitwarden) serverUrl;
     };
   };
 }
