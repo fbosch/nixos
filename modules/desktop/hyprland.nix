@@ -42,7 +42,6 @@ _: {
         paths = [
           (mkPlugin hyprPluginPkgs.hyprexpo)
           (mkPlugin hyprPluginPkgs.hyprbars)
-          # (mkPlugin hyprPluginPkgs.borders-plus-plus)
         ];
       };
 
