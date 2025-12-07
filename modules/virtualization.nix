@@ -1,5 +1,5 @@
 {
-  flake.modules.nixos.virtualization = { pkgs, ... }: {
+  flake.modules.nixos.virtualization = { pkgs, meta, ... }: {
     virtualisation.libvirtd = {
       enable = true;
       qemu = {
@@ -11,7 +11,7 @@
 
     programs.virt-manager.enable = true;
 
-    users.users.fbb.extraGroups = [ "libvirtd" ];
+    users.users.${meta.user.username}.extraGroups = [ "libvirtd" ];
 
     environment.systemPackages = with pkgs; [
       virt-viewer

@@ -18,7 +18,7 @@ _: {
             command =
               "${pkgs.tuigreet}/bin/tuigreet --time --remember --asterisks --issue --greet-align center --theme ${
                 lib.escapeShellArg (lib.removeSuffix "\n" tuigreetTheme)
-              } --cmd /etc/tuigreet/session";
+              } --sessions '' --cmd /etc/tuigreet/session";
             user = "greeter";
           };
         };
