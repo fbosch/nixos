@@ -5,6 +5,8 @@ _: {
       hyprpaper
       hyprprop
       hyprpicker
+      python312Packages.paddleocr
+      tesseract
       inputs.hyprland-contrib.packages.${pkgs.stdenv.hostPlatform.system}.grimblast
     ];
   };

@@ -10,6 +10,9 @@
     ];
     programs.nix-ld.enable = true;
 
+    # Enable ~/.local/bin in PATH for user-installed binaries (e.g. uv tools)
+    environment.localBinInPath = true;
+
     nixpkgs.config = {
       allowUnfreePredicate = pkg:
         let name = lib.getName pkg; in builtins.elem name (config.flake.meta.unfree.allowList or [ ]);

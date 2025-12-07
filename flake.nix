@@ -60,6 +60,11 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # Python OCR tools (modules/desktop/ocr.nix)
+    pyproject-nix.url = "github:pyproject-nix/pyproject.nix";
+    uv2nix.url = "github:pyproject-nix/uv2nix";
+    pyproject-build-systems.url = "github:pyproject-nix/build-system-pkgs";
+
     # Applications
     flatpaks.url = "github:gmodena/nix-flatpak"; # modules/applications/flatpak.nix
     vicinae = {

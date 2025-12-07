@@ -46,8 +46,9 @@
 
     # Configure Nix to use GitHub token for API requests to prevent rate limiting
     # This prevents rate limiting when fetching from GitHub
-    nix.extraOptions = ''
-      !include ${config.sops.templates."nix-github-token".path}
-    '';
+    # TEMPORARILY DISABLED: Token is expired/invalid - update token in secrets.yaml
+    # nix.extraOptions = ''
+    #   !include ${config.sops.templates."nix-github-token".path}
+    # '';
   };
 }

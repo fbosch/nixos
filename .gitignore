@@ -49,3 +49,5 @@ nixpkgs
 
 # User-level Nix configuration with tokens
 .config/nix/nix.conf
+modules/desktop/ocr/.venv
+uv-workspaces/*/.venv
