@@ -2,6 +2,8 @@
 
 {
   flake.modules.nixos."hosts/rvn-vm" = config.flake.lib.mkHost {
+    preset = "desktop";
+
     hostImports = [
       ../../machines/virtualbox-vm/configuration.nix
       ../../machines/virtualbox-vm/hardware-configuration.nix
@@ -17,24 +19,7 @@
       })
     ];
 
-    nixos = [
-      "system"
-      "secrets"
-      "vpn"
-      "hardware"
-      "hardware/fingerprint"
-      "nas"
-    ];
-
-    modules = [
-      "users"
-      "fonts"
-      "security"
-      "desktop"
-      "applications"
-      "development"
-      "shell"
-    ];
+    extraNixos = [ "secrets" "nas" ];
 
     extraHomeManager = [
       config.flake.modules.homeManager.dotfiles

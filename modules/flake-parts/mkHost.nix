@@ -15,11 +15,13 @@
       presetConfig =
         if preset != null
         then config.flake.meta.presets.${preset} or (throw "Unknown preset: ${preset}")
-        else { nixos = [ ]; homeManager = [ ]; };
+        else { modules = [ ]; nixos = [ ]; homeManager = [ ]; };
       # When using 'modules', include additional nixos-only modules from 'nixos' parameter
-      nixosModules = if useCombined then modules ++ nixos else if preset != null then presetConfig.nixos ++ extraNixos else nixos;
+      # When using 'preset', combine preset.modules + preset.nixos + extraNixos
+      nixosModules = if useCombined then modules ++ nixos else if preset != null then presetConfig.modules ++ presetConfig.nixos ++ extraNixos else nixos;
       # When using 'modules', include additional homeManager-only modules from 'homeManager' parameter
-      hmModules = if useCombined then modules ++ homeManager else if preset != null then presetConfig.homeManager else homeManager;
+      # When using 'preset', combine preset.modules + preset.homeManager
+      hmModules = if useCombined then modules ++ homeManager else if preset != null then presetConfig.modules ++ presetConfig.homeManager else homeManager;
     in
     {
       imports =
