@@ -14,7 +14,7 @@ secrets/*.asc
 *.age
 *.asc
 # Allow example files
-!secrets/*.example
+!secrets/secrets.yaml
 # Allow public GPG key (not a secret)
 !configs/gpg/public-key.asc
 
