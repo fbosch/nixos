@@ -1,7 +1,7 @@
 _: {
   # OCR tools for Hyprland screenshot workflow
   # 
-  # Provides PaddleOCR via a Python wrapper script that uses the ocr-tools venv.
+  # Provides PaddleOCR and dependencies via a uv2nix-built Python virtual environment.
   # The ocr-tools workspace is defined in modules/development/workspaces/ocr-tools/
   # and built via the Python workspace helper in modules/flake-parts/python-workspaces.nix
   #
@@ -10,20 +10,19 @@ _: {
   # - All required dependencies (opencv, paddlepaddle, etc.)
   #
   # Usage in dotfiles scripts (e.g., ~/.config/hypr/scripts/paddleocr_extract.py):
-  #   Update shebang to: #!/usr/bin/env ocr-python
-  #   Then use: from paddleocr import PaddleOCR
+  #   from paddleocr import PaddleOCR
+  #   ocr = PaddleOCR(use_angle_cls=True, lang="en", show_log=False)
+  #
+  # The system Python can import from the venv via PYTHONPATH
 
-  flake.modules.homeManager.desktop = { pkgs, ... }:
-    let
-      # Wrapper script that runs Python with access to the ocr-tools venv
-      ocr-python = pkgs.writeShellScriptBin "ocr-python" ''
-        exec ${pkgs.local.ocr-tools}/bin/python "$@"
-      '';
-    in
-    {
-      home.packages = [
-        ocr-python # Python wrapper with PaddleOCR available
-        pkgs.tesseract # Fallback OCR engine
-      ];
+  flake.modules.homeManager.desktop = { pkgs, ... }: {
+    home.packages = [
+      pkgs.tesseract # Fallback OCR engine
+    ];
+
+    # Make PaddleOCR available to system Python via PYTHONPATH
+    home.sessionVariables = {
+      PYTHONPATH = "${pkgs.local.ocr-tools}/${pkgs.python312.sitePackages}";
     };
+  };
 }
