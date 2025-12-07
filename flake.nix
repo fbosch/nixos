@@ -1,6 +1,13 @@
 {
   description = "fbosch/nix";
 
+  # Uses dendritic pattern (https://vic.github.io/dendrix/)
+  # All modules are declared under flake.modules.nixos.* and flake.modules.homeManager.*
+  # Hosts are built by referencing module paths, not importing files directly
+  # Custom outputs:
+  #   - flake.meta: Project-wide metadata (user info, UI defaults, presets)
+  #   - flake.modules: Module tree (nixos/*, homeManager/*)
+  #   - flake.lib.mkHost: Helper function to build host configurations
   outputs = inputs: inputs.flake-parts.lib.mkFlake { inherit inputs; } (inputs.import-tree ./modules);
 
   inputs = {
@@ -66,7 +73,6 @@
     ags = {
       url = "github:aylur/ags";
       inputs.nixpkgs.follows = "nixpkgs";
-      inputs.systems.follows = "dedupe_systems";
     };
 
     # Boot theming for VMs (machines/virtualbox-vm/configuration.nix)
