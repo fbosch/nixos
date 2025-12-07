@@ -8,10 +8,12 @@ secrets/secrets.yaml
 secrets/*.key
 secrets/*.pem
 secrets/*.age
+secrets/*-age-key.txt
 secrets/*.asc
 *.key
 *.pem
 *.age
+*-age-key.txt
 *.asc
 # Allow example files
 !secrets/secrets.yaml

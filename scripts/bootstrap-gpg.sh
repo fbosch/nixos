@@ -70,5 +70,18 @@ fi
 echo
 
 echo "=== Bootstrap Complete ==="
-echo "You can now rebuild your system with secrets:"
-echo "  sudo nixos-rebuild switch --flake .#hostname"
+echo "GPG key is now available in your user keyring for manual secret editing."
+echo
+echo "Next steps:"
+echo "1. Generate age key for this machine (if not done):"
+echo "   sudo mkdir -p /var/lib/sops-nix"
+echo "   age-keygen -o /tmp/age-key.txt"
+echo "   sudo mv /tmp/age-key.txt /var/lib/sops-nix/key.txt"
+echo "   sudo chmod 600 /var/lib/sops-nix/key.txt"
+echo "   age-keygen -y /var/lib/sops-nix/key.txt  # Copy public key to .sops.yaml"
+echo
+echo "2. Add age public key to .sops.yaml and run:"
+echo "   sops updatekeys secrets/secrets.yaml"
+echo
+echo "3. Rebuild your system:"
+echo "   sudo nixos-rebuild switch --flake .#hostname"

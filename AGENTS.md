@@ -43,6 +43,21 @@
    - Only install packages for these programs in NixOS; leave all configuration to dotfiles
    - If unsure whether a program is dotfiles-managed, check if it has a directory in `~/dotfiles/.config/`
 9. **Don't update the readme unless specifically asked to**
+10. **SOPS secrets use dual-key approach (age + GPG)**
+   - **Age key** (primary): Used for automated decryption during system activation
+     - Machine-specific age key stored in `/var/lib/sops-nix/key.txt`
+     - Private key backed up in `secrets/<hostname>-age-key.txt` (gitignored)
+     - Public key added to `.sops.yaml` for each machine
+   - **GPG key** (recovery): Used for manual secret editing and disaster recovery
+     - Backed up in Bitwarden, survives machine loss
+     - Run `scripts/bootstrap-gpg.sh` to import to user keyring for editing secrets
+     - Not needed for system activation (age key handles that)
+   - Both keys can decrypt the same secrets file (multi-key encryption)
+   - **Setting up a new machine:**
+     1. Run `scripts/bootstrap-gpg.sh` (imports GPG key for manual editing)
+     2. Run `scripts/bootstrap-age.sh` (generates age key, updates .sops.yaml, re-encrypts secrets)
+     3. Commit updated `.sops.yaml` to git (private keys are gitignored)
+     4. Run `sudo nixos-rebuild switch --flake .#hostname`
 
 ## Common Linting Rules (Statix)
 

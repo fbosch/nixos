@@ -1,6 +1,6 @@
 { inputs, ... }: {
   flake.modules.homeManager.security = { pkgs, meta, ... }: {
-    home.packages = with pkgs; [ sops ];
+    home.packages = with pkgs; [ sops age ];
   };
   flake.modules.nixos.secrets = { config, meta, ... }: {
     imports = [ inputs.sops-nix.nixosModules.sops ];
