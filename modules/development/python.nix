@@ -36,6 +36,7 @@
           libGL
           glib
           zlib
+          stdenv.cc.cc.lib # Provides libstdc++.so.6
         ];
 
         activation.installPythonGlobalPackages =
@@ -58,15 +59,22 @@
             done
 
             # Create a wrapper for venv Python with proper library paths
-            cat > "$local_bin/python-venv" << 'WRAPPER_EOF'
+            cat > "$local_bin/python-venv" <<WRAPPER_EOF
             #!/usr/bin/env bash
             # Auto-generated wrapper for Python venv with library paths
             LIBS=""
-            [[ -d "$HOME/.nix-profile/lib" ]] && LIBS="$HOME/.nix-profile/lib:$LIBS"
-            [[ -d "/run/current-system/sw/lib" ]] && LIBS="/run/current-system/sw/lib:$LIBS"
-            [[ -d "/run/opengl-driver/lib" ]] && LIBS="/run/opengl-driver/lib:$LIBS"
-            exec env LD_LIBRARY_PATH="$LIBS''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
-              "${pythonProjectDir}/.venv/bin/python3" "$@"
+            # Add glib, libGL, zlib, and stdenv (libstdc++) from home-manager packages
+            LIBS="${pkgs.glib.out}/lib:\$LIBS"
+            LIBS="${pkgs.libGL}/lib:\$LIBS"
+            LIBS="${pkgs.zlib}/lib:\$LIBS"
+            LIBS="${pkgs.stdenv.cc.cc.lib}/lib:\$LIBS"
+            # Add standard profile paths
+            [[ -d "\$HOME/.nix-profile/lib" ]] && LIBS="\$HOME/.nix-profile/lib:\$LIBS"
+            [[ -d "/etc/profiles/per-user/\$USER/lib" ]] && LIBS="/etc/profiles/per-user/\$USER/lib:\$LIBS"
+            [[ -d "/run/current-system/sw/lib" ]] && LIBS="/run/current-system/sw/lib:\$LIBS"
+            [[ -d "/run/opengl-driver/lib" ]] && LIBS="/run/opengl-driver/lib:\$LIBS"
+            exec env LD_LIBRARY_PATH="\$LIBS\''${LD_LIBRARY_PATH:+:\$LD_LIBRARY_PATH}" \\
+              "${pythonProjectDir}/.venv/bin/python3" "\$@"
             WRAPPER_EOF
             chmod +x "$local_bin/python-venv"
 

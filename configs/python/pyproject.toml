@@ -2,8 +2,9 @@
 name = "global-python-tools"
 version = "0.1.0"
 description = "Global Python tools managed via uv"
-requires-python = ">=3.11"
+requires-python = ">=3.11,<3.14"
 dependencies = [
+    "paddlepaddle",
     "paddleocr",
     "modelscope",
 ]
