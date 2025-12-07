@@ -34,15 +34,6 @@
           uv
         ];
 
-        sessionVariables = {
-          LD_LIBRARY_PATH = lib.makeLibraryPath (with pkgs; [
-            stdenv.cc.cc.lib # libstdc++.so.6
-            zlib # libz.so.1
-            libGL # libGL.so.1
-            libglvnd # Additional OpenGL libraries
-          ]);
-        };
-
         activation.installPythonGlobalPackages =
           lib.hm.dag.entryAfter [ "linkGeneration" ] ''
             set -e
