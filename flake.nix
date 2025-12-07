@@ -66,6 +66,7 @@
     ags = {
       url = "github:aylur/ags";
       inputs.nixpkgs.follows = "nixpkgs";
+      inputs.systems.follows = "dedupe_systems";
     };
 
     # Boot theming for VMs (machines/virtualbox-vm/configuration.nix)
