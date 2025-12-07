@@ -151,11 +151,11 @@
     "dotfiles": {
       "flake": false,
       "locked": {
-        "lastModified": 1764943244,
-        "narHash": "sha256-DKV6AsvQefNBFDBqLcPrHDJM5cVppytD8E7ZEdQzyRw=",
+        "lastModified": 1765101047,
+        "narHash": "sha256-+lvU+ndpnRAGpKPmFM0nILuV3ZnorZWoNDy9bbOukI8=",
         "owner": "fbosch",
         "repo": "dotfiles",
-        "rev": "5046c86775c5672ca58615dd565d29b87e8a6a2e",
+        "rev": "6aa4e0265b940b3ab4bda8b74eb631d9cacf76fa",
         "type": "github"
       },
       "original": {
