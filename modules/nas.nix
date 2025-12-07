@@ -1,5 +1,5 @@
 {
-  flake.modules.nixos.nas = { meta, ... }: {
+  flake.modules.nixos.nas = { config, meta, ... }: {
     systemd = {
       tmpfiles.rules = [
         "d /mnt/nas 0755 ${meta.user.username} users -"
@@ -19,55 +19,55 @@
           type = "cifs";
           what = "//rvn-nas/homes";
           where = "/mnt/nas/homes";
-          options = "credentials=/home/${meta.user.username}/.smbcredentials,uid=${meta.user.username},gid=users,forceuid,forcegid,iocharset=utf8,file_mode=0664,dir_mode=0775,vers=3.0";
+          options = "credentials=${config.sops.templates.smbcredentials.path},uid=${meta.user.username},gid=users,forceuid,forcegid,iocharset=utf8,file_mode=0664,dir_mode=0775,vers=3.0";
         }
         {
           type = "cifs";
           what = "//rvn-nas/music";
           where = "/mnt/nas/music";
-          options = "credentials=/home/${meta.user.username}/.smbcredentials,uid=${meta.user.username},gid=users,forceuid,forcegid,iocharset=utf8,file_mode=0664,dir_mode=0775,vers=3.0";
+          options = "credentials=${config.sops.templates.smbcredentials.path},uid=${meta.user.username},gid=users,forceuid,forcegid,iocharset=utf8,file_mode=0664,dir_mode=0775,vers=3.0";
         }
         {
           type = "cifs";
           what = "//rvn-nas/photo";
           where = "/mnt/nas/photo";
-          options = "credentials=/home/${meta.user.username}/.smbcredentials,uid=${meta.user.username},gid=users,forceuid,forcegid,iocharset=utf8,file_mode=0664,dir_mode=0775,vers=3.0";
+          options = "credentials=${config.sops.templates.smbcredentials.path},uid=${meta.user.username},gid=users,forceuid,forcegid,iocharset=utf8,file_mode=0664,dir_mode=0775,vers=3.0";
         }
         {
           type = "cifs";
           what = "//rvn-nas/video";
           where = "/mnt/nas/video";
-          options = "credentials=/home/${meta.user.username}/.smbcredentials,uid=${meta.user.username},gid=users,forceuid,forcegid,iocharset=utf8,file_mode=0664,dir_mode=0775,vers=3.0";
+          options = "credentials=${config.sops.templates.smbcredentials.path},uid=${meta.user.username},gid=users,forceuid,forcegid,iocharset=utf8,file_mode=0664,dir_mode=0775,vers=3.0";
         }
         {
           type = "cifs";
           what = "//rvn-nas/web";
           where = "/mnt/nas/web";
-          options = "credentials=/home/${meta.user.username}/.smbcredentials,uid=${meta.user.username},gid=users,forceuid,forcegid,iocharset=utf8,file_mode=0664,dir_mode=0775,vers=3.0";
+          options = "credentials=${config.sops.templates.smbcredentials.path},uid=${meta.user.username},gid=users,forceuid,forcegid,iocharset=utf8,file_mode=0664,dir_mode=0775,vers=3.0";
         }
         {
           type = "cifs";
           what = "//rvn-nas/downloads";
           where = "/mnt/nas/downloads";
-          options = "credentials=/home/${meta.user.username}/.smbcredentials,uid=${meta.user.username},gid=users,forceuid,forcegid,iocharset=utf8,file_mode=0664,dir_mode=0775,vers=3.0";
+          options = "credentials=${config.sops.templates.smbcredentials.path},uid=${meta.user.username},gid=users,forceuid,forcegid,iocharset=utf8,file_mode=0664,dir_mode=0775,vers=3.0";
         }
         {
           type = "cifs";
           what = "//rvn-nas/cloud-backup";
           where = "/mnt/nas/cloud-backup";
-          options = "credentials=/home/${meta.user.username}/.smbcredentials,uid=${meta.user.username},gid=users,forceuid,forcegid,iocharset=utf8,file_mode=0664,dir_mode=0775,vers=3.0";
+          options = "credentials=${config.sops.templates.smbcredentials.path},uid=${meta.user.username},gid=users,forceuid,forcegid,iocharset=utf8,file_mode=0664,dir_mode=0775,vers=3.0";
         }
         {
           type = "cifs";
           what = "//rvn-nas/FrederikDocs";
           where = "/mnt/nas/FrederikDocs";
-          options = "credentials=/home/${meta.user.username}/.smbcredentials,uid=${meta.user.username},gid=users,forceuid,forcegid,iocharset=utf8,file_mode=0664,dir_mode=0775,vers=3.0";
+          options = "credentials=${config.sops.templates.smbcredentials.path},uid=${meta.user.username},gid=users,forceuid,forcegid,iocharset=utf8,file_mode=0664,dir_mode=0775,vers=3.0";
         }
         {
           type = "cifs";
           what = "//rvn-nas/websites";
           where = "/mnt/nas/websites";
-          options = "credentials=/home/${meta.user.username}/.smbcredentials,uid=${meta.user.username},gid=users,forceuid,forcegid,iocharset=utf8,file_mode=0664,dir_mode=0775,vers=3.0";
+          options = "credentials=${config.sops.templates.smbcredentials.path},uid=${meta.user.username},gid=users,forceuid,forcegid,iocharset=utf8,file_mode=0664,dir_mode=0775,vers=3.0";
         }
       ];
 
