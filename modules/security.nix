@@ -3,9 +3,7 @@
     services.gnome.gnome-keyring.enable = true;
 
     security = {
-      pam.services = {
-        hyprland.enableGnomeKeyring = true;
-      };
+      pam.services = { hyprland.enableGnomeKeyring = true; };
 
       sudo.extraConfig = ''
         Defaults lecture = never
@@ -24,14 +22,10 @@
     };
 
     # Security tools
-    home.packages = with pkgs; [
-      bitwarden-cli
-      sops
-    ];
+    home.packages = with pkgs; [ bitwarden-cli ];
 
     # Configure Bitwarden server URL
-    home.file.".config/Bitwarden CLI/data.json".text = builtins.toJSON {
-      inherit (meta.bitwarden) serverUrl;
-    };
+    home.file.".config/Bitwarden CLI/data.json".text =
+      builtins.toJSON { inherit (meta.bitwarden) serverUrl; };
   };
 }

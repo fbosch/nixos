@@ -1,5 +1,7 @@
-{ inputs, ... }:
-{
+{ inputs, ... }: {
+  flake.modules.homeManager.security = { pkgs, meta, ... }: {
+    home.packages = with pkgs; [ sops ];
+  };
   flake.modules.nixos.sops = { config, ... }: {
     imports = [ inputs.sops-nix.nixosModules.sops ];
 
