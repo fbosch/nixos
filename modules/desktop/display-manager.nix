@@ -2,7 +2,8 @@ _: {
   flake.modules.nixos.desktop = { pkgs, lib, config, ... }:
     let
       tuigreetTheme = builtins.readFile ../../configs/tuigreet/theme.txt;
-      nixosVersion = "${config.system.nixos.release} (${config.system.nixos.codeName})";
+      nixosVersion =
+        "${config.system.nixos.release} (${config.system.nixos.codeName})";
       issueText = builtins.readFile ../../configs/tuigreet/issue.txt;
     in
     {
