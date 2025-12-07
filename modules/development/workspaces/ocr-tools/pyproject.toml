@@ -1,0 +1,12 @@
+[project]
+name = "ocr-tools"
+version = "0.1.0"
+description = "OCR tools for Hyprland screenshot workflow using PaddleOCR"
+requires-python = ">=3.11"
+dependencies = [
+    "paddleocr>=2.7.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
