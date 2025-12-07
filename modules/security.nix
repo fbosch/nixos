@@ -23,8 +23,11 @@
       enableSshSupport = true;
     };
 
-    # Bitwarden CLI
-    home.packages = [ pkgs.bitwarden-cli ];
+    # Security tools
+    home.packages = with pkgs; [
+      bitwarden-cli
+      sops
+    ];
 
     # Configure Bitwarden server URL
     home.file.".config/Bitwarden CLI/data.json".text = builtins.toJSON {
