@@ -1,8 +1,8 @@
 {
   flake.modules.homeManager.development = { pkgs, lib, config, ... }:
     let
-      pythonProjectDir = ../../configs/python;
-      pyprojectPath = pythonProjectDir + "/pyproject.toml";
+      pythonProjectDir = "${config.home.homeDirectory}/nixos/configs/python";
+      pyprojectPath = ../../configs/python + "/pyproject.toml";
 
       # Parse pyproject.toml to extract package names
       pyproject = builtins.fromTOML (builtins.readFile pyprojectPath);
@@ -28,7 +28,11 @@
     in
     {
       home = {
-        packages = with pkgs; [ python3 uv ];
+        packages = with pkgs; [
+          python3
+          python3Packages.evdev
+          uv
+        ];
 
         sessionVariables = {
           LD_LIBRARY_PATH = lib.makeLibraryPath (with pkgs; [
@@ -47,7 +51,7 @@
             local_bin="$HOME/.local/bin"
 
             echo "Syncing Python tools from uv.lock..."
-            $DRY_RUN_CMD ${pkgs.uv}/bin/uv sync --frozen -C ${pythonProjectDir} || {
+            ${pkgs.uv}/bin/uv sync --frozen --directory ${pythonProjectDir} || {
               echo "ERROR: Failed to sync Python tools" >&2
               exit 1
             }

@@ -2,7 +2,7 @@
   flake.modules.homeManager.development = { pkgs, lib, config, ... }:
     let
       npmGlobalPackages =
-        [ "pokemonshow" "swpm" "@fsouza/prettierd" "opencode-ai" "ags" ];
+        [ "pokemonshow" "swpm" "@fsouza/prettierd" "opencode-ai" ];
     in
     {
       home = {
@@ -61,7 +61,7 @@
                 echo "Package $package_name is already installed, skipping..."
               else
                 echo "Installing $package globally..."
-                if ! $DRY_RUN_CMD ${pkgs.nodejs_22}/bin/npm install -g "$package" 2>&1; then
+                if ! ${pkgs.nodejs_22}/bin/npm install -g "$package" 2>&1; then
                   echo "ERROR: Failed to install $package" >&2
                   echo "Check the npm output above for details" >&2
                 else
