@@ -70,18 +70,16 @@ fi
 echo
 
 echo "=== Bootstrap Complete ==="
+echo
 echo "GPG key is now available in your user keyring for manual secret editing."
+echo "You can now edit secrets using: sops secrets/secrets.yaml"
 echo
 echo "Next steps:"
-echo "1. Generate age key for this machine (if not done):"
-echo "   sudo mkdir -p /var/lib/sops-nix"
-echo "   age-keygen -o /tmp/age-key.txt"
-echo "   sudo mv /tmp/age-key.txt /var/lib/sops-nix/key.txt"
-echo "   sudo chmod 600 /var/lib/sops-nix/key.txt"
-echo "   age-keygen -y /var/lib/sops-nix/key.txt  # Copy public key to .sops.yaml"
+echo "1. Build the system (this will auto-generate an age key):"
+echo "   sudo nixos-rebuild switch --flake .#\$(hostname)"
 echo
-echo "2. Add age public key to .sops.yaml and run:"
-echo "   sops updatekeys secrets/secrets.yaml"
+echo "2. Add the age key to .sops.yaml and re-encrypt secrets:"
+echo "   ./scripts/bootstrap-age.sh"
 echo
-echo "3. Rebuild your system:"
-echo "   sudo nixos-rebuild switch --flake .#hostname"
+echo "3. Rebuild to activate secrets:"
+echo "   sudo nixos-rebuild switch --flake .#\$(hostname)"
