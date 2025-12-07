@@ -1,40 +1,40 @@
 # Secrets Management
 
-## Setup
+1. **Bootstrap GPG key from Bitwarden**:
 
-1. Get your GPG fingerprint:
    ```bash
-   gpg --list-secret-keys --keyid-format=long
+   nix-shell -p bitwarden-cli
+   ./scripts/bootstrap-gpg.sh
    ```
 
-2. Update `.sops.yaml` with your fingerprint
+2. **Verify GPG imported**:
 
-3. Create and edit secrets:
    ```bash
-   cp secrets.yaml.example secrets.yaml
-   nix run nixpkgs#sops -- secrets/secrets.yaml
+   gpg --list-secret-keys
+   sops -d secrets/secrets.yaml  # Test decryption
    ```
 
-4. Add your GitHub token (from `gh auth token`)
+3. **Enable sops module and rebuild**:
 
-5. Enable in your host config:
-   ```nix
-   imports = [ config.flake.modules.nixos.secrets ];
-   ```
-
-6. Rebuild:
    ```bash
    sudo nixos-rebuild switch --flake .#hostname
+   ```
+
+4. **Verify secrets available**:
+   ```bash
+   ls -la /run/secrets/
    ```
 
 ## Usage
 
 Edit secrets:
+
 ```bash
-nix run nixpkgs#sops -- secrets/secrets.yaml
+sops secrets/secrets.yaml
 ```
 
-## Notes
+View secrets:
 
-- Encrypted `secrets.yaml` is safe to commit
-- Secrets decrypted automatically at boot to `/run/secrets/`
+```bash
+sops -d secrets/secrets.yaml
+```

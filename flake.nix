@@ -54,6 +54,12 @@
       inputs.systems.follows = "dedupe_systems";
     };
 
+    # Secrets management (modules/sops.nix)
+    sops-nix = {
+      url = "github:Mic92/sops-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     # Applications
     flatpaks.url = "github:gmodena/nix-flatpak"; # modules/applications/flatpak.nix
     vicinae = {
