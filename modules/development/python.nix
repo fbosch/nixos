@@ -32,6 +32,10 @@
           python3
           python3Packages.evdev
           uv
+          # System libraries required by PaddleOCR (opencv-python)
+          libGL
+          glib
+          zlib
         ];
 
         activation.installPythonGlobalPackages =
@@ -52,6 +56,19 @@
             for tool in ${lib.concatStringsSep " " packageNames}; do
               [ -f "$venv_bin/$tool" ] && ln -sf "$venv_bin/$tool" "$local_bin/$tool"
             done
+
+            # Create a wrapper for venv Python with proper library paths
+            cat > "$local_bin/python-venv" << 'WRAPPER_EOF'
+            #!/usr/bin/env bash
+            # Auto-generated wrapper for Python venv with library paths
+            LIBS=""
+            [[ -d "$HOME/.nix-profile/lib" ]] && LIBS="$HOME/.nix-profile/lib:$LIBS"
+            [[ -d "/run/current-system/sw/lib" ]] && LIBS="/run/current-system/sw/lib:$LIBS"
+            [[ -d "/run/opengl-driver/lib" ]] && LIBS="/run/opengl-driver/lib:$LIBS"
+            exec env LD_LIBRARY_PATH="$LIBS''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
+              "${pythonProjectDir}/.venv/bin/python3" "$@"
+            WRAPPER_EOF
+            chmod +x "$local_bin/python-venv"
 
             echo "✓ Python tools synced to ~/.local/bin"
           '';
