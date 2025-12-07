@@ -3,12 +3,18 @@ result
 result-*
 *.log
 
-# Secrets
-secrets/
+# Secrets - encrypted files are committed, decrypted ones are not
+secrets/secrets.yaml
+secrets/*.key
+secrets/*.pem
+secrets/*.age
+secrets/*.asc
 *.key
 *.pem
 *.age
 *.asc
+# Allow example files
+!secrets/*.example
 
 # Markdown
 *.md
@@ -35,3 +41,6 @@ nixpkgs
 .nix-state
 
 .pre-commit-config.yaml
+
+# User-level Nix configuration with tokens
+.config/nix/nix.conf

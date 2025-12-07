@@ -4,11 +4,16 @@ _:
     user = {
       username = "fbb";
       fullName = "Frederik Bosch";
+      email = "fbb.privacy+gpg@protonmail.com";
       github = { username = "fbosch"; };
     };
 
     dotfiles = {
       url = "https://github.com/fbosch/dotfiles";
+    };
+
+    bitwarden = {
+      serverUrl = "https://vault.corvus-corax.synology.me";
     };
 
     ui = {

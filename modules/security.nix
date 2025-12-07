@@ -14,13 +14,21 @@
     };
   };
 
-  flake.modules.homeManager.security = { pkgs, ... }: {
+  flake.modules.homeManager.security = { pkgs, config, ... }: {
     programs.gpg.enable = true;
 
     services.gpg-agent = {
       enable = true;
       pinentry.package = pkgs.pinentry-curses;
       enableSshSupport = true;
+    };
+
+    # Bitwarden CLI
+    home.packages = [ pkgs.bitwarden-cli ];
+
+    # Configure Bitwarden server URL
+    home.file.".config/Bitwarden CLI/data.json".text = builtins.toJSON {
+      inherit (config.flake.meta.bitwarden) serverUrl;
     };
   };
 }

@@ -19,6 +19,7 @@
 
     nixos = [
       "system"
+      "secrets"
       "vpn"
       "hardware"
       "hardware/fingerprint"
