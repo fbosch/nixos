@@ -33,12 +33,12 @@
         ];
       };
 
-      gc = {
-        automatic = false;
-        dates = "weekly";
-        options = "--delete-older-than 14d";
-      };
+      # Garbage collection is handled by nh (see modules/system/nh.nix)
+      # which provides a better interface and is configured to keep 15 generations
+      # and clean anything older than 7 days
+      gc.automatic = false;
 
+      # Automatic store optimization runs periodically to deduplicate files
       optimise.automatic = true;
     };
 
