@@ -71,8 +71,6 @@ _: {
         xwayland.enable = true;
       };
 
-      systemd.user.services.hyprland-session = { enable = false; };
-
       environment.sessionVariables = {
         EMOJI_FONT = meta.ui.emojiFont;
         NIXOS_OZONE_WL = "1";
