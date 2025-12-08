@@ -5,6 +5,7 @@ _: {
       hyprpaper
       hyprprop
       hyprpicker
+      grim
       inputs.hyprland-contrib.packages.${pkgs.stdenv.hostPlatform.system}.grimblast
     ];
   };
@@ -64,7 +65,6 @@ _: {
 
       programs.hyprland = {
         enable = true;
-        withUWSM = true;
         package = inputs.hyprland.packages.${system}.hyprland;
         portalPackage =
           inputs.hyprland.packages.${system}.xdg-desktop-portal-hyprland;

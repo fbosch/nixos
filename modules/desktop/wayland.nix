@@ -28,6 +28,7 @@ _:
       libnotify
       rofi
       swayosd
+      gsettings-desktop-schemas
     ];
 
     systemd.user.services.cliphist = {
