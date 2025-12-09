@@ -12,13 +12,17 @@
         "cloud-backup"
         "FrederikDocs"
         "websites"
+        "encrypted"
+        "LaCie"
       ];
 
       # Common CIFS mount options
-      cifsOptions = "credentials=${config.sops.templates.smbcredentials.path},uid=${meta.user.username},gid=users,forceuid,forcegid,iocharset=utf8,file_mode=0664,dir_mode=0775,vers=3.0";
+      cifsOptions =
+        "credentials=${config.sops.templates.smbcredentials.path},uid=${meta.user.username},gid=users,forceuid,forcegid,iocharset=utf8,file_mode=0664,dir_mode=0775,vers=3.0";
 
       # Generate tmpfile rule for a share
-      mkTmpfileRule = share: "d /mnt/nas/${share} 0755 ${meta.user.username} users -";
+      mkTmpfileRule = share:
+        "d /mnt/nas/${share} 0755 ${meta.user.username} users -";
 
       # Generate mount configuration for a share
       mkMount = share: {
@@ -32,15 +36,12 @@
       mkAutomount = share: {
         where = "/mnt/nas/${share}";
         wantedBy = [ "multi-user.target" ];
-        automountConfig = {
-          TimeoutIdleSec = "30s";
-        };
+        automountConfig = { TimeoutIdleSec = "30s"; };
       };
     in
     {
       systemd = {
-        tmpfiles.rules =
-          [ "d /mnt/nas 0755 ${meta.user.username} users -" ]
+        tmpfiles.rules = [ "d /mnt/nas 0755 ${meta.user.username} users -" ]
           ++ (map mkTmpfileRule shares);
 
         mounts = map mkMount shares;
