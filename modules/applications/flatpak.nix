@@ -48,6 +48,7 @@
         "org.videolan.VLC"
         "io.github.wiiznokes.fan-control"
         "org.gnome.TextEditor"
+        "tv.plex.PlexDesktop"
       ];
     };
   };
