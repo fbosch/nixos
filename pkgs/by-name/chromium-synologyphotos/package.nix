@@ -6,7 +6,7 @@ pkgs.nix-webapps-lib.mkChromiumApp {
   class = "chromium-synologyphotos";
   desktopName = "Synology Photos";
   comment = "Personal photo management and backup";
-  icon = ./synology-photos.svg;
+  icon = ./synology-photos.png;
   profile = "SynologyPhotosProfile";
   url = "https://photos.corvus-corax.synology.me";
   hardening = {
