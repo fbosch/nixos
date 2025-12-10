@@ -1,7 +1,5 @@
 {
-  flake.modules.nixos.applications = _: {
-    services.flatpak.enable = true;
-  };
+  flake.modules.nixos.applications = _: { services.flatpak.enable = true; };
   flake.modules.homeManager.applications = {
     services.flatpak = {
       enable = true;
@@ -49,6 +47,7 @@
         "org.localsend.localsend_app"
         "org.videolan.VLC"
         "io.github.wiiznokes.fan-control"
+        "org.gnome.TextEditor"
       ];
     };
   };
