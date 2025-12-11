@@ -7,7 +7,7 @@
     hostImports = [
       ../../machines/virtualbox-vm/configuration.nix
       ../../machines/virtualbox-vm/hardware-configuration.nix
-      (_: {
+      ({ pkgs, ... }: {
         environment.sessionVariables = {
           GSK_RENDERER = "cairo";
           WLR_RENDERER_ALLOW_SOFTWARE = "1";
@@ -16,6 +16,10 @@
         security.sudo.extraConfig = ''
           Defaults timestamp_timeout = 120
         '';
+
+        environment.systemPackages = [
+          inputs.self.packages.${pkgs.stdenv.hostPlatform.system}.chromium-realforce
+        ];
       })
     ];
 
