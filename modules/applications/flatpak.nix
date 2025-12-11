@@ -51,6 +51,7 @@
         "tv.plex.PlexDesktop"
         "org.gnome.World.PikaBackup"
         "com.todoist.Todoist"
+        "io.mgba.mGBA"
       ];
     };
   };
