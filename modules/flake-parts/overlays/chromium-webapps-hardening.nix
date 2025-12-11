@@ -30,6 +30,16 @@ _:
                 "--site-per-process"
                 "--isolate-origins=${args.url}"
                 "--disable-features=TranslateUI"
+                # Performance improvements
+                "--enable-gpu-rasterization"
+                "--enable-zero-copy"
+                "--disable-background-timer-throttling"
+                "--disable-renderer-backgrounding"
+                "--disable-backgrounding-occluded-windows"
+                "--max-tiles-for-interest-area=512"
+                "--num-raster-threads=4"
+                "--enable-hardware-overlays=single-fullscreen,single-on-top,underlay"
+                "--use-gl=desktop"
               ] ++ lib.optional (args ? class) "--class=${args.class}";
               hardenedFlags = lib.lists.unique (defaultFlags ++ extraFlags);
               policyBase = {

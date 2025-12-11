@@ -5,9 +5,8 @@
       wrappedBinaries =
         let
           # Get all chromium packages from pkgs.local
-          chromiumPackages = lib.filterAttrs
-            (name: _: lib.hasPrefix "chromium-" name)
-            pkgs.local;
+          chromiumPackages =
+            lib.filterAttrs (name: _: lib.hasPrefix "chromium-" name) pkgs.local;
         in
         lib.mapAttrs'
           (name: package: {
