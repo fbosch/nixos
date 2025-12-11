@@ -1,5 +1,5 @@
 {
-  flake.modules.homeManager.applications = { pkgs, lib, ... }:
+  flake.modules.homeManager.windows = { pkgs, lib, ... }:
     let
       # Define Windows installers to fetch and deploy
       windowsInstallers = [{
