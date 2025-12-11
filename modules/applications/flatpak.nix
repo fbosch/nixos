@@ -49,6 +49,7 @@
         "io.github.wiiznokes.fan-control"
         "org.gnome.TextEditor"
         "tv.plex.PlexDesktop"
+        "org.gnome.World.PikaBackup"
       ];
     };
   };
