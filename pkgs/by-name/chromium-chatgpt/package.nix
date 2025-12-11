@@ -11,5 +11,9 @@ pkgs.nix-webapps-lib.mkChromiumApp {
   url = "https://chat.openai.com";
   hardening = {
     extraFlags = [ "--hide-scrollbars" ];
+    policyOverrides = {
+      # Allow notifications for ChatGPT (may be needed for responses)
+      DefaultNotificationsSetting = 1;
+    };
   };
 }

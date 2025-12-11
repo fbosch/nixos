@@ -66,19 +66,22 @@ _:
                 AutofillCreditCardEnabled = false;
                 BackgroundModeEnabled = false;
                 SafeBrowsingProtectionLevel = 2;
-                # Additional security and performance policies
+                # Core security policies (always applied)
+                EnableMediaRouter = false;
+                TranslateEnabled = false;
+                PrintPreviewDisabled = false;
+                # Hardware acceleration enabled by default (can be overridden)
+                HardwareAccelerationModeEnabled = true;
+                # Default content policies (can be overridden per app)
                 DefaultCookiesSetting = 1; # Allow cookies
                 DefaultImagesSetting = 1; # Allow images
                 DefaultJavaScriptSetting = 1; # Allow JavaScript
                 DefaultPluginsSetting = 2; # Block plugins
+                # Restrictive defaults for privacy (apps can override if needed)
                 DefaultPopupsSetting = 2; # Block popups
                 DefaultNotificationsSetting = 2; # Block notifications
                 DefaultGeolocationSetting = 2; # Block geolocation
                 DefaultMediaStreamSetting = 2; # Block media stream
-                EnableMediaRouter = false;
-                HardwareAccelerationModeEnabled = true;
-                PrintPreviewDisabled = false;
-                TranslateEnabled = false;
               };
               policyOverrides = hardening.policyOverrides or { };
               policy = lib.recursiveUpdate policyBase policyOverrides;
