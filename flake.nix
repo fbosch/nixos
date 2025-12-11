@@ -68,7 +68,7 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     winapps = {
-      # modules/applications/winapps.nix
+      # modules/applications/windows.nix
       url = "github:winapps-org/winapps";
       inputs = {
         nixpkgs.follows = "nixpkgs";

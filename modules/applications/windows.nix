@@ -1,4 +1,9 @@
 {
+
+  flake.modules.nixos.windows = { pkgs, ... }: {
+    environment.systemPackages = with pkgs; [ freerdp xdg-utils ];
+  };
+
   flake.modules.homeManager.windows = { pkgs, lib, ... }:
     let
       # Define Windows installers to fetch and deploy
@@ -34,12 +39,20 @@
         fetchedInstallers);
     in
     {
-      home.packages = with pkgs;
-        [
-          wine # Base Wine support
-        ];
+      home.packages = with pkgs; [
+        wine
+        inputs.winapps.packages.${pkgs.stdenv.hostPlatform.system}.winapps
+        inputs.winapps.packages.${pkgs.stdenv.hostPlatform.system}.winapps-launcher
+        freerdp
+      ];
 
-      # Place all Windows installers in a known location
-      home.file = installerFiles;
+      # XDG desktop integration
+      xdg.mimeApps.enable = true;
+
+      # Create winapps configuration directory and place all Windows installers in a known location
+      home.file = installerFiles // {
+        ".config/winapps/.keep".text = "";
+      };
+
     };
 }
