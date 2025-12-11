@@ -10,7 +10,11 @@ pkgs.nix-webapps-lib.mkChromiumApp {
   profile = "ChatGPTProfile";
   url = "https://chat.openai.com";
   hardening = {
-    extraFlags = [ "--hide-scrollbars" ];
+    extraFlags = [
+      "--hide-scrollbars"
+      # ChatGPT-specific optimizations
+      "--disable-background-timer-throttling" # Keep ChatGPT responsive
+    ];
     policyOverrides = {
       # Allow notifications for ChatGPT (may be needed for responses)
       DefaultNotificationsSetting = 1;
