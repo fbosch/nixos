@@ -44,6 +44,7 @@ _:
                 "--disable-password-generation"
                 "--disable-password-saving"
                 "--disable-password-manager-reauthentication"
+                "--disable-save-password-bubble"
                 # Memory and performance optimizations
                 "--disable-low-end-device-mode"
                 "--enable-threaded-compositing"
@@ -62,6 +63,8 @@ _:
                 PasswordManagerEnabled = false;
                 PasswordLeakDetectionEnabled = false;
                 PasswordProtectionWarningTrigger = 0;
+                PasswordManagerAllowShowPasswordBubbles = false;
+                PasswordManagerAllowShowPasswordSuggestions = false;
                 AutofillAddressEnabled = false;
                 AutofillCreditCardEnabled = false;
                 BackgroundModeEnabled = false;
