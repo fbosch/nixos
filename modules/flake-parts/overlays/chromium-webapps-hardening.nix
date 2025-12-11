@@ -114,7 +114,12 @@ _:
                   if [ -f "$desktop_file" ]; then
                     # Add Keywords for better searchability
                     echo "Keywords=${args.desktopName or args.appName};webapp;chromium;" >> "$desktop_file"
-                    # Ensure proper StartupWMClass (already set correctly)
+                    # Ensure StartupWMClass is properly set for Wayland app_id matching
+                    sed -i '/^StartupWMClass=/d' "$desktop_file"
+                    echo "StartupWMClass=${args.class}" >> "$desktop_file"
+                    # Add desktop integration hints
+                    echo "X-GNOME-UsesNotifications=true" >> "$desktop_file"
+                    echo "X-KDE-StartupNotify=true" >> "$desktop_file"
                   fi
                 '';
                 passthru = (prevAttrs.passthru or { }) // {
