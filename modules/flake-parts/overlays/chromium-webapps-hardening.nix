@@ -109,20 +109,32 @@ _:
                   ${basePostInstall}
                   install -Dm644 ${policyFile} "$out/share/chromium/policies/managed/${args.appName}.json"
                   ${wrapCommand}
-                  # Improve desktop file for better icon recognition
+                '';
+                postFixup = ''
+                  # Improve desktop file and icon locations for better Waybar recognition
+                  # This runs after the desktop file is copied
                   desktop_file="$out/share/applications/${args.appName}.desktop"
+                  
                   if [ -f "$desktop_file" ]; then
-                    # Add Keywords for better searchability
-                    echo "Keywords=${args.desktopName or args.appName};webapp;chromium;" >> "$desktop_file"
-                    # Ensure StartupWMClass is properly set for Wayland app_id matching
-                    sed -i '/^StartupWMClass=/d' "$desktop_file"
+                    # Update StartupWMClass
+                    ${final.gnused}/bin/sed -i '/^StartupWMClass=/d' "$desktop_file"
                     echo "StartupWMClass=${args.class}" >> "$desktop_file"
-                    # Add desktop integration hints
+                    
+                    # Install icon to standard FreeDesktop locations
+                    mkdir -p "$out/share/icons/hicolor/512x512/apps"
+                    original_icon=$(${final.gnugrep}/bin/grep "^Icon=" "$desktop_file" | ${final.coreutils}/bin/cut -d'=' -f2)
+                    
+                    if [ -f "$original_icon" ]; then
+                      # Copy icon with class name
+                      ${final.coreutils}/bin/cp "$original_icon" "$out/share/icons/hicolor/512x512/apps/${args.class}.png"
+                      # Update desktop file to use symbolic name
+                      ${final.gnused}/bin/sed -i "s|Icon=.*|Icon=${args.class}|" "$desktop_file"
+                    fi
+                    
+                    # Add metadata
+                    echo "Keywords=${args.desktopName or args.appName};webapp;chromium;" >> "$desktop_file"
                     echo "X-GNOME-UsesNotifications=true" >> "$desktop_file"
                     echo "X-KDE-StartupNotify=true" >> "$desktop_file"
-                    # Improve icon field for better Waybar recognition
-                    # Change icon name to match class name for easier mapping
-                    sed -i "s|^Icon=.*|Icon=${args.class}|" "$desktop_file"
                   fi
                 '';
                 passthru = (prevAttrs.passthru or { }) // {
