@@ -1,8 +1,8 @@
 {
   flake.modules.homeManager.applications = { pkgs, ... }: {
     home.packages = with pkgs; [
-      steam
-      mangohud
+      bottles # Wine prefix manager for running Windows applications
+      wine # Base Wine support
     ];
   };
 }
