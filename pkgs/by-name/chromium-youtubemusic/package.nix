@@ -11,5 +11,9 @@ pkgs.nix-webapps-lib.mkChromiumApp {
   url = "https://music.youtube.com";
   hardening = {
     extraFlags = [ "--hide-scrollbars" ];
+    policyOverrides = {
+      # Allow media streaming for audio playback
+      DefaultMediaStreamSetting = 1;
+    };
   };
 }
