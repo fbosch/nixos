@@ -40,11 +40,17 @@ _:
                 "--num-raster-threads=4"
                 "--enable-hardware-overlays=single-fullscreen,single-on-top,underlay"
                 "--use-gl=desktop"
+                # Additional password manager disabling
+                "--disable-password-generation"
+                "--disable-password-saving"
+                "--disable-password-manager-reauthentication"
               ] ++ lib.optional (args ? class) "--class=${args.class}";
               hardenedFlags = lib.lists.unique (defaultFlags ++ extraFlags);
               policyBase = {
                 ExtensionInstallBlocklist = [ "*" ];
                 PasswordManagerEnabled = false;
+                PasswordLeakDetectionEnabled = false;
+                PasswordProtectionWarningTrigger = 0;
                 AutofillAddressEnabled = false;
                 AutofillCreditCardEnabled = false;
                 BackgroundModeEnabled = false;
