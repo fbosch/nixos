@@ -23,7 +23,7 @@
       })
     ];
 
-    extraNixos = [ "secrets" "nas" ];
+    extraNixos = [ "secrets" "nas" "chromium-icons" ];
 
     extraHomeManager = [
       config.flake.modules.homeManager.dotfiles
