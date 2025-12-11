@@ -109,6 +109,13 @@ _:
                   ${basePostInstall}
                   install -Dm644 ${policyFile} "$out/share/chromium/policies/managed/${args.appName}.json"
                   ${wrapCommand}
+                  # Improve desktop file for better icon recognition
+                  desktop_file="$out/share/applications/${args.appName}.desktop"
+                  if [ -f "$desktop_file" ]; then
+                    # Add Keywords for better searchability
+                    echo "Keywords=${args.desktopName or args.appName};webapp;chromium;" >> "$desktop_file"
+                    # Ensure proper StartupWMClass (already set correctly)
+                  fi
                 '';
                 passthru = (prevAttrs.passthru or { }) // {
                   hardenedChromium = {
