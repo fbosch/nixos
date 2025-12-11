@@ -60,8 +60,8 @@ _:
                 "--disable-infobars"
                 "--disable-session-crashed-bubble"
                 "--disable-component-update"
-                # Better desktop integration
-                "--disable-features=VizDisplayCompositor"
+                # Better desktop integration and performance
+                "--enable-features=VizDisplayCompositor"
               ] ++ lib.optional (args ? class) "--class=${args.class}";
               hardenedFlags = lib.lists.unique (defaultFlags ++ extraFlags);
               policyBase = {
