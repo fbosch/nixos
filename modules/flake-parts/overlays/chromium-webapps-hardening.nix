@@ -120,14 +120,9 @@ _:
                     # Add desktop integration hints
                     echo "X-GNOME-UsesNotifications=true" >> "$desktop_file"
                     echo "X-KDE-StartupNotify=true" >> "$desktop_file"
-                    # Copy icon to pixmaps for better Waybar compatibility
-                    icon_name="${args.appName}.png"
-                    mkdir -p "$out/share/pixmaps"
-                    if [ -f "${args.icon}" ]; then
-                      cp "${args.icon}" "$out/share/pixmaps/$icon_name"
-                      # Update Icon field to use pixmaps path
-                      sed -i "s|^Icon=.*|Icon=$icon_name|" "$desktop_file"
-                    fi
+                    # Improve icon field for better Waybar recognition
+                    # Change icon name to match class name for easier mapping
+                    sed -i "s|^Icon=.*|Icon=${args.class}|" "$desktop_file"
                   fi
                 '';
                 passthru = (prevAttrs.passthru or { }) // {
