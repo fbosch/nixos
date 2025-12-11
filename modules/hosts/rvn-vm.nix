@@ -18,12 +18,12 @@
         '';
 
         environment.systemPackages = [
-          inputs.self.packages.${pkgs.stdenv.hostPlatform.system}.chromium-realforce
+          pkgs.local.chromium-realforce
         ];
       })
     ];
 
-    extraNixos = [ "secrets" "nas" "chromium-icons" ];
+    extraNixos = [ "secrets" "nas" ];
 
     extraHomeManager = [
       config.flake.modules.homeManager.dotfiles

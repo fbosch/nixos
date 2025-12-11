@@ -104,11 +104,16 @@ _:
                   + lib.optionalString (hardenedFlags != [ ]) " ${flagArgs}";
               in
               {
-                nativeBuildInputs = lib.lists.unique ((prevAttrs.nativeBuildInputs or [ ]) ++ [ final.makeWrapper ]);
+                nativeBuildInputs = lib.lists.unique ((prevAttrs.nativeBuildInputs or [ ]) ++ [ final.makeWrapper final.librsvg ]);
+                buildInputs = lib.lists.unique ((prevAttrs.buildInputs or [ ]) ++ [ final.hicolor-icon-theme ]);
                 postInstall = ''
                   ${basePostInstall}
                   install -Dm644 ${policyFile} "$out/share/chromium/policies/managed/${args.appName}.json"
                   ${wrapCommand}
+                  
+                  # Install hicolor icon theme index for proper icon discovery
+                  mkdir -p "$out/share/icons/hicolor"
+                  ln -sf "${final.hicolor-icon-theme}/share/icons/hicolor/index.theme" "$out/share/icons/hicolor/index.theme"
                 '';
                 postFixup = ''
                   # Improve desktop file and icon locations for better Waybar recognition
@@ -116,19 +121,38 @@ _:
                   desktop_file="$out/share/applications/${args.appName}.desktop"
                   
                   if [ -f "$desktop_file" ]; then
-                    # Update StartupWMClass
-                    ${final.gnused}/bin/sed -i '/^StartupWMClass=/d' "$desktop_file"
-                    echo "StartupWMClass=${args.class}" >> "$desktop_file"
-                    
                     # Install icon to standard FreeDesktop locations
                     mkdir -p "$out/share/icons/hicolor/512x512/apps"
                     original_icon=$(${final.gnugrep}/bin/grep "^Icon=" "$desktop_file" | ${final.coreutils}/bin/cut -d'=' -f2)
-                    
+
                     if [ -f "$original_icon" ]; then
-                      # Copy icon with class name
-                      ${final.coreutils}/bin/cp "$original_icon" "$out/share/icons/hicolor/512x512/apps/${args.class}.png"
-                      # Update desktop file to use symbolic name
-                      ${final.gnused}/bin/sed -i "s|Icon=.*|Icon=${args.class}|" "$desktop_file"
+                      # Chromium's --app flag generates class names like: chrome-domain.tld__-ProfileName
+                      # Extract domain from URL to build the actual class name
+                      domain=$(echo "${args.url}" | ${final.gnused}/bin/sed -E 's|^https?://([^/]+).*|\1|')
+                      chromium_class="chrome-''${domain}__-${args.profile}"
+                      
+                      # Convert SVG to PNG for better GTK/Waybar compatibility
+                      # Always use PNG for the final icon to ensure consistent rendering
+                      icon_path="$out/share/icons/hicolor/512x512/apps/$chromium_class.png"
+                      
+                      if [[ "$original_icon" == *.svg ]]; then
+                        # Convert SVG to PNG at 512x512
+                        ${final.librsvg}/bin/rsvg-convert -w 512 -h 512 "$original_icon" -o "$icon_path"
+                      else
+                        # Copy PNG directly
+                        ${final.coreutils}/bin/cp "$original_icon" "$icon_path"
+                      fi
+                      
+                      # Also create a friendly-named symlink for manual use
+                      ln -sf "$chromium_class.png" "$out/share/icons/hicolor/512x512/apps/${args.class}.png"
+                      
+                      # Use absolute path in desktop file for reliable icon lookup
+                      # GTK supports absolute paths and Waybar's IconLoader will find them directly
+                      ${final.gnused}/bin/sed -i "s|Icon=.*|Icon=$icon_path|" "$desktop_file"
+                      
+                      # Update StartupWMClass to match Chromium's actual behavior
+                      ${final.gnused}/bin/sed -i '/^StartupWMClass=/d' "$desktop_file"
+                      echo "StartupWMClass=$chromium_class" >> "$desktop_file"
                     fi
                     
                     # Add metadata
