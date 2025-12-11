@@ -3,7 +3,7 @@
 pkgs.nix-webapps-lib.mkChromiumApp {
   appName = "chromium-chatgpt";
   categories = [ "Office" "Utility" ];
-  class = "chromium-chatgpt";
+  class = "ChatGPT";
   desktopName = "ChatGPT";
   comment = "AI-powered conversational assistant by OpenAI";
   icon = ./chatgpt.png;

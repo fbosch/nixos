@@ -3,7 +3,7 @@
 pkgs.nix-webapps-lib.mkChromiumApp {
   appName = "chromium-protonmail";
   categories = [ "Network" "Email" ];
-  class = "chromium-protonmail";
+  class = "Proton Mail";
   desktopName = "Proton Mail";
   comment = "Secure encrypted email";
   icon = ./proton-mail-seeklogo.svg;

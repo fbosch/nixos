@@ -3,7 +3,7 @@
 pkgs.nix-webapps-lib.mkChromiumApp {
   appName = "chromium-realforce";
   categories = [ "Utility" "Network" ];
-  class = "chromium-realforce";
+  class = "Realforce";
   desktopName = "Realforce Connect";
   comment = "Realforce keyboard configuration and firmware update tool";
   icon = ./realforce-connect.png;

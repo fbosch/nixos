@@ -3,7 +3,7 @@
 pkgs.nix-webapps-lib.mkChromiumApp {
   appName = "chromium-protoncalendar";
   categories = [ "Network" "Office" "Calendar" ];
-  class = "chromium-protoncalendar";
+  class = "Proton Calendar";
   desktopName = "Proton Calendar";
   comment = "Secure encrypted calendar";
   icon = ./proton-calendar.svg;

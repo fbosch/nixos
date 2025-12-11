@@ -3,7 +3,7 @@
 pkgs.nix-webapps-lib.mkChromiumApp {
   appName = "chromium-notion";
   categories = [ "Office" "Utility" ];
-  class = "chromium-notion";
+  class = "Notion";
   desktopName = "Notion";
   comment = "All-in-one workspace for notes and collaboration";
   icon = ./notion-logo.png;

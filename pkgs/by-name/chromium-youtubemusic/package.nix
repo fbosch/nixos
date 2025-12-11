@@ -3,7 +3,7 @@
 pkgs.nix-webapps-lib.mkChromiumApp {
   appName = "chromium-youtubemusic";
   categories = [ "Network" "AudioVideo" "Audio" ];
-  class = "chromium-youtubemusic";
+  class = "YouTube Music";
   desktopName = "YouTube Music";
   comment = "Music streaming service";
   icon = ./Youtube_Music_icon.svg;
