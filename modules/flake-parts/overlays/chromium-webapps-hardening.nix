@@ -44,6 +44,17 @@ _:
                 "--disable-password-generation"
                 "--disable-password-saving"
                 "--disable-password-manager-reauthentication"
+                # Memory and performance optimizations
+                "--disable-low-end-device-mode"
+                "--enable-threaded-compositing"
+                "--memory-pressure-off"
+                "--max-tiles-for-interest-area=512"
+                "--enable-overlay-scrollbar"
+                "--disable-component-extensions-with-background-pages"
+                "--disable-hang-monitor"
+                "--disable-ipc-flooding-protection"
+                "--disable-popup-blocking"
+                "--disable-prompt-on-repost"
               ] ++ lib.optional (args ? class) "--class=${args.class}";
               hardenedFlags = lib.lists.unique (defaultFlags ++ extraFlags);
               policyBase = {
@@ -55,6 +66,19 @@ _:
                 AutofillCreditCardEnabled = false;
                 BackgroundModeEnabled = false;
                 SafeBrowsingProtectionLevel = 2;
+                # Additional security and performance policies
+                DefaultCookiesSetting = 1; # Allow cookies
+                DefaultImagesSetting = 1; # Allow images
+                DefaultJavaScriptSetting = 1; # Allow JavaScript
+                DefaultPluginsSetting = 2; # Block plugins
+                DefaultPopupsSetting = 2; # Block popups
+                DefaultNotificationsSetting = 2; # Block notifications
+                DefaultGeolocationSetting = 2; # Block geolocation
+                DefaultMediaStreamSetting = 2; # Block media stream
+                EnableMediaRouter = false;
+                HardwareAccelerationModeEnabled = true;
+                PrintPreviewDisabled = false;
+                TranslateEnabled = false;
               };
               policyOverrides = hardening.policyOverrides or { };
               policy = lib.recursiveUpdate policyBase policyOverrides;
