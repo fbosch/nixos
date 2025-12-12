@@ -8,6 +8,7 @@
       cmake
       gnumake
       sox
+      ffmpeg
       ghostscript
       tectonic
       imagemagick
