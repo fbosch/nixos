@@ -3,6 +3,7 @@
     environment.systemPackages = with pkgs; [
       selectdefaultapplication
       nemo-with-extensions
+      sushi
     ];
 
     xdg.mime.defaultApplications = {
