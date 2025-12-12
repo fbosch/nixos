@@ -7,6 +7,7 @@
       gcc
       cmake
       gnumake
+      sox
       ghostscript
       tectonic
       imagemagick
