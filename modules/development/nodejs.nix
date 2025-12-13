@@ -17,11 +17,14 @@
           nodePackages.eslint
           nodePackages.vercel
           nodePackages.npm-check-updates
+          playwright-driver.browsers-chromium
         ];
 
         sessionVariables = {
           PNPM_HOME = "$HOME/.local/share/pnpm";
           NODE_PATH = "$HOME/.npm-packages/lib/node_modules";
+          PLAYWRIGHT_BROWSERS_PATH = "${pkgs.playwright-driver.browsers}";
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD = "1";
         };
 
         sessionPath = [ "$HOME/.local/share/pnpm" "$HOME/.npm-packages/bin" ];
