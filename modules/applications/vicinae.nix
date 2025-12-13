@@ -12,7 +12,7 @@ _: {
         };
         keybinding = "default";
         keybinds = { };
-        popToRootOnClose = true;
+        popToRootOnClose = false;
         rootSearch = { searchFiles = true; };
         theme = {
           iconTheme = "Win11";

@@ -2,7 +2,7 @@
   flake.modules.homeManager.development = { pkgs, lib, config, ... }:
     let
       npmGlobalPackages =
-        [ "pokemonshow" "swpm" "@fsouza/prettierd" "opencode-ai" ];
+        [ "pokemonshow" "swpm" "@fsouza/prettierd" "opencode-ai" "playwright" ];
     in
     {
       home = {
@@ -17,14 +17,11 @@
           nodePackages.eslint
           nodePackages.vercel
           nodePackages.npm-check-updates
-          playwright-driver.browsers-chromium
         ];
 
         sessionVariables = {
           PNPM_HOME = "$HOME/.local/share/pnpm";
           NODE_PATH = "$HOME/.npm-packages/lib/node_modules";
-          PLAYWRIGHT_BROWSERS_PATH = "${pkgs.playwright-driver.browsers}";
-          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD = "1";
         };
 
         sessionPath = [ "$HOME/.local/share/pnpm" "$HOME/.npm-packages/bin" ];
@@ -76,6 +73,20 @@
             echo "Global npm packages installed to: $npm_packages_dir"
             echo "Packages should be available in new shell sessions"
             echo "For current session, run: export PATH=\"\$HOME/.npm-packages/bin:\$PATH\""
+          '';
+
+        activation.installPlaywrightBrowsers =
+          lib.hm.dag.entryAfter [ "installNpmGlobalPackages" ] ''
+            # Install only Chromium browser for Playwright
+            if [ -d "$HOME/.npm-packages/lib/node_modules/playwright" ]; then
+              echo "Installing Playwright Chromium browser..."
+              export PLAYWRIGHT_SKIP_BROWSER_GC=1
+              if ! $HOME/.npm-packages/bin/playwright install chromium 2>&1; then
+                echo "WARNING: Failed to install Playwright Chromium browser" >&2
+              else
+                echo "Successfully installed Playwright Chromium browser"
+              fi
+            fi
           '';
       };
     };
