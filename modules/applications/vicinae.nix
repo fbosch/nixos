@@ -4,7 +4,7 @@ _: {
       enable = true;
       useLayerShell = false;
       settings = {
-        closeOnFocusLoss = false;
+        closeOnFocusLoss = true;
         faviconService = "twenty";
         font = {
           normal = "SF Pro Rounded";
@@ -12,7 +12,7 @@ _: {
         };
         keybinding = "default";
         keybinds = { };
-        popToRootOnClose = false;
+        popToRootOnClose = true;
         rootSearch = { searchFiles = true; };
         theme = {
           iconTheme = "Win11";
