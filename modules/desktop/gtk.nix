@@ -101,5 +101,9 @@
       };
 
       home.packages = with pkgs; [ gtk4 adw-gtk3 colloid-gtk-theme ];
+
+      dconf.settings = {
+        "org/gnome/desktop/interface" = { monospace-font-name = "SF Mono 10"; };
+      };
     };
 }
