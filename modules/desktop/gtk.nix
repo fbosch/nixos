@@ -103,7 +103,14 @@
       home.packages = with pkgs; [ gtk4 adw-gtk3 colloid-gtk-theme ];
 
       dconf.settings = {
-        "org/gnome/desktop/interface" = { monospace-font-name = "SF Mono 10"; };
+        "org/gnome/desktop/interface" = {
+          monospace-font-name = "SF Mono 10";
+          gtk-theme = "MonoTheme";
+          icon-theme = "Win11";
+          cursor-theme = "WinSur-white-cursors";
+          font-name = "SF Pro Display 10";
+          text-scaling-factor = 1.0;
+        };
       };
     };
 }
