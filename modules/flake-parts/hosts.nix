@@ -6,7 +6,7 @@ in
 {
   flake = {
     nixosConfigurations = lib.mapAttrs'
-      (name: module:
+      (name: hostModule:
         let
           hostId = lib.removePrefix prefix name;
           evalSystem =
@@ -16,7 +16,7 @@ in
           specialArgs = {
             inherit inputs;
             inherit (config.flake) meta;
-            hostConfig = module // { name = hostId; };
+            hostConfig = { name = hostId; };
           };
           hmSpecialArgs = specialArgs // { system = evalSystem; };
         in
@@ -25,7 +25,8 @@ in
           value = inputs.nixpkgs.lib.nixosSystem {
             system = evalSystem;
             specialArgs = hmSpecialArgs;
-            modules = module.imports ++ [
+            modules = [
+              hostModule
               inputs.home-manager.nixosModules.home-manager
               { home-manager.extraSpecialArgs = hmSpecialArgs; }
             ];

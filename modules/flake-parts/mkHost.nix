@@ -23,7 +23,8 @@
       # When using 'preset', combine preset.modules + preset.homeManager
       hmModules = if useCombined then modules ++ homeManager else if preset != null then presetConfig.modules ++ presetConfig.homeManager else homeManager;
     in
-    {
+    # Return a module function (not just a set)
+    _moduleArgs: {
       imports =
         hostImports
         ++ (builtins.map (m: config.flake.modules.nixos.${m} or { }) nixosModules)
