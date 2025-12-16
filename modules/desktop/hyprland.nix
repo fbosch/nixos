@@ -6,6 +6,7 @@ _: {
       hyprprop
       hyprpicker
       grim
+      # waycorner
       inputs.hyprland-contrib.packages.${pkgs.stdenv.hostPlatform.system}.grimblast
     ];
   };
