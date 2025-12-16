@@ -4,7 +4,7 @@ _: {
       enable = true;
       useLayerShell = false;
       settings = {
-        closeOnFocusLoss = true;
+        closeOnFocusLoss = false;
         faviconService = "twenty";
         font = {
           normal = "SF Pro Rounded";

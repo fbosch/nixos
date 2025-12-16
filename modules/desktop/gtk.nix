@@ -110,6 +110,7 @@
           cursor-theme = "WinSur-white-cursors";
           font-name = "SF Pro Display 10";
           text-scaling-factor = 1.0;
+          color-scheme = "prefer-dark";
         };
       };
     };
