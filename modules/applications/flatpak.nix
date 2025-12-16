@@ -45,7 +45,7 @@
         "be.alexandervanhee.gradia"
         "com.plexamp.Plexamp"
         "app.zen_browser.zen"
-        "org.videolan.VLC"
+        "re.sonny.OhMySVG"
         # "dev.zed.Zed"
         # "com.rustdesk.RustDesk"
         # "org.localsend.localsend_app"
