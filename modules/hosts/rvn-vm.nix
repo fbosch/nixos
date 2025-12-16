@@ -11,6 +11,7 @@
         environment.sessionVariables = {
           GSK_RENDERER = "cairo";
           WLR_RENDERER_ALLOW_SOFTWARE = "1";
+          TERMINAL = "foot";
         };
 
         security.sudo.extraConfig = ''

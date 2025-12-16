@@ -105,7 +105,7 @@
       dconf.settings = {
         "org/gnome/desktop/interface" = {
           monospace-font-name = "SF Mono 10";
-          gtk-theme = "MonoTheme";
+          gtk-theme = "MonoThemeDark";
           icon-theme = "Win11";
           cursor-theme = "WinSur-white-cursors";
           font-name = "SF Pro Display 10";

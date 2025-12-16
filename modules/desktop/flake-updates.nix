@@ -16,6 +16,18 @@ _: {
 
         cd "$FLAKE_PATH" || exit 1
 
+        # Calculate current flake.lock hash
+        CURRENT_HASH=$(${pkgs.nix}/bin/nix-hash --type sha256 --flat flake.lock)
+
+        # Check if cache exists and has the same hash
+        if [ -f "$CACHE_FILE" ]; then
+          CACHED_HASH=$(${pkgs.jq}/bin/jq -r '.flakeHash // empty' "$CACHE_FILE" 2>/dev/null)
+          if [ "$CACHED_HASH" = "$CURRENT_HASH" ]; then
+            # Hash matches, no need to check again
+            exit 0
+          fi
+        fi
+
         # Get all inputs from flake metadata
         FLAKE_DATA=$(${pkgs.jq}/bin/jq '.' flake.lock 2>/dev/null)
         ROOT_INPUTS=$(echo "$FLAKE_DATA" | ${pkgs.jq}/bin/jq -r '.nodes.root.inputs' 2>/dev/null)
@@ -81,14 +93,15 @@ _: {
         ${pkgs.coreutils}/bin/cp "$LOCK_BACKUP" flake.lock
         ${pkgs.coreutils}/bin/rm -f "$LOCK_BACKUP"
 
-        # Build final JSON output with timestamp
+        # Build final JSON output with timestamp and flake hash
         UPDATE_COUNT=$(echo "$UPDATES_JSON" | ${pkgs.jq}/bin/jq 'length')
         TIMESTAMP=$(${pkgs.coreutils}/bin/date -Iseconds)
         RESULT=$(${pkgs.jq}/bin/jq -n \
           --argjson count "$UPDATE_COUNT" \
           --argjson updates "$UPDATES_JSON" \
           --arg timestamp "$TIMESTAMP" \
-          '{count: $count, updates: $updates, timestamp: $timestamp}')
+          --arg flakeHash "$CURRENT_HASH" \
+          '{count: $count, updates: $updates, timestamp: $timestamp, flakeHash: $flakeHash}')
         
         echo "$RESULT" > "$CACHE_FILE"
       '';
@@ -96,8 +109,15 @@ _: {
     {
       home.packages = [ flakeCheckScript ];
 
-      # Clear cache after rebuild to trigger re-evaluation
-      home.activation.flakeUpdatesCache = lib.hm.dag.entryAfter [ "writeBoundary" ] "rm -f ${config.xdg.cacheHome}/flake-updates.json || true";
+      # Trigger update check after rebuild to ensure cache is current
+      home.activation.flakeUpdatesCache = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+        if [ -n "''${DRY_RUN:-}" ]; then
+          echo "Would trigger flake update check"
+        else
+          # Trigger async check in background (don't wait for completion)
+          systemctl --user start flake-update-checker.service 2>/dev/null || true &
+        fi
+      '';
 
       # Systemd service to check for flake updates
       systemd.user.services.flake-update-checker = {
