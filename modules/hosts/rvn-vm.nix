@@ -17,9 +17,9 @@
           Defaults timestamp_timeout = 120
         '';
 
-        environment.systemPackages = [
-          pkgs.local.chromium-realforce
-        ];
+        # environment.systemPackages = [
+        #   pkgs.local.chromium-realforce
+        # ];
       })
     ];
 

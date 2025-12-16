@@ -1,5 +1,5 @@
 _: {
-  flake.modules.homeManager.system = { lib, pkgs, config, ... }:
+  flake.modules.homeManager.desktop = { lib, pkgs, config, ... }:
     let
       flakeCheckScript = pkgs.writeShellScriptBin "flake-check-updates" ''
         CACHE_FILE="''${XDG_CACHE_HOME:-$HOME/.cache}/flake-updates.json"
