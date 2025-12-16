@@ -2,12 +2,12 @@
 
 let
   pname = "helium-browser";
-  version = "0.6.9.1";
+  version = "0.7.5.1";
 
   src = fetchurl {
     url =
       "https://github.com/imputnet/helium-linux/releases/download/${version}/helium-${version}-x86_64.AppImage";
-    hash = "sha256-L59Sm5qgORlV3L2yM6C0R8lDRyk05jOZcD5JPhQtbJE=";
+    hash = "sha256-Rn08KobbfMh3vlM2o0PA9OhQx/syMTBKWG/eapF45eo=";
   };
 
   appimageContents = appimageTools.extractType2 { inherit pname version src; };
