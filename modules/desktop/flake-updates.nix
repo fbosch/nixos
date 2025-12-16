@@ -2,20 +2,34 @@ _: {
   flake.modules.homeManager.desktop = { lib, pkgs, config, ... }:
     let
       flakeCheckScript = pkgs.writeShellScriptBin "flake-check-updates" ''
+        set -euo pipefail
+        
         CACHE_FILE="''${XDG_CACHE_HOME:-$HOME/.cache}/flake-updates.json"
         FLATPAK_CACHE_FILE="''${XDG_CACHE_HOME:-$HOME/.cache}/flatpak-updates.json"
+        LOG_FILE="''${XDG_CACHE_HOME:-$HOME/.cache}/flake-updates.log"
         FLAKE_PATH="''${1:-$HOME/nixos}"
 
         # Ensure cache directory exists
         mkdir -p "$(dirname "$CACHE_FILE")"
 
+        # Log execution
+        echo "[$(${pkgs.coreutils}/bin/date -Iseconds)] Starting flake update check" >> "$LOG_FILE"
+
         # Check if flake.lock exists
         if [ ! -f "$FLAKE_PATH/flake.lock" ]; then
           echo '{"count": 0, "updates": [], "error": "No flake.lock found"}' > "$CACHE_FILE"
+          echo "[$(${pkgs.coreutils}/bin/date -Iseconds)] ERROR: No flake.lock found at $FLAKE_PATH" >> "$LOG_FILE"
           exit 1
         fi
 
         cd "$FLAKE_PATH" || exit 1
+
+        # Check write permissions
+        if [ ! -w "$FLAKE_PATH/flake.lock" ]; then
+          echo '{"count": 0, "updates": [], "error": "No write permission for flake.lock"}' > "$CACHE_FILE"
+          echo "[$(${pkgs.coreutils}/bin/date -Iseconds)] ERROR: No write permission for flake.lock" >> "$LOG_FILE"
+          exit 1
+        fi
 
         # Calculate current flake.lock hash
         CURRENT_HASH=$(${pkgs.nix}/bin/nix-hash --type sha256 --flat flake.lock)
@@ -26,12 +40,18 @@ _: {
           CACHED_HASH=$(${pkgs.jq}/bin/jq -r '.flakeHash // empty' "$CACHE_FILE" 2>/dev/null)
           if [ "$CACHED_HASH" = "$CURRENT_HASH" ]; then
             # Hash matches, no need to check flake again
+            echo "[$(${pkgs.coreutils}/bin/date -Iseconds)] Cache hit - hash matches, skipping flake check" >> "$LOG_FILE"
             SKIP_FLAKE_CHECK=true
+          else
+            echo "[$(${pkgs.coreutils}/bin/date -Iseconds)] Cache miss - hash changed from $CACHED_HASH to $CURRENT_HASH" >> "$LOG_FILE"
           fi
+        else
+          echo "[$(${pkgs.coreutils}/bin/date -Iseconds)] No cache file found, running full check" >> "$LOG_FILE"
         fi
 
         # Check flake updates only if needed
         if [ "$SKIP_FLAKE_CHECK" = false ]; then
+          echo "[$(${pkgs.coreutils}/bin/date -Iseconds)] Checking for flake updates..." >> "$LOG_FILE"
           # Get all inputs from flake metadata
           # Get all inputs from flake metadata
           FLAKE_DATA=$(${pkgs.jq}/bin/jq '.' flake.lock 2>/dev/null)
@@ -39,8 +59,11 @@ _: {
 
           if [ -z "$ROOT_INPUTS" ] || [ "$ROOT_INPUTS" = "null" ]; then
             echo '{"count": 0, "updates": [], "error": "Failed to get flake inputs"}' > "$CACHE_FILE"
+            echo "[$(${pkgs.coreutils}/bin/date -Iseconds)] ERROR: Failed to get flake inputs" >> "$LOG_FILE"
           else
             INPUT_LIST=$(echo "$ROOT_INPUTS" | ${pkgs.jq}/bin/jq -r 'keys[]' 2>/dev/null)
+            INPUT_COUNT=$(echo "$INPUT_LIST" | wc -l)
+            echo "[$(${pkgs.coreutils}/bin/date -Iseconds)] Checking $INPUT_COUNT inputs..." >> "$LOG_FILE"
 
             # Create temporary backup of lock file
             LOCK_BACKUP=$(${pkgs.coreutils}/bin/mktemp)
@@ -107,11 +130,13 @@ _: {
               '{count: $count, updates: $updates, timestamp: $timestamp, flakeHash: $flakeHash}')
             
             echo "$RESULT" > "$CACHE_FILE"
+            echo "[$(${pkgs.coreutils}/bin/date -Iseconds)] Flake check complete - found $UPDATE_COUNT updates" >> "$LOG_FILE"
           fi
         fi
 
         # Always check for Flatpak updates (independent of flake check)
         if command -v ${pkgs.flatpak}/bin/flatpak >/dev/null 2>&1; then
+          echo "[$(${pkgs.coreutils}/bin/date -Iseconds)] Checking for Flatpak updates..." >> "$LOG_FILE"
           FLATPAK_UPDATES=$(${pkgs.flatpak}/bin/flatpak remote-ls --app --updates --columns=application,version,branch 2>/dev/null)
           
           if [ -n "$FLATPAK_UPDATES" ]; then
@@ -143,14 +168,19 @@ _: {
               '{count: $count, updates: $updates, timestamp: $timestamp}')
             
             echo "$FLATPAK_RESULT" > "$FLATPAK_CACHE_FILE"
+            echo "[$(${pkgs.coreutils}/bin/date -Iseconds)] Flatpak check complete - found $FLATPAK_COUNT updates" >> "$LOG_FILE"
           else
             # No updates available
             echo '{"count": 0, "updates": [], "timestamp": "'$(${pkgs.coreutils}/bin/date -Iseconds)'"}' > "$FLATPAK_CACHE_FILE"
+            echo "[$(${pkgs.coreutils}/bin/date -Iseconds)] No Flatpak updates available" >> "$LOG_FILE"
           fi
         else
           # Flatpak not available
           echo '{"count": 0, "updates": [], "error": "Flatpak not installed"}' > "$FLATPAK_CACHE_FILE"
+          echo "[$(${pkgs.coreutils}/bin/date -Iseconds)] Flatpak not installed" >> "$LOG_FILE"
         fi
+        
+        echo "[$(${pkgs.coreutils}/bin/date -Iseconds)] Update check completed successfully" >> "$LOG_FILE"
       '';
     in
     {
@@ -161,6 +191,8 @@ _: {
         if [ -n "''${DRY_RUN:-}" ]; then
           echo "Would trigger flake update check"
         else
+          # Reload systemd user daemon to pick up any service changes
+          systemctl --user daemon-reload 2>/dev/null || true
           # Trigger async check in background (don't wait for completion)
           systemctl --user start flake-update-checker.service 2>/dev/null || true &
         fi
