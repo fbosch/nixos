@@ -151,11 +151,11 @@
     "dotfiles": {
       "flake": false,
       "locked": {
-        "lastModified": 1765908754,
-        "narHash": "sha256-y4BI1UdYeFMrrBWu36QgGC+uOWqBYLEtOUCgpEUb0N0=",
+        "lastModified": 1765920288,
+        "narHash": "sha256-KJFfHB3SMQHDBM/XIo1ReqSoIzl2qRXwkQhcy1whwv4=",
         "owner": "fbosch",
         "repo": "dotfiles",
-        "rev": "875ea411792b6948dd2e1b5576e7a07efa5f4785",
+        "rev": "a227d4fb091fe71cda59025e1b151601c0777370",
         "type": "github"
       },
       "original": {
@@ -381,11 +381,11 @@
         "xdph": "xdph"
       },
       "locked": {
-        "lastModified": 1765837153,
-        "narHash": "sha256-FLJNXQLl/qL2LSCwW493eOSja4IxfR0wAF/0KnwXZS4=",
+        "lastModified": 1765902757,
+        "narHash": "sha256-NUOxXjV94sSVoCCjiFC1wECT8A+kAf7JrhJZzHnzWos=",
         "owner": "hyprwm",
         "repo": "Hyprland",
-        "rev": "6e09eb2e6cc1744687f158f2a576de844be59f4e",
+        "rev": "709855842068315bb2109d8f422a70c2b5ed1931",
         "type": "github"
       },
       "original": {
