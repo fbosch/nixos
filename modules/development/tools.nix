@@ -11,6 +11,7 @@
       ffmpeg
       ghostscript
       tectonic
+      librsvg
       imagemagick
       lnav
       evemu
