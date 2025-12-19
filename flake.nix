@@ -36,12 +36,12 @@
 
     # Hyprland desktop environment (modules/desktop/hyprland.nix)
     hyprland = {
-      url = "github:hyprwm/Hyprland?submodules=1";
+      url = "github:hyprwm/Hyprland/52b3c8cbc699aa949f4f1887ca829898055ce4ad?submodules=1";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.systems.follows = "dedupe_systems";
     };
     hyprland-plugins = {
-      url = "github:hyprwm/hyprland-plugins";
+      url = "github:hyprwm/hyprland-plugins/391818ec83528a87a69efedb434ff9e6012ff2fa";
       inputs.hyprland.follows = "hyprland";
     };
     hyprland-contrib = {

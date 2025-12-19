@@ -15,18 +15,13 @@ _: {
     let
       inherit (pkgs.stdenv.hostPlatform) system;
 
-      # Temporarily disable plugins due to API compatibility issues
-      # TODO: Re-enable when patches are updated for current Hyprland version
-      # When re-enabling, restore the helper code:
-      # - hyprlandPkg = inputs.hyprland.packages.${system}.hyprland;
-      # - hyprlandPkgFixed = hyprlandPkg.dev.overrideAttrs with pkg-config fixes
-      # - hyprPluginPkgs = inputs.hyprland-plugins.packages.${system};
-      # - mkPlugin function with overrideAttrs for buildInputs, NIX_CFLAGS_COMPILE, and patches
+      # Hyprland plugins - upstream now includes API fixes for v0.52.0+
+      hyprPluginPkgs = inputs.hyprland-plugins.packages.${system};
       hypr-plugin-dir = pkgs.symlinkJoin {
         name = "hyprland-plugins";
         paths = [
-          # (mkPlugin hyprPluginPkgs.hyprexpo)
-          # (mkPlugin hyprPluginPkgs.hyprbars)
+          hyprPluginPkgs.hyprexpo
+          hyprPluginPkgs.hyprbars
         ];
       };
 
