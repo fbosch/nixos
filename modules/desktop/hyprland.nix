@@ -11,39 +11,22 @@ _: {
     ];
   };
 
-  flake.modules.nixos.desktop = { pkgs, meta, inputs, lib, ... }:
+  flake.modules.nixos.desktop = { pkgs, meta, inputs, ... }:
     let
       inherit (pkgs.stdenv.hostPlatform) system;
-      hyprlandPkg = inputs.hyprland.packages.${system}.hyprland;
 
-      # Fix the hyprland.pc file to have proper pkg-config syntax
-      # The issue is "xkbcommon >=1.11.0" should be "xkbcommon >= 1.11.0" (space before >=)
-      hyprlandPkgFixed = hyprlandPkg.dev.overrideAttrs (old: {
-        postInstall = (old.postInstall or "") + ''
-          # Fix pkg-config file syntax - add space before >= operators
-          sed -i 's/xkbcommon >=\([0-9]\)/xkbcommon >= \1/g' $out/share/pkgconfig/hyprland.pc
-        '';
-      });
-
-      # Build plugins from hyprland-plugins flake with proper Hyprland dependency
-      hyprPluginPkgs = inputs.hyprland-plugins.packages.${system};
-
-      # Override each plugin to use the fixed Hyprland version in buildInputs
-      mkPlugin = plugin:
-        plugin.overrideAttrs (old: {
-          buildInputs =
-            # Filter out any hyprland package and replace with our fixed version
-            (lib.filter
-              (input:
-                !(lib.hasInfix "hyprland" (input.pname or input.name or "")))
-              old.buildInputs) ++ [ hyprlandPkgFixed ];
-        });
-
+      # Temporarily disable plugins due to API compatibility issues
+      # TODO: Re-enable when patches are updated for current Hyprland version
+      # When re-enabling, restore the helper code:
+      # - hyprlandPkg = inputs.hyprland.packages.${system}.hyprland;
+      # - hyprlandPkgFixed = hyprlandPkg.dev.overrideAttrs with pkg-config fixes
+      # - hyprPluginPkgs = inputs.hyprland-plugins.packages.${system};
+      # - mkPlugin function with overrideAttrs for buildInputs, NIX_CFLAGS_COMPILE, and patches
       hypr-plugin-dir = pkgs.symlinkJoin {
         name = "hyprland-plugins";
         paths = [
-          (mkPlugin hyprPluginPkgs.hyprexpo)
-          (mkPlugin hyprPluginPkgs.hyprbars)
+          # (mkPlugin hyprPluginPkgs.hyprexpo)
+          # (mkPlugin hyprPluginPkgs.hyprbars)
         ];
       };
 

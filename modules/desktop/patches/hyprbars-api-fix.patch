@@ -1,0 +1,29 @@
+--- a/barDeco.cpp
++++ b/barDeco.cpp
+@@ -210,7 +210,7 @@ void CHyprBar::handleDownEvent(SCallbackInfo& info, std::optional<ITouch::SDown
+             if (m_bTouchEv)
+                 g_pKeybindManager->m_dispatchers["settiled"]("activewindow");
+             g_pKeybindManager->m_dispatchers["mouse"]("0movewindow");
+-            Debug::log(LOG, "[hyprbars] Dragging ended on {:x}", (uintptr_t)PWINDOW.get());
++            Log::logger->log(Log::DEBUG, "[hyprbars] Dragging ended on {:x}", (uintptr_t)PWINDOW.get());
+         }
+ 
+         m_bDraggingThis = false;
+@@ -256,7 +256,7 @@ void CHyprBar::handleUpEvent(SCallbackInfo& info) {
+         if (!m_pWindow.lock()->m_bDraggingTiled)
+             g_pKeybindManager->m_dispatchers["settiled"]("activewindow");
+ 
+-        Debug::log(LOG, "[hyprbars] Dragging ended on {:x}", (uintptr_t)m_pWindow.lock().get());
++        Log::logger->log(Log::DEBUG, "[hyprbars] Dragging ended on {:x}", (uintptr_t)m_pWindow.lock().get());
+     }
+ 
+     m_bDraggingThis = false;
+@@ -267,7 +267,7 @@ void CHyprBar::handleMovement() {
+     g_pKeybindManager->m_dispatchers["focuswindow"]("address:" + std::format("0x{:x}", (uintptr_t)m_pWindow.lock().get()));
+     g_pKeybindManager->m_dispatchers["mouse"]("1movewindow");
+     m_bDraggingThis = true;
+-    Debug::log(LOG, "[hyprbars] Dragging initiated on {:x}", (uintptr_t)m_pWindow.lock().get());
++    Log::logger->log(Log::DEBUG, "[hyprbars] Dragging initiated on {:x}", (uintptr_t)m_pWindow.lock().get());
+     return;
+ }
+ 

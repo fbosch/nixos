@@ -1,0 +1,11 @@
+--- a/overview.cpp
++++ b/overview.cpp
+@@ -48,7 +48,7 @@ COverview::COverview(HANDLE h) : PHANDLE(h) {
+     else if (*PWORKSPACEMETHOD == "first 1")
+         workspacemethod = WORKSPACE_METHOD_FIRST_1;
+     else {
+-        Debug::log(ERR, "[he] invalid workspace_method");
++        Log::logger->log(Log::ERR, "[he] invalid workspace_method");
+         workspacemethod = WORKSPACE_METHOD_CENTER_1;
+     }
+ 
