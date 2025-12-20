@@ -1,26 +1,24 @@
-{ pkgs
-, inputs
-, options
-, ...
-}:
+{ pkgs, inputs, options, ... }:
 let
-  theme = inputs.self.packages.${pkgs.stdenv.hostPlatform.system}.primitivistical-grub;
+  theme =
+    inputs.self.packages.${pkgs.stdenv.hostPlatform.system}.primitivistical-grub;
 
   # Create GRUB splash matching Plymouth's visual layout
   # GRUB will stretch to fit screen, so create at common 4:3 ratio (1024x768)
   # which matches typical BIOS display modes better than 16:9
   plymouthSplash = pkgs.runCommand "grub-splash.png"
-    { nativeBuildInputs = [ pkgs.imagemagick ]; }
-    ''
-      logo="${pkgs.mac-style-plymouth}/share/plymouth/themes/mac-style/images/header-image.png"
-    
-      # Create 1024x768 canvas (common GRUB resolution, 4:3 aspect ratio)
-      # Position logo centered, matching Plymouth's layout
-      magick -size 1024x768 xc:black -colorspace sRGB \
-        \( "$logo" -colorspace sRGB \) -gravity center -composite \
-        -type TrueColor -depth 8 -define png:color-type=2 \
-        $out
-    '';
+    {
+      nativeBuildInputs = [ pkgs.imagemagick ];
+    } ''
+    logo="${pkgs.mac-style-plymouth}/share/plymouth/themes/mac-style/images/header-image.png"
+
+    # Create 1024x768 canvas (common GRUB resolution, 4:3 aspect ratio)
+    # Position logo centered, matching Plymouth's layout
+    magick -size 1024x768 xc:black -colorspace sRGB \
+      \( "$logo" -colorspace sRGB \) -gravity center -composite \
+      -type TrueColor -depth 8 -define png:color-type=2 \
+      $out
+  '';
 in
 {
   system.stateVersion = "25.05";
@@ -36,6 +34,9 @@ in
       "udev.log_level=3" # Reduce udev verbosity
       "rd.systemd.show_status=auto" # Only show status on errors
       "rd.udev.log_level=3" # Reduce initrd udev verbosity
+
+      # VirtualBox graphics optimizations
+      "vboxguest.disable_cursor_plane=1" # Disable hardware cursor in VirtualBox
     ];
 
     loader.grub = {
@@ -44,7 +45,8 @@ in
       useOSProber = true;
       configurationLimit = 42;
       inherit theme;
-      splashImage = plymouthSplash; # NixOS logo on black background matching Plymouth theme
+      splashImage =
+        plymouthSplash; # NixOS logo on black background matching Plymouth theme
       gfxmodeBios = "1024x768,auto"; # Use 4:3 ratio to match splash image
     };
 
@@ -81,13 +83,6 @@ in
     spice-vdagentd.enable = true;
   };
 
-  environment.systemPackages = with pkgs; [
-    foot
-    xdg-utils
-  ];
+  environment.systemPackages = with pkgs; [ foot xdg-utils ];
 
-  environment.sessionVariables = {
-    GSK_RENDERER = "cairo";
-    WLR_RENDERER_ALLOW_SOFTWARE = "1";
-  };
 }

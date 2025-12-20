@@ -19,10 +19,7 @@ _: {
       hyprPluginPkgs = inputs.hyprland-plugins.packages.${system};
       hypr-plugin-dir = pkgs.symlinkJoin {
         name = "hyprland-plugins";
-        paths = [
-          hyprPluginPkgs.hyprexpo
-          hyprPluginPkgs.hyprbars
-        ];
+        paths = [ hyprPluginPkgs.hyprexpo hyprPluginPkgs.hyprbars ];
       };
 
       hyprlockPackages = inputs.hyprlock.packages.${system};
