@@ -1,29 +1,5 @@
-_: {
-  flake.modules.homeManager.applications = {
-    services.vicinae = {
-      enable = true;
-      useLayerShell = false;
-      settings = {
-        closeOnFocusLoss = false;
-        faviconService = "twenty";
-        font = {
-          normal = "SF Pro Rounded";
-          size = 10.5;
-        };
-        keybinding = "default";
-        keybinds = { };
-        popToRootOnClose = true;
-        rootSearch = { searchFiles = true; };
-        theme = {
-          iconTheme = "Win11";
-          name = "vicinae-dark";
-        };
-        window = {
-          csd = true;
-          opacity = 0.88;
-          rounding = 10;
-        };
-      };
-    };
+{
+  flake.modules.homeManager.applications = { pkgs, ... }: {
+    home.packages = with pkgs; [ vicinae ];
   };
 }

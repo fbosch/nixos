@@ -28,14 +28,16 @@ _: {
     {
       xdg.portal = {
         enable = true;
-        xdgOpenUsePortal = false;
+        xdgOpenUsePortal = true;
         extraPortals = [
           inputs.hyprland.packages.${system}.xdg-desktop-portal-hyprland
           pkgs.xdg-desktop-portal-gtk
         ];
         config = {
-          common = { default = [ "gtk" ]; };
-          hyprland = { default = [ "hyprland" "gtk" ]; };
+          hyprland = {
+            default = [ "hyprland" "gtk" ];
+            "org.freedesktop.impl.portal.Secret" = [ "gnome-keyring" ];
+          };
         };
       };
 
