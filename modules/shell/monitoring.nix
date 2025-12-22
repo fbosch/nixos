@@ -1,6 +1,6 @@
 {
   flake.modules.homeManager.shell = { pkgs, ... }: {
-    home.packages = with pkgs; [ htop btop dust fastfetch ];
+    home.packages = with pkgs; [ htop btop dust fastfetch microfetch ];
 
   };
 }
