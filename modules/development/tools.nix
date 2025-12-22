@@ -9,6 +9,7 @@
       gnumake
       sox
       ffmpeg
+      vips
       ghostscript
       tectonic
       librsvg
