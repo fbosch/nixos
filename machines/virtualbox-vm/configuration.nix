@@ -1,4 +1,4 @@
-{ pkgs, inputs, options, ... }:
+{ pkgs, inputs, options, lib, ... }:
 let
   theme =
     inputs.self.packages.${pkgs.stdenv.hostPlatform.system}.primitivistical-grub;
@@ -81,6 +81,9 @@ in
       rulesProvider = pkgs.ananicy-rules-cachyos;
     };
     spice-vdagentd.enable = true;
+
+    # Disable system76-scheduler (conflicts with ananicy-cpp and uses eBPF unnecessarily in VM)
+    system76-scheduler.enable = lib.mkForce false;
   };
 
   environment.systemPackages = with pkgs; [ foot xdg-utils ];
