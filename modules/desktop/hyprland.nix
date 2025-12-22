@@ -24,6 +24,12 @@ _: {
 
       hyprlockPackages = inputs.hyprlock.packages.${system};
       hyprlockPackage = hyprlockPackages.hyprlock or hyprlockPackages.default;
+
+      hypridlePackages = inputs.hypridle.packages.${system};
+      hypridlePackage = hypridlePackages.hypridle or hypridlePackages.default;
+
+      hyprsunsetPackages = inputs.hyprsunset.packages.${system};
+      hyprsunsetPackage = hyprsunsetPackages.hyprsunset or hyprsunsetPackages.default;
     in
     {
       xdg.portal = {
@@ -64,11 +70,13 @@ _: {
         XDG_SESSION_TYPE = "wayland";
       };
 
-      environment.systemPackages = [ hyprlockPackage ];
+      environment.systemPackages = [ hyprlockPackage hypridlePackage hyprsunsetPackage ];
 
       security.pam.services.hyprlock.text = ''
         auth include login
         account include login
       '';
+
+      security.pam.services.hypridle = { };
     };
 }

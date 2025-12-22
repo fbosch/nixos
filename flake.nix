@@ -53,6 +53,16 @@
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.systems.follows = "dedupe_systems";
     };
+    hypridle = {
+      url = "github:hyprwm/hypridle";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.systems.follows = "dedupe_systems";
+    };
+    hyprsunset = {
+      url = "github:hyprwm/hyprsunset";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.systems.follows = "dedupe_systems";
+    };
 
     # Secrets management (modules/sops.nix)
     sops-nix = {
