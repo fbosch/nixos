@@ -30,6 +30,7 @@
     extraNixos = [
       "secrets"
       "nas"
+      "gaming"
     ];
     # extraNixos = [ "hardware/fingerprint" ];
 
