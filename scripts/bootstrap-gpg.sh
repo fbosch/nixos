@@ -7,6 +7,23 @@ set -e
 GPG_KEY_ID="fbb.privacy+gpg@protonmail.com"
 GPG_FINGERPRINT="5E0FEC74518ED5FEAA5EA33E5C49A562D850322A"
 BW_KEY_NOTE="GPG Private Key"
+BW_SERVER_URL="https://vault.corvus-corax.synology.me"
+
+# Ensure Bitwarden CLI uses a writable data directory
+export BITWARDENCLI_APPDATA_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/Bitwarden CLI"
+mkdir -p "$BITWARDENCLI_APPDATA_DIR"
+
+# Remove Home Manager managed symlink if it exists (it points to read-only nix store)
+if [ -L "$BITWARDENCLI_APPDATA_DIR/data.json" ]; then
+    echo "Removing Home Manager managed Bitwarden CLI data.json symlink..."
+    rm "$BITWARDENCLI_APPDATA_DIR/data.json"
+fi
+
+# Initialize data.json with server URL if it doesn't exist or is empty
+if [ ! -f "$BITWARDENCLI_APPDATA_DIR/data.json" ] || [ ! -s "$BITWARDENCLI_APPDATA_DIR/data.json" ]; then
+    echo "Initializing Bitwarden CLI with server URL: $BW_SERVER_URL"
+    echo "{\"serverUrl\":\"$BW_SERVER_URL\"}" > "$BITWARDENCLI_APPDATA_DIR/data.json"
+fi
 
 echo "=== NixOS GPG Bootstrap ==="
 echo

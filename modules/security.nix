@@ -12,7 +12,7 @@
     };
   };
 
-  flake.modules.homeManager.security = { pkgs, meta, ... }: {
+  flake.modules.homeManager.security = { pkgs, ... }: {
     programs.gpg.enable = true;
 
     services.gpg-agent = {
@@ -24,8 +24,8 @@
     # Security tools
     home.packages = with pkgs; [ bitwarden-cli ];
 
-    # Configure Bitwarden server URL
-    home.file.".config/Bitwarden CLI/data.json".text =
-      builtins.toJSON { inherit (meta.bitwarden) serverUrl; };
+    # Note: Bitwarden CLI data.json is NOT managed by Home Manager
+    # to allow the CLI to write session data. Server URL should be
+    # configured manually or via bootstrap scripts.
   };
 }

@@ -65,7 +65,7 @@ BACKUP_KEY_FILE="secrets/${HOSTNAME}-age-key.txt"
 if [ ! -f "$BACKUP_KEY_FILE" ]; then
     echo "Creating backup at $BACKUP_KEY_FILE (gitignored)..."
     sudo cp /var/lib/sops-nix/key.txt "$BACKUP_KEY_FILE"
-    sudo chown $USER:$USER "$BACKUP_KEY_FILE"
+    sudo chown $USER:users "$BACKUP_KEY_FILE"
     chmod 600 "$BACKUP_KEY_FILE"
     echo "Backup created!"
     echo

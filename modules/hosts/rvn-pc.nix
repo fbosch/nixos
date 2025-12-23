@@ -27,8 +27,11 @@
       )
     ];
 
-    # extraNixos = [ "secrets" "nas" ];
-    extraNixos = [ "hardware/fingerprint" ];
+    extraNixos = [
+      "secrets"
+      "nas"
+    ];
+    # extraNixos = [ "hardware/fingerprint" ];
 
     extraHomeManager = [
       config.flake.modules.homeManager.dotfiles

@@ -1,6 +1,10 @@
 {
   flake.modules.nixos.nas = { config, lib, meta, ... }:
     let
+      # NAS server configuration
+      nasHostname = "rvn-nas";
+      nasIpAddress = "192.168.1.2";
+
       # List of NAS shares to mount
       shares = [
         "homes"
@@ -27,7 +31,7 @@
       # Generate mount configuration for a share
       mkMount = share: {
         type = "cifs";
-        what = "//rvn-nas/${share}";
+        what = "//${nasHostname}/${share}";
         where = "/mnt/nas/${share}";
         options = cifsOptions;
       };
@@ -40,6 +44,11 @@
       };
     in
     {
+      # Add NAS hostname to /etc/hosts for reliable name resolution
+      networking.hosts = {
+        "${nasIpAddress}" = [ nasHostname ];
+      };
+
       systemd = {
         tmpfiles.rules = [ "d /mnt/nas 0755 ${meta.user.username} users -" ]
           ++ (map mkTmpfileRule shares);
