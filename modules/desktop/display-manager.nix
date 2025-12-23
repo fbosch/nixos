@@ -21,13 +21,15 @@ _: {
         enable = true;
         settings = {
           default_session = {
-            command =
-              "${pkgs.tuigreet}/bin/tuigreet --time --remember --asterisks --issue --greet-align center --theme ${
+            command = ''
+              ${pkgs.greetd.tuigreet}/bin/tuigreet --time --remember --asterisks --issue --greet-align center --theme ${
                 lib.escapeShellArg (lib.removeSuffix "\n" tuigreetTheme)
-              } --sessions '' --cmd /etc/tuigreet/session";
+              } --sessions "" --cmd /etc/tuigreet/session
+            '';
             user = "greeter";
           };
         };
+        vt = 1;
       };
 
       systemd.services.greetd = { wantedBy = [ "graphical.target" ]; };
