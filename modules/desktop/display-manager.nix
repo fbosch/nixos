@@ -1,9 +1,14 @@
 _: {
-  flake.modules.nixos.desktop = { pkgs, lib, config, ... }:
+  flake.modules.nixos.desktop =
+    {
+      pkgs,
+      lib,
+      config,
+      ...
+    }:
     let
       tuigreetTheme = builtins.readFile ../../configs/tuigreet/theme.txt;
-      nixosVersion =
-        "${config.system.nixos.release} ${config.system.nixos.codeName}";
+      nixosVersion = "${config.system.nixos.release} ${config.system.nixos.codeName}";
       issueText = builtins.readFile ../../configs/tuigreet/issue.txt;
     in
     {
@@ -22,17 +27,16 @@ _: {
         settings = {
           default_session = {
             command = ''
-              ${pkgs.greetd.tuigreet}/bin/tuigreet --time --remember --asterisks --issue --greet-align center --theme ${
-                lib.escapeShellArg (lib.removeSuffix "\n" tuigreetTheme)
-              } --sessions "" --cmd /etc/tuigreet/session
+              ${pkgs.greetd.tuigreet}/bin/tuigreet --time --remember --asterisks --issue --greet-align center --theme ${lib.escapeShellArg (lib.removeSuffix "\n" tuigreetTheme)} --sessions "" --cmd /etc/tuigreet/session
             '';
             user = "greeter";
           };
         };
-        vt = 1;
       };
 
-      systemd.services.greetd = { wantedBy = [ "graphical.target" ]; };
+      systemd.services.greetd = {
+        wantedBy = [ "graphical.target" ];
+      };
 
       security.pam.services.greetd.enableGnomeKeyring = true;
     };

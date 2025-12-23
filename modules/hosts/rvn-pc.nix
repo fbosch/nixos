@@ -10,12 +10,6 @@
       (
         { pkgs, ... }:
         {
-          # Configure the framebuffer for the ultrawide monitor (DP-3: Dell AW3423DWF)
-          boot.kernelParams = [ 
-            "fbcon=font:TER16x32" 
-            "video=DP-3:3440x1440@165" 
-          ];
-
           # environment.sessionVariables = {
           #   GSK_RENDERER = "cairo";
           #   WLR_RENDERER_ALLOW_SOFTWARE = "1";
@@ -34,6 +28,7 @@
     ];
 
     # extraNixos = [ "secrets" "nas" ];
+    extraNixos = [ "hardware/fingerprint" ];
 
     extraHomeManager = [
       config.flake.modules.homeManager.dotfiles

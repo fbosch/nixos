@@ -1,8 +1,28 @@
 # Edit this configuration file to define what should be installed on
 # your system.  Help is available in the configuration.nix(5) man page
-# and in the NixOS manual (accessible by running ‘nixos-help’).
+# and in the NixOS manual (accessible by running 'nixos-help').
 
-{ config, pkgs, ... }:
+{ config, pkgs, inputs, ... }:
+let
+  theme = inputs.self.packages.${pkgs.stdenv.hostPlatform.system}.primitivistical-grub;
+
+  # Create GRUB splash matching Plymouth's visual layout
+  # GRUB will stretch to fit screen, so create at common 4:3 ratio (1024x768)
+  # which matches typical BIOS display modes better than 16:9
+  plymouthSplash = pkgs.runCommand "grub-splash.png"
+    {
+      nativeBuildInputs = [ pkgs.imagemagick ];
+    } ''
+    logo="${pkgs.mac-style-plymouth}/share/plymouth/themes/mac-style/images/header-image.png"
+
+    # Create 1024x768 canvas (common GRUB resolution, 4:3 aspect ratio)
+    # Position logo centered, matching Plymouth's layout
+    magick -size 1024x768 xc:black -colorspace sRGB \
+      \( "$logo" -colorspace sRGB \) -gravity center -composite \
+      -type TrueColor -depth 8 -define png:color-type=2 \
+      $out
+  '';
+in
 
 {
   imports = [
@@ -10,43 +30,49 @@
     ./hardware-configuration.nix
   ];
 
-  # Bootloader.
-  boot.loader.systemd-boot.enable = true;
-  boot.loader.efi.canTouchEfiVariables = true;
+
+  boot = {
+    # Hide boot messages for clean splash screen experience
+    consoleLogLevel = 3; # Show only errors and critical messages
+    kernelParams = [
+      "quiet" # Suppress most kernel messages
+      "splash" # Enable splash screen
+      "vt.global_cursor_default=0" # Hide cursor
+      "udev.log_level=3" # Reduce udev verbosity
+      "rd.systemd.show_status=auto" # Only show status on errors
+      "rd.udev.log_level=3" # Reduce initrd udev verbosity
+    ];
+
+    loader.grub = {
+      enable = true;
+      device = "nodev";
+      efiSupport = true;
+      useOSProber = true;
+      configurationLimit = 42;
+      inherit theme;
+      splashImage =
+        plymouthSplash; # NixOS logo on black background matching Plymouth theme
+      gfxmodeEfi = "1024x768,auto"; # Use 4:3 ratio to match splash image
+    };
+    loader.efi.canTouchEfiVariables = true;
+
+    plymouth = {
+      enable = true;
+      theme = "mac-style";
+      themePackages = [ pkgs.mac-style-plymouth ];
+    };
+  };
+
+  nixpkgs = {
+    overlays = [ inputs.mac-style-plymouth.overlays.default ];
+    config.allowUnfree = true;
+  };
 
   networking.hostName = "rvn-pc"; # Define your hostname.
-  # networking.wireless.enable = true;  # Enables wireless support via wpa_supplicant.
-
-  # Configure network proxy if necessary
-  # networking.proxy.default = "http://user:password@proxy:port/";
-  # networking.proxy.noProxy = "127.0.0.1,localhost,internal.domain";
-
-  # Enable networking
   networking.networkmanager.enable = true;
 
   # Set your time zone.
   time.timeZone = "Europe/Copenhagen";
-
-  # Select internationalisation properties.
-  # i18n.defaultLocale = "en_DK.UTF-8";
-  #
-  # i18n.extraLocaleSettings = {
-  #   LC_ADDRESS = "da_DK.UTF-8";
-  #   LC_IDENTIFICATION = "da_DK.UTF-8";
-  #   LC_MEASUREMENT = "da_DK.UTF-8";
-  #   LC_MONETARY = "da_DK.UTF-8";
-  #   LC_NAME = "da_DK.UTF-8";
-  #   LC_NUMERIC = "da_DK.UTF-8";
-  #   LC_PAPER = "da_DK.UTF-8";
-  #   LC_TELEPHONE = "da_DK.UTF-8";
-  #   LC_TIME = "da_DK.UTF-8";
-  # };
-
-  # Configure keymap in X11
-  # services.xserver.xkb = {
-  #   layout = "dk";
-  #   variant = "";
-  # };
 
   # Configure console keymap
   console.keyMap = "dk-latin1";
@@ -62,23 +88,13 @@
     packages = with pkgs; [ ];
   };
 
-  # Allow unfree packages
-  nixpkgs.config.allowUnfree = true;
-
   # List packages installed in system profile. To search, run:
   # $ nix search wget
   environment.systemPackages = with pkgs; [
-    #  vim # Do not forget to add an editor to edit configuration.nix! The Nano editor is also installed by default.
-    #  wget
+    wget
+    vim
+    neovim
   ];
-
-  # Some programs need SUID wrappers, can be configured further or are
-  # started in user sessions.
-  # programs.mtr.enable = true;
-  # programs.gnupg.agent = {
-  #   enable = true;
-  #   enableSSHSupport = true;
-  # };
 
   # List services that you want to enable:
 
