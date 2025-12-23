@@ -15,9 +15,9 @@
       ];
     };
   };
-  flake.modules.homeManager.fonts = { pkgs, lib, config, ... }:
+  flake.modules.homeManager.fonts = { pkgs, lib, config, osConfig, ... }:
     let
-      allowProprietary = config.nixpkgs.config.allowUnfree or false;
+      allowProprietary = osConfig.nixpkgs.config.allowUnfree or config.nixpkgs.config.allowUnfree or false;
 
       proprietaryFontsPackage =
         if !allowProprietary then null
@@ -35,7 +35,7 @@
                 fileName = "segmdl2.ttf";
                 src = pkgs.fetchzip {
                   url = "https://download.microsoft.com/download/8/f/c/8fc7cbc3-177e-4a22-af48-2a85e1c5bffb/Segoe-Fluent-Icons.zip";
-                  sha256 = "sha256-hyCLlUOtFzg6GxspL+kTPFRrogsryCSXW+NypIUbPkQ=";
+                  sha256 = "sha256-MgwkgbVN8vZdZAFwG+CVYu5igkzNcg4DKLInOL1ES9A=";
                   stripRoot = false;
                 };
                 sourcePath = "Segoe Fluent Icons.ttf";

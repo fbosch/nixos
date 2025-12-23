@@ -7,21 +7,24 @@
     hostImports = [
       ../../machines/desktop/configuration.nix
       ../../machines/desktop/hardware-configuration.nix
-      ({ pkgs, ... }: {
-        # environment.sessionVariables = {
-        #   GSK_RENDERER = "cairo";
-        #   WLR_RENDERER_ALLOW_SOFTWARE = "1";
-        #   TERMINAL = "foot";
-        # };
+      (
+        { pkgs, ... }:
+        {
+          # environment.sessionVariables = {
+          #   GSK_RENDERER = "cairo";
+          #   WLR_RENDERER_ALLOW_SOFTWARE = "1";
+          #   TERMINAL = "foot";
+          # };
 
-        # security.sudo.extraConfig = ''
-        #   Defaults timestamp_timeout = 120
-        # '';
+          # security.sudo.extraConfig = ''
+          #   Defaults timestamp_timeout = 120
+          # '';
 
-        # environment.systemPackages = [
-        #   pkgs.local.chromium-realforce
-        # ];
-      })
+          # environment.systemPackages = [
+          #   pkgs.local.chromium-realforce
+          # ];
+        }
+      )
     ];
 
     # extraNixos = [ "secrets" "nas" ];

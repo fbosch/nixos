@@ -28,7 +28,11 @@ in
             modules = [
               hostModule
               inputs.home-manager.nixosModules.home-manager
-              { home-manager.extraSpecialArgs = hmSpecialArgs; }
+              {
+                home-manager.extraSpecialArgs = hmSpecialArgs;
+                home-manager.useGlobalPkgs = true;
+                home-manager.useUserPackages = true;
+              }
             ];
           };
         }
