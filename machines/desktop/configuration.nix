@@ -50,9 +50,6 @@ in
       # HDR support for NVIDIA
       "nvidia_drm.modeset=1" # Enable modesetting (required for HDR)
       "nvidia.NVreg_EnableGpuFirmware=0" # Improve compatibility
-      # Plymouth display configuration - show only on main DisplayPort
-      "video=DP-1:e" # Enable DisplayPort output for Plymouth
-      "video=HDMI-A-1:d" # Disable HDMI during boot to prevent Plymouth showing there
     ];
 
     loader.grub = {
