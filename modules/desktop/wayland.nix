@@ -18,6 +18,7 @@ _:
       wev
       nwg-look
       nwg-displays
+      wlr-randr
       wl-clipboard
       wl-clipboard-x11
       cliphist
