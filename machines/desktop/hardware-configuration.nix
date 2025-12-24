@@ -44,7 +44,13 @@
 
   nixpkgs.hostPlatform = lib.mkDefault "x86_64-linux";
   hardware.cpu.intel.updateMicrocode = lib.mkDefault config.hardware.enableRedistributableFirmware;
-  hardware.graphics.enable = true;
+  
+  # Graphics configuration with HDR support
+  hardware.graphics = {
+    enable = true;
+    enable32Bit = true; # For 32-bit applications
+  };
+  
   hardware.nvidia = {
     modesetting.enable = true;
     powerManagement.enable = true;
@@ -52,6 +58,10 @@
     open = false;
     nvidiaSettings = true;
     package = config.boot.kernelPackages.nvidiaPackages.stable;
+    
+    # Enable HDR and 10-bit color support
+    forceFullCompositionPipeline = false; # Disable to allow HDR
   };
+  
   services.xserver.videoDrivers = [ "nvidia" ];
 }

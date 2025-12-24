@@ -41,6 +41,9 @@ in
       "udev.log_level=3" # Reduce udev verbosity
       "rd.systemd.show_status=auto" # Only show status on errors
       "rd.udev.log_level=3" # Reduce initrd udev verbosity
+      # HDR support for NVIDIA
+      "nvidia_drm.modeset=1" # Enable modesetting (required for HDR)
+      "nvidia.NVreg_EnableGpuFirmware=0" # Improve compatibility
     ];
 
     loader.grub = {

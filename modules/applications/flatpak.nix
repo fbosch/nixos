@@ -49,6 +49,7 @@
           "org.gnome.FileRoller"
           "org.gnome.TextEditor"
           "org.gnome.Decibels"
+          "net.displaycal.DisplayCAL"
           # "org.gnome.World.PikaBackup"
           "app.zen_browser.zen"
           "be.alexandervanhee.gradia"
