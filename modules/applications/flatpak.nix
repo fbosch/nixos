@@ -1,13 +1,17 @@
 {
   flake.modules.nixos.applications = _: { services.flatpak.enable = true; };
-  flake.modules.homeManager.applications = {
+  flake.modules.homeManager.applications = { pkgs, ... }: {
     services.flatpak = {
       enable = true;
       uninstallUnmanaged = true;
 
       overrides = {
         global = {
-          Context.sockets = [ "wayland" "!x11" "!fallback-x11" ];
+          Context.sockets = [
+            "wayland"
+            "!x11"
+            "!fallback-x11"
+          ];
           Context.filesystems = [
             "xdg-config/fontconfig:ro"
             "~/.local/share/fonts:ro"
@@ -24,10 +28,12 @@
         };
       };
 
-      remotes = [{
-        name = "flathub";
-        location = "https://dl.flathub.com/repo/flathub.flatpakrepo";
-      }];
+      remotes = [
+        {
+          name = "flathub";
+          location = "https://dl.flathub.org/repo/flathub.flatpakrepo";
+        }
+      ];
 
       packages = [
         "com.github.tchx84.Flatseal"
@@ -44,7 +50,6 @@
         # "org.gnome.World.PikaBackup"
         "be.alexandervanhee.gradia"
         "com.plexamp.Plexamp"
-        "app.zen_browser.zen"
         "re.sonny.OhMySVG"
         # "dev.zed.Zed"
         # "com.rustdesk.RustDesk"
