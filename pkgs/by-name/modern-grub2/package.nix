@@ -7,13 +7,13 @@
 
 stdenvNoCC.mkDerivation rec {
   pname = "modern-grub2";
-  version = "unstable-2023-10-15";
+  version = "unstable-2024-04-12";
 
   src = fetchFromGitHub {
     owner = "Seven59";
     repo = "Modern-grub2";
-    rev = "06e96ab54ebf36c37c2f0c8f9cb7fa57c6e93ca4";
-    hash = "sha256-nKHASKDlaKy5J/PCrgvxP5e2ShoRpLxA5RoSdHJZXDQ=";
+    rev = "b732fe3fad5b30dd55b108826943285656e5921c";
+    hash = "sha256-8efXbfV/Ri86vqtGRBJbcaFSQFigFp4/edImnR9aWTc=";
   };
 
   nativeBuildInputs = [ imagemagick ];
