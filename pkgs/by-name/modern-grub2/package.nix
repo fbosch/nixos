@@ -21,7 +21,7 @@ stdenvNoCC.mkDerivation rec {
   # Configuration options
   theme = "whitesur"; # Options: tela, vimix, stylish, whitesur
   icon = "whitesur"; # Options: color, white, whitesur
-  customResolution = "3440x1440"; # Custom resolution for ultrawide display
+  screen = "ultrawide2k"; # Use ultrawide2k preset for proper 1440p scaling
 
   installPhase = ''
     runHook preInstall
@@ -29,10 +29,10 @@ stdenvNoCC.mkDerivation rec {
     # Create output directory
     mkdir -p $out
 
-    # Run the install script to generate the theme with custom resolution
+    # Run the install script with ultrawide2k preset (3440x1440)
     bash ./install.sh \
       --generate $out \
-      --custom-resolution ${customResolution} \
+      --screen ${screen} \
       --theme ${theme} \
       --icon ${icon}
 
