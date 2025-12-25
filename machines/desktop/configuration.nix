@@ -37,13 +37,14 @@
       useOSProber = true;
       configurationLimit = 42;
     };
+
     loader.efi.canTouchEfiVariables = true;
 
     loader.grub2-theme = {
       enable = true;
       theme = "whitesur";
       icon = "white";
-      screen = "ultrawide2k";
+      screen = "ultrawide2k"; # Use preset instead of customResolution to avoid stretching bug
       footer = true;
     };
 
@@ -58,24 +59,10 @@
     config.allowUnfree = true;
   };
 
-  networking.hostName = "rvn-pc"; # Define your hostname.
-  networking.networkmanager.enable = true;
-
-  # Set your time zone.
-  time.timeZone = "Europe/Copenhagen";
-
-  # Configure console keymap
-  console.keyMap = "dk-latin1";
-
-  # Define a user account. Don't forget to set a password with ‘passwd’.
-  users.users.fbb = {
-    isNormalUser = true;
-    description = "Frederik Bosch";
-    extraGroups = [
-      "networkmanager"
-      "wheel"
-    ];
-    packages = with pkgs; [ ];
+  networking = {
+    hostName = "rvn-pc";
+    networkmanager.enable = true;
+    timeServers = options.networking.timeServers.default ++ [ "time.nist.gov" ];
   };
 
   # List packages installed in system profile. To search, run:

@@ -5,6 +5,7 @@
     preset = "desktop";
 
     hostImports = [
+      inputs.grub2-themes.nixosModules.default
       ../../machines/virtualbox-vm/configuration.nix
       ../../machines/virtualbox-vm/hardware-configuration.nix
       ({ pkgs, ... }: {

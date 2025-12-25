@@ -1,8 +1,4 @@
 { pkgs, inputs, options, lib, ... }:
-let
-  theme =
-    inputs.self.packages.${pkgs.stdenv.hostPlatform.system}.modern-grub2;
-in
 {
   system.stateVersion = "25.05";
   hardware.bluetooth.enable = false;
@@ -22,14 +18,22 @@ in
       "vboxguest.disable_cursor_plane=1" # Disable hardware cursor in VirtualBox
     ];
 
-    loader.grub = {
-      enable = true;
-      device = "/dev/sda";
-      useOSProber = true;
-      configurationLimit = 42;
-      theme = "${theme}/whitesur";
-      splashImage = "${theme}/whitesur/background.jpg";
-      gfxmodeBios = "2560x1080,auto";
+    loader = {
+      grub = {
+        enable = true;
+        device = "/dev/sda";
+        useOSProber = true;
+        configurationLimit = 42;
+        gfxmodeBios = "1920x1080,auto";
+      };
+      
+      grub2-theme = {
+        enable = true;
+        theme = "whitesur";
+        icon = "white";
+        customResolution = "1920x1080";
+        footer = true;
+      };
     };
 
     plymouth = {
