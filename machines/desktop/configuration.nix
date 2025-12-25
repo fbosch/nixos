@@ -6,10 +6,14 @@
   config,
   pkgs,
   inputs,
+  options,
   ...
 }:
-
 {
+
+  system.stateVersion = "25.11"; # Did you read the comment?
+  hardware.bluetooth.enable = false;
+
   imports = [
     # Include the results of the hardware scan.
     ./hardware-configuration.nix
@@ -28,6 +32,8 @@
       # HDR support for NVIDIA
       "nvidia_drm.modeset=1" # Enable modesetting (required for HDR)
       "nvidia.NVreg_EnableGpuFirmware=0" # Improve compatibility
+      # Force 1080p for Plymouth (centered with black bars on ultrawide, prevents stretching)
+      "video=1920x1080"
     ];
 
     loader.grub = {
@@ -36,6 +42,13 @@
       efiSupport = true;
       useOSProber = true;
       configurationLimit = 42;
+      extraConfig = ''
+        # Use 1024x768 - best balance for ultrawide (won't be as stretched)
+        set gfxmode=1024x768
+        insmod all_video
+        insmod gfxterm
+        terminal_output gfxterm
+      '';
     };
 
     loader.efi.canTouchEfiVariables = true;
@@ -44,8 +57,9 @@
       enable = true;
       theme = "whitesur";
       icon = "white";
-      screen = "ultrawide2k"; # Use preset instead of customResolution to avoid stretching bug
+      screen = "1080p";
       footer = true;
+      splashImage = ./../../assets/grub-backgrounds/black.jpg;
     };
 
     plymouth = {
@@ -83,13 +97,5 @@
   # networking.firewall.allowedUDPPorts = [ ... ];
   # Or disable the firewall altogether.
   # networking.firewall.enable = false;
-
-  # This value determines the NixOS release from which the default
-  # settings for stateful data, like file locations and database versions
-  # on your system were taken. It‘s perfectly fine and recommended to leave
-  # this value at the release version of the first install of this system.
-  # Before changing this value read the documentation for this option
-  # (e.g. man configuration.nix or on https://nixos.org/nixos/options.html).
-  system.stateVersion = "25.11"; # Did you read the comment?
 
 }
