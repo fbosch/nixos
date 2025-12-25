@@ -39,9 +39,9 @@ in
       efiSupport = true;
       useOSProber = true;
       configurationLimit = 42;
-      theme = "${theme}/tela";
-      splashImage = "${theme}/tela/background.jpg";
-      gfxmodeEfi = "1920x1080,auto";
+      theme = "${theme}/whitesur";
+      splashImage = "${theme}/whitesur/background.jpg";
+      gfxmodeEfi = "2560x1080,auto";
     };
     loader.efi.canTouchEfiVariables = true;
 

@@ -27,9 +27,9 @@ in
       device = "/dev/sda";
       useOSProber = true;
       configurationLimit = 42;
-      theme = "${theme}/tela";
-      splashImage = "${theme}/tela/background.jpg";
-      gfxmodeBios = "1920x1080,auto";
+      theme = "${theme}/whitesur";
+      splashImage = "${theme}/whitesur/background.jpg";
+      gfxmodeBios = "2560x1080,auto";
     };
 
     plymouth = {

@@ -19,9 +19,9 @@ stdenvNoCC.mkDerivation rec {
   nativeBuildInputs = [ imagemagick ];
 
   # Configuration options
-  theme = "tela"; # Options: tela, vimix, stylish, whitesur
-  icon = "white"; # Options: color, white, whitesur
-  screen = "1080p"; # Options: 1080p, 2k, 4k, ultrawide, ultrawide2k
+  theme = "whitesur"; # Options: tela, vimix, stylish, whitesur
+  icon = "whitesur"; # Options: color, white, whitesur
+  screen = "ultrawide"; # Options: 1080p, 2k, 4k, ultrawide, ultrawide2k
 
   installPhase = ''
     runHook preInstall
