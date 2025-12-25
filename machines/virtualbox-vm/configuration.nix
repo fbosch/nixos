@@ -10,7 +10,7 @@ let
     {
       nativeBuildInputs = [ pkgs.imagemagick ];
     } ''
-    logo="${pkgs.mac-style-plymouth}/share/plymouth/themes/mac-style/images/header-image.png"
+    logo="${inputs.self.packages.${pkgs.stdenv.hostPlatform.system}.monoarch-plymouth}/share/plymouth/themes/monoarch-refined/images/logo.png"
 
     # Create 1024x768 canvas (common GRUB resolution, 4:3 aspect ratio)
     # Position logo centered, matching Plymouth's layout
@@ -52,13 +52,12 @@ in
 
     plymouth = {
       enable = true;
-      theme = "mac-style";
-      themePackages = [ pkgs.mac-style-plymouth ];
+      theme = "monoarch-refined";
+      themePackages = [ inputs.self.packages.${pkgs.stdenv.hostPlatform.system}.monoarch-plymouth ];
     };
   };
 
   nixpkgs = {
-    overlays = [ inputs.mac-style-plymouth.overlays.default ];
     config.allowUnfree = true;
   };
 

@@ -91,12 +91,7 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # Boot theming for VMs (machines/virtualbox-vm/configuration.nix)
-    mac-style-plymouth = {
-      url = "github:SergioRibera/s4rchiso-plymouth-theme";
-      inputs.nixpkgs.follows = "nixpkgs";
-      inputs.flake-utils.follows = "dedupe_flake-utils";
-    };
+    # Boot theming
     distro-grub-themes = {
       url = "github:AdisonCavani/distro-grub-themes";
       inputs.nixpkgs.follows = "nixpkgs";
