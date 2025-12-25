@@ -32,8 +32,7 @@
       # HDR support for NVIDIA
       "nvidia_drm.modeset=1" # Enable modesetting (required for HDR)
       "nvidia.NVreg_EnableGpuFirmware=0" # Improve compatibility
-      # Force 1080p for Plymouth (centered with black bars on ultrawide, prevents stretching)
-      "video=1920x1080"
+      "video=DP-1:3440x1440"
     ];
 
     loader.grub = {
@@ -71,6 +70,19 @@
 
   nixpkgs = {
     config.allowUnfree = true;
+  };
+
+  services = {
+    upower.enable = true;
+    dbus.enable = true;
+    timesyncd.enable = true;
+    ananicy = {
+      enable = true;
+      package = pkgs.ananicy-cpp;
+      rulesProvider = pkgs.ananicy-rules-cachyos;
+    };
+    spice-vdagentd.enable = true;
+    system76-scheduler.enable = true;
   };
 
   networking = {
