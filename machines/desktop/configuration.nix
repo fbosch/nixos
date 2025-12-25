@@ -8,9 +8,6 @@
   inputs,
   ...
 }:
-let
-  theme = inputs.self.packages.${pkgs.stdenv.hostPlatform.system}.modern-grub2;
-in
 
 {
   imports = [
@@ -39,11 +36,16 @@ in
       efiSupport = true;
       useOSProber = true;
       configurationLimit = 42;
-      theme = "${theme}/whitesur";
-      splashImage = "${theme}/whitesur/background.jpg";
-      gfxmodeEfi = "3440x1440,auto";
     };
     loader.efi.canTouchEfiVariables = true;
+
+    loader.grub2-theme = {
+      enable = true;
+      theme = "whitesur";
+      icon = "white";
+      screen = "ultrawide2k";
+      footer = true;
+    };
 
     plymouth = {
       enable = true;

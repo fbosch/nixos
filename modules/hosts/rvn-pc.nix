@@ -7,6 +7,7 @@
     hostImports = [
       ../../machines/desktop/configuration.nix
       ../../machines/desktop/hardware-configuration.nix
+      inputs.grub2-themes.nixosModules.default
       (
         { pkgs, ... }:
         {
