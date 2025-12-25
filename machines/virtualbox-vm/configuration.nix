@@ -1,4 +1,10 @@
-{ pkgs, inputs, options, lib, ... }:
+{
+  pkgs,
+  inputs,
+  options,
+  lib,
+  ...
+}:
 {
   system.stateVersion = "25.05";
   hardware.bluetooth.enable = false;
@@ -13,7 +19,6 @@
       "udev.log_level=3" # Reduce udev verbosity
       "rd.systemd.show_status=auto" # Only show status on errors
       "rd.udev.log_level=3" # Reduce initrd udev verbosity
-
       # VirtualBox graphics optimizations
       "vboxguest.disable_cursor_plane=1" # Disable hardware cursor in VirtualBox
     ];
@@ -26,7 +31,7 @@
         configurationLimit = 42;
         gfxmodeBios = "1920x1080,auto";
       };
-      
+
       grub2-theme = {
         enable = true;
         theme = "whitesur";
@@ -71,6 +76,9 @@
     system76-scheduler.enable = lib.mkForce false;
   };
 
-  environment.systemPackages = with pkgs; [ foot xdg-utils ];
+  environment.systemPackages = with pkgs; [
+    foot
+    xdg-utils
+  ];
 
 }

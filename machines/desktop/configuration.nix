@@ -32,8 +32,13 @@
       # HDR support for NVIDIA
       "nvidia_drm.modeset=1" # Enable modesetting (required for HDR)
       "nvidia.NVreg_EnableGpuFirmware=0" # Improve compatibility
-      "video=DP-1:3440x1440"
     ];
+
+    # Optimize tmpfs usage for 32GB RAM system
+    tmp = {
+      useTmpfs = true;
+      tmpfsSize = "8G"; # ~25% of RAM for temporary files
+    };
 
     loader.grub = {
       enable = true;
@@ -42,8 +47,8 @@
       useOSProber = true;
       configurationLimit = 42;
       extraConfig = ''
-        # Use 1024x768 - best balance for ultrawide (won't be as stretched)
-        set gfxmode=1024x768
+        # Use maximum supported resolution (1080p)
+        set gfxmode=1920x1080
         insmod all_video
         insmod gfxterm
         terminal_output gfxterm

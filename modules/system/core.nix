@@ -1,4 +1,9 @@
-{ inputs, lib, config, ... }:
+{
+  inputs,
+  lib,
+  config,
+  ...
+}:
 {
   flake.modules.nixos.system = {
     # Centralize nixpkgs overlays for all NixOS hosts
@@ -23,8 +28,12 @@
     environment.localBinInPath = true;
 
     nixpkgs.config = {
-      allowUnfreePredicate = pkg:
-        let name = lib.getName pkg; in builtins.elem name (config.flake.meta.unfree.allowList or [ ]);
+      allowUnfreePredicate =
+        pkg:
+        let
+          name = lib.getName pkg;
+        in
+        builtins.elem name (config.flake.meta.unfree.allowList or [ ]);
     };
 
     nix = {
@@ -33,7 +42,10 @@
           "nix-command"
           "flakes"
         ];
-        trusted-users = [ "root" "@wheel" ];
+        trusted-users = [
+          "root"
+          "@wheel"
+        ];
         auto-optimise-store = true;
         substituters = [
           "https://cache.nixos.org"
