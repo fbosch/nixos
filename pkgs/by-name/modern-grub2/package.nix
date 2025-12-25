@@ -7,13 +7,13 @@
 
 stdenvNoCC.mkDerivation rec {
   pname = "modern-grub2";
-  version = "unstable-2024-04-12";
+  version = "unstable-2024-12-25";
 
   src = fetchFromGitHub {
-    owner = "Seven59";
-    repo = "Modern-grub2";
-    rev = "b732fe3fad5b30dd55b108826943285656e5921c";
-    hash = "sha256-8efXbfV/Ri86vqtGRBJbcaFSQFigFp4/edImnR9aWTc=";
+    owner = "vinceliuice";
+    repo = "grub2-themes";
+    rev = "80dd04ddf3ba7b284a7b1a5df2b1e95ee2aad606";
+    hash = "sha256-tKU+vq34KHu/A2wD7WdgP5A4/RCmSD8hB0TyQAUlixA=";
   };
 
   nativeBuildInputs = [ imagemagick ];
@@ -21,7 +21,7 @@ stdenvNoCC.mkDerivation rec {
   # Configuration options
   theme = "whitesur"; # Options: tela, vimix, stylish, whitesur
   icon = "whitesur"; # Options: color, white, whitesur
-  screen = "ultrawide"; # Options: 1080p, 2k, 4k, ultrawide, ultrawide2k
+  customResolution = "3440x1440"; # Custom resolution for ultrawide display
 
   installPhase = ''
     runHook preInstall
@@ -29,10 +29,10 @@ stdenvNoCC.mkDerivation rec {
     # Create output directory
     mkdir -p $out
 
-    # Run the install script to generate the theme
+    # Run the install script to generate the theme with custom resolution
     bash ./install.sh \
       --generate $out \
-      --screen ${screen} \
+      --custom-resolution ${customResolution} \
       --theme ${theme} \
       --icon ${icon}
 

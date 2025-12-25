@@ -41,7 +41,7 @@ in
       configurationLimit = 42;
       theme = "${theme}/whitesur";
       splashImage = "${theme}/whitesur/background.jpg";
-      gfxmodeEfi = "2560x1080,auto";
+      gfxmodeEfi = "3440x1440,auto";
     };
     loader.efi.canTouchEfiVariables = true;
 
