@@ -16,6 +16,8 @@
     , extraNixos ? [ ]
     , username
     , displayManagerMode ? config.flake.meta.displayManager.defaultMode
+    , sddmMonitor ? null
+    , sddmSetupCommands ? null
     }:
     let
       presetConfig =
@@ -27,7 +29,13 @@
     in
     {
       # Store metadata separately to be accessed by hosts.nix
-      _hostConfig = { inherit displayManagerMode; };
+      _hostConfig = {
+        inherit displayManagerMode;
+      } // lib.optionalAttrs (sddmMonitor != null) {
+        inherit sddmMonitor;
+      } // lib.optionalAttrs (sddmSetupCommands != null) {
+        inherit sddmSetupCommands;
+      };
       
       # Return the module function
       _module = _moduleArgs: {

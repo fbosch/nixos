@@ -29,7 +29,7 @@ _: {
     displayManager = {
       # Default display manager mode for hosts
       # Can be overridden per-host in hostConfig
-      defaultMode = "tuigreet"; # Options: "tuigreet" | "hyprlock-autologin"
+      defaultMode = "regreet"; # Options: "regreet" | "tuigreet" | "hyprlock-autologin" (legacy)
     };
 
     versions = {

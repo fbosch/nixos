@@ -1,31 +1,31 @@
-{
-  flake.modules.homeManager.desktop = { pkgs, ... }:
+_: {
+  # NixOS module: Install GTK themes system-wide
+  flake.modules.nixos.desktop =
+    { pkgs, ... }:
     let
       monoTheme = pkgs.stdenv.mkDerivation {
         name = "MonoTheme";
         src = pkgs.fetchzip {
-          url =
-            "https://github.com/witalihirsch/Mono-gtk-theme/releases/download/1.3/MonoTheme.zip";
+          url = "https://github.com/witalihirsch/Mono-gtk-theme/releases/download/1.3/MonoTheme.zip";
           sha256 = "sha256-/Ysak/WeWY4+svCu3yhi/blfcUsSnGOrWn8/YCyNTYM=";
         };
         dontBuild = true;
         installPhase = ''
-          mkdir -p $out
-          cp -r . $out/
+          mkdir -p $out/share/themes/MonoTheme
+          cp -r . $out/share/themes/MonoTheme/
         '';
       };
 
       monoThemeDark = pkgs.stdenv.mkDerivation {
         name = "MonoThemeDark";
         src = pkgs.fetchzip {
-          url =
-            "https://github.com/witalihirsch/Mono-gtk-theme/releases/download/1.3/MonoThemeDark.zip";
+          url = "https://github.com/witalihirsch/Mono-gtk-theme/releases/download/1.3/MonoThemeDark.zip";
           sha256 = "sha256-wQvRdJr6LWltnk8CMchu2y5zPXM5k7m0EOv4w4R8l9U=";
         };
         dontBuild = true;
         installPhase = ''
-          mkdir -p $out
-          cp -r . $out/
+          mkdir -p $out/share/themes/MonoThemeDark
+          cp -r . $out/share/themes/MonoThemeDark/
         '';
       };
 
@@ -39,8 +39,8 @@
         };
         dontBuild = true;
         installPhase = ''
-          mkdir -p $out
-          cp -ar src/. $out/
+          mkdir -p $out/share/icons
+          cp -ar src/. $out/share/icons/Win11/
         '';
       };
 
@@ -54,8 +54,8 @@
         };
         dontBuild = true;
         installPhase = ''
-          mkdir -p $out
-          cp -ar dist/. $out/
+          mkdir -p $out/share/icons
+          cp -ar dist/. $out/share/icons/WinSur-white-cursors/
         '';
       };
 
@@ -69,8 +69,8 @@
         };
         dontBuild = true;
         installPhase = ''
-          mkdir -p $out
-          cp -ar src/. $out/
+          mkdir -p $out/share/icons
+          cp -ar src/. $out/share/icons/We10X/
         '';
       };
 
@@ -85,23 +85,29 @@
         dontBuild = true;
         dontFixup = true;
         installPhase = ''
-          mkdir -p $out
-          cp -ar . $out/
+          mkdir -p $out/share/icons
+          cp -ar . $out/share/icons/Mkos-Big-Sur/
         '';
       };
     in
     {
-      home.file = {
-        ".local/share/themes/MonoTheme".source = monoTheme;
-        ".local/share/themes/MonoThemeDark".source = monoThemeDark;
-        ".local/share/icons/Win11".source = win11Icons;
-        ".local/share/icons/WinSur-white-cursors".source = winsurCursors;
-        ".local/share/icons/We10X".source = we10xIcons;
-        ".local/share/icons/Mkos-Big-Sur".source = mkosBigSurIcons;
-      };
+      environment.systemPackages = [
+        monoTheme
+        monoThemeDark
+        win11Icons
+        winsurCursors
+        we10xIcons
+        mkosBigSurIcons
+        pkgs.gtk4
+        pkgs.adw-gtk3
+        pkgs.colloid-gtk-theme
+      ];
+    };
 
-      home.packages = with pkgs; [ gtk4 adw-gtk3 colloid-gtk-theme ];
-
+  # Home Manager module: Configure GTK settings
+  flake.modules.homeManager.desktop =
+    { ... }:
+    {
       dconf.settings = {
         "org/gnome/desktop/interface" = {
           monospace-font-name = "SF Mono 11";
