@@ -4,14 +4,14 @@
     environment.systemPackages = with pkgs; [ freerdp xdg-utils ];
   };
 
-  flake.modules.homeManager.windows = { pkgs, lib, ... }:
+  flake.modules.homeManager.windows = { pkgs, lib, inputs, ... }:
     let
       # Define Windows installers to fetch and deploy
       windowsInstallers = [{
         name = "MEGAsyncSetup64.exe";
         url = "https://mega.nz/MEGAsyncSetup64.exe";
         sha256 =
-          "6ffa84575a19e64a21e26f6a752854212b5c73555db1e20cee78ee44efe7781d";
+          "92a7ca073bdb0eca85d2af66a20fd5970843c42eab535f953ce59e83f6aa31e0";
       }
         # Add more Windows installers here as needed
         # Example:
@@ -41,6 +41,7 @@
     {
       home.packages = with pkgs; [
         wine
+        winboat
         inputs.winapps.packages.${pkgs.stdenv.hostPlatform.system}.winapps
         inputs.winapps.packages.${pkgs.stdenv.hostPlatform.system}.winapps-launcher
         freerdp

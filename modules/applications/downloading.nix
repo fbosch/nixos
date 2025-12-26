@@ -1,8 +1,11 @@
 {
-  flake.modules.homeManager.applications = { pkgs, ... }: {
-    home.packages = with pkgs; [
-      p7zip
-      speedtest-cli
-    ];
-  };
+  flake.modules.homeManager.applications =
+    { pkgs, ... }:
+    {
+      home.packages = with pkgs; [
+        megasync
+        p7zip
+        speedtest-cli
+      ];
+    };
 }

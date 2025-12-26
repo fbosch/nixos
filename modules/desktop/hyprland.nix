@@ -72,10 +72,13 @@ _: {
 
       environment.systemPackages = [ hyprlockPackage hypridlePackage hyprsunsetPackage ];
 
-      security.pam.services.hyprlock.text = ''
-        auth include login
-        account include login
-      '';
+      security.pam.services.hyprlock = {
+        enableGnomeKeyring = true;
+        text = ''
+          auth include login
+          account include login
+        '';
+      };
 
       security.pam.services.hypridle = { };
     };

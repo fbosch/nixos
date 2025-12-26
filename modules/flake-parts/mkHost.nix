@@ -1,6 +1,12 @@
-{ config, ... }:
+{ config, lib, ... }:
 {
-  flake.lib.mkHost =
+  options.flake.hostConfigs = lib.mkOption {
+    type = lib.types.attrsOf lib.types.attrs;
+    default = { };
+    description = "Host-specific configuration metadata";
+  };
+
+  config.flake.lib.mkHost =
     { nixos ? [ ]
     , homeManager ? [ ]
     , modules ? [ ]
@@ -9,31 +15,31 @@
     , extraHomeManager ? [ ]
     , extraNixos ? [ ]
     , username
+    , displayManagerMode ? config.flake.meta.displayManager.defaultMode
     }:
     let
-      useCombined = modules != [ ];
       presetConfig =
         if preset != null
         then config.flake.meta.presets.${preset} or (throw "Unknown preset: ${preset}")
         else { modules = [ ]; nixos = [ ]; homeManager = [ ]; };
-      # When using 'modules', include additional nixos-only modules from 'nixos' parameter
-      # When using 'preset', combine preset.modules + preset.nixos + extraNixos
-      nixosModules = if useCombined then modules ++ nixos else if preset != null then presetConfig.modules ++ presetConfig.nixos ++ extraNixos else nixos;
-      # When using 'modules', include additional homeManager-only modules from 'homeManager' parameter
-      # When using 'preset', combine preset.modules + preset.homeManager
-      hmModules = if useCombined then modules ++ homeManager else if preset != null then presetConfig.modules ++ presetConfig.homeManager else homeManager;
+      nixosModules = presetConfig.modules ++ presetConfig.nixos ++ modules ++ nixos ++ extraNixos;
+      hmModules = presetConfig.modules ++ presetConfig.homeManager ++ modules ++ homeManager ++ extraHomeManager;
     in
-    # Return a module function (not just a set)
-    _moduleArgs: {
-      imports =
-        hostImports
-        ++ (builtins.map (m: config.flake.modules.nixos.${m} or { }) nixosModules)
-        ++ [
-          {
-            home-manager.users.${username}.imports =
-              (builtins.map (m: if builtins.isString m then (config.flake.modules.homeManager.${m} or { }) else m) hmModules)
-              ++ extraHomeManager;
-          }
-        ];
+    {
+      # Store metadata separately to be accessed by hosts.nix
+      _hostConfig = { inherit displayManagerMode; };
+      
+      # Return the module function
+      _module = _moduleArgs: {
+        imports =
+          hostImports
+          ++ (builtins.map (m: config.flake.modules.nixos.${m} or { }) nixosModules)
+          ++ [
+            {
+              home-manager.users.${username}.imports =
+                (builtins.map (m: if builtins.isString m then (config.flake.modules.homeManager.${m} or { }) else m) hmModules);
+            }
+          ];
+      };
     };
 }

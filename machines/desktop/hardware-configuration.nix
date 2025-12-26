@@ -59,8 +59,8 @@
     nvidiaSettings = true;
     package = config.boot.kernelPackages.nvidiaPackages.stable;
     
-    # Enable HDR and 10-bit color support
-    forceFullCompositionPipeline = false; # Disable to allow HDR
+    # Force full composition pipeline to fix flickering (may affect HDR)
+    forceFullCompositionPipeline = true;
   };
   
   services.xserver.videoDrivers = [ "nvidia" ];

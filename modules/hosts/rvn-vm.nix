@@ -1,7 +1,7 @@
 { inputs, config, ... }:
 
-{
-  flake.modules.nixos."hosts/rvn-vm" = config.flake.lib.mkHost {
+let
+  hostResult = config.flake.lib.mkHost {
     preset = "desktop";
 
     hostImports = [
@@ -35,4 +35,11 @@
 
     inherit (config.flake.meta.user) username;
   };
+in
+{
+  # Store the module
+  flake.modules.nixos."hosts/rvn-vm" = hostResult._module;
+  
+  # Store the host config metadata
+  flake.hostConfigs.rvn-vm = hostResult._hostConfig;
 }

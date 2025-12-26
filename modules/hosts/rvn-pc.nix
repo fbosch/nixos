@@ -1,8 +1,9 @@
 { inputs, config, ... }:
 
-{
-  flake.modules.nixos."hosts/rvn-pc" = config.flake.lib.mkHost {
+let
+  hostResult = config.flake.lib.mkHost {
     preset = "desktop";
+    displayManagerMode = "hyprlock-autologin";
 
     hostImports = [
       ../../machines/desktop/configuration.nix
@@ -28,11 +29,14 @@
       )
     ];
 
-    extraNixos = [
+    modules = [
       "secrets"
       "nas"
       "gaming"
+      "windows"
+      "virtualization"
     ];
+
     # extraNixos = [ "hardware/fingerprint" ];
 
     extraHomeManager = [
@@ -43,4 +47,11 @@
 
     inherit (config.flake.meta.user) username;
   };
+in
+{
+  # Store the module
+  flake.modules.nixos."hosts/rvn-pc" = hostResult._module;
+  
+  # Store the host config metadata
+  flake.hostConfigs.rvn-pc = hostResult._hostConfig;
 }

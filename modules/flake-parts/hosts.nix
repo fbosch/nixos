@@ -13,10 +13,12 @@ in
             if (config ? systems) && (config.systems != [ ])
             then builtins.head config.systems
             else "x86_64-linux";
+          # Get host config from separate flake output
+          hostConfigData = config.flake.hostConfigs.${hostId} or { };
           specialArgs = {
             inherit inputs;
             inherit (config.flake) meta;
-            hostConfig = { name = hostId; };
+            hostConfig = { name = hostId; } // hostConfigData;
           };
           hmSpecialArgs = specialArgs // { system = evalSystem; };
         in
