@@ -37,10 +37,31 @@ _: {
           rev = "main";
           sha256 = "sha256-+GtOkOVSWlNTdKSs0R86LhnpbBZ21Y0ML3V8pwDUUSc=";
         };
+        nativeBuildInputs = [ pkgs.gtk3 ];
         dontBuild = true;
+        # The install script creates symlinks that may reference missing color variants
+        # This is expected behavior for icon themes with multiple variants
+        dontFixup = true;
         installPhase = ''
+          runHook preInstall
+
+          patchShebangs install.sh
           mkdir -p $out/share/icons
-          cp -ar src/. $out/share/icons/Win11/
+          
+          # Run the install script with default options
+          DESTDIR="$out" ./install.sh -d $out/share/icons -n Win11
+
+          # Remove broken symlinks that reference missing color variants
+          find $out/share/icons -xtype l -delete
+
+          # Run icon cache update
+          for dir in $out/share/icons/*/; do
+            if [ -f "$dir/index.theme" ]; then
+              ${pkgs.gtk3}/bin/gtk-update-icon-cache -f -t "$dir" || true
+            fi
+          done
+
+          runHook postInstall
         '';
       };
 

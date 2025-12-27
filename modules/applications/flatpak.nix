@@ -20,6 +20,25 @@
               "/nix/store:ro"
             ];
           };
+
+          "com.discordapp.Discord" = {
+            Context.sockets = [
+              "wayland"
+              "x11"
+              "pulseaudio"
+            ];
+            Context.shared = [ "network" "ipc" ];
+            Context.devices = [ "all" ];
+            Context.filesystems = [
+              "xdg-downloads"
+              "xdg-videos"
+              "xdg-pictures"
+            ];
+            Environment = {
+              # Enable Wayland support
+              NIXOS_OZONE_WL = "1";
+            };
+          };
         };
 
         update = {
