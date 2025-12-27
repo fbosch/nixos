@@ -3,6 +3,9 @@ _: {
   flake.modules.nixos.desktop =
     { pkgs, ... }:
     let
+      # Import icon override utilities
+      iconOverrideLib = import ../../lib/icon-overrides.nix { inherit pkgs; inherit (pkgs) lib; };
+
       monoTheme = pkgs.stdenv.mkDerivation {
         name = "MonoTheme";
         src = pkgs.fetchzip {
@@ -29,7 +32,8 @@ _: {
         '';
       };
 
-      win11Icons = pkgs.stdenv.mkDerivation {
+      # Base Win11 icon theme (without overrides)
+      win11IconsBase = pkgs.stdenv.mkDerivation {
         name = "Win11";
         src = pkgs.fetchFromGitHub {
           owner = "yeyushengfan258";
@@ -39,8 +43,6 @@ _: {
         };
         nativeBuildInputs = [ pkgs.gtk3 ];
         dontBuild = true;
-        # The install script creates symlinks that may reference missing color variants
-        # This is expected behavior for icon themes with multiple variants
         dontFixup = true;
         installPhase = ''
           runHook preInstall
@@ -63,6 +65,45 @@ _: {
 
           runHook postInstall
         '';
+      };
+
+      # Custom icon overrides for Win11 theme
+      # Override ALL size variants to ensure colorful icons are used everywhere
+      win11IconOverrides = [
+        # Replace folder icons with colorful versions across all sizes
+        {
+          name = "folder";
+          useBuiltinFrom = "places/scalable/folder";
+          sizes = [ "16" "22" "24" "symbolic" ];
+          context = "places";
+        }
+        {
+          name = "folder-open";
+          useBuiltinFrom = "places/scalable/folder-open";
+          sizes = [ "16" "22" "24" "symbolic" ];
+          context = "places";
+        }
+        # Replace desktop icon with colorful version
+        {
+          name = "user-desktop";
+          useBuiltinFrom = "places/scalable/user-desktop";
+          sizes = [ "16" "22" "24" "symbolic" ];
+          context = "places";
+        }
+        # Override Discord icon with official logo
+        {
+          name = "discord";
+          source = ../../assets/icons/discord.svg;
+          sizes = [ "scalable" ];
+          context = "apps";
+        }
+      ];
+
+      # Apply overrides to Win11 icon theme
+      win11Icons = iconOverrideLib.applyIconOverrides {
+        basePackage = win11IconsBase;
+        overrides = win11IconOverrides;
+        themeName = "Win11";
       };
 
       winsurCursors = pkgs.stdenv.mkDerivation {

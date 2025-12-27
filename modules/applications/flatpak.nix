@@ -27,7 +27,10 @@
               "x11"
               "pulseaudio"
             ];
-            Context.shared = [ "network" "ipc" ];
+            Context.shared = [
+              "network"
+              "ipc"
+            ];
             Context.devices = [ "all" ];
             Context.filesystems = [
               "xdg-downloads"
