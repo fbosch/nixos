@@ -1,8 +1,33 @@
 {
   flake.modules.nixos.fonts =
-    { pkgs, lib, config, ... }:
+    { pkgs, ... }:
+    {
+      fonts = {
+        fontconfig.enable = true;
+        fontDir.enable = true;
+        packages = with pkgs; [
+          nerd-fonts.symbols-only
+          nerd-fonts.jetbrains-mono
+          dejavu_fonts
+          noto-fonts
+          noto-fonts-cjk-sans
+          noto-fonts-color-emoji
+          noto-fonts-emoji-blob-bin
+          unifont
+        ];
+      };
+    };
+  flake.modules.homeManager.fonts =
+    {
+      pkgs,
+      lib,
+      config,
+      osConfig,
+      ...
+    }:
     let
-      allowProprietary = config.nixpkgs.config.allowUnfree or false;
+      allowProprietary =
+        osConfig.nixpkgs.config.allowUnfree or config.nixpkgs.config.allowUnfree or false;
 
       proprietaryFontsPackage =
         if !allowProprietary then
@@ -64,51 +89,49 @@
             ];
 
             installCommands = lib.concatStringsSep "\n" (
-              map (font:
+              map (
+                font:
                 let
-                  srcPath =
-                    if font ? sourcePath then "${font.src}/${font.sourcePath}" else "${font.src}";
+                  srcPath = if font ? sourcePath then "${font.src}/${font.sourcePath}" else "${font.src}";
                 in
-                ''install -Dm644 ${lib.escapeShellArg srcPath} "$out/share/fonts/truetype/${font.fileName}"'')
-                fonts
+                ''install -Dm644 ${lib.escapeShellArg srcPath} "$out/${font.fileName}"''
+              ) fonts
             );
           in
           pkgs.runCommandLocal "proprietary-fonts"
             {
               preferLocalBuild = true;
               allowSubstitutes = false;
-            } ''
-            set -euo pipefail
-            mkdir -p "$out/share/fonts/truetype"
-            ${installCommands}
-          '';
+            }
+            ''
+              set -euo pipefail
+              mkdir -p "$out"
+              ${installCommands}
+            '';
     in
     {
-      fonts = {
-        fontconfig.enable = true;
-        fontDir.enable = true;
-        packages =
-          with pkgs;
-          [
-            nerd-fonts.symbols-only
-            nerd-fonts.jetbrains-mono
-            dejavu_fonts
-            noto-fonts
-            noto-fonts-cjk-sans
-            noto-fonts-color-emoji
-            noto-fonts-emoji-blob-bin
-            unifont
-            local.font-zenbones
-            local.font-babelstone-runes
-            local.font-ionicons
-          ]
-          ++ lib.optional allowProprietary proprietaryFontsPackage;
-      };
-    };
-
-  flake.modules.homeManager.fonts =
-    { pkgs, ... }:
-    {
       xdg.configFile."fontconfig/fonts.conf".text = builtins.readFile ../configs/fontconfig/fonts.conf;
+
+      home.packages = with pkgs; [
+        local.font-zenbones
+        local.font-babelstone-runes
+        local.font-ionicons
+      ];
+
+      xdg.dataFile = lib.mkIf allowProprietary {
+        "fonts/proprietary" = {
+          source = proprietaryFontsPackage;
+          recursive = true;
+        };
+      };
+
+      home.activation.refreshFontCache = lib.mkIf allowProprietary (
+        lib.hm.dag.entryAfter [ "linkGeneration" ] ''
+          set -euo pipefail
+
+          fonts_dir="''${XDG_DATA_HOME:-$HOME/.local/share}/fonts"
+          ${pkgs.fontconfig}/bin/fc-cache -f "$fonts_dir"
+        ''
+      );
     };
 }

@@ -12,13 +12,17 @@
     };
   };
 
-  flake.modules.homeManager.applications = { pkgs, ... }:
+  flake.modules.homeManager.applications = { pkgs, config, ... }:
     let
       defaultFileExplorer = "nemo.desktop";
       defaultImageViewer = "loupe.desktop";
     in
     {
       home.packages = with pkgs; [ loupe xdg-utils ];
+
+      home.sessionVariables = {
+        XDG_DATA_DIRS = "$XDG_DATA_DIRS:${config.home.homeDirectory}/Desktop";
+      };
 
       xdg.mimeApps.defaultApplications = {
         "inode/directory" = [ defaultFileExplorer ];

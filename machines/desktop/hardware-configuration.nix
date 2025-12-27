@@ -49,6 +49,11 @@
   hardware.graphics = {
     enable = true;
     enable32Bit = true; # For 32-bit applications
+    extraPackages = with pkgs; [
+      nvidia-vaapi-driver
+      libva-vdpau-driver
+      libvdpau-va-gl
+    ];
   };
   
   hardware.nvidia = {

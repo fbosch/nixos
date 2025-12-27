@@ -21,6 +21,12 @@ let
             pkgs.wlr-randr
           ];
 
+          # Enable VAAPI hardware video acceleration with NVIDIA
+          environment.sessionVariables = {
+            LIBVA_DRIVER_NAME = "nvidia";
+            NVD_BACKEND = "direct"; # Use direct backend for better performance
+          };
+
           # environment.sessionVariables = {
           #   GSK_RENDERER = "cairo";
           #   WLR_RENDERER_ALLOW_SOFTWARE = "1";
@@ -46,7 +52,10 @@ let
       "virtualization"
     ];
 
-    # extraNixos = [ "hardware/fingerprint" ];
+    extraNixos = [
+      "hardware/storage"
+      # "hardware/fingerprint"
+    ];
 
     extraHomeManager = [
       config.flake.modules.homeManager.dotfiles
