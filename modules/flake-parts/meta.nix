@@ -1,18 +1,32 @@
-_: {
-  flake.meta = {
-    user = {
-      username = "fbb";
-      fullName = "Frederik Bosch";
-      email = "fbb.privacy+gpg@protonmail.com";
-      github = {
-        username = "fbosch";
-      };
-      gpg = {
-        keyId = "5C49A562D850322A";
-        fingerprint = "5E0F EC74 518E D5FE AA5E  A33E 5C49 A562 D850 322A";
-        publicKeyFile = ../../configs/gpg/public-key.asc;
-      };
+{ lib, ... }:
+let
+  user = rec {
+    username = "fbb";
+    fullName = "Frederik Bosch";
+    email = "fbb.privacy+gpg@protonmail.com";
+    github = {
+      username = "fbosch";
     };
+    gpg = {
+      keyId = "5C49A562D850322A";
+      fingerprint = "5E0F EC74 518E D5FE AA5E  A33E 5C49 A562 D850 322A";
+      publicKeyFile = ../../configs/gpg/public-key.asc;
+    };
+    avatar = {
+      # Path to custom avatar file, or null to auto-fetch from GitHub
+      source = null;
+      # SHA256 hash of the GitHub avatar
+      # To update: nix-prefetch-url https://github.com/fbosch.png
+      # Or run: ./scripts/update-avatar.sh
+      sha256 = "13yl42iqd2a37k8cilssky8dw182cma5cq57jzaw1m7bnxdcf421";
+      # URL is constructed from github.username
+      url = "https://github.com/${github.username}.png";
+    };
+  };
+in
+{
+  flake.meta = {
+    inherit user;
 
     dotfiles = {
       url = "https://github.com/fbosch/dotfiles";
