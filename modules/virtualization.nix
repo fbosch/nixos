@@ -34,6 +34,7 @@
       win-spice
       swtpm
       OVMFFull
+      usbredir
       
       # Docker tools
       docker-compose

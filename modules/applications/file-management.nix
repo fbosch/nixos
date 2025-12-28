@@ -12,7 +12,7 @@
     };
   };
 
-  flake.modules.homeManager.applications = { pkgs, config, ... }:
+  flake.modules.homeManager.applications = { pkgs, config, lib, ... }:
     let
       defaultFileExplorer = "nemo.desktop";
       defaultImageViewer = "loupe.desktop";
@@ -36,6 +36,15 @@
         "image/bmp" = [ defaultImageViewer ];
         "image/tiff" = [ defaultImageViewer ];
         "image/x-icon" = [ defaultImageViewer ];
+      };
+
+      # Persist Nemo favorite directories (bookmarks) across rebuilds
+      dconf.settings = {
+        "org/nemo/sidebar-panels/tree" = {
+          # Sync bookmarks to avoid losing favorites
+          # This ensures your custom bookmarks persist across NixOS rebuilds
+          sync-bookmarks = true;
+        };
       };
     };
 }

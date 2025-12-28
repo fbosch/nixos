@@ -21,10 +21,17 @@ let
             pkgs.wlr-randr
           ];
 
+          # Allow user access to Realforce keyboard for WebHID configuration
+          services.udev.extraRules = ''
+            # Topre Realforce keyboards - grant user access for configuration tools
+            SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0853", ATTRS{idProduct}=="0317", MODE="0660", TAG+="uaccess"
+          '';
+
           # Enable VAAPI hardware video acceleration with NVIDIA
           environment.sessionVariables = {
             LIBVA_DRIVER_NAME = "nvidia";
             NVD_BACKEND = "direct"; # Use direct backend for better performance
+            TERMINAL = "wezterm";
           };
 
           # environment.sessionVariables = {
