@@ -9,7 +9,7 @@
       sudo-rs = {
         enable = true;
         extraConfig = ''
-          Defaults lecture = never
+          Defaults !lecture
           Defaults pwfeedback
         '';
       };
