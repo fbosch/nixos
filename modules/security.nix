@@ -5,10 +5,14 @@
     security = {
       pam.services = { hyprland.enableGnomeKeyring = true; };
 
-      sudo.extraConfig = ''
-        Defaults lecture = never
-        Defaults pwfeedback
-      '';
+      # Use sudo-rs instead of traditional sudo (memory-safe Rust implementation)
+      sudo-rs = {
+        enable = true;
+        extraConfig = ''
+          Defaults lecture = never
+          Defaults pwfeedback
+        '';
+      };
     };
   };
 
