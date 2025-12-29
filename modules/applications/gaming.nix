@@ -2,12 +2,16 @@
   flake.modules.nixos.gaming =
     { pkgs, ... }:
     {
+
       # Enable Steam with proper system support
       programs.steam = {
         enable = true;
         remotePlay.openFirewall = true;
         dedicatedServer.openFirewall = true;
         localNetworkGameTransfers.openFirewall = true;
+        extraPackages = with pkgs; [
+          kdePackages.breeze
+        ];
       };
 
       # Required for gaming performance
