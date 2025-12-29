@@ -1,0 +1,126 @@
+:root
+{
+  /* Font - SF Pro Display to match GTK theme */
+  --adw-font-family: "SF Pro Display", sans-serif;
+
+  /* Accent color - MonoThemeDark blue (#1b82b3 = rgb(27, 130, 179)) */
+  --adw-accent-bg-rbg: 27, 130, 179;
+  --adw-accent-fg-rbg: 255, 255, 255;
+  --adw-accent-rgb: 27, 130, 179;
+
+  /* Destructive color - MonoThemeDark red (#c34c4a = rgb(195, 76, 74)) */
+  --adw-destructive-bg-rgb: 195, 76, 74;
+  --adw-destructive-fg-rgb: 255, 255, 255;
+  --adw-destructive-rgb: 195, 76, 74;
+
+  /* Success color - MonoThemeDark green (#79B757 = rgb(121, 183, 87)) */
+  --adw-success-bg-rgb: 121, 183, 87;
+  --adw-success-fg-rgb: 255, 255, 255;
+  --adw-success-rgb: 121, 183, 87;
+
+  /* Warning color - MonoThemeDark orange (#ffb83d = rgb(255, 184, 61)) */
+  --adw-warning-bg-rgb: 255, 184, 61;
+  --adw-warning-fg-rgb: 37, 37, 37;
+  --adw-warning-fg-a: 1.0;
+  --adw-warning-rgb: 255, 184, 61;
+
+  /* Error color - MonoThemeDark error red (#ed5f5d = rgb(237, 95, 93)) */
+  --adw-error-bg-rgb: 237, 95, 93;
+  --adw-error-fg-rgb: 255, 255, 255;
+  --adw-error-rgb: 237, 95, 93;
+
+  /* Window background - MonoThemeDark dark gray (#252525 = rgb(37, 37, 37)) */
+  --adw-window-bg-rgb: 37, 37, 37;
+  --adw-window-fg-rgb: 255, 255, 255;
+
+  /* Views - same as window */
+  --adw-view-bg-rgb: 37, 37, 37;
+  --adw-view-fg-rgb: 255, 255, 255;
+
+  /* Header bar */
+  --adw-headerbar-bg-rgb: 37, 37, 37;
+  --adw-headerbar-fg-rgb: 255, 255, 255;
+  --adw-headerbar-border-rgb: 255, 255, 255;
+  --adw-headerbar-backdrop-rgb: 40, 40, 40;
+  --adw-headerbar-shade-rgb: 0, 0, 0;
+  --adw-headerbar-shade-a: 0.36;
+
+  /* Sidebars */
+  --adw-sidebar-bg-rgb: 37, 37, 37;
+  --adw-sidebar-fg-rgb: 255, 255, 255;
+  --adw-sidebar-backdrop-rgb: 40, 40, 40;
+  --adw-sidebar-shade-rgb: 0, 0, 0;
+  --adw-sidebar-shade-a: 0.36;
+
+  --adw-secondary-sidebar-bg-rgb: 37, 37, 37;
+  --adw-secondary-sidebar-fg-rgb: 255, 255, 255;
+  --adw-secondary-sidebar-backdrop-rgb: 40, 40, 40;
+  --adw-secondary-sidebar-shade-rgb: 0, 0, 0;
+  --adw-secondary-sidebar-shade-a: 0.36;
+
+  /* Cards - rgba(255, 255, 255, 0.05) */
+  --adw-card-bg-rgb: 255, 255, 255;
+  --adw-card-bg-a: 0.05;
+  --adw-card-fg-rgb: 255, 255, 255;
+  --adw-card-shade-rgb: 0, 0, 0;
+  --adw-card-shade-a: 0.36;
+
+  /* Dialogs */
+  --adw-dialog-bg-rgb: 37, 37, 37;
+  --adw-dialog-fg-rgb: 255, 255, 255;
+
+  /* Popovers */
+  --adw-popover-bg-rgb: 37, 37, 37;
+  --adw-popover-fg-rgb: 255, 255, 255;
+  --adw-popover-shade-rgb: 0, 0, 0;
+  --adw-popover-shade-a: 0.36;
+
+  /* Thumbnails */
+  --adw-thumbnail-bg-rgb: 37, 37, 37;
+  --adw-thumbnail-fg-rgb: 255, 255, 255;
+
+  /* Miscellaneous */
+  --adw-shade-rgb: 0, 0, 0;
+  --adw-shade-a: 0.36;
+}
+
+/* Font configuration - SF Pro Display for body text, SF Pro Rounded for headings */
+* {
+  font-family: "SF Pro Display", sans-serif !important;
+}
+
+/* SF Pro Rounded for titles and headings with appropriate weights */
+h1, .large-title, .title-1 {
+  font-family: "SF Pro Rounded", sans-serif !important;
+  font-weight: 700; /* Bold */
+}
+
+h2, .title-2 {
+  font-family: "SF Pro Rounded", sans-serif !important;
+  font-weight: 600; /* Semibold */
+}
+
+h3, .title-3,
+.title,
+.heading,
+.header-title,
+window > headerbar .title,
+.view > headerbar .title,
+.dialog-title {
+  font-family: "SF Pro Rounded", sans-serif !important;
+  font-weight: 500; /* Medium */
+}
+
+h4, .title-4,
+window > headerbar .subtitle,
+button.suggested-action,
+button.destructive-action,
+.accent {
+  font-family: "SF Pro Rounded", sans-serif !important;
+  font-weight: 500; /* Medium */
+}
+
+h5, h6 {
+  font-family: "SF Pro Rounded", sans-serif !important;
+  font-weight: 400; /* Regular */
+}

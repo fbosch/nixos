@@ -80,6 +80,27 @@
                 };
               }
               {
+                fileName = "SF-Pro-Rounded-Medium.otf";
+                src = pkgs.fetchurl {
+                  url = "https://raw.githubusercontent.com/sahibjotsaggu/San-Francisco-Pro-Fonts/master/SF-Pro-Rounded-Medium.otf";
+                  sha256 = "sha256-pTyu3elDUk/6ImW24eJNJ3t2kSMPfYB1XLQZ167yj70=";
+                };
+              }
+              {
+                fileName = "SF-Pro-Rounded-Semibold.otf";
+                src = pkgs.fetchurl {
+                  url = "https://raw.githubusercontent.com/sahibjotsaggu/San-Francisco-Pro-Fonts/master/SF-Pro-Rounded-Semibold.otf";
+                  sha256 = "sha256-iqm39XBGVQ78JzkPNOnYjn+SUz6jpC0v9pv4UuHl1Oc=";
+                };
+              }
+              {
+                fileName = "SF-Pro-Rounded-Bold.otf";
+                src = pkgs.fetchurl {
+                  url = "https://raw.githubusercontent.com/sahibjotsaggu/San-Francisco-Pro-Fonts/master/SF-Pro-Rounded-Bold.otf";
+                  sha256 = "sha256-eLDNVmeashZbIpUiPWUZq84TnbB5VJO/Y3b23ZtQBBs=";
+                };
+              }
+              {
                 fileName = "SF-Mono-Regular.otf";
                 src = pkgs.fetchurl {
                   url = "https://raw.githubusercontent.com/supercomputra/SF-Mono-Font/master/SFMono-Regular.otf";

@@ -1,7 +1,15 @@
-{
+_: {
+  # NixOS module: Steam and gaming system configuration
   flake.modules.nixos.gaming =
     { pkgs, ... }:
     {
+      environment.systemPackages = with pkgs; [
+        mangohud
+        gamescope
+        steam-run
+        lutris
+        wowup-cf
+      ];
 
       # Enable Steam with proper system support
       programs.steam = {
@@ -12,18 +20,48 @@
         extraPackages = with pkgs; [
           kdePackages.breeze
         ];
+        extraCompatPackages = with pkgs; [
+          proton-ge-bin
+        ];
       };
 
       # Required for gaming performance
       programs.gamemode.enable = true;
     };
 
-  flake.modules.homeManager.gaming =
-    { pkgs, ... }:
+  # Home Manager module: Apply Adwaita theme to Steam
+  flake.modules.homeManager.applications =
     {
-      home.packages = with pkgs; [
-        mangohud
-        gamescope
-      ];
+      pkgs,
+      lib,
+      config,
+      osConfig,
+      ...
+    }:
+    lib.optionalAttrs osConfig.programs.steam.enable {
+      home.packages = [ pkgs.adwsteamgtk ];
+
+      home.activation =
+        let
+          applySteamTheme = pkgs.writeShellScript "applySteamTheme" ''
+            # This file gets copied with read-only permission from the nix store
+            # if it is present, it causes an error when the theme is applied. Delete it.
+            custom="$HOME/.cache/AdwSteamInstaller/extracted/custom/custom.css"
+            if [[ -f "$custom" ]]; then
+              rm -f "$custom"
+            fi
+            ${lib.getExe pkgs.adwsteamgtk} -i
+          '';
+        in
+        {
+          updateSteamTheme = config.lib.dag.entryAfter [ "writeBoundary" "dconfSettings" ] ''
+            run ${applySteamTheme}
+          '';
+        };
+
+      dconf.settings."io/github/Foldex/AdwSteamGtk".prefs-install-custom-css = true;
+
+      # Custom CSS to match MonoThemeDark color scheme
+      xdg.configFile."AdwSteamGtk/custom.css".source = ../../assets/steam-theme/custom.css;
     };
 }

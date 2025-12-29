@@ -40,7 +40,6 @@
     in
     {
       home.packages = with pkgs; [
-        wine
         winboat
         inputs.winapps.packages.${pkgs.stdenv.hostPlatform.system}.winapps
         inputs.winapps.packages.${pkgs.stdenv.hostPlatform.system}.winapps-launcher

@@ -3,12 +3,11 @@ _: {
     { pkgs, ... }:
     {
       environment.systemPackages = with pkgs; [
-        xwayland
-        # xorg.xrdb
-        # xorg.xhost
-        # xorg.xrandr
-        # xorg.xprop
-        # xorg.xwininfo
+        xorg.xrdb
+        xorg.xhost
+        xorg.xrandr
+        xorg.xprop
+        xorg.xwininfo
       ];
     };
 
@@ -18,6 +17,8 @@ _: {
       home.packages = with pkgs; [
         # waycorner
         # rofi
+        xwayland
+        xwayland-satellite
         inputs.ags.packages.${pkgs.stdenv.hostPlatform.system}.default
         wev
         nwg-look
