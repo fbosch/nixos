@@ -59,6 +59,17 @@ let
       config.flake.modules.homeManager.dotfiles
       inputs.flatpaks.homeManagerModules.nix-flatpak
       inputs.vicinae.homeManagerModules.default
+      (
+        { config, ... }:
+        {
+          # Override XDG Downloads directory to use mounted storage
+          xdg.userDirs = {
+            enable = true;
+            download = "/mnt/storage/Downloads";
+            # Ensure the directory is created
+          };
+        }
+      )
     ];
 
     inherit (config.flake.meta.user) username;

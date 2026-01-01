@@ -61,6 +61,17 @@
         "org/cinnamon/desktop/applications/terminal" = {
           exec = "wezterm";
         };
+        "org/nemo/preferences" = {
+          # Enable Delete key to move files to trash
+          # This allows Ctrl+A followed by Delete to work properly
+          enable-delete = true;
+          # Show "Delete" in context menu
+          show-delete-permanently = true;
+        };
+        "org/nemo/window-state" = {
+          # Enable keyboard shortcuts
+          start-with-sidebar = true;
+        };
       };
 
       # Make Nemo window transparent so Hyprland can apply blur
