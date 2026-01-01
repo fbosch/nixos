@@ -5,7 +5,7 @@ _: {
       # Enable NTFS support
       boot.supportedFilesystems = [ "ntfs" ];
 
-      # Mount 2TB HDD
+      # Mount 2TB HDD (shared with Windows)
       fileSystems."/mnt/storage" = {
         device = "/dev/disk/by-uuid/AC7674097673D316";
         fsType = "ntfs-3g";
@@ -14,7 +14,7 @@ _: {
           "uid=1000" # Owner UID (your user)
           "gid=100" # Group GID (users group)
           "dmask=022" # Directory permissions (755)
-          "fmask=133" # File permissions (644)
+          "fmask=113" # File permissions (664)
           "big_writes" # Better write performance
           "noatime" # Don't update access times (better performance)
         ];

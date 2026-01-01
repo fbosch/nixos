@@ -9,7 +9,9 @@ _: {
         steam-run
         lutris
         wowup-cf
-        sgdboop
+        protontricks
+        # sgdboop - disabled due to build error in nixpkgs (function signature mismatch)
+        steamtinkerlaunch
       ];
 
       # Enable Steam with proper system support

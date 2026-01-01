@@ -41,7 +41,7 @@
           "com.obsproject.Studio"
           "com.obsproject.Studio.Plugin.OBSVkCapture"
           "org.freedesktop.Platform.VulkanLayer.vkBasalt//25.08"
-          "org.freedesktop.Platform.VulkanLayer.MangoHud"
+          # "org.freedesktop.Platform.VulkanLayer.MangoHud"
           # "net.displaycal.DisplayCAL"
           # "re.sonny.OhMySVG"
           # "dev.zed.Zed"
