@@ -27,26 +27,17 @@ let
             SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0853", ATTRS{idProduct}=="0317", MODE="0660", TAG+="uaccess"
           '';
 
-          # Enable VAAPI hardware video acceleration with NVIDIA
           environment.sessionVariables = {
             LIBVA_DRIVER_NAME = "nvidia";
             NVD_BACKEND = "direct"; # Use direct backend for better performance
             TERMINAL = "wezterm";
+            WLR_DRM_NO_ATOMIC = "1";
+            WLR_NO_HARDWARE_CURSORS = "1";
+            GBM_BACKEND = "nvidia_drm";
+            __GLX_VENDOR_LIBRARY_NAME = "nvidia";
+            ELECTRON_OZONE_PLATFORM_HINT = "auto";
+            GTK_USE_PORTAL = "0";
           };
-
-          # environment.sessionVariables = {
-          #   GSK_RENDERER = "cairo";
-          #   WLR_RENDERER_ALLOW_SOFTWARE = "1";
-          #   TERMINAL = "foot";
-          # };
-
-          # security.sudo.extraConfig = ''
-          #   Defaults timestamp_timeout = 120
-          # '';
-
-          # environment.systemPackages = [
-          #   pkgs.local.chromium-realforce
-          # ];
         }
       )
     ];
@@ -61,7 +52,7 @@ let
 
     extraNixos = [
       "hardware/storage"
-      # "hardware/fingerprint"
+      "hardware/fingerprint"
     ];
 
     extraHomeManager = [

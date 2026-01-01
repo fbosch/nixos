@@ -86,42 +86,35 @@
               NIXOS_OZONE_WL = "1";
             };
           };
+        };
+      };
 
-          # Bottles - disabled in favor of native nixpkgs version
-          # "com.usebottles.bottles" = {
-          #   Context.sockets = [
-          #     "wayland"
-          #     "x11"
-          #     "fallback-x11"
-          #     "pulseaudio"
-          #   ];
-          #   Context.shared = [
-          #     "network"
-          #     "ipc"
-          #   ];
-          #   Context.devices = [
-          #     "dri"
-          #     "all"
-          #   ];
-          #   Context.filesystems = [
-          #     "xdg-documents"
-          #     "xdg-download"
-          #     "xdg-music"
-          #     "xdg-pictures"
-          #     "xdg-videos"
-          #     "home"
-          #     "host"
-          #     "/tmp/.X11-unix"
-          #   ];
-          #   Environment = {
-          #     # Ensure DISPLAY is set correctly
-          #     DISPLAY = ":0";
-          #     # Disable Wayland for Wine compatibility
-          #     GDK_BACKEND = "x11";
-          #     # Wine needs these for proper X11 support
-          #     XDG_SESSION_TYPE = "x11";
-          #   };
-          # };
+      xdg.desktopEntries."app.zen_browser.zen" = {
+        name = "Zen Browser";
+        exec = "mullvad-exclude flatpak run app.zen_browser.zen %U";
+        icon = "app.zen_browser.zen";
+        type = "Application";
+        categories = [
+          "Network"
+          "WebBrowser"
+        ];
+        mimeType = [
+          "text/html"
+          "text/xml"
+          "application/xhtml+xml"
+          "x-scheme-handler/http"
+          "x-scheme-handler/https"
+          "application/x-xpinstall"
+          "application/pdf"
+          "application/json"
+        ];
+        startupNotify = true;
+        terminal = false;
+        settings = {
+          StartupWMClass = "zen";
+          X-MultipleArgs = "false";
+          Keywords = "Internet;WWW;Browser;Web;Explorer;";
+          X-Flatpak = "app.zen_browser.zen";
         };
       };
     };

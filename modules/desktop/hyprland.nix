@@ -1,25 +1,37 @@
 _: {
 
-  flake.modules.homeManager.desktop = { pkgs, inputs, ... }: {
-    home.packages = with pkgs; [
-      hyprpaper
-      hyprprop
-      hyprpicker
-      grim
-      # waycorner
-      inputs.hyprland-contrib.packages.${pkgs.stdenv.hostPlatform.system}.grimblast
-    ];
-  };
+  flake.modules.homeManager.desktop =
+    { pkgs, inputs, ... }:
+    {
+      home.packages = with pkgs; [
+        hyprpaper
+        hyprprop
+        hyprpicker
+        grim
+        inputs.hyprland-contrib.packages.${pkgs.stdenv.hostPlatform.system}.grimblast
+      ];
+    };
 
-  flake.modules.nixos.desktop = { pkgs, meta, inputs, ... }:
+  flake.modules.nixos.desktop =
+    {
+      pkgs,
+      meta,
+      inputs,
+      ...
+    }:
     let
       inherit (pkgs.stdenv.hostPlatform) system;
 
       # Hyprland plugins - upstream now includes API fixes for v0.52.0+
       hyprPluginPkgs = inputs.hyprland-plugins.packages.${system};
+      splitMonitorWorkspacesPkg =
+        inputs.split-monitor-workspaces.packages.${system}.split-monitor-workspaces;
       hypr-plugin-dir = pkgs.symlinkJoin {
         name = "hyprland-plugins";
-        paths = [ hyprPluginPkgs.hyprexpo hyprPluginPkgs.hyprbars ];
+        paths = [
+          hyprPluginPkgs.hyprbars
+          splitMonitorWorkspacesPkg
+        ];
       };
 
       hyprlockPackages = inputs.hyprlock.packages.${system};
@@ -41,7 +53,10 @@ _: {
         ];
         config = {
           hyprland = {
-            default = [ "hyprland" "gtk" ];
+            default = [
+              "hyprland"
+              "gtk"
+            ];
             "org.freedesktop.impl.portal.Secret" = [ "gnome-keyring" ];
           };
         };
@@ -51,8 +66,7 @@ _: {
         enable = true;
         withUWSM = true;
         package = inputs.hyprland.packages.${system}.hyprland;
-        portalPackage =
-          inputs.hyprland.packages.${system}.xdg-desktop-portal-hyprland;
+        portalPackage = inputs.hyprland.packages.${system}.xdg-desktop-portal-hyprland;
         xwayland.enable = true;
       };
 
@@ -60,17 +74,22 @@ _: {
         EMOJI_FONT = meta.ui.emojiFont;
         NIXOS_OZONE_WL = "1";
         GDK_BACKEND = "wayland,x11";
-        QT_QPA_PLATFORM = "wayland";
+        GDK_DEBUG = "no-portals";
         WLR_NO_HARDWARE_CURSORS = "1";
         HYPR_PLUGIN_DIR = hypr-plugin-dir;
         GTK_IM_MODULE = "wayland";
+        QT_QPA_PLATFORM = "wayland;xcb";
         QT_IM_MODULE = "wayland";
         __JAVA_AWT_WM_NONREPARENTING = "1";
         MOZ_ENABLE_WAYLAND = "1";
         XDG_SESSION_TYPE = "wayland";
       };
 
-      environment.systemPackages = [ hyprlockPackage hypridlePackage hyprsunsetPackage ];
+      environment.systemPackages = [
+        hyprlockPackage
+        hypridlePackage
+        hyprsunsetPackage
+      ];
 
       security.pam.services.hyprlock = {
         enableGnomeKeyring = true;

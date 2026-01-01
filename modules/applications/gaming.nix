@@ -9,6 +9,7 @@ _: {
         steam-run
         lutris
         wowup-cf
+        sgdboop
       ];
 
       # Enable Steam with proper system support
@@ -63,5 +64,27 @@ _: {
 
       # Custom CSS to match MonoThemeDark color scheme
       xdg.configFile."AdwSteamGtk/custom.css".source = ../../assets/steam-theme/custom.css;
+
+      xdg.desktopEntries.steam = {
+        name = "Steam";
+        comment = "Application for managing and playing games on Steam";
+        exec = "mullvad-exclude steam %U";
+        icon = "steam";
+        type = "Application";
+        categories = [
+          "Network"
+          "FileTransfer"
+          "Game"
+        ];
+        mimeType = [
+          "x-scheme-handler/steam"
+          "x-scheme-handler/steamlink"
+        ];
+        terminal = false;
+        settings = {
+          PrefersNonDefaultGPU = "true";
+          X-KDE-RunOnDiscreteGpu = "true";
+        };
+      };
     };
 }
