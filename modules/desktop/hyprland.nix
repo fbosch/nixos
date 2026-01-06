@@ -2,9 +2,14 @@ _: {
 
   flake.modules.homeManager.desktop =
     { pkgs, inputs, ... }:
+    let
+      inherit (pkgs.stdenv.hostPlatform) system;
+      hyprpaperPackages = inputs.hyprpaper.packages.${system};
+      hyprpaperPackage = hyprpaperPackages.hyprpaper or hyprpaperPackages.default;
+    in
     {
       home.packages = with pkgs; [
-        hyprpaper
+        hyprpaperPackage
         hyprprop
         hyprpicker
         grim

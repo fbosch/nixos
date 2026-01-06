@@ -67,6 +67,10 @@
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.systems.follows = "dedupe_systems";
     };
+    hyprpaper = {
+      url = "github:hyprwm/hyprpaper";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
     # Secrets management (modules/sops.nix)
     sops-nix = {
@@ -105,6 +109,7 @@
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.flake-utils.follows = "dedupe_flake-utils";
     };
+
   };
 
   # Inputs used only for deduplication via .follows

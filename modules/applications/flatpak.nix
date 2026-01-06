@@ -41,6 +41,7 @@
           "com.obsproject.Studio"
           "com.obsproject.Studio.Plugin.OBSVkCapture"
           "org.freedesktop.Platform.VulkanLayer.vkBasalt//25.08"
+          "net.lutris.Lutris"
           # "org.freedesktop.Platform.VulkanLayer.MangoHud"
           # "net.displaycal.DisplayCAL"
           # "re.sonny.OhMySVG"
@@ -85,6 +86,26 @@
               # Enable Wayland support
               NIXOS_OZONE_WL = "1";
             };
+          };
+
+          "net.lutris.Lutris" = {
+            Context.sockets = [
+              "x11"
+              "wayland"
+              "fallback-x11"
+              "pulseaudio"
+            ];
+            Context.shared = [
+              "network"
+              "ipc"
+            ];
+            Context.devices = [ "all" ];
+            Context.filesystems = [
+              "xdg-data/lutris:rw"
+              "~/Games:rw"
+              "~/.cache/lutris:ro"
+            ];
+            Session.Talk = [ "org.freedesktop.Notifications" ];
           };
         };
       };

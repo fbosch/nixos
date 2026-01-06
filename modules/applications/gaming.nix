@@ -5,18 +5,24 @@ _: {
     {
       environment.systemPackages = with pkgs; [
         mangohud
-        gamescope
         steam-run
-        lutris
         wowup-cf
         protontricks
         # sgdboop - disabled due to build error in nixpkgs (function signature mismatch)
         steamtinkerlaunch
       ];
 
+      programs.gamescope = {
+        enable = true;
+        package = pkgs.gamescope.overrideAttrs (_: {
+          NIX_CFLAGS_COMPILE = [ "-fno-fast-math" ];
+        });
+      };
+
       # Enable Steam with proper system support
       programs.steam = {
         enable = true;
+        gamescopeSession.enable = true;
         remotePlay.openFirewall = true;
         dedicatedServer.openFirewall = true;
         localNetworkGameTransfers.openFirewall = true;

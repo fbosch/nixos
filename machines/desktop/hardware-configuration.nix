@@ -44,7 +44,7 @@
 
   nixpkgs.hostPlatform = lib.mkDefault "x86_64-linux";
   hardware.cpu.intel.updateMicrocode = lib.mkDefault config.hardware.enableRedistributableFirmware;
-  
+
   # Graphics configuration with HDR support
   hardware.graphics = {
     enable = true;
@@ -55,18 +55,16 @@
       libvdpau-va-gl
     ];
   };
-  
+
   hardware.nvidia = {
     modesetting.enable = true;
     powerManagement.enable = true;
     powerManagement.finegrained = false;
     open = false;
     nvidiaSettings = true;
+    nvidiaPersistenced = true; # Keep GPU initialized for better performance
     package = config.boot.kernelPackages.nvidiaPackages.stable;
-    
-    # Force full composition pipeline to fix flickering (may affect HDR)
-    forceFullCompositionPipeline = true;
   };
-  
+
   services.xserver.videoDrivers = [ "nvidia" ];
 }
