@@ -67,21 +67,23 @@
           };
 
           "com.discordapp.Discord" = {
-            Context.sockets = [
-              "wayland"
-              "x11"
-              "pulseaudio"
-            ];
-            Context.shared = [
-              "network"
-              "ipc"
-            ];
-            Context.devices = [ "all" ];
-            Context.filesystems = [
-              "xdg-downloads"
-              "xdg-videos"
-              "xdg-pictures"
-            ];
+            Context = {
+              sockets = [
+                "wayland"
+                "x11"
+                "pulseaudio"
+              ];
+              shared = [
+                "network"
+                "ipc"
+              ];
+              devices = [ "all" ];
+              filesystems = [
+                "xdg-downloads"
+                "xdg-videos"
+                "xdg-pictures"
+              ];
+            };
             Environment = {
               # Enable Wayland support
               NIXOS_OZONE_WL = "1";
@@ -89,22 +91,24 @@
           };
 
           "net.lutris.Lutris" = {
-            Context.sockets = [
-              "x11"
-              "wayland"
-              "fallback-x11"
-              "pulseaudio"
-            ];
-            Context.shared = [
-              "network"
-              "ipc"
-            ];
-            Context.devices = [ "all" ];
-            Context.filesystems = [
-              "xdg-data/lutris:rw"
-              "~/Games:rw"
-              "~/.cache/lutris:ro"
-            ];
+            Context = {
+              sockets = [
+                "x11"
+                "wayland"
+                "fallback-x11"
+                "pulseaudio"
+              ];
+              shared = [
+                "network"
+                "ipc"
+              ];
+              devices = [ "all" ];
+              filesystems = [
+                "xdg-data/lutris:rw"
+                "~/Games:rw"
+                "~/.cache/lutris:ro"
+              ];
+            };
             Session.Talk = [ "org.freedesktop.Notifications" ];
           };
         };

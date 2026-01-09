@@ -18,12 +18,11 @@
       };
     };
   flake.modules.homeManager.fonts =
-    {
-      pkgs,
-      lib,
-      config,
-      osConfig,
-      ...
+    { pkgs
+    , lib
+    , config
+    , osConfig
+    , ...
     }:
     let
       allowProprietary =
@@ -110,13 +109,15 @@
             ];
 
             installCommands = lib.concatStringsSep "\n" (
-              map (
-                font:
-                let
-                  srcPath = if font ? sourcePath then "${font.src}/${font.sourcePath}" else "${font.src}";
-                in
-                ''install -Dm644 ${lib.escapeShellArg srcPath} "$out/${font.fileName}"''
-              ) fonts
+              map
+                (
+                  font:
+                  let
+                    srcPath = if font ? sourcePath then "${font.src}/${font.sourcePath}" else "${font.src}";
+                  in
+                  ''install -Dm644 ${lib.escapeShellArg srcPath} "$out/${font.fileName}"''
+                )
+                fonts
             );
           in
           pkgs.runCommandLocal "proprietary-fonts"

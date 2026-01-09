@@ -1,9 +1,8 @@
-{
-  pkgs,
-  inputs,
-  options,
-  lib,
-  ...
+{ pkgs
+, inputs
+, options
+, lib
+, ...
 }:
 {
   system.stateVersion = "25.05";

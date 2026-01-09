@@ -2,12 +2,11 @@
 # your system.  Help is available in the configuration.nix(5) man page
 # and in the NixOS manual (accessible by running 'nixos-help').
 
-{
-  config,
-  pkgs,
-  inputs,
-  options,
-  ...
+{ config
+, pkgs
+, inputs
+, options
+, ...
 }:
 {
 
@@ -40,30 +39,32 @@
       tmpfsSize = "8G"; # ~25% of RAM for temporary files
     };
 
-    loader.grub = {
-      enable = true;
-      device = "nodev";
-      efiSupport = true;
-      useOSProber = true;
-      configurationLimit = 42;
-      extraConfig = ''
-        # Use maximum supported resolution (1080p)
-        set gfxmode=1920x1080
-        insmod all_video
-        insmod gfxterm
-        terminal_output gfxterm
-      '';
-    };
+    loader = {
+      grub = {
+        enable = true;
+        device = "nodev";
+        efiSupport = true;
+        useOSProber = true;
+        configurationLimit = 42;
+        extraConfig = ''
+          # Use maximum supported resolution (1080p)
+          set gfxmode=1920x1080
+          insmod all_video
+          insmod gfxterm
+          terminal_output gfxterm
+        '';
+      };
 
-    loader.efi.canTouchEfiVariables = true;
+      efi.canTouchEfiVariables = true;
 
-    loader.grub2-theme = {
-      enable = true;
-      theme = "whitesur";
-      icon = "white";
-      screen = "1080p";
-      footer = true;
-      splashImage = ./../../assets/grub-backgrounds/black.jpg;
+      grub2-theme = {
+        enable = true;
+        theme = "whitesur";
+        icon = "white";
+        screen = "1080p";
+        footer = true;
+        splashImage = ./../../assets/grub-backgrounds/black.jpg;
+      };
     };
 
     plymouth = {

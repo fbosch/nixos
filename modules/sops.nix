@@ -9,12 +9,11 @@
       ];
     };
   flake.modules.nixos.secrets =
-    {
-      config,
-      lib,
-      meta,
-      pkgs,
-      ...
+    { config
+    , lib
+    , meta
+    , pkgs
+    , ...
     }:
     {
       imports = [ inputs.sops-nix.nixosModules.sops ];

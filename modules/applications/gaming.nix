@@ -12,40 +12,41 @@ _: {
         steamtinkerlaunch
       ];
 
-      programs.gamescope = {
-        enable = true;
-        package = pkgs.gamescope.overrideAttrs (_: {
-          NIX_CFLAGS_COMPILE = [ "-fno-fast-math" ];
-        });
-      };
+      programs = {
+        gamescope = {
+          enable = true;
+          package = pkgs.gamescope.overrideAttrs (_: {
+            NIX_CFLAGS_COMPILE = [ "-fno-fast-math" ];
+          });
+        };
 
-      # Enable Steam with proper system support
-      programs.steam = {
-        enable = true;
-        gamescopeSession.enable = true;
-        remotePlay.openFirewall = true;
-        dedicatedServer.openFirewall = true;
-        localNetworkGameTransfers.openFirewall = true;
-        extraPackages = with pkgs; [
-          kdePackages.breeze
-        ];
-        extraCompatPackages = with pkgs; [
-          proton-ge-bin
-        ];
-      };
+        # Enable Steam with proper system support
+        steam = {
+          enable = true;
+          gamescopeSession.enable = true;
+          remotePlay.openFirewall = true;
+          dedicatedServer.openFirewall = true;
+          localNetworkGameTransfers.openFirewall = true;
+          extraPackages = with pkgs; [
+            kdePackages.breeze
+          ];
+          extraCompatPackages = with pkgs; [
+            proton-ge-bin
+          ];
+        };
 
-      # Required for gaming performance
-      programs.gamemode.enable = true;
+        # Required for gaming performance
+        gamemode.enable = true;
+      };
     };
 
   # Home Manager module: Apply Adwaita theme to Steam
   flake.modules.homeManager.applications =
-    {
-      pkgs,
-      lib,
-      config,
-      osConfig,
-      ...
+    { pkgs
+    , lib
+    , config
+    , osConfig
+    , ...
     }:
     lib.optionalAttrs osConfig.programs.steam.enable {
       home.packages = [ pkgs.adwsteamgtk ];

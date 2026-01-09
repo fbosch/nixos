@@ -1,7 +1,13 @@
 { inputs, ... }:
 
 {
-  flake.modules.homeManager.dotfiles = { config, pkgs, lib, meta, ... }:
+  flake.modules.homeManager.dotfiles =
+    { config
+    , pkgs
+    , lib
+    , meta
+    , ...
+    }:
     let
       REPO = lib.escapeShellArg "${config.home.homeDirectory}/dotfiles";
       DOTFILES_REV = inputs.dotfiles.rev or "master";
@@ -40,6 +46,7 @@
 
       home.packages = with pkgs; [
         stow
+        readline
       ];
     };
 }

@@ -1,8 +1,7 @@
-{
-  inputs,
-  lib,
-  config,
-  ...
+{ inputs
+, lib
+, config
+, ...
 }:
 {
   flake.modules.nixos.system = {
@@ -17,12 +16,14 @@
 
     # Disable systemd TPM2 setup services - they wait for measured UKI which we don't use
     # This prevents a 60+ second timeout during boot
-    systemd.services.systemd-tpm2-setup-early.enable = false;
-    systemd.services.systemd-tpm2-setup.enable = false;
+    systemd.services = {
+      systemd-tpm2-setup-early.enable = false;
+      systemd-tpm2-setup.enable = false;
 
-    # Disable NetworkManager-wait-online - most systems don't need to block boot for network
-    # This saves ~5 seconds during boot
-    systemd.services.NetworkManager-wait-online.enable = false;
+      # Disable NetworkManager-wait-online - most systems don't need to block boot for network
+      # This saves ~5 seconds during boot
+      NetworkManager-wait-online.enable = false;
+    };
 
     # Enable ~/.local/bin in PATH for user-installed binaries (e.g. uv tools)
     environment.localBinInPath = true;

@@ -16,27 +16,28 @@
     , extraNixos ? [ ]
     , username
     , displayManagerMode ? config.flake.meta.displayManager.defaultMode
-    , sddmMonitor ? null
-    , sddmSetupCommands ? null
+    ,
     }:
     let
       presetConfig =
-        if preset != null
-        then config.flake.meta.presets.${preset} or (throw "Unknown preset: ${preset}")
-        else { modules = [ ]; nixos = [ ]; homeManager = [ ]; };
+        if preset != null then
+          config.flake.meta.presets.${preset} or (throw "Unknown preset: ${preset}")
+        else
+          {
+            modules = [ ];
+            nixos = [ ];
+            homeManager = [ ];
+          };
       nixosModules = presetConfig.modules ++ presetConfig.nixos ++ modules ++ nixos ++ extraNixos;
-      hmModules = presetConfig.modules ++ presetConfig.homeManager ++ modules ++ homeManager ++ extraHomeManager;
+      hmModules =
+        presetConfig.modules ++ presetConfig.homeManager ++ modules ++ homeManager ++ extraHomeManager;
     in
     {
       # Store metadata separately to be accessed by hosts.nix
       _hostConfig = {
         inherit displayManagerMode;
-      } // lib.optionalAttrs (sddmMonitor != null) {
-        inherit sddmMonitor;
-      } // lib.optionalAttrs (sddmSetupCommands != null) {
-        inherit sddmSetupCommands;
       };
-      
+
       # Return the module function
       _module = _moduleArgs: {
         imports =
@@ -45,7 +46,11 @@
           ++ [
             {
               home-manager.users.${username}.imports =
-                (builtins.map (m: if builtins.isString m then (config.flake.modules.homeManager.${m} or { }) else m) hmModules);
+                builtins.map
+                  (
+                    m: if builtins.isString m then (config.flake.modules.homeManager.${m} or { }) else m
+                  )
+                  hmModules;
             }
           ];
       };

@@ -25,4 +25,23 @@
         nixpkgs-fmt
       ];
     };
+
+  flake.modules.homeManager.development =
+    { pkgs, ... }:
+    {
+      home.packages = with pkgs; [
+        # Additional development utilities
+        stylua
+        luarocks
+        biome
+        deno
+        docker
+        docker-buildx
+        bacon
+        azure-cli
+        units
+        ast-grep
+        keychain
+      ];
+    };
 }

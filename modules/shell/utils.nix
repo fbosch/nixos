@@ -23,11 +23,34 @@
     { pkgs, ... }:
     {
       home.packages = with pkgs; [
+        # Directory navigation & file management
         eza
         lf
         yazi
+        zoxide
+        broot
+        skim
+
+        # Process/task management
         mprocs
+        tmux
+
+        # Utilities
         gum
+        peco
+        tldr
+        grc
+        cloc
+
+        # Network/HTTP
+        xh
+        lynx
+
+        # System info
+        hyperfine
+
+        # Text processing
+        html2text
       ];
     };
 }

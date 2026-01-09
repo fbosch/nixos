@@ -18,11 +18,10 @@ _: {
     };
 
   flake.modules.nixos.desktop =
-    {
-      pkgs,
-      meta,
-      inputs,
-      ...
+    { pkgs
+    , meta
+    , inputs
+    , ...
     }:
     let
       inherit (pkgs.stdenv.hostPlatform) system;

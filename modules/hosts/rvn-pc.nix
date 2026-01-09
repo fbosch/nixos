@@ -10,11 +10,10 @@ let
       ../../machines/desktop/hardware-configuration.nix
       inputs.grub2-themes.nixosModules.default
       (
-        {
-          pkgs,
-          lib,
-          config,
-          ...
+        { pkgs
+        , lib
+        , config
+        , ...
         }:
         {
           # # CachyOS kernel experiment

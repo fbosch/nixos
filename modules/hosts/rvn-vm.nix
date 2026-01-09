@@ -39,7 +39,7 @@ in
 {
   # Store the module
   flake.modules.nixos."hosts/rvn-vm" = hostResult._module;
-  
+
   # Store the host config metadata
   flake.hostConfigs.rvn-vm = hostResult._hostConfig;
 }

@@ -1,11 +1,10 @@
 {
   flake.modules.nixos.users =
-    {
-      pkgs,
-      meta,
-      lib,
-      config,
-      ...
+    { pkgs
+    , meta
+    , lib
+    , config
+    , ...
     }:
     {
       users.users.${meta.user.username} = {
@@ -28,22 +27,27 @@
     };
 
   flake.modules.homeManager.users =
-    { meta, pkgs, ... }:
+    { meta
+    , pkgs
+    , lib
+    , ...
+    }:
     let
       avatarFile =
-        if meta.user.avatar.source != null then meta.user.avatar.source
-        else pkgs.fetchurl {
-          url = meta.user.avatar.url;
-          sha256 = meta.user.avatar.sha256;
-        };
+        if meta.user.avatar.source != null then
+          meta.user.avatar.source
+        else
+          pkgs.fetchurl {
+            inherit (meta.user.avatar) url sha256;
+          };
     in
     {
       programs.home-manager.enable = true;
-      systemd.user.startServices = "sd-switch";
+      systemd.user.startServices = lib.mkDefault "sd-switch";
 
       home = {
         inherit (meta.user) username;
-        homeDirectory = "/home/${meta.user.username}";
+        homeDirectory = lib.mkDefault "/home/${meta.user.username}";
         stateVersion = "25.05";
 
         # Link avatar to .face for display managers

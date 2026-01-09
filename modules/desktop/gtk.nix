@@ -167,8 +167,7 @@ _: {
     };
 
   # Home Manager module: Configure GTK settings
-  flake.modules.homeManager.desktop =
-    { ... }:
+  flake.modules.homeManager.desktop = _:
     {
       dconf.settings = {
         "org/gnome/desktop/interface" = {
