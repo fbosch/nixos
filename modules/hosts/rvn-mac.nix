@@ -55,6 +55,7 @@
         systemPackages = with pkgs; [
           nh
           nix-output-monitor
+          keychain # SSH key manager for macOS
         ];
         # Set NH_FLAKE environment variable for nh commands
         variables.NH_FLAKE = "/Users/${meta.user.username}/nixos";
