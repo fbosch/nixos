@@ -9,8 +9,14 @@
       npmGlobalPackages = [
         "pokemonshow"
         "swpm"
+        "npm-check-updates"
+        "corepack"
         "@fsouza/prettierd"
         "opencode-ai"
+        "neovim"
+        "typescript"
+        "typescript-language-server"
+        "prettier"
       ];
     in
     {

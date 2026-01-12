@@ -12,6 +12,7 @@
             extraConfig = ''
               Defaults !lecture
               Defaults pwfeedback
+              Defaults timestamp_timeout=15
             '';
           };
 
@@ -46,6 +47,7 @@
         security.sudo.extraConfig = ''
           Defaults !lecture
           Defaults pwfeedback
+          Defaults timestamp_timeout=15
         '';
       };
 
