@@ -1,75 +1,116 @@
 { inputs, ... }:
 {
-  flake.modules.homeManager.security =
-    { pkgs, meta, ... }:
-    {
-      home.packages = with pkgs; [
-        sops
-        age
-      ];
+  flake.modules = {
+    homeManager = {
+      security =
+        { pkgs, meta, ... }:
+        {
+          home.packages = with pkgs; [
+            sops
+            age
+          ];
+        };
+
+      # Home Manager SOPS module - works on both NixOS and Darwin
+      secrets =
+        { config
+        , pkgs
+        , meta
+        , lib
+        , ...
+        }:
+        {
+          imports = [ inputs.sops-nix.homeManagerModules.sops ];
+
+          sops = {
+            defaultSopsFile = ../secrets/secrets.yaml;
+            age.keyFile = "${config.home.homeDirectory}/.config/sops/age/keys.txt";
+            # Auto-generate age key on first activation
+            age.generateKey = true;
+
+            secrets = {
+              github-token = { };
+              smb-username = { };
+              smb-password = { };
+              context7-api-key = { };
+              kagi-api-token = { };
+              openai-api-key = { };
+            };
+          };
+
+          # Make secrets available in user session
+          home.sessionVariables = {
+            CONTEXT7_API_KEY = "$(cat ${config.sops.secrets.context7-api-key.path} 2>/dev/null || true)";
+            KAGI_API_TOKEN = "$(cat ${config.sops.secrets.kagi-api-token.path} 2>/dev/null || true)";
+            OPENAI_API_KEY = "$(cat ${config.sops.secrets.openai-api-key.path} 2>/dev/null || true)";
+          };
+        };
     };
-  flake.modules.nixos.secrets =
-    { config
-    , lib
-    , meta
-    , pkgs
-    , ...
-    }:
-    {
-      imports = [ inputs.sops-nix.nixosModules.sops ];
 
-      sops = {
-        defaultSopsFile = ../secrets/secrets.yaml;
-        age.keyFile = "/var/lib/sops-nix/key.txt";
-        # This will generate a new key if the key specified above does not exist
-        age.generateKey = true;
+    # NixOS-specific SOPS module (system-level secrets)
+    nixos.secrets =
+      { config
+      , lib
+      , meta
+      , pkgs
+      , ...
+      }:
+      {
+        imports = [ inputs.sops-nix.nixosModules.sops ];
 
-        secrets = {
-          github-token = {
+        sops = {
+          defaultSopsFile = ../secrets/secrets.yaml;
+          age.keyFile = "/var/lib/sops-nix/key.txt";
+          # This will generate a new key if the key specified above does not exist
+          age.generateKey = true;
+
+          secrets = {
+            github-token = {
+              mode = "0440";
+              group = "wheel";
+            };
+            smb-username = {
+              mode = "0400";
+            };
+            smb-password = {
+              mode = "0400";
+            };
+            context7-api-key = {
+              mode = "0444";
+            };
+            kagi-api-token = {
+              mode = "0440";
+              group = "wheel";
+            };
+            openai-api-key = {
+              mode = "0440";
+              group = "wheel";
+            };
+          };
+
+          # Generate .smbcredentials file from SOPS secrets
+          templates."smbcredentials" = {
+            content = ''
+              username=${config.sops.placeholder.smb-username}
+              password=${config.sops.placeholder.smb-password}
+            '';
+            mode = "0600";
+            owner = meta.user.username;
+          };
+
+          # Generate nix.conf snippet with GitHub token
+          templates."nix-github-token" = {
+            content = ''
+              access-tokens = github.com=${config.sops.placeholder.github-token}
+            '';
             mode = "0440";
             group = "wheel";
           };
-          smb-username = {
-            mode = "0400";
-          };
-          smb-password = {
-            mode = "0400";
-          };
-          context7-api-key = {
-            mode = "0444";
-          };
         };
 
-        # Generate .smbcredentials file from SOPS secrets
-        templates."smbcredentials" = {
-          content = ''
-            username=${config.sops.placeholder.smb-username}
-            password=${config.sops.placeholder.smb-password}
-          '';
-          mode = "0600";
-          owner = meta.user.username;
-        };
-
-        # Generate nix.conf snippet with GitHub token
-        templates."nix-github-token" = {
-          content = ''
-            access-tokens = github.com=${config.sops.placeholder.github-token}
-          '';
-          mode = "0440";
-          group = "wheel";
-        };
+        nix.extraOptions = ''
+          !include ${config.sops.templates."nix-github-token".path}
+        '';
       };
-
-      # Configure Nix to use GitHub token for API requests to prevent rate limiting
-      # This prevents rate limiting when fetching from GitHub
-      # TEMPORARILY DISABLED: Token is expired/invalid - update token in secrets.yaml
-      # nix.extraOptions = ''
-      #   !include ${config.sops.templates."nix-github-token".path}
-      # '';
-
-      # Make Contexty API key available as system-wide environment variable
-      environment.variables = {
-        CONTEXT7_API_KEY = "$(cat ${config.sops.secrets.context7-api-key.path})";
-      };
-    };
+  };
 }

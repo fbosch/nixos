@@ -102,6 +102,7 @@ in
           "users"
           "dotfiles"
           "security"
+          "secrets"
           "development"
           "shell"
         ];

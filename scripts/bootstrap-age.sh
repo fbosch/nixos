@@ -18,12 +18,25 @@
 
 set -e
 
-echo "=== NixOS Age Key Bootstrap ==="
+echo "=== Age Key Bootstrap ==="
 echo
 
+# Detect platform and set key location
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    PLATFORM="Darwin"
+    AGE_KEY_FILE="$HOME/.config/sops/age/keys.txt"
+    REBUILD_CMD="darwin-rebuild switch --flake .#\$(hostname -s)"
+else
+    PLATFORM="NixOS"
+    AGE_KEY_FILE="/var/lib/sops-nix/key.txt"
+    REBUILD_CMD="sudo nixos-rebuild switch --flake .#\$(hostname)"
+fi
+
 # Detect hostname
-HOSTNAME=$(hostname)
+HOSTNAME=$(hostname -s)
+echo "Detected platform: $PLATFORM"
 echo "Detected hostname: $HOSTNAME"
+echo "Age key location: $AGE_KEY_FILE"
 echo
 
 # Check if sops is installed
@@ -41,22 +54,31 @@ if ! gpg --list-secret-keys 5E0FEC74518ED5FEAA5EA33E5C49A562D850322A &> /dev/nul
 fi
 
 # Check if age key already exists
-if [ -f /var/lib/sops-nix/key.txt ] && [ -s /var/lib/sops-nix/key.txt ]; then
-    echo "Age key already exists at /var/lib/sops-nix/key.txt"
+if [ -f "$AGE_KEY_FILE" ] && [ -s "$AGE_KEY_FILE" ]; then
+    echo "Age key already exists at $AGE_KEY_FILE"
     echo
-    AGE_PUBLIC_KEY=$(sudo age-keygen -y /var/lib/sops-nix/key.txt 2>/dev/null || true)
+    if [[ "$PLATFORM" == "NixOS" ]]; then
+        AGE_PUBLIC_KEY=$(sudo age-keygen -y "$AGE_KEY_FILE" 2>/dev/null || true)
+    else
+        AGE_PUBLIC_KEY=$(age-keygen -y "$AGE_KEY_FILE" 2>/dev/null || true)
+    fi
     if [ -n "$AGE_PUBLIC_KEY" ]; then
         echo "Public key: $AGE_PUBLIC_KEY"
         echo
     fi
 else
-    echo "No age key found. The system will auto-generate one on first build."
-    echo "Run 'sudo nixos-rebuild switch' first, then run this script again."
+    echo "No age key found at $AGE_KEY_FILE"
+    echo "The system will auto-generate one on first build."
+    echo "Run '$REBUILD_CMD' first, then run this script again."
     exit 1
 fi
 
 # Extract public key
-AGE_PUBLIC_KEY=$(sudo age-keygen -y /var/lib/sops-nix/key.txt)
+if [[ "$PLATFORM" == "NixOS" ]]; then
+    AGE_PUBLIC_KEY=$(sudo age-keygen -y "$AGE_KEY_FILE")
+else
+    AGE_PUBLIC_KEY=$(age-keygen -y "$AGE_KEY_FILE")
+fi
 echo "Age public key: $AGE_PUBLIC_KEY"
 echo
 
@@ -64,8 +86,12 @@ echo
 BACKUP_KEY_FILE="secrets/${HOSTNAME}-age-key.txt"
 if [ ! -f "$BACKUP_KEY_FILE" ]; then
     echo "Creating backup at $BACKUP_KEY_FILE (gitignored)..."
-    sudo cp /var/lib/sops-nix/key.txt "$BACKUP_KEY_FILE"
-    sudo chown $USER:users "$BACKUP_KEY_FILE"
+    if [[ "$PLATFORM" == "NixOS" ]]; then
+        sudo cp "$AGE_KEY_FILE" "$BACKUP_KEY_FILE"
+        sudo chown $USER:users "$BACKUP_KEY_FILE"
+    else
+        cp "$AGE_KEY_FILE" "$BACKUP_KEY_FILE"
+    fi
     chmod 600 "$BACKUP_KEY_FILE"
     echo "Backup created!"
     echo
@@ -130,7 +156,7 @@ echo
 echo "=== Bootstrap Complete ==="
 echo
 echo "Age key for '$HOSTNAME' has been:"
-echo "  ✓ Found at /var/lib/sops-nix/key.txt"
+echo "  ✓ Found at $AGE_KEY_FILE"
 echo "  ✓ Backed up to $BACKUP_KEY_FILE"
 echo "  ✓ Added to .sops.yaml"
 echo "  ✓ Used to re-encrypt secrets"
@@ -141,4 +167,4 @@ echo "   git diff .sops.yaml"
 echo "2. Commit the updated .sops.yaml (private keys are gitignored):"
 echo "   git add .sops.yaml && git commit -m 'Add age key for $HOSTNAME'"
 echo "3. Rebuild your system to activate secrets:"
-echo "   sudo nixos-rebuild switch --flake .#$HOSTNAME"
+echo "   $REBUILD_CMD"

@@ -84,6 +84,8 @@
           "1password"
           "firefox"
           "floorp"
+          "arc"
+          "zen"
           "alt-tab"
           "replacicon"
           "cursor"
