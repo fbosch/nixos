@@ -11,30 +11,37 @@ _: {
       ];
     };
 
-  flake.modules.homeManager.desktop =
-    { pkgs, inputs, ... }:
+  flake.modules.homeManager.desktop = { pkgs, inputs, lib, ... }:
+    let
+      inherit (pkgs.stdenv.hostPlatform) system;
+    in
     {
-      home.packages = with pkgs; [
-        # waycorner
-        # rofi
-        xwayland
-        xwayland-satellite
-        inputs.ags.packages.${pkgs.stdenv.hostPlatform.system}.default
-        wev
-        nwg-look
-        nwg-displays
-        wlr-randr
-        wl-clipboard
-        wl-clipboard-x11
-        cliphist
-        wl-clip-persist
-        waybar
-        swaynotificationcenter
-        swayimg
-        libnotify
-        swayosd
-        gsettings-desktop-schemas
-      ];
+      home.packages = lib.optionals pkgs.stdenv.isLinux (
+        let
+          agsPackage = inputs.ags.packages.${system}.default;
+        in
+        [
+          # waycorner
+          # rofi
+          pkgs.xwayland
+          pkgs.xwayland-satellite
+          agsPackage
+          pkgs.wev
+          pkgs.nwg-look
+          pkgs.nwg-displays
+          pkgs.wlr-randr
+          pkgs.wl-clipboard
+          pkgs.wl-clipboard-x11
+          pkgs.cliphist
+          pkgs.wl-clip-persist
+          pkgs.waybar
+          pkgs.swaynotificationcenter
+          pkgs.swayimg
+          pkgs.libnotify
+          pkgs.swayosd
+          pkgs.gsettings-desktop-schemas
+        ]
+      );
 
       systemd.user.services.cliphist = {
         Unit = {

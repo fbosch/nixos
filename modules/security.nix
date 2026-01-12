@@ -5,10 +5,6 @@
       services.gnome.gnome-keyring.enable = true;
 
       security = {
-        pam.services = {
-          hyprland.enableGnomeKeyring = true;
-        };
-
         # Use sudo-rs instead of traditional sudo (memory-safe Rust implementation)
         sudo-rs = {
           enable = true;
@@ -26,7 +22,7 @@
       # This allows FIDO2 security keys and platform authenticators to work
       services.udev.packages = [ pkgs.libfido2 ];
 
-      # Install polkit agent for Hyprland (required for passkey prompts)
+      # Install polkit agent for graphical sessions (required for authentication dialogs and passkeys)
       systemd.user.services.polkit-gnome-authentication-agent-1 = {
         description = "polkit-gnome-authentication-agent-1";
         wantedBy = [ "graphical-session.target" ];

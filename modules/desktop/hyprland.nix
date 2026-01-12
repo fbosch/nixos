@@ -1,20 +1,24 @@
 _: {
 
-  flake.modules.homeManager.desktop =
-    { pkgs, inputs, ... }:
+  flake.modules.homeManager.desktop = { pkgs, inputs, lib, ... }:
     let
       inherit (pkgs.stdenv.hostPlatform) system;
-      hyprpaperPackages = inputs.hyprpaper.packages.${system};
-      hyprpaperPackage = hyprpaperPackages.hyprpaper or hyprpaperPackages.default;
     in
     {
-      home.packages = with pkgs; [
-        hyprpaperPackage
-        hyprprop
-        hyprpicker
-        grim
-        inputs.hyprland-contrib.packages.${pkgs.stdenv.hostPlatform.system}.grimblast
-      ];
+      home.packages = lib.optionals pkgs.stdenv.isLinux (
+        let
+          hyprpaperPackages = inputs.hyprpaper.packages.${system};
+          hyprpaperPackage = hyprpaperPackages.hyprpaper or hyprpaperPackages.default;
+          grimblastPackage = inputs.hyprland-contrib.packages.${system}.grimblast;
+        in
+        [
+          hyprpaperPackage
+          pkgs.hyprprop
+          pkgs.hyprpicker
+          pkgs.grim
+          grimblastPackage
+        ]
+      );
     };
 
   flake.modules.nixos.desktop =
@@ -95,14 +99,16 @@ _: {
         hyprsunsetPackage
       ];
 
-      security.pam.services.hyprlock = {
-        enableGnomeKeyring = true;
-        text = ''
-          auth include login
-          account include login
-        '';
+      security.pam.services = {
+        hyprland.enableGnomeKeyring = true;
+        hyprlock = {
+          enableGnomeKeyring = true;
+          text = ''
+            auth include login
+            account include login
+          '';
+        };
+        hypridle = { };
       };
-
-      security.pam.services.hypridle = { };
     };
 }
