@@ -7,6 +7,11 @@
   flake.modules.darwin."hosts/rvn-mac" =
     { pkgs, meta, ... }:
     {
+      # Import Darwin-specific modules
+      imports = [
+        config.flake.modules.darwin.security
+      ];
+
       # Basic system settings
       system = {
         stateVersion = 5;
