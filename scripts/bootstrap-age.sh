@@ -114,10 +114,10 @@ if grep -q "&${HOSTNAME}" .sops.yaml; then
         echo "Keeping existing .sops.yaml entry. Exiting."
         exit 0
     fi
-    # Remove old key reference
-    sed -i "/&${HOSTNAME}/d" .sops.yaml
-    # Remove old age reference in creation_rules
-    sed -i "/\*${HOSTNAME}/d" .sops.yaml
+    # Remove old key reference (macOS compatible)
+    sed -i '' "/&${HOSTNAME}/d" .sops.yaml
+    # Remove old age reference in creation_rules (macOS compatible)
+    sed -i '' "/\*${HOSTNAME}/d" .sops.yaml
 fi
 
 # Add new age key to .sops.yaml
@@ -126,14 +126,18 @@ echo "Adding age public key to .sops.yaml..."
 # Find the line number where keys are defined
 KEYS_LINE=$(grep -n "^keys:" .sops.yaml | cut -d: -f1)
 
-# Insert new key after the keys: line
-sed -i "${KEYS_LINE}a\\  - &${HOSTNAME} ${AGE_PUBLIC_KEY}" .sops.yaml
+# Insert new key after the keys: line (macOS compatible)
+sed -i '' "${KEYS_LINE}a\\
+  - &${HOSTNAME} ${AGE_PUBLIC_KEY}
+" .sops.yaml
 
 # Add to creation_rules age section
 if grep -q "age:" .sops.yaml; then
     # Add to existing age list
     AGE_SECTION_LINE=$(grep -n "^\s*age:" .sops.yaml | tail -1 | cut -d: -f1)
-    sed -i "${AGE_SECTION_LINE}a\\          - *${HOSTNAME}" .sops.yaml
+    sed -i '' "${AGE_SECTION_LINE}a\\
+          - *${HOSTNAME}
+" .sops.yaml
 else
     echo "Error: No 'age:' section found in .sops.yaml creation_rules"
     echo "Please manually add the age key reference to your creation_rules"
