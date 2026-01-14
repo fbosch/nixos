@@ -10,6 +10,7 @@
       # Import Darwin-specific modules
       imports = [
         config.flake.modules.darwin.security
+        config.flake.modules.darwin.homebrew
       ];
 
       # Basic system settings
@@ -24,18 +25,33 @@
             orientation = "bottom";
             show-recents = false;
             tilesize = 48;
+            launchanim = false;
           };
 
           finder = {
             AppleShowAllExtensions = true;
-            FXPreferredViewStyle = "Nlsv"; # List view
+            FXPreferredViewStyle = "Nlsv";
             ShowPathbar = true;
           };
 
+          universalaccess = {
+            reduceMotion = true;
+          };
+
+          menuExtraClock = {
+            Show24Hour = true;
+            ShowDate = 0;
+            ShowDayOfWeek = true;
+          };
+
           NSGlobalDomain = {
+            AppleInterfaceStyle = "Dark";
             AppleShowAllExtensions = true;
             InitialKeyRepeat = 15;
             KeyRepeat = 2;
+            NSAutomaticCapitalizationEnabled = false;
+            NSAutomaticPeriodSubstitutionEnabled = false;
+            "com.apple.swipescrolldirection" = false;
           };
         };
       };
@@ -67,41 +83,6 @@
         # Fish shell is installed but configuration is managed in ~/dotfiles
         # We don't enable programs.fish to avoid conflicts with dotfiles config
         shells = [ pkgs.fish ];
-      };
-
-      # Homebrew configuration
-      homebrew = {
-        enable = true;
-        onActivation = {
-          autoUpdate = true;
-          cleanup = "zap"; # Uninstall packages not in config
-          upgrade = true;
-        };
-
-        # GUI Applications (casks)
-        casks = [
-          "wezterm"
-          "raycast"
-          "numi"
-          "font-noto-sans-runic"
-          "rectangle"
-          "bitwarden"
-          "1password"
-          "firefox"
-          "floorp"
-          "arc"
-          "zen"
-          "alt-tab"
-          "replacicon"
-          "cursor"
-          "figma"
-        ];
-
-        # CLI tools that work better via Homebrew on macOS
-        # (Most CLI tools should be in nixpkgs, but some may need Homebrew)
-        brews = [
-          # Add any brews here that don't work well in Nix
-        ];
       };
 
       # User configuration
