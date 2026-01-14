@@ -5,8 +5,6 @@
       environment.systemPackages = with pkgs; [
         wget
         curl
-        ripgrep
-        jq
         socat
         xdg-utils
         fd
@@ -23,33 +21,24 @@
     { pkgs, ... }:
     {
       home.packages = with pkgs; [
-        # Directory navigation & file management
+        ripgrep
         eza
         lf
         yazi
         zoxide
         broot
         skim
-
-        # Process/task management
         mprocs
         tmux
-
-        # Utilities
         gum
         peco
         tldr
         grc
         cloc
-
-        # Network/HTTP
         xh
         lynx
-
-        # System info
+        jq
         hyperfine
-
-        # Text processing
         html2text
       ];
     };

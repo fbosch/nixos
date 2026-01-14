@@ -30,7 +30,6 @@
     { pkgs, ... }:
     {
       home.packages = with pkgs; [
-        # Additional development utilities
         stylua
         luarocks
         biome
