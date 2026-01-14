@@ -94,6 +94,7 @@
           "alt-tab"
           "replacicon"
           "cursor"
+          "figma"
         ];
 
         # CLI tools that work better via Homebrew on macOS
