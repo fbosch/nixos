@@ -1,6 +1,6 @@
 {
   flake.modules.darwin.homebrew =
-    { _ }:
+    _:
     {
       # Base Homebrew configuration for macOS
       homebrew = {

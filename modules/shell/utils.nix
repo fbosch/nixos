@@ -7,8 +7,6 @@
         curl
         socat
         xdg-utils
-        fd
-        tree
         unzip
         unrar
         p7zip
@@ -32,12 +30,14 @@
         tmux
         gum
         peco
+        tree
         tldr
         grc
         cloc
         xh
         lynx
         jq
+        fd
         hyperfine
         html2text
       ];
