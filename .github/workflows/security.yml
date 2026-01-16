@@ -14,7 +14,13 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        host: [rvn-vm]
+        include:
+          - host: rvn-vm
+            flake: nixosConfigurations.rvn-vm.config.system.build.toplevel
+          - host: rvn-pc
+            flake: nixosConfigurations.rvn-pc.config.system.build.toplevel
+          - host: rvn-mac
+            flake: darwinConfigurations.rvn-mac.config.system.build.toplevel
       fail-fast: false
     steps:
       - uses: actions/checkout@v4
@@ -27,14 +33,25 @@ jobs:
 
       - name: Build system configuration
         id: build
-        run: echo "path=$(nix build .#nixosConfigurations.${{ matrix.host }}.config.system.build.toplevel --print-out-paths)" >> "$GITHUB_OUTPUT"
+        run: echo "path=$(nix build .#${{ matrix.flake }} --print-out-paths)" >> "$GITHUB_OUTPUT"
+
+      - name: Verify Nix store contents
+        continue-on-error: true
+        run: nix store verify --check-contents "${{ steps.build.outputs.path }}" | tee store-verify.txt
 
       - name: Scan for vulnerabilities
         continue-on-error: true
+        run: nix run github:nix-community/vulnix -- --system "${{ steps.build.outputs.path }}" | tee vulnix-report.txt
+
+      - name: Summarize security results
+        if: always()
         run: |
-          nix run github:nix-community/vulnix -- --system "${{ steps.build.outputs.path }}" | tee vulnix-report.txt
-          
           echo "### 🔒 Security Scan: ${{ matrix.host }}" >> $GITHUB_STEP_SUMMARY
+          echo '#### Nix store verify' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat store-verify.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo '#### Vulnix' >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           cat vulnix-report.txt >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
@@ -43,4 +60,6 @@ jobs:
         if: always()
         with:
           name: security-scan-${{ matrix.host }}
-          path: vulnix-report.txt
+          path: |
+            vulnix-report.txt
+            store-verify.txt
