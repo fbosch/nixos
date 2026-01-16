@@ -11,6 +11,7 @@
         };
 
         casks = [
+          "raycast"
           "numi"
           "font-noto-sans-runic"
           "floorp"
@@ -20,6 +21,7 @@
           "replacicon"
           "cursor"
           "figma"
+          "cleanshot"
           "steipete/tap/codexbar"
         ];
 

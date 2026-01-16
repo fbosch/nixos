@@ -70,7 +70,6 @@
           nh
           nix-output-monitor
           keychain
-          raycast
           wezterm
           rectangle
           firefox
