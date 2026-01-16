@@ -14,6 +14,9 @@ concurrency:
   group: ci-${{ github.ref }}-update
   cancel-in-progress: true
 
+env:
+  FLAKEHUB_TOKEN: ${{ secrets.FLAKEHUB_TOKEN }}
+
 jobs:
   update-flake:
     runs-on: ubuntu-latest

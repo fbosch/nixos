@@ -16,6 +16,7 @@ concurrency:
 
 env:
   NIX_CONFIG: "extra-experimental-features = nix-command flakes"
+  FLAKEHUB_TOKEN: ${{ secrets.FLAKEHUB_TOKEN }}
 
 jobs:
   lint:

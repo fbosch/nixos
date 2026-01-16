@@ -9,6 +9,9 @@ permissions:
   contents: read
   id-token: write
 
+env:
+  FLAKEHUB_TOKEN: ${{ secrets.FLAKEHUB_TOKEN }}
+
 jobs:
   scan:
     runs-on: ubuntu-latest
