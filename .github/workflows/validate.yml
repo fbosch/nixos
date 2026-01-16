@@ -37,7 +37,7 @@ jobs:
     needs: lint
     strategy:
       matrix:
-        host: [rvn-vm]
+        host: [rvn-vm, rvn-pc]
       fail-fast: false
     steps:
       - uses: actions/checkout@v4
@@ -52,3 +52,20 @@ jobs:
       - name: Dry-run build ${{ matrix.host }}
         run: |
           nix build ".#nixosConfigurations.${{ matrix.host }}.config.system.build.toplevel" --dry-run --print-build-logs
+
+  eval-darwin:
+    runs-on: ubuntu-latest
+    needs: lint
+    strategy:
+      matrix:
+        host: [rvn-mac]
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: DeterminateSystems/nix-installer-action@v12
+      - uses: DeterminateSystems/magic-nix-cache-action@v8
+
+      - name: Evaluate ${{ matrix.host }}
+        run: |
+          nix eval ".#darwinConfigurations.${{ matrix.host }}.config.system.build.toplevel" --json > /dev/null
