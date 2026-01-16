@@ -9,9 +9,6 @@ permissions:
   contents: read
   id-token: write
 
-env:
-  FLAKEHUB_TOKEN: ${{ secrets.FLAKEHUB_TOKEN }}
-
 jobs:
   scan:
     runs-on: ubuntu-latest
@@ -23,7 +20,10 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: DeterminateSystems/nix-installer-action@v12
-      - uses: DeterminateSystems/magic-nix-cache-action@v8
+      - uses: cachix/cachix-action@v12
+        with:
+          name: fbosch
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
       - name: Build system configuration
         id: build
