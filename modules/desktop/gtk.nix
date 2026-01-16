@@ -1,10 +1,15 @@
-_: {
+{ config, ... }:
+let
+  # Access flake lib from flake-parts config
+  inherit (config.flake.lib) iconOverrides;
+in
+{
   # NixOS module: Install GTK themes system-wide
   flake.modules.nixos.desktop =
     { pkgs, ... }:
     let
-      # Import icon override utilities
-      iconOverrideLib = import ../../lib/icon-overrides.nix { inherit pkgs; inherit (pkgs) lib; };
+      # Import icon override utilities from flake lib
+      iconOverrideLib = iconOverrides { inherit pkgs; inherit (pkgs) lib; };
 
       monoTheme = pkgs.stdenv.mkDerivation {
         name = "MonoTheme";

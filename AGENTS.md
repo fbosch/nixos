@@ -30,7 +30,13 @@
    - Checks, formatters, dev shells, and packages should be defined under `perSystem` so every supported platform gets consistent tooling.
 7. **Prefer data over conditionals**
    - Pass environment-specific values (host role, install mode, usernames) in `specialArgs` to keep modules declarative and easily testable.
-8. **Don't configure dotfiles-managed programs**
+8. **Keep comments minimal**
+   - Code should be self-documenting through clear variable/attribute names
+   - Only add comments when they explain "why", not "what"
+   - Remove obvious comments that restate the code
+   - Avoid section headers unless the file is complex enough to warrant them
+   - Exception: brief inline comments for non-obvious values are acceptable
+9. **Don't configure dotfiles-managed programs**
    - User dotfiles are managed in a separate repository at `~/dotfiles` using GNU Stow
    - **NEVER configure these programs** in this NixOS flake - they are managed exclusively through dotfiles:
      - **Shell configurations**: Fish, Zsh, Bash (aliases, functions, scripts, abbreviations)
@@ -42,8 +48,8 @@
      - **Other**: AGS, Palettum, OpenCode, nwg-look, Zeal, Astro
    - Only install packages for these programs in NixOS; leave all configuration to dotfiles
    - If unsure whether a program is dotfiles-managed, check if it has a directory in `~/dotfiles/.config/`
-9. **Don't update the readme unless specifically asked to**
-10. **SOPS secrets use dual-key approach (age + GPG)**
+10. **Don't update the readme unless specifically asked to**
+11. **SOPS secrets use dual-key approach (age + GPG)**
    - **Age key** (primary): Used for automated decryption during system activation
      - Machine-specific age key auto-generated at `/var/lib/sops-nix/key.txt` on first build
      - Private key backed up in `secrets/<hostname>-age-key.txt` (gitignored)
