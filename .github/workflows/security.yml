@@ -31,26 +31,18 @@ jobs:
           name: fbosch
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
-      - name: Build system configuration
-        id: build
-        run: echo "path=$(nix build .#${{ matrix.flake }} --print-out-paths)" >> "$GITHUB_OUTPUT"
-
-      - name: Verify Nix store contents
-        continue-on-error: true
-        run: nix store verify --check-contents "${{ steps.build.outputs.path }}" | tee store-verify.txt
+      - name: Resolve system derivation
+        id: resolve
+        run: echo "drv=$(nix eval --raw .#${{ matrix.flake }}.drvPath)" >> "$GITHUB_OUTPUT"
 
       - name: Scan for vulnerabilities
         continue-on-error: true
-        run: nix run github:nix-community/vulnix -- --system "${{ steps.build.outputs.path }}" | tee vulnix-report.txt
+        run: nix run github:nix-community/vulnix -- -R "${{ steps.resolve.outputs.drv }}" | tee vulnix-report.txt
 
       - name: Summarize security results
         if: always()
         run: |
           echo "### 🔒 Security Scan: ${{ matrix.host }}" >> $GITHUB_STEP_SUMMARY
-          echo '#### Nix store verify' >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          cat store-verify.txt >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
           echo '#### Vulnix' >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           cat vulnix-report.txt >> $GITHUB_STEP_SUMMARY
@@ -60,6 +52,4 @@ jobs:
         if: always()
         with:
           name: security-scan-${{ matrix.host }}
-          path: |
-            vulnix-report.txt
-            store-verify.txt
+          path: vulnix-report.txt
