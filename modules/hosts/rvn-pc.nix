@@ -16,21 +16,13 @@ let
         , ...
         }:
         {
-          # # CachyOS kernel experiment
-          # nixpkgs.overlays = [ inputs.nix-cachyos-kernel.overlays.pinned ];
-          # boot.kernelPackages = pkgs.cachyosKernels.linuxPackages-cachyos-latest;
-          #
-          # # Binary cache for CachyOS kernels
-          # nix.settings.substituters = [ "https://attic.xuyh0120.win/lantian" ];
-          # nix.settings.trusted-public-keys = [ "lantian:EeAUQ+W+6r7EtwnmYjeVwx5kOGEBpjlBfPlzGlTNvHc=" ];
-
           environment.systemPackages = [
             pkgs.wlr-randr
           ];
 
           environment.sessionVariables = {
             LIBVA_DRIVER_NAME = "nvidia";
-            NVD_BACKEND = "direct"; # Use direct backend for better performance
+            NVD_BACKEND = "direct";
             TERMINAL = "wezterm";
             GBM_BACKEND = "nvidia_drm";
             __GLX_VENDOR_LIBRARY_NAME = "nvidia";
@@ -62,11 +54,9 @@ let
       (
         { config, ... }:
         {
-          # Override XDG Downloads directory to use mounted storage
           xdg.userDirs = {
             enable = true;
             download = "/mnt/storage/Downloads";
-            # Ensure the directory is created
           };
         }
       )
@@ -76,9 +66,7 @@ let
   };
 in
 {
-  # Store the module
   flake.modules.nixos."hosts/rvn-pc" = hostResult._module;
 
-  # Store the host config metadata
   flake.hostConfigs.rvn-pc = hostResult._hostConfig;
 }
