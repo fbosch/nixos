@@ -16,11 +16,10 @@
     };
 
   flake.modules.homeManager.applications =
-    {
-      pkgs,
-      config,
-      lib,
-      ...
+    { pkgs
+    , config
+    , lib
+    , ...
     }:
     let
       defaultFileExplorer = "nemo.desktop";
