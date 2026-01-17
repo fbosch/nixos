@@ -7,6 +7,8 @@
         nemo-with-extensions
         sushi
         zip
+        libwebp
+        libjpeg
       ];
 
       xdg.mime.defaultApplications = {
@@ -16,10 +18,11 @@
     };
 
   flake.modules.homeManager.applications =
-    { pkgs
-    , config
-    , lib
-    , ...
+    {
+      pkgs,
+      config,
+      lib,
+      ...
     }:
     let
       defaultFileExplorer = "nemo.desktop";
