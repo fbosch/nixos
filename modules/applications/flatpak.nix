@@ -63,6 +63,8 @@
           "com.obsproject.Studio.Plugin.OBSVkCapture"
           "org.freedesktop.Platform.VulkanLayer.vkBasalt//25.08"
           "net.lutris.Lutris"
+          "net.davidotek.pupgui2"
+          "io.github.Faugus.faugus-launcher"
           # "org.freedesktop.Platform.VulkanLayer.MangoHud"
           # "net.displaycal.DisplayCAL"
           # "re.sonny.OhMySVG"
