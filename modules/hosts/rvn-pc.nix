@@ -52,6 +52,7 @@ let
     extraNixos = [
       "hardware/storage"
       "hardware/fingerprint"
+      "hardware/fancontrol"
     ];
 
     extraHomeManager = [

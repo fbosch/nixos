@@ -8,7 +8,13 @@
   },
   "formatter": {
     "nixpkgs-fmt": {
-      "command": ["nix-shell", "-p", "nixpkgs-fmt", "--run", "nixpkgs-fmt $FILE"],
+      "command": [
+        "nix-shell",
+        "-p",
+        "nixpkgs-fmt",
+        "--run",
+        "nixpkgs-fmt $FILE"
+      ],
       "extensions": [".nix"]
     }
   }

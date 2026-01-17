@@ -11,7 +11,7 @@
         unrar
         p7zip
         killall
-        nixfmt-rfc-style
+        nixfmt
         freshfetch
       ];
     };

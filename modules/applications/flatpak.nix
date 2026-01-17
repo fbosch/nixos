@@ -36,7 +36,6 @@
           "be.alexandervanhee.gradia"
           "com.plexamp.Plexamp"
           "one.ablaze.floorp"
-          "io.github.wiiznokes.fan-control"
           "tv.plex.PlexDesktop"
           "com.obsproject.Studio"
           "com.obsproject.Studio.Plugin.OBSVkCapture"
