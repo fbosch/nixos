@@ -1,6 +1,12 @@
 _: {
 
-  flake.modules.homeManager.desktop = { pkgs, inputs, lib, ... }:
+  flake.modules.homeManager.desktop =
+    {
+      pkgs,
+      inputs,
+      lib,
+      ...
+    }:
     let
       inherit (pkgs.stdenv.hostPlatform) system;
     in
@@ -22,10 +28,11 @@ _: {
     };
 
   flake.modules.nixos.desktop =
-    { pkgs
-    , meta
-    , inputs
-    , ...
+    {
+      pkgs,
+      meta,
+      inputs,
+      ...
     }:
     let
       inherit (pkgs.stdenv.hostPlatform) system;
@@ -85,7 +92,6 @@ _: {
         GDK_DEBUG = "no-portals";
         WLR_NO_HARDWARE_CURSORS = "1";
         HYPR_PLUGIN_DIR = hypr-plugin-dir;
-        GTK_IM_MODULE = "wayland";
         QT_QPA_PLATFORM = "wayland;xcb";
         QT_IM_MODULE = "wayland";
         __JAVA_AWT_WM_NONREPARENTING = "1";

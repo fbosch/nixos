@@ -88,6 +88,12 @@
               background-color: rgba(0, 120, 212, 0.3);
               border: 1px solid rgba(0, 120, 212, 0.8);
             }
+
+            /* Fix text selection in address bar */
+            .nemo-window .primary-toolbar entry,
+            .nemo-window toolbar entry {
+              -gtk-secondary-caret-color: transparent;
+            }
           '';
 
           # Append import to existing gtk.css (creates if doesn't exist)
@@ -100,22 +106,18 @@
       # Persist Nemo favorite directories (bookmarks) across rebuilds
       dconf.settings = {
         "org/nemo/sidebar-panels/tree" = {
-          # Sync bookmarks to avoid losing favorites
-          # This ensures your custom bookmarks persist across NixOS rebuilds
           sync-bookmarks = true;
         };
         "org/cinnamon/desktop/applications/terminal" = {
           exec = "wezterm";
         };
         "org/nemo/preferences" = {
-          # Enable Delete key to move files to trash
-          # This allows Ctrl+A followed by Delete to work properly
           enable-delete = true;
-          # Show "Delete" in context menu
           show-delete-permanently = true;
+          show-location-entry = true;
+          mouse-use-extra-buttons = false;
         };
         "org/nemo/window-state" = {
-          # Enable keyboard shortcuts
           start-with-sidebar = true;
         };
       };
