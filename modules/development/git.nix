@@ -16,7 +16,7 @@
         settings.credential = {
           helper = "manager";
           "https://github.com".username = meta.user.github.username;
-          credentialStore = "gpg";
+          credentialStore = "secretservice";
         };
       };
     };
