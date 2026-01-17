@@ -24,6 +24,9 @@
         # This allows FIDO2 security keys and platform authenticators to work
         services.udev.packages = [ pkgs.libfido2 ];
 
+        # ClamAV updater for manual scanning (daemon disabled)
+        services.clamav.updater.enable = true;
+
         # Install polkit agent for graphical sessions (required for authentication dialogs and passkeys)
         systemd.user.services.polkit-gnome-authentication-agent-1 = {
           description = "polkit-gnome-authentication-agent-1";
@@ -63,7 +66,10 @@
         };
 
         # Security tools
-        home.packages = with pkgs; [ bitwarden-cli ];
+        home.packages = with pkgs; [
+          bitwarden-cli
+          clamav
+        ];
 
         # Note: Bitwarden CLI data.json is NOT managed by Home Manager
         # to allow the CLI to write session data. Server URL should be
