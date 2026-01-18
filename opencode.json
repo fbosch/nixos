@@ -16,6 +16,16 @@
         "nixpkgs-fmt $FILE"
       ],
       "extensions": [".nix"]
+    },
+    "statix": {
+      "command": [
+        "nix-shell",
+        "-p",
+        "statix",
+        "--run",
+        "statix check $FILE"
+      ],
+      "extensions": [".nix"]
     }
   }
 }

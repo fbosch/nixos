@@ -3,10 +3,13 @@
     nixos.security =
       { pkgs, ... }:
       {
-        services.gnome.gnome-keyring.enable = true;
+        services = {
+          gnome.gnome-keyring.enable = true;
+          udev.packages = [ pkgs.libfido2 ];
+          clamav.updater.enable = true;
+        };
 
         security = {
-          # Use sudo-rs instead of traditional sudo (memory-safe Rust implementation)
           sudo-rs = {
             enable = true;
             extraConfig = ''
@@ -15,17 +18,8 @@
               Defaults timestamp_timeout=15
             '';
           };
-
-          # Enable polkit for authentication dialogs (required for passkeys)
           polkit.enable = true;
         };
-
-        # Enable U2F/FIDO2 support for passkeys
-        # This allows FIDO2 security keys and platform authenticators to work
-        services.udev.packages = [ pkgs.libfido2 ];
-
-        # ClamAV updater for manual scanning (daemon disabled)
-        services.clamav.updater.enable = true;
 
         # Install polkit agent for graphical sessions (required for authentication dialogs and passkeys)
         systemd.user.services.polkit-gnome-authentication-agent-1 = {
