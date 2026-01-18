@@ -74,10 +74,10 @@ _: {
       # Custom CSS to match MonoThemeDark color scheme
       xdg.configFile."AdwSteamGtk/custom.css".source = ../../assets/steam-theme/custom.css;
 
-      xdg.desktopEntries.steam = {
+      xdg.desktopEntries.steam = lib.mkIf osConfig.services.mullvad-vpn.enable {
         name = "Steam";
         comment = "Application for managing and playing games on Steam";
-        exec = "mullvad-exclude steam %U";
+        exec = "${lib.getExe' pkgs.mullvad-vpn "mullvad-exclude"} steam %U";
         icon = "steam";
         type = "Application";
         categories = [

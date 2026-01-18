@@ -65,9 +65,6 @@
           clamav
         ];
 
-        # Note: Bitwarden CLI data.json is NOT managed by Home Manager
-        # to allow the CLI to write session data. Server URL should be
-        # configured manually or via bootstrap scripts.
       };
   };
 }
