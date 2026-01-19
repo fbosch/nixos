@@ -61,26 +61,35 @@ flowchart LR
 
 ## Module wiring
 
-Modules listed under a preset or host `modules` list are applied to both NixOS and Home Manager. Use the `nixos` list for system-only modules and `homeManager` for user-only modules. A module file can export both `flake.modules.nixos.<name>` and `flake.modules.homeManager.<name>` so a single entry in `modules` wires both sides.
+Presets and hosts use three lists: `modules`, `nixos`, `homeManager`.
+
+- `modules`: loaded for both NixOS and Home Manager
+- `nixos`: system-only
+- `homeManager`: user-only
+
+A module can define both sides, so one `modules` entry can wire both.
 
 ## Presets
 
 ```mermaid
-flowchart TB
+flowchart LR
   subgraph desktop
-    dShared["shared: users, fonts, security, desktop, applications, development, shell"]
+    direction TB
+    dModules["modules: users, fonts, security, desktop, applications, development, shell"]
     dNixos["nixos: system, vpn"]
-    dHm["home: dotfiles"]
+    dHomeManager["homeManager: dotfiles"]
   end
 
   subgraph server
-    sShared["shared: users, security, development, shell"]
+    direction TB
+    sModules["modules: users, security, development, shell"]
     sNixos["nixos: system, vpn"]
-    sHm["home: dotfiles"]
+    sHomeManager["homeManager: dotfiles"]
   end
 
   subgraph homeManagerOnly
-    hHm["home: users, dotfiles, security, development, shell"]
+    direction TB
+    hHomeManager["homeManager: users, dotfiles, security, development, shell"]
   end
 ```
 
