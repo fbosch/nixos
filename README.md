@@ -59,23 +59,6 @@ flowchart LR
   lib --> darwinConfigs[darwinConfigurations]
 ```
 
-## Presets
-
-| Preset            | modules                                                           | nixos       | homeManager                                            |
-| ----------------- | ----------------------------------------------------------------- | ----------- | ------------------------------------------------------ |
-| `desktop`         | users, fonts, security, desktop, applications, development, shell | system, vpn | dotfiles                                               |
-| `server`          | users, security, development, shell                               | system, vpn | dotfiles                                               |
-| `minimal`         | users, security                                                   | system      | dotfiles                                               |
-| `homeManagerOnly` | -                                                                 | -           | users, dotfiles, security, secrets, development, shell |
-
-## Hosts
-
-| Host | platform | preset | extra modules |
-| --- | --- | --- | --- |
-| `rvn-pc` | nixos | `desktop` | modules: secrets, nas, gaming, windows, virtualization<br>extraNixos: hardware/storage, hardware/fingerprint, hardware/fancontrol<br>extraHM: dotfiles, flatpaks, vicinae, custom xdg |
-| `rvn-vm` | nixos | `desktop` | extraNixos: secrets, nas<br>extraHM: dotfiles, flatpaks, vicinae |
-| `rvn-mac` | darwin | `homeManagerOnly` | darwin imports: security, homebrew |
-
 ## Credits
 
 - Dendritic pattern — https://vic.github.io/dendrix/
