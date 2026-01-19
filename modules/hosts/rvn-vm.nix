@@ -28,7 +28,6 @@ let
     extraNixos = [ "secrets" "nas" ];
 
     extraHomeManager = [
-      config.flake.modules.homeManager.dotfiles
       inputs.flatpaks.homeManagerModules.nix-flatpak
       inputs.vicinae.homeManagerModules.default
     ];

@@ -84,16 +84,6 @@ in
         homeManager = [ "dotfiles" ];
       };
 
-      # Minimal installation with only essentials
-      minimal = {
-        modules = [
-          "users"
-          "security"
-        ];
-        nixos = [ "system" ];
-        homeManager = [ "dotfiles" ];
-      };
-
       # Home Manager only (for macOS or non-NixOS systems)
       homeManagerOnly = {
         modules = [ ];
@@ -102,7 +92,6 @@ in
           "users"
           "dotfiles"
           "security"
-          "secrets"
           "development"
           "shell"
         ];

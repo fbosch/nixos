@@ -84,22 +84,11 @@ flowchart LR
 </details>
 
 <details>
-<summary><code>minimal</code></summary>
-
-| Group        | Entries         |
-| ------------ | --------------- |
-| Modules      | users, security |
-| NixOS        | system          |
-| Home Manager | dotfiles        |
-
-</details>
-
-<details>
 <summary><code>homeManagerOnly</code></summary>
 
 | Group        | Entries                                                |
 | ------------ | ------------------------------------------------------ |
-| Home Manager | users, dotfiles, security, secrets, development, shell |
+| Home Manager | users, dotfiles, security, development, shell |
 
 </details>
 

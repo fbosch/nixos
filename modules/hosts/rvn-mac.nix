@@ -90,7 +90,7 @@
             (
               m: config.flake.modules.homeManager.${m} or { }
             )
-            meta.presets.homeManagerOnly.homeManager;
+            (meta.presets.homeManagerOnly.homeManager ++ [ "secrets" ]);
       };
     };
 }
