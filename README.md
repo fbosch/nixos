@@ -30,37 +30,33 @@ pkgs/by-name/    local packages
 ```
 
 ```mermaid
-flowchart TD
+flowchart LR
   flake[flake.nix]
-
   meta[flake.meta]
   modules[flake.modules]
   lib[flake.lib.mkHost]
   hostConfigs[flake.hostConfigs]
-
-  hosts[modules/hosts/*]
-  moduleTree[modules/*]
-
   presets[meta.presets]
 
-  nixosConfigs[nixosConfigurations]
-  darwinConfigs[darwinConfigurations]
+  subgraph moduleTree[modules/]
+    hosts[hosts/*]
+    moduleset[other modules]
+  end
 
   flake --> meta
   flake --> modules
   flake --> lib
   flake --> hostConfigs
 
-  modules --> hosts
-  modules --> moduleTree
-
   meta --> presets
   presets --> lib
-  hostConfigs --> lib
-  hosts --> lib
 
-  lib --> nixosConfigs
-  lib --> darwinConfigs
+  modules --> moduleTree
+  hosts --> lib
+  hostConfigs --> lib
+
+  lib --> nixosConfigs[nixosConfigurations]
+  lib --> darwinConfigs[darwinConfigurations]
 ```
 
 ## Presets
@@ -75,26 +71,27 @@ flowchart TD
 ## Preset expansion
 
 ```mermaid
-flowchart TD
+flowchart LR
   preset[preset]
   mkHost[mkHost]
 
-  presetModules[preset.modules]
-  presetNixos[preset.nixos]
-  presetHm[preset.homeManager]
-  extraNixos[extraNixos]
-  extraHm[extraHomeManager]
-  hostImports[hostImports]
+  subgraph inputs[inputs]
+    presetModules[preset.modules]
+    presetNixos[preset.nixos]
+    presetHm[preset.homeManager]
+    extraNixos[extraNixos]
+    extraHm[extraHomeManager]
+    hostImports[hostImports]
+  end
 
-  nixosModules[nixos module list]
-  hmModules[home-manager module list]
+  subgraph outputs[expanded lists]
+    nixosModules[nixos module list]
+    hmModules[home-manager module list]
+  end
 
   preset --> presetModules
   preset --> presetNixos
   preset --> presetHm
-
-  mkHost --> nixosModules
-  mkHost --> hmModules
 
   presetModules --> nixosModules
   presetNixos --> nixosModules
@@ -104,6 +101,9 @@ flowchart TD
   presetModules --> hmModules
   presetHm --> hmModules
   extraHm --> hmModules
+
+  mkHost --> nixosModules
+  mkHost --> hmModules
 ```
 
 ## Hosts
