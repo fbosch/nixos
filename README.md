@@ -91,6 +91,8 @@ flowchart LR
     direction LR
     hHomeManager["homeManager: users, dotfiles, security, development, shell"]
   end
+
+  desktop --- server --- homeManagerOnly
 ```
 
 ## Credits
