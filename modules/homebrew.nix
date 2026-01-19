@@ -23,6 +23,7 @@
           "figma"
           "cleanshot"
           "steipete/tap/codexbar"
+          "replacicon"
         ];
 
         brews = [ ];
