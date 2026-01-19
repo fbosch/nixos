@@ -30,116 +30,37 @@ pkgs/by-name/    local packages
 ```
 
 ```mermaid
-classDiagram
-  class FlakeNix {
-    inputs
-    outputs
-  }
+flowchart TD
+  flake[flake.nix]
 
-  class Inputs {
-    core: nixpkgs, flake-parts, import-tree, home-manager, nix-darwin
-    pkgs: pkgs-by-name-for-flake-parts, nix-webapps
-    dotfiles: dotfiles
-    desktop: hyprland, hyprland-plugins, split-monitor-workspaces, hyprland-contrib, hyprlock, hypridle, hyprsunset, hyprpaper
-    secrets: sops-nix
-    apps: flatpaks, vicinae, winapps, ags
-    boot: grub2-themes, distro-grub-themes
-    dedupe: dedupe_systems, dedupe_flake-utils, dedupe_flake-compat
-  }
+  meta[flake.meta]
+  modules[flake.modules]
+  lib[flake.lib.mkHost]
+  hostConfigs[flake.hostConfigs]
 
-  class Outputs {
-    flake.meta
-    flake.modules
-    flake.lib.mkHost
-    flake.hostConfigs
-    nixosConfigurations
-    darwinConfigurations
-    packages (pkgs/by-name)
-  }
+  hosts[modules/hosts/*]
+  moduleTree[modules/*]
 
-  class Modules {
-    flake-parts/
-    hosts/
-    applications/
-    desktop/
-    development/
-    hardware/
-    shell/
-    system/
-    users.nix
-    fonts.nix
-    security.nix
-    dotfiles.nix
-    virtualization.nix
-    vpn.nix
-    sops.nix
-    nas.nix
-    homebrew.nix
-  }
+  presets[meta.presets]
 
-  class FlakeParts {
-    flake-parts.nix
-    hosts.nix
-    meta.nix
-    mkHost.nix
-    nixpkgs.nix
-    dev-shell.nix
-    overlays/*.nix
-  }
+  nixosConfigs[nixosConfigurations]
+  darwinConfigs[darwinConfigurations]
 
-  class Hosts {
-    rvn-mac.nix
-    rvn-pc.nix
-    rvn-vm.nix
-  }
+  flake --> meta
+  flake --> modules
+  flake --> lib
+  flake --> hostConfigs
 
-  class ModuleTree {
-    nixos/*
-    homeManager/*
-    darwin/*
-  }
+  modules --> hosts
+  modules --> moduleTree
 
-  class Meta {
-    user
-    dotfiles
-    bitwarden
-    ui
-    displayManager
-    presets
-    versions
-    unfree
-  }
+  meta --> presets
+  presets --> lib
+  hostConfigs --> lib
+  hosts --> lib
 
-  class Presets {
-    desktop
-    server
-    minimal
-    homeManagerOnly
-  }
-
-  class PackagesByName {
-    pkgs/by-name/
-  }
-
-  class Lib {
-    lib/icon-overrides.nix
-  }
-
-  class NixosConfigurations
-  class DarwinConfigurations
-
-  FlakeNix --> Inputs
-  FlakeNix --> Outputs
-  FlakeNix --> Modules
-  Modules --> FlakeParts
-  Modules --> Hosts
-  Outputs --> ModuleTree
-  Outputs --> Meta
-  Meta --> Presets
-  Outputs --> PackagesByName
-  Outputs --> Lib
-  Outputs --> NixosConfigurations
-  Outputs --> DarwinConfigurations
+  lib --> nixosConfigs
+  lib --> darwinConfigs
 ```
 
 ## Presets
@@ -150,6 +71,48 @@ classDiagram
 | `server`          | users, security, development, shell                               | system, vpn | dotfiles                                               |
 | `minimal`         | users, security                                                   | system      | dotfiles                                               |
 | `homeManagerOnly` | -                                                                 | -           | users, dotfiles, security, secrets, development, shell |
+
+## Preset expansion
+
+```mermaid
+flowchart TD
+  preset[preset]
+  mkHost[mkHost]
+
+  presetModules[preset.modules]
+  presetNixos[preset.nixos]
+  presetHm[preset.homeManager]
+  extraNixos[extraNixos]
+  extraHm[extraHomeManager]
+  hostImports[hostImports]
+
+  nixosModules[nixos module list]
+  hmModules[home-manager module list]
+
+  preset --> presetModules
+  preset --> presetNixos
+  preset --> presetHm
+
+  mkHost --> nixosModules
+  mkHost --> hmModules
+
+  presetModules --> nixosModules
+  presetNixos --> nixosModules
+  extraNixos --> nixosModules
+  hostImports --> nixosModules
+
+  presetModules --> hmModules
+  presetHm --> hmModules
+  extraHm --> hmModules
+```
+
+## Hosts
+
+| Host | platform | preset | extra modules |
+| --- | --- | --- | --- |
+| `rvn-pc` | nixos | `desktop` | modules: secrets, nas, gaming, windows, virtualization<br>extraNixos: hardware/storage, hardware/fingerprint, hardware/fancontrol<br>extraHM: dotfiles, flatpaks, vicinae, custom xdg |
+| `rvn-vm` | nixos | `desktop` | extraNixos: secrets, nas<br>extraHM: dotfiles, flatpaks, vicinae |
+| `rvn-mac` | darwin | `homeManagerOnly` | darwin imports: security, homebrew |
 
 ## Credits
 
