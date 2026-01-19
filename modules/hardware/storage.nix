@@ -14,7 +14,7 @@ _: {
           "uid=1000" # Owner UID (your user)
           "gid=100" # Group GID (users group)
           "dmask=022" # Directory permissions (755)
-          "fmask=113" # File permissions (664)
+          "fmask=022" # File permissions (755) - allows execution
           "big_writes" # Better write performance
           "noatime" # Don't update access times (better performance)
         ];
