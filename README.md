@@ -74,21 +74,21 @@ A module can define both sides, so one `modules` entry can wire both.
 ```mermaid
 flowchart LR
   subgraph desktop
-    direction TB
+    direction LR
     dModules["modules: users, fonts, security, desktop, applications, development, shell"]
     dNixos["nixos: system, vpn"]
     dHomeManager["homeManager: dotfiles"]
   end
 
   subgraph server
-    direction TB
+    direction LR
     sModules["modules: users, security, development, shell"]
     sNixos["nixos: system, vpn"]
     sHomeManager["homeManager: dotfiles"]
   end
 
   subgraph homeManagerOnly
-    direction TB
+    direction LR
     hHomeManager["homeManager: users, dotfiles, security, development, shell"]
   end
 ```
