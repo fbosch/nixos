@@ -64,46 +64,44 @@ flowchart LR
 <details>
 <summary><code>desktop</code></summary>
 
-Modules: users, fonts, security, desktop, applications, development, shell
+| Group        | Entries                                                           |
+| ------------ | ----------------------------------------------------------------- |
+| Modules      | users, fonts, security, desktop, applications, development, shell |
+| NixOS        | system, vpn                                                       |
+| Home Manager | dotfiles                                                          |
 
-NixOS: system, vpn
-
-Home Manager: dotfiles
 </details>
 
 <details>
 <summary><code>server</code></summary>
 
-Modules: users, security, development, shell
+| Group        | Entries                             |
+| ------------ | ----------------------------------- |
+| Modules      | users, security, development, shell |
+| NixOS        | system, vpn                         |
+| Home Manager | dotfiles                            |
 
-NixOS: system, vpn
-
-Home Manager: dotfiles
 </details>
 
 <details>
 <summary><code>minimal</code></summary>
 
-Modules: users, security
+| Group        | Entries         |
+| ------------ | --------------- |
+| Modules      | users, security |
+| NixOS        | system          |
+| Home Manager | dotfiles        |
 
-NixOS: system
-
-Home Manager: dotfiles
 </details>
 
 <details>
 <summary><code>homeManagerOnly</code></summary>
 
-Home Manager: users, dotfiles, security, secrets, development, shell
+| Group        | Entries                                                |
+| ------------ | ------------------------------------------------------ |
+| Home Manager | users, dotfiles, security, secrets, development, shell |
+
 </details>
-
-## Hosts
-
-| Host | platform | preset | extra modules |
-| --- | --- | --- | --- |
-| `rvn-pc` | nixos | `desktop` | modules: secrets, nas, gaming, windows, virtualization<br>extraNixos: hardware/storage, hardware/fingerprint, hardware/fancontrol<br>extraHM: dotfiles, flatpaks, vicinae, custom xdg |
-| `rvn-vm` | nixos | `desktop` | extraNixos: secrets, nas<br>extraHM: dotfiles, flatpaks, vicinae |
-| `rvn-mac` | darwin | `homeManagerOnly` | darwin imports: security, homebrew |
 
 ## Credits
 
