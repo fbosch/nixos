@@ -68,44 +68,6 @@ flowchart LR
 | `minimal`         | users, security                                                   | system      | dotfiles                                               |
 | `homeManagerOnly` | -                                                                 | -           | users, dotfiles, security, secrets, development, shell |
 
-## Preset expansion
-
-```mermaid
-flowchart LR
-  preset[preset]
-  mkHost[mkHost]
-
-  subgraph inputs[inputs]
-    presetModules[preset.modules]
-    presetNixos[preset.nixos]
-    presetHm[preset.homeManager]
-    extraNixos[extraNixos]
-    extraHm[extraHomeManager]
-    hostImports[hostImports]
-  end
-
-  subgraph outputs[expanded lists]
-    nixosModules[nixos module list]
-    hmModules[home-manager module list]
-  end
-
-  preset --> presetModules
-  preset --> presetNixos
-  preset --> presetHm
-
-  presetModules --> nixosModules
-  presetNixos --> nixosModules
-  extraNixos --> nixosModules
-  hostImports --> nixosModules
-
-  presetModules --> hmModules
-  presetHm --> hmModules
-  extraHm --> hmModules
-
-  mkHost --> nixosModules
-  mkHost --> hmModules
-```
-
 ## Hosts
 
 | Host | platform | preset | extra modules |
