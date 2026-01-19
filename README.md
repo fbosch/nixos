@@ -30,83 +30,25 @@ pkgs/by-name/    local packages
 ```
 
 ```mermaid
-flowchart TD
-  root[flake.nix]
-  modules[modules/]
-  flakeparts[modules/flake-parts/]
-  hosts[modules/hosts/]
-  single[modules/*.nix]
-  pkgs[pkgs/by-name/]
-  configs[nixosConfigurations.<name>]
-
-  root --> modules
-  root --> pkgs
-  modules --> flakeparts
-  modules --> hosts
-  modules --> single
-  hosts --> configs
+mindmap
+  root((flake.nix))
+    modules
+      flake-parts
+      hosts
+        nixosConfigurations.<name>
+      "*.nix"
+    pkgs
+      by-name
 ```
 
 ## Presets
 
-```mermaid
-flowchart TD
-  presets[presets]
-
-  desktop[desktop]
-  server[server]
-  minimal[minimal]
-  homeonly[homeManagerOnly]
-
-  modulesGroup[modules]
-  nixosGroup[nixos]
-  hmGroup[homeManager]
-
-  desktopModules[users, fonts, security, desktop, applications, development, shell]
-  serverModules[users, security, development, shell]
-  minimalModules[users, security]
-  homeModules[users, dotfiles, security, secrets, development, shell]
-
-  desktopNixos[system, vpn]
-  serverNixos[system, vpn]
-  minimalNixos[system]
-
-  desktopHm[dotfiles]
-  serverHm[dotfiles]
-  minimalHm[dotfiles]
-
-  presets --> desktop
-  presets --> server
-  presets --> minimal
-  presets --> homeonly
-
-  desktop --> modulesGroup
-  desktop --> nixosGroup
-  desktop --> hmGroup
-
-  server --> modulesGroup
-  server --> nixosGroup
-  server --> hmGroup
-
-  minimal --> modulesGroup
-  minimal --> nixosGroup
-  minimal --> hmGroup
-
-  homeonly --> hmGroup
-
-  modulesGroup --> desktopModules
-  modulesGroup --> serverModules
-  modulesGroup --> minimalModules
-  modulesGroup --> homeModules
-
-  nixosGroup --> desktopNixos
-  nixosGroup --> serverNixos
-  nixosGroup --> minimalNixos
-
-  hmGroup --> desktopHm
-  hmGroup --> serverHm
-  hmGroup --> minimalHm
-```
+| Preset | modules | nixos | homeManager |
+| --- | --- | --- | --- |
+| `desktop` | users, fonts, security, desktop, applications, development, shell | system, vpn | dotfiles |
+| `server` | users, security, development, shell | system, vpn | dotfiles |
+| `minimal` | users, security | system | dotfiles |
+| `homeManagerOnly` | - | - | users, dotfiles, security, secrets, development, shell |
 
 ## Credits
 
