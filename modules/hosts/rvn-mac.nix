@@ -30,10 +30,6 @@
             ShowPathbar = true;
           };
 
-          universalaccess = {
-            reduceMotion = true;
-          };
-
           menuExtraClock = {
             Show24Hour = true;
             ShowDate = 0;
