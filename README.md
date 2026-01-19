@@ -30,25 +30,31 @@ pkgs/by-name/    local packages
 ```
 
 ```mermaid
-mindmap
-  root((flake.nix))
-    modules
-      flake-parts
-      hosts
-        nixosConfigurations.<name>
-      "*.nix"
-    pkgs
-      by-name
+classDiagram
+  class FlakeNix
+  class Modules
+  class FlakeParts
+  class Hosts
+  class SingleModules
+  class PkgsByName
+  class NixosConfigurations
+
+  FlakeNix --> Modules
+  FlakeNix --> PkgsByName
+  Modules --> FlakeParts
+  Modules --> Hosts
+  Modules --> SingleModules
+  Hosts --> NixosConfigurations
 ```
 
 ## Presets
 
-| Preset | modules | nixos | homeManager |
-| --- | --- | --- | --- |
-| `desktop` | users, fonts, security, desktop, applications, development, shell | system, vpn | dotfiles |
-| `server` | users, security, development, shell | system, vpn | dotfiles |
-| `minimal` | users, security | system | dotfiles |
-| `homeManagerOnly` | - | - | users, dotfiles, security, secrets, development, shell |
+| Preset            | modules                                                           | nixos       | homeManager                                            |
+| ----------------- | ----------------------------------------------------------------- | ----------- | ------------------------------------------------------ |
+| `desktop`         | users, fonts, security, desktop, applications, development, shell | system, vpn | dotfiles                                               |
+| `server`          | users, security, development, shell                               | system, vpn | dotfiles                                               |
+| `minimal`         | users, security                                                   | system      | dotfiles                                               |
+| `homeManagerOnly` | -                                                                 | -           | users, dotfiles, security, secrets, development, shell |
 
 ## Credits
 
