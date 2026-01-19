@@ -31,20 +31,115 @@ pkgs/by-name/    local packages
 
 ```mermaid
 classDiagram
-  class FlakeNix
-  class Modules
-  class FlakeParts
-  class Hosts
-  class SingleModules
-  class PkgsByName
-  class NixosConfigurations
+  class FlakeNix {
+    inputs
+    outputs
+  }
 
+  class Inputs {
+    core: nixpkgs, flake-parts, import-tree, home-manager, nix-darwin
+    pkgs: pkgs-by-name-for-flake-parts, nix-webapps
+    dotfiles: dotfiles
+    desktop: hyprland, hyprland-plugins, split-monitor-workspaces, hyprland-contrib, hyprlock, hypridle, hyprsunset, hyprpaper
+    secrets: sops-nix
+    apps: flatpaks, vicinae, winapps, ags
+    boot: grub2-themes, distro-grub-themes
+    dedupe: dedupe_systems, dedupe_flake-utils, dedupe_flake-compat
+  }
+
+  class Outputs {
+    flake.meta
+    flake.modules
+    flake.lib.mkHost
+    flake.hostConfigs
+    nixosConfigurations
+    darwinConfigurations
+    packages (pkgs/by-name)
+  }
+
+  class Modules {
+    flake-parts/
+    hosts/
+    applications/
+    desktop/
+    development/
+    hardware/
+    shell/
+    system/
+    users.nix
+    fonts.nix
+    security.nix
+    dotfiles.nix
+    virtualization.nix
+    vpn.nix
+    sops.nix
+    nas.nix
+    homebrew.nix
+  }
+
+  class FlakeParts {
+    flake-parts.nix
+    hosts.nix
+    meta.nix
+    mkHost.nix
+    nixpkgs.nix
+    dev-shell.nix
+    overlays/*.nix
+  }
+
+  class Hosts {
+    rvn-mac.nix
+    rvn-pc.nix
+    rvn-vm.nix
+  }
+
+  class ModuleTree {
+    nixos/*
+    homeManager/*
+    darwin/*
+  }
+
+  class Meta {
+    user
+    dotfiles
+    bitwarden
+    ui
+    displayManager
+    presets
+    versions
+    unfree
+  }
+
+  class Presets {
+    desktop
+    server
+    minimal
+    homeManagerOnly
+  }
+
+  class PackagesByName {
+    pkgs/by-name/
+  }
+
+  class Lib {
+    lib/icon-overrides.nix
+  }
+
+  class NixosConfigurations
+  class DarwinConfigurations
+
+  FlakeNix --> Inputs
+  FlakeNix --> Outputs
   FlakeNix --> Modules
-  FlakeNix --> PkgsByName
   Modules --> FlakeParts
   Modules --> Hosts
-  Modules --> SingleModules
-  Hosts --> NixosConfigurations
+  Outputs --> ModuleTree
+  Outputs --> Meta
+  Meta --> Presets
+  Outputs --> PackagesByName
+  Outputs --> Lib
+  Outputs --> NixosConfigurations
+  Outputs --> DarwinConfigurations
 ```
 
 ## Presets
