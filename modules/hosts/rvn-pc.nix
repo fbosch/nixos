@@ -39,6 +39,7 @@ let
       "gaming"
       "windows"
       "virtualization"
+      "waydroid"
     ];
 
     extraNixos = [
