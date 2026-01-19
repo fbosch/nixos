@@ -59,38 +59,30 @@ flowchart LR
   lib --> darwinConfigs[darwinConfigurations]
 ```
 
+## Module wiring
+
+Modules listed under a preset or host `modules` list are applied to both NixOS and Home Manager. Use the `nixos` list for system-only modules and `homeManager` for user-only modules. A module file can export both `flake.modules.nixos.<name>` and `flake.modules.homeManager.<name>` so a single entry in `modules` wires both sides.
+
 ## Presets
 
-<details>
-<summary><code>desktop</code></summary>
+```mermaid
+flowchart TB
+  subgraph desktop
+    dShared["shared: users, fonts, security, desktop, applications, development, shell"]
+    dNixos["nixos: system, vpn"]
+    dHm["home: dotfiles"]
+  end
 
-| Group        | Entries                                                           |
-| ------------ | ----------------------------------------------------------------- |
-| Modules      | users, fonts, security, desktop, applications, development, shell |
-| NixOS        | system, vpn                                                       |
-| Home Manager | dotfiles                                                          |
+  subgraph server
+    sShared["shared: users, security, development, shell"]
+    sNixos["nixos: system, vpn"]
+    sHm["home: dotfiles"]
+  end
 
-</details>
-
-<details>
-<summary><code>server</code></summary>
-
-| Group        | Entries                             |
-| ------------ | ----------------------------------- |
-| Modules      | users, security, development, shell |
-| NixOS        | system, vpn                         |
-| Home Manager | dotfiles                            |
-
-</details>
-
-<details>
-<summary><code>homeManagerOnly</code></summary>
-
-| Group        | Entries                                                |
-| ------------ | ------------------------------------------------------ |
-| Home Manager | users, dotfiles, security, development, shell |
-
-</details>
+  subgraph homeManagerOnly
+    hHm["home: users, dotfiles, security, development, shell"]
+  end
+```
 
 ## Credits
 
