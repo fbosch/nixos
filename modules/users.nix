@@ -1,13 +1,13 @@
+{ config, ... }:
 {
   flake.modules.nixos.users =
     { pkgs
-    , meta
     , ...
     }:
     {
-      users.users.${meta.user.username} = {
+      users.users.${config.flake.meta.user.username} = {
         isNormalUser = true;
-        description = meta.user.fullName;
+        description = config.flake.meta.user.fullName;
         extraGroups = [
           "networkmanager"
           "wheel"
@@ -16,27 +16,20 @@
         ignoreShellProgramCheck = true;
       };
 
-      # # Prevent home-manager service from running on boot - only run on rebuild/switch
-      # # This significantly reduces boot time by not re-running activation scripts
-      # # that only need to run when the configuration changes
-      # systemd.services."home-manager-${meta.user.username}" = {
-      #   wantedBy = lib.mkForce [ ]; # Remove from multi-user.target
-      # };
     };
 
   flake.modules.homeManager.users =
-    { meta
-    , pkgs
+    { pkgs
     , lib
     , ...
     }:
     let
       avatarFile =
-        if meta.user.avatar.source != null then
-          meta.user.avatar.source
+        if config.flake.meta.user.avatar.source != null then
+          config.flake.meta.user.avatar.source
         else
           pkgs.fetchurl {
-            inherit (meta.user.avatar) url sha256;
+            inherit (config.flake.meta.user.avatar) url sha256;
           };
     in
     {
@@ -44,8 +37,8 @@
       systemd.user.startServices = lib.mkDefault "sd-switch";
 
       home = {
-        inherit (meta.user) username;
-        homeDirectory = lib.mkDefault "/home/${meta.user.username}";
+        inherit (config.flake.meta.user) username;
+        homeDirectory = lib.mkDefault "/home/${config.flake.meta.user.username}";
         stateVersion = "25.05";
 
         # Link avatar to .face for display managers

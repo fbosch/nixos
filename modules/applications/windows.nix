@@ -1,10 +1,10 @@
+{ inputs, ... }:
 {
-
   flake.modules.nixos.windows = { pkgs, ... }: {
     environment.systemPackages = with pkgs; [ freerdp xdg-utils ];
   };
 
-  flake.modules.homeManager.windows = { pkgs, lib, inputs, ... }:
+  flake.modules.homeManager.windows = { pkgs, lib, ... }:
     let
       # Define Windows installers to fetch and deploy
       windowsInstallers = [{

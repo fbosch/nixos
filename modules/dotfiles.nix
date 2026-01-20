@@ -1,17 +1,19 @@
-{ inputs, ... }:
-
+{ inputs, config, ... }:
+let
+  flakeConfig = config;
+in
 {
   flake.modules.homeManager.dotfiles =
     { config
     , pkgs
     , lib
-    , meta
     , ...
     }:
     let
-      REPO = lib.escapeShellArg "${config.home.homeDirectory}/dotfiles";
+      hmConfig = config;
+      REPO = lib.escapeShellArg "${hmConfig.home.homeDirectory}/dotfiles";
       DOTFILES_REV = inputs.dotfiles.rev or "master";
-      DOTFILES_URL = meta.dotfiles.url;
+      DOTFILES_URL = flakeConfig.flake.meta.dotfiles.url;
     in
     {
       home.activation = {

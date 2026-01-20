@@ -1,25 +1,29 @@
-_: {
+{ config, ... }:
+let
+  flakeConfig = config;
+in
+{
   flake.modules.nixos.desktop =
     { pkgs
     , lib
     , config
-    , meta
     , hostConfig ? { }
     , ...
     }:
     let
+      nixosConfig = config;
       # Get display manager mode from hostConfig or use default
-      displayManagerMode = hostConfig.displayManagerMode or meta.displayManager.defaultMode;
+      displayManagerMode = hostConfig.displayManagerMode or flakeConfig.flake.meta.displayManager.defaultMode;
 
       # TUIGreet configuration
       tuigreetTheme = builtins.readFile ../../configs/greetd/theme.txt;
-      nixosVersion = "${config.system.nixos.release} ${config.system.nixos.codeName}";
+      nixosVersion = "${nixosConfig.system.nixos.release} ${nixosConfig.system.nixos.codeName}";
       issueText = builtins.readFile ../../configs/greetd/issue.txt;
 
       # Session script for greetd
       sessionScript = builtins.readFile ../../configs/greetd/session-hyprland.sh;
 
-      inherit (meta.user) username;
+      inherit (flakeConfig.flake.meta.user) username;
     in
     {
       environment.etc = {

@@ -1,10 +1,7 @@
-{ config
-, ...
-}:
-
+{ config, ... }:
 {
   flake.modules.darwin."hosts/rvn-mac" =
-    { pkgs, meta, ... }:
+    { pkgs, ... }:
     {
       imports = [
         config.flake.modules.darwin.security
@@ -13,7 +10,7 @@
 
       system = {
         stateVersion = 5;
-        primaryUser = meta.user.username;
+        primaryUser = config.flake.meta.user.username;
         defaults = {
           dock = {
             autohide = true;
@@ -56,7 +53,7 @@
         ];
         trusted-users = [
           "@admin"
-          meta.user.username
+          config.flake.meta.user.username
         ];
       };
 
@@ -71,25 +68,25 @@
           bitwarden-desktop
           _1password-gui
         ];
-        variables.NH_FLAKE = "/Users/${meta.user.username}/nixos";
+        variables.NH_FLAKE = "/Users/${config.flake.meta.user.username}/nixos";
         shells = [ pkgs.fish ];
       };
 
-      users.users.${meta.user.username} = {
-        home = "/Users/${meta.user.username}";
+      users.users.${config.flake.meta.user.username} = {
+        home = "/Users/${config.flake.meta.user.username}";
         shell = pkgs.fish;
         ignoreShellProgramCheck = true;
       };
 
-      home-manager.users.${meta.user.username} = {
-        home.stateVersion = meta.versions.homeManager;
+      home-manager.users.${config.flake.meta.user.username} = {
+        home.stateVersion = config.flake.meta.versions.homeManager;
 
         imports =
           builtins.map
             (
               m: config.flake.modules.homeManager.${m} or { }
             )
-            (meta.presets.homeManagerOnly.homeManager ++ [ "secrets" ]);
+            (config.flake.meta.presets.homeManagerOnly.homeManager ++ [ "secrets" ]);
       };
     };
 }

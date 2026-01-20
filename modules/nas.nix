@@ -1,6 +1,11 @@
+{ config, ... }:
+let
+  flakeConfig = config;
+in
 {
-  flake.modules.nixos.nas = { config, meta, ... }:
+  flake.modules.nixos.nas = { config, ... }:
     let
+      nixosConfig = config;
       # NAS server configuration
       nasHostname = "rvn-nas";
       nasIpAddress = "192.168.1.2";
@@ -22,11 +27,11 @@
 
       # Common CIFS mount options
       cifsOptions =
-        "credentials=${config.sops.templates.smbcredentials.path},uid=${meta.user.username},gid=users,forceuid,forcegid,iocharset=utf8,file_mode=0664,dir_mode=0775,vers=3.0";
+        "credentials=${nixosConfig.sops.templates.smbcredentials.path},uid=${flakeConfig.flake.meta.user.username},gid=users,forceuid,forcegid,iocharset=utf8,file_mode=0664,dir_mode=0775,vers=3.0";
 
       # Generate tmpfile rule for a share
       mkTmpfileRule = share:
-        "d /mnt/nas/${share} 0755 ${meta.user.username} users -";
+        "d /mnt/nas/${share} 0755 ${flakeConfig.flake.meta.user.username} users -";
 
       # Generate mount configuration for a share
       mkMount = share: {
@@ -50,7 +55,7 @@
       };
 
       systemd = {
-        tmpfiles.rules = [ "d /mnt/nas 0755 ${meta.user.username} users -" ]
+        tmpfiles.rules = [ "d /mnt/nas 0755 ${flakeConfig.flake.meta.user.username} users -" ]
           ++ (map mkTmpfileRule shares);
 
         mounts = map mkMount shares;

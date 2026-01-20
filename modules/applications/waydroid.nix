@@ -1,15 +1,14 @@
-_:
+{ config, ... }:
 {
   # NixOS module: Waydroid Android container
   flake.modules.nixos.waydroid =
     { pkgs
-    , meta
     , ...
     }:
     {
       virtualisation.waydroid.enable = true;
 
-      users.users.${meta.user.username}.extraGroups = [ "waydroid" ];
+      users.users.${config.flake.meta.user.username}.extraGroups = [ "waydroid" ];
 
       environment.systemPackages = with pkgs; [
         waydroid

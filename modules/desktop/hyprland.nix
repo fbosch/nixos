@@ -1,8 +1,7 @@
-_: {
-
+{ inputs, config, ... }:
+{
   flake.modules.homeManager.desktop =
     { pkgs
-    , inputs
     , lib
     , ...
     }:
@@ -28,8 +27,6 @@ _: {
 
   flake.modules.nixos.desktop =
     { pkgs
-    , meta
-    , inputs
     , ...
     }:
     let
@@ -84,7 +81,7 @@ _: {
       };
 
       environment.sessionVariables = {
-        EMOJI_FONT = meta.ui.emojiFont;
+        EMOJI_FONT = config.flake.meta.ui.emojiFont;
         NIXOS_OZONE_WL = "1";
         GDK_BACKEND = "wayland,x11";
         GDK_DEBUG = "no-portals";

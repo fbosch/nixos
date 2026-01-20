@@ -1,6 +1,7 @@
+{ config, ... }:
 {
   flake.modules.homeManager.development =
-    { pkgs, meta, ... }:
+    { pkgs, ... }:
     {
       home.packages = with pkgs; [
         git-credential-manager
@@ -15,7 +16,7 @@
         enable = true;
         settings.credential = {
           helper = "manager";
-          "https://github.com".username = meta.user.github.username;
+          "https://github.com".username = config.flake.meta.user.github.username;
           credentialStore = "secretservice";
         };
       };

@@ -42,32 +42,25 @@ let
       # Get host config from separate flake output (NixOS only for now)
       hostConfigData = config.flake.hostConfigs.${hostId} or { };
 
-      specialArgs = {
-        inherit inputs;
-        inherit (config.flake) meta;
-      }
-      // lib.optionalAttrs (hostType == "nixos") {
-        hostConfig = {
-          name = hostId;
-        }
-        // hostConfigData;
-      };
-
-      hmSpecialArgs = specialArgs // {
-        system = evalSystem;
-      };
+      hostConfigArgs =
+        if hostType == "nixos" then
+          {
+            name = hostId;
+          }
+          // hostConfigData
+        else
+          { };
     in
     {
       name = hostId;
       value = platformDefaults.builder {
         system = evalSystem;
-        specialArgs = hmSpecialArgs;
         modules = [
+          { _module.args.hostConfig = hostConfigArgs; }
           hostModule
           platformDefaults.homeManagerModule
           {
             home-manager = {
-              extraSpecialArgs = hmSpecialArgs;
               useGlobalPkgs = true;
               useUserPackages = true;
             };

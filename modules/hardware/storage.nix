@@ -1,6 +1,7 @@
-_: {
+{ config, ... }:
+{
   flake.modules.nixos."hardware/storage" =
-    { meta, ... }:
+    _:
     {
       # Enable NTFS support
       boot.supportedFilesystems = [ "ntfs" ];
@@ -22,7 +23,7 @@ _: {
 
       # Ensure mount point exists
       systemd.tmpfiles.rules = [
-        "d /mnt/storage 0755 ${meta.user.username} users -"
+        "d /mnt/storage 0755 ${config.flake.meta.user.username} users -"
       ];
     };
 }

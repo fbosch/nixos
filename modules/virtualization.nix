@@ -1,5 +1,6 @@
+{ config, ... }:
 {
-  flake.modules.nixos.virtualization = { pkgs, meta, ... }: {
+  flake.modules.nixos.virtualization = { pkgs, ... }: {
     # Docker
     virtualisation.docker = {
       enable = true;
@@ -22,7 +23,7 @@
 
     programs.virt-manager.enable = true;
 
-    users.users.${meta.user.username}.extraGroups = [ "libvirtd" "docker" ];
+    users.users.${config.flake.meta.user.username}.extraGroups = [ "libvirtd" "docker" ];
 
     environment.systemPackages = with pkgs; [
       # QEMU/KVM tools

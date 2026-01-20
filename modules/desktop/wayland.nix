@@ -1,4 +1,5 @@
-_: {
+{ inputs, ... }:
+{
   flake.modules.nixos.desktop =
     { pkgs, ... }:
     {
@@ -11,7 +12,7 @@ _: {
       ];
     };
 
-  flake.modules.homeManager.desktop = { pkgs, inputs, lib, ... }:
+  flake.modules.homeManager.desktop = { pkgs, lib, ... }:
     let
       inherit (pkgs.stdenv.hostPlatform) system;
     in
