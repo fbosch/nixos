@@ -25,6 +25,7 @@ secrets/*.asc
 !README.md
 !AGENTS.md
 !docs/**/*.md
+!.opencode/**/*.md
 
 # System state
 .direnv/
