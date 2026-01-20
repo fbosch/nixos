@@ -23,21 +23,25 @@
       , extraNixos ? [ ]
       , username
       , displayManagerMode ? config.flake.meta.displayManager.defaultMode
-      ,
       }:
       let
+        emptyPreset = {
+          modules = [ ];
+          nixos = [ ];
+          homeManager = [ ];
+        };
         presetConfig =
           if preset != null then
             config.flake.meta.presets.${preset} or (throw "Unknown preset: ${preset}")
           else
-            {
-              modules = [ ];
-              nixos = [ ];
-              homeManager = [ ];
-            };
+            emptyPreset;
         nixosModules = presetConfig.modules ++ presetConfig.nixos ++ modules ++ nixos ++ extraNixos;
         hmModules =
           presetConfig.modules ++ presetConfig.homeManager ++ modules ++ homeManager ++ extraHomeManager;
+        resolveNixosModule =
+          m: if builtins.isString m then (config.flake.modules.nixos.${m} or { }) else m;
+        resolveHmModule =
+          m: if builtins.isString m then (config.flake.modules.homeManager.${m} or { }) else m;
       in
       {
         # Store metadata separately to be accessed by hosts.nix
@@ -46,18 +50,14 @@
         };
 
         # Return the module function
-        _module = _moduleArgs: {
+        _module = _: {
           imports =
             hostImports
-            ++ (builtins.map (m: config.flake.modules.nixos.${m} or { }) nixosModules)
+            ++ (builtins.map resolveNixosModule nixosModules)
             ++ [
               {
                 home-manager.users.${username}.imports =
-                  builtins.map
-                    (
-                      m: if builtins.isString m then (config.flake.modules.homeManager.${m} or { }) else m
-                    )
-                    hmModules;
+                  builtins.map resolveHmModule hmModules;
               }
             ];
         };
