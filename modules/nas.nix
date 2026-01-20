@@ -1,5 +1,5 @@
 {
-  flake.modules.nixos.nas = { config, lib, meta, ... }:
+  flake.modules.nixos.nas = { config, meta, ... }:
     let
       # NAS server configuration
       nasHostname = "rvn-nas";

@@ -3,7 +3,7 @@
   flake.modules = {
     homeManager = {
       security =
-        { pkgs, meta, ... }:
+        { pkgs, ... }:
         {
           home.packages = with pkgs; [
             sops
@@ -14,8 +14,6 @@
       # Home Manager SOPS module - works on both NixOS and Darwin
       secrets =
         { config
-        , pkgs
-        , meta
         , lib
         , ...
         }:
@@ -76,9 +74,7 @@
     # NixOS-specific SOPS module (system-level secrets)
     nixos.secrets =
       { config
-      , lib
       , meta
-      , pkgs
       , ...
       }:
       {

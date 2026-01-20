@@ -17,13 +17,13 @@
           "floorp"
           "arc"
           "zen"
+          "helium-browser"
           "alt-tab"
           "replacicon"
           "cursor"
           "figma"
           "cleanshot"
           "steipete/tap/codexbar"
-          "replacicon"
         ];
 
         brews = [ ];

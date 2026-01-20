@@ -1,8 +1,6 @@
 {
   flake.modules.homeManager.applications =
-    { config
-    , pkgs
-    , lib
+    { pkgs
     , ...
     }:
     {

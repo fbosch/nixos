@@ -98,14 +98,17 @@ _: {
         lint = {
           type = "app";
           program = "${lintScript}/bin/lint";
+          meta.description = "Run statix/deadnix/fmt checks";
         };
         fmt = {
           type = "app";
           program = "${formatScript}/bin/fmt";
+          meta.description = "Format Nix files with nixpkgs-fmt";
         };
         pre-commit-wrapper = {
           type = "app";
           program = "${precommitWrapper}/bin/pre-commit-wrapper";
+          meta.description = "Run pre-commit checks with formatting";
         };
       };
 

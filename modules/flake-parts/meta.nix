@@ -1,4 +1,4 @@
-{ lib, ... }:
+_:
 let
   user = rec {
     username = "fbb";

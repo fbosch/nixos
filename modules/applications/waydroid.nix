@@ -1,10 +1,9 @@
-{ pkgs, ... }:
+_:
 {
   # NixOS module: Waydroid Android container
   flake.modules.nixos.waydroid =
     { pkgs
     , meta
-    , lib
     , ...
     }:
     {

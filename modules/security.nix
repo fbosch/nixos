@@ -38,7 +38,7 @@
       };
 
     darwin.security =
-      { pkgs, ... }:
+      _:
       {
         # Configure sudo with pwfeedback on Darwin
         security.sudo.extraConfig = ''

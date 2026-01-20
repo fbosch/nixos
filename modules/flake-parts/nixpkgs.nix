@@ -14,11 +14,9 @@
   ];
 
   perSystem =
-    { system, ... }:
-    {
-      pkgsDirectory = ../../pkgs/by-name;
-
-      _module.args.pkgs = import inputs.nixpkgs {
+    { config, lib, system, ... }:
+    let
+      pkgs = import inputs.nixpkgs {
         inherit system;
         config.allowUnfree = true;
         overlays = [
@@ -28,6 +26,29 @@
           inputs.self.overlays.chromium-webapps-hardening
         ];
       };
+      enableByName = pkgs.stdenv.isLinux;
+      flattenPkgs =
+        separator: path: value:
+        if lib.isDerivation value then
+          {
+            ${lib.concatStringsSep separator path} = value;
+          }
+        else if lib.isAttrs value then
+          lib.concatMapAttrs (name: flattenPkgs separator (path ++ [ name ])) value
+        else
+          { };
+    in
+    {
+      pkgsDirectory = if enableByName then ../../pkgs/by-name else null;
+
+      _module.args.pkgs = pkgs;
+
+      packages = lib.mkIf enableByName (lib.mkForce (
+        let
+          flatPackages = flattenPkgs config.pkgsNameSeparator [ ] config.legacyPackages;
+        in
+        lib.filterAttrs (_: pkg: lib.meta.availableOn pkgs.stdenv.hostPlatform pkg) flatPackages
+      ));
     };
 
   flake = {

@@ -11,8 +11,6 @@ let
       inputs.grub2-themes.nixosModules.default
       (
         { pkgs
-        , lib
-        , config
         , ...
         }:
         {
@@ -51,7 +49,7 @@ let
       inputs.flatpaks.homeManagerModules.nix-flatpak
       inputs.vicinae.homeManagerModules.default
       (
-        { config, ... }:
+        _:
         {
           xdg.userDirs = {
             enable = true;

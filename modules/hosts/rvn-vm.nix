@@ -8,7 +8,7 @@ let
       inputs.grub2-themes.nixosModules.default
       ../../machines/virtualbox-vm/configuration.nix
       ../../machines/virtualbox-vm/hardware-configuration.nix
-      ({ pkgs, ... }: {
+      (_: {
         environment.sessionVariables = {
           GSK_RENDERER = "cairo";
           WLR_RENDERER_ALLOW_SOFTWARE = "1";

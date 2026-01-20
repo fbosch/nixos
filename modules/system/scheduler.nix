@@ -1,4 +1,4 @@
-{ lib, config, ... }:
+_:
 {
   flake.modules.nixos.system = {
     # Enable System76 Scheduler for improved desktop responsiveness

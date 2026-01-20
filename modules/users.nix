@@ -2,8 +2,6 @@
   flake.modules.nixos.users =
     { pkgs
     , meta
-    , lib
-    , config
     , ...
     }:
     {
