@@ -90,6 +90,9 @@
     system76-scheduler.enable = true;
   };
 
+  # Configure console keymap
+  console.keyMap = "dk-latin1";
+
   networking = {
     hostName = "rvn-pc";
     networkmanager.enable = true;
