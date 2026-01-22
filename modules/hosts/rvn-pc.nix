@@ -40,6 +40,7 @@ let
     ];
 
     extraNixos = [
+      "hardware/usb-automount"
       "hardware/storage"
       "hardware/fingerprint"
       "hardware/fancontrol"
@@ -48,15 +49,12 @@ let
     extraHomeManager = [
       inputs.flatpaks.homeManagerModules.nix-flatpak
       inputs.vicinae.homeManagerModules.default
-      (
-        _:
-        {
-          xdg.userDirs = {
-            enable = true;
-            download = "/mnt/storage/Downloads";
-          };
-        }
-      )
+      (_: {
+        xdg.userDirs = {
+          enable = true;
+          download = "/mnt/storage/Downloads";
+        };
+      })
     ];
 
     inherit (config.flake.meta.user) username;
