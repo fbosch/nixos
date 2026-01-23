@@ -22,7 +22,8 @@
         extraPackages =
           python3Packages: with python3Packages; [
             # Common integrations
-            # aiohue  # Philips Hue
+            aiohue # Philips Hue
+            aiohomekit # HomeKit Controller
             # pymetno  # Met.no weather
             # gTTS  # Google Text-to-Speech
             # psycopg2  # PostgreSQL support
@@ -50,7 +51,6 @@
           default_config = { };
 
           http = {
-            server_host = "0.0.0.0";
             server_port = 8123;
             use_x_forwarded_for = true;
             trusted_proxies = [
