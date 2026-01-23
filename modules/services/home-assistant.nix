@@ -1,4 +1,4 @@
-{ _ }:
+{ config, ... }:
 {
   flake.modules.nixos."services/home-assistant" =
     { config
