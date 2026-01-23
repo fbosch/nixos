@@ -12,7 +12,7 @@ let
 
     modules = [
       "secrets"
-      # "nas"
+      "nas"
     ];
 
     inherit (config.flake.meta.user) username;
