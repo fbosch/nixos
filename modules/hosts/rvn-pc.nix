@@ -15,6 +15,8 @@ let
         , ...
         }:
         {
+          services.openssh.enable = true;
+
           environment.systemPackages = [
             pkgs.wlr-randr
           ];
