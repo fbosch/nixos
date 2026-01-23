@@ -12,6 +12,9 @@ let
       fingerprint = "5E0F EC74 518E D5FE AA5E  A33E 5C49 A562 D850 322A";
       publicKeyFile = ../../configs/gpg/public-key.asc;
     };
+    ssh = {
+      publicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJl/WCQsXEkE7em5A6d2Du2JAWngIPfA8sVuJP/9cuyq fbb@nixos";
+    };
     avatar = {
       # Path to custom avatar file, or null to auto-fetch from GitHub
       source = null;

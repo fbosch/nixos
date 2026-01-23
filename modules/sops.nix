@@ -39,6 +39,9 @@ in
               context7-api-key = { };
               kagi-api-token = { };
               openai-api-key = { };
+              ssh-private-key = {
+                path = "${hmConfig.home.homeDirectory}/.ssh/id_ed25519";
+              };
             };
           };
 
@@ -53,15 +56,13 @@ in
               };
 
               # Generate script to read each secret into a variable
-              readSecrets = lib.concatStringsSep "\n" (lib.mapAttrsToList
-                (name: path: ''${name}=$(cat ${path} 2>/dev/null || echo "")'')
-                secretsMap
+              readSecrets = lib.concatStringsSep "\n" (
+                lib.mapAttrsToList (name: path: ''${name}=$(cat ${path} 2>/dev/null || echo "")'') secretsMap
               );
 
               # Generate Fish set commands with bash variable expansion
-              fishExports = lib.concatStringsSep "\n" (lib.mapAttrsToList
-                (name: _: "set -gx ${name} '$" + name + "'")
-                secretsMap
+              fishExports = lib.concatStringsSep "\n" (
+                lib.mapAttrsToList (name: _: "set -gx ${name} '$" + name + "'") secretsMap
               );
             in
             lib.hm.dag.entryAfter [ "writeBoundary" ] ''
@@ -74,6 +75,7 @@ in
               ${fishExports}
               EOF
             '';
+
         };
     };
 
@@ -115,6 +117,10 @@ in
             openai-api-key = {
               mode = "0440";
               group = "wheel";
+            };
+            ssh-private-key = {
+              mode = "0600";
+              owner = flakeConfig.flake.meta.user.username;
             };
           };
 

@@ -8,6 +8,9 @@
       users.users.${config.flake.meta.user.username} = {
         isNormalUser = true;
         description = config.flake.meta.user.fullName;
+        openssh.authorizedKeys.keys = [
+          config.flake.meta.user.ssh.publicKey
+        ];
         extraGroups = [
           "networkmanager"
           "wheel"
