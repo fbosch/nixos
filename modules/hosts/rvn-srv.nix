@@ -13,6 +13,7 @@ let
         {
           environment.systemPackages = [
             pkgs.xclip
+            pkgs.xsel
           ];
         }
       )
