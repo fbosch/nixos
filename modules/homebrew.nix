@@ -24,6 +24,7 @@
           "figma"
           "cleanshot"
           "steipete/tap/codexbar"
+          "obsidian"
         ];
 
         brews = [ ];
