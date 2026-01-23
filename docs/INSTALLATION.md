@@ -42,5 +42,20 @@
 - Create a new host file in `modules/hosts/<name>.nix` following the pattern of existing hosts
 - Ensure the host file references the machine configuration from `machines/<name>/`
 - Configure the host with appropriate settings for your machine
+- Add the `secrets` module in the host `modules = [ ... ]` list
 - Navigate to the `~/nixos` directory
 - Run `sudo nixos-rebuild switch --flake .#<hostname>` to build and apply the configuration
+
+## 8. Import GPG Key
+
+- Enter a shell with the Bitwarden CLI available: `nix-shell -p bitwarden-cli`
+- Point the CLI at your self-hosted vault: `bw config server https://vault.corvus-corax.synology.me`
+- Log in: `bw login`
+- Write the key note to a file: `bw get item "GPG Private Key" --session "$(bw unlock --raw)" | jq -r '.notes' > private.key`
+- Import the key: `gpg --import private.key`
+
+## 9. Bootstrap SOPS Age Key
+
+- Run `./scripts/bootstrap-age.sh` from the `~/nixos` directory
+- Review and commit the updated `.sops.yaml`
+- Rebuild: `sudo nixos-rebuild switch --flake .#<hostname>`
