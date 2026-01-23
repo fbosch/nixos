@@ -1,4 +1,7 @@
 { config, ... }:
+let
+  flakeConfig = config;
+in
 {
   flake.modules.homeManager.shell =
     { config, ... }:
@@ -19,6 +22,10 @@
             identityFile = config.sops.secrets.ssh-private-key.path;
           };
         };
+      };
+
+      home.file.".ssh/authorized_keys" = {
+        text = "${flakeConfig.flake.meta.user.ssh.publicKey}\n";
       };
 
       # Enable and start ssh-agent
