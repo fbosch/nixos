@@ -7,6 +7,7 @@ let
     hostImports = [
       ../../machines/msi-cubi/configuration.nix
       ../../machines/msi-cubi/hardware-configuration.nix
+      inputs.nixos-hardware.nixosModules.common-cpu-intel
     ];
 
     modules = [
