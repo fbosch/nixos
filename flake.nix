@@ -23,6 +23,7 @@
       url = "github:LnL7/nix-darwin";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    nixos-hardware.url = "github:nixos/nixos-hardware/master";
 
     # Package infrastructure (modules/flake-parts/nixpkgs.nix, modules/system/core.nix)
     pkgs-by-name-for-flake-parts.url = "github:drupol/pkgs-by-name-for-flake-parts";

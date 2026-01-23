@@ -8,6 +8,7 @@ let
     hostImports = [
       ../../machines/desktop/configuration.nix
       ../../machines/desktop/hardware-configuration.nix
+      inputs.nixos-hardware.nixosModules.common-cpu-intel
       inputs.grub2-themes.nixosModules.default
       (
         { pkgs
