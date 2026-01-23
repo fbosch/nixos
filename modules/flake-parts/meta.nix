@@ -13,7 +13,7 @@ let
       publicKeyFile = ../../configs/gpg/public-key.asc;
     };
     ssh = {
-      publicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJl/WCQsXEkE7em5A6d2Du2JAWngIPfA8sVuJP/9cuyq fbb@nixos";
+      publicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIA9bFB0RZWl7ofsEMEW4i8UJv448U/RT429+roe1gc9K";
     };
     avatar = {
       # Path to custom avatar file, or null to auto-fetch from GitHub
