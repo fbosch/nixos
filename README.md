@@ -4,6 +4,8 @@ This is my personal NixOS configuration.
 
 It uses a dendritic module layout with flake-parts.
 
+Installation steps are in `docs/INSTALLATION.md`.
+
 ## Lint & format
 
 ```sh
@@ -22,11 +24,18 @@ For reproducibility, the repository is initially pinned to a specific ref. You c
 ## Layout
 
 ```text
+assets/         screenshots and art
+configs/        shared config files (gpg, etc)
+docs/           guides and agent docs
+lib/            helper functions
+machines/       machine-specific NixOS configs
 modules/
   flake-parts/   host loader, overlays, meta
   hosts/         one file per machine → nixosConfigurations.<name>
   *.nix          single-purpose modules (desktop, apps, dev, shell, system)
 pkgs/by-name/    local packages
+scripts/        helper scripts
+secrets/        sops files
 ```
 
 ```mermaid
@@ -43,6 +52,8 @@ flowchart LR
     moduleset[other modules]
   end
 
+  machines[machines/*]
+
   flake --> meta
   flake --> modules
   flake --> lib
@@ -53,6 +64,7 @@ flowchart LR
 
   modules --> moduleTree
   hosts --> lib
+  hosts --> machines
   hostConfigs --> lib
 
   lib --> nixosConfigs[nixosConfigurations]
