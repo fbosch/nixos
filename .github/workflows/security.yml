@@ -19,6 +19,8 @@ jobs:
             flake: nixosConfigurations.rvn-vm.config.system.build.toplevel
           - host: rvn-pc
             flake: nixosConfigurations.rvn-pc.config.system.build.toplevel
+          - host: rvn-srv
+            flake: nixosConfigurations.rvn-srv.config.system.build.toplevel
           - host: rvn-mac
             flake: darwinConfigurations.rvn-mac.config.system.build.toplevel
       fail-fast: false
