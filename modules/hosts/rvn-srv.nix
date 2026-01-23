@@ -8,11 +8,20 @@ let
       ../../machines/msi-cubi/configuration.nix
       ../../machines/msi-cubi/hardware-configuration.nix
       inputs.nixos-hardware.nixosModules.common-cpu-intel
+      (
+        { pkgs, ... }:
+        {
+          environment.systemPackages = [
+            pkgs.xclip
+          ];
+        }
+      )
     ];
 
     modules = [
       "secrets"
       "nas"
+      "services/home-assistant"
     ];
 
     inherit (config.flake.meta.user) username;
