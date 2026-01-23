@@ -24,6 +24,7 @@
             # Common integrations
             aiohue # Philips Hue
             aiohomekit # HomeKit Controller
+            pyatv # Apple TV
             # pymetno  # Met.no weather
             # gTTS  # Google Text-to-Speech
             # psycopg2  # PostgreSQL support
@@ -38,6 +39,11 @@
           "met" # Weather
           "esphome" # ESPHome integration
           "mqtt" # MQTT support
+          "nest" # Google Nest integration
+          "samsungtv" # Samsung Smart TV
+          "wake_on_lan" # Wake-on-LAN support (useful for Samsung TV)
+          "apple_tv" # Apple TV
+          "tuya" # Tuya/SmartLife (for Nedis SmartLife devices)
           # Add more as needed:
           # "hue"
           # "homekit"
