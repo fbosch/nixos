@@ -4,7 +4,7 @@ This is my personal NixOS configuration.
 
 It uses a dendritic module layout with flake-parts.
 
-Installation steps are in `docs/INSTALLATION.md`.
+Installation steps are in [docs/INSTALLATION.md](docs/INSTALLATION.md).
 
 ## Lint & format
 
