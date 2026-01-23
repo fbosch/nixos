@@ -7,9 +7,11 @@ let
     hostImports = [
       ../../machines/msi-cubi/configuration.nix
       ../../machines/msi-cubi/hardware-configuration.nix
+      inputs.nixos-hardware.nixosModules.common-cpu-intel
     ];
 
     modules = [
+      "secrets"
       # "nas"
     ];
 
@@ -19,5 +21,5 @@ in
 {
   flake.modules.nixos."hosts/rvn-srv" = hostResult._module;
 
-  flake.hostConfigs.rvn-pc = hostResult._hostConfig;
+  flake.hostConfigs.rvn-srv = hostResult._hostConfig;
 }
