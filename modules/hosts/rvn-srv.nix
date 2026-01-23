@@ -10,6 +10,7 @@ let
     ];
 
     modules = [
+      "secrets"
       # "nas"
     ];
 
@@ -19,5 +20,5 @@ in
 {
   flake.modules.nixos."hosts/rvn-srv" = hostResult._module;
 
-  flake.hostConfigs.rvn-pc = hostResult._hostConfig;
+  flake.hostConfigs.rvn-srv = hostResult._hostConfig;
 }
