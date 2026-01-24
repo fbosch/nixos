@@ -4,10 +4,11 @@ let
 in
 {
   flake.modules.nixos."services/termix" =
-    { config
-    , lib
-    , pkgs
-    , ...
+    {
+      config,
+      lib,
+      pkgs,
+      ...
     }:
     {
       options.services.termix = {
