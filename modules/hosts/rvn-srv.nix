@@ -37,6 +37,11 @@ let
             periphery.requirePasskey = false;
           };
 
+          services.uptime-kuma.enable = true;
+          services.uptime-kuma.settings.HOST = "0.0.0.0";
+
+          networking.firewall.allowedTCPPorts = [ 3001 ];
+
           powerManagement.scheduledSuspend = {
             enable = true;
             schedules = {
