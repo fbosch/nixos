@@ -1,4 +1,7 @@
 { config, ... }:
+let
+  flakeConfig = config;
+in
 {
   flake.modules.nixos."services/termix" =
     { config
@@ -18,15 +21,11 @@
       };
 
       config = lib.mkIf config.services.termix.enable {
-        # Create systemd service for Termix container
-        systemd.services.termix = {
+        # Create systemd user service for Termix container (rootless)
+        systemd.user.services.termix = {
           description = "Termix SSH Terminal and Server Management Platform";
-          wantedBy = [ "multi-user.target" ];
-          after = [
-            "network-online.target"
-            "podman.service"
-          ];
-          requires = [ "podman.service" ];
+          wantedBy = [ "default.target" ];
+          after = [ "network-online.target" ];
 
           serviceConfig = {
             Type = "simple";
@@ -56,6 +55,9 @@
             ${pkgs.podman}/bin/podman stop -t 10 termix || true
           '';
         };
+
+        # Enable lingering so user services run without login
+        users.users.${flakeConfig.flake.meta.user.username}.linger = true;
 
         # Open firewall for Termix web interface
         networking.firewall.allowedTCPPorts = [ config.services.termix.port ];
