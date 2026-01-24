@@ -39,7 +39,8 @@ let
       "nas"
       "gaming"
       "windows"
-      "virtualization"
+      "virtualization/docker"
+      "virtualization/libvirt"
     ];
 
     extraNixos = [

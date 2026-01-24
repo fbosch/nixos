@@ -15,6 +15,8 @@ let
             pkgs.xclip
             pkgs.xsel
           ];
+
+          services.termix.enable = true;
         }
       )
     ];
@@ -23,6 +25,8 @@ let
       "secrets"
       "nas"
       "services/home-assistant"
+      "services/termix"
+      "virtualization/podman"
     ];
 
     inherit (config.flake.meta.user) username;

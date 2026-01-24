@@ -7,104 +7,112 @@
     , ...
     }:
     {
-      services.home-assistant = {
-        enable = true;
+      options.services.home-assistant.port = lib.mkOption {
+        type = lib.types.port;
+        default = 8123;
+        description = "Port for Home Assistant web interface";
+      };
 
-        # Use a more recent version from unstable if needed
-        # package = pkgs.unstable.home-assistant;
+      config = {
+        services.home-assistant = {
+          enable = true;
 
-        # Configuration directory
-        # This will store all Home Assistant data, configs, and databases
-        configDir = "/var/lib/hass";
+          # Use a more recent version from unstable if needed
+          # package = pkgs.unstable.home-assistant;
 
-        # Extra packages to make available to Home Assistant
-        # Add integrations and dependencies here as needed
-        extraPackages =
-          python3Packages: with python3Packages; [
-            # Common integrations
-            aiohue # Philips Hue
-            aiohomekit # HomeKit Controller
-            pyatv # Apple TV
-            # pymetno  # Met.no weather
-            # gTTS  # Google Text-to-Speech
-            # psycopg2  # PostgreSQL support
-            isal
-            zlib-ng
+          # Configuration directory
+          # This will store all Home Assistant data, configs, and databases
+          configDir = "/var/lib/hass";
+
+          # Extra packages to make available to Home Assistant
+          # Add integrations and dependencies here as needed
+          extraPackages =
+            python3Packages: with python3Packages; [
+              # Common integrations
+              aiohue # Philips Hue
+              aiohomekit # HomeKit Controller
+              pyatv # Apple TV
+              # pymetno  # Met.no weather
+              # gTTS  # Google Text-to-Speech
+              # psycopg2  # PostgreSQL support
+              isal
+              zlib-ng
+            ];
+
+          # Extra components to enable
+          # This pre-loads integrations for faster startup
+          extraComponents = [
+            "default_config" # Include default integrations
+            "met" # Weather
+            "esphome" # ESPHome integration
+            "mqtt" # MQTT support
+            "nest" # Google Nest integration
+            "samsungtv" # Samsung Smart TV
+            "wake_on_lan" # Wake-on-LAN support (useful for Samsung TV)
+            "apple_tv" # Apple TV
+            "tuya" # Tuya/SmartLife (for Nedis SmartLife devices)
+            # Add more as needed:
+            # "hue"
+            # "homekit"
+            # "mobile_app"
+            # "zha"  # Zigbee Home Automation
           ];
 
-        # Extra components to enable
-        # This pre-loads integrations for faster startup
-        extraComponents = [
-          "default_config" # Include default integrations
-          "met" # Weather
-          "esphome" # ESPHome integration
-          "mqtt" # MQTT support
-          "nest" # Google Nest integration
-          "samsungtv" # Samsung Smart TV
-          "wake_on_lan" # Wake-on-LAN support (useful for Samsung TV)
-          "apple_tv" # Apple TV
-          "tuya" # Tuya/SmartLife (for Nedis SmartLife devices)
-          # Add more as needed:
-          # "hue"
-          # "homekit"
-          # "mobile_app"
-          # "zha"  # Zigbee Home Automation
-        ];
+          # Configuration.yaml content
+          # For complex configs, consider using configDir and managing files separately
+          config = {
+            default_config = { };
 
-        # Configuration.yaml content
-        # For complex configs, consider using configDir and managing files separately
-        config = {
-          default_config = { };
+            http = {
+              server_port = config.services.home-assistant.port;
+              use_x_forwarded_for = true;
+              trusted_proxies = [
+                "127.0.0.1"
+                "192.168.1.2"
+                "192.168.1.0/24"
+              ];
+            };
 
-          http = {
-            server_port = 8123;
-            use_x_forwarded_for = true;
-            trusted_proxies = [
-              "127.0.0.1"
-              "192.168.1.2"
-              "192.168.1.0/24"
-            ];
+            homeassistant = {
+              name = "Home";
+              # Set your location for weather, sunrise/sunset, etc.
+              # latitude = 52.520008;
+              # longitude = 13.404954;
+              # elevation = 34;
+              # unit_system = "metric";
+              # time_zone = "Europe/Berlin";
+            };
+
+            # Enable frontend
+            frontend = { };
+
+            # Enable automation UI
+            automation = [ ];
+            script = [ ];
+            scene = [ ];
           };
-
-          homeassistant = {
-            name = "Home";
-            # Set your location for weather, sunrise/sunset, etc.
-            # latitude = 52.520008;
-            # longitude = 13.404954;
-            # elevation = 34;
-            # unit_system = "metric";
-            # time_zone = "Europe/Berlin";
-          };
-
-          # Enable frontend
-          frontend = { };
-
-          # Enable automation UI
-          automation = [ ];
-          script = [ ];
-          scene = [ ];
         };
-      };
 
-      # Open firewall for Home Assistant web interface
-      networking.firewall.allowedTCPPorts = [ 8123 ];
+        # Open firewall for Home Assistant web interface
+        networking.firewall.allowedTCPPorts = [ config.services.home-assistant.port ];
 
-      # Optional: Enable mDNS for .local domain discovery
-      services.avahi = {
-        enable = true;
-        nssmdns4 = true;
-        publish = {
+        # Optional: Enable mDNS for .local domain discovery
+        services.avahi = {
           enable = true;
-          addresses = true;
-          domain = true;
-          workstation = true;
+          nssmdns4 = true;
+          publish = {
+            enable = true;
+            addresses = true;
+            domain = true;
+            workstation = true;
+          };
         };
-      };
 
-      # Ensure the service starts after network is ready
-      systemd.services.home-assistant = {
-        after = [ "network-online.target" ];
-        wants = [ "network-online.target" ];
+        # Ensure the service starts after network is ready
+        systemd.services.home-assistant = {
+          after = [ "network-online.target" ];
+          wants = [ "network-online.target" ];
+        };
       };
     };
 }
