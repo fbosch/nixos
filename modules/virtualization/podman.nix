@@ -32,5 +32,11 @@
 
       # Add user to podman group for rootless containers
       users.users.${config.flake.meta.user.username}.extraGroups = [ "podman" ];
+
+      # Enable user-level podman socket for rootless containers
+      systemd.user.sockets.podman = {
+        enable = true;
+        wantedBy = [ "sockets.target" ];
+      };
     };
 }
