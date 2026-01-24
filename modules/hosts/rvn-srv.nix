@@ -16,7 +16,10 @@ let
             pkgs.xsel
           ];
 
-          services.termix.enable = true;
+          services.termix = {
+            enable = true;
+            port = 7310;
+          };
         }
       )
     ];

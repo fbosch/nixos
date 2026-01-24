@@ -6,13 +6,11 @@
     , pkgs
     , ...
     }:
+    let
+      # Use a hardcoded port since services.home-assistant is a NixOS option namespace
+      port = 8123;
+    in
     {
-      options.services.home-assistant.port = lib.mkOption {
-        type = lib.types.port;
-        default = 8123;
-        description = "Port for Home Assistant web interface";
-      };
-
       config = {
         services.home-assistant = {
           enable = true;
@@ -64,7 +62,7 @@
             default_config = { };
 
             http = {
-              server_port = config.services.home-assistant.port;
+              server_port = port;
               use_x_forwarded_for = true;
               trusted_proxies = [
                 "127.0.0.1"
@@ -94,7 +92,7 @@
         };
 
         # Open firewall for Home Assistant web interface
-        networking.firewall.allowedTCPPorts = [ config.services.home-assistant.port ];
+        networking.firewall.allowedTCPPorts = [ port ];
 
         # Optional: Enable mDNS for .local domain discovery
         services.avahi = {
