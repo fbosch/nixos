@@ -8,6 +8,7 @@ let
       "nas"
       "services/home-assistant"
       "services/termix"
+      "services/komodo"
       "virtualization/podman"
       "system/scheduled-suspend"
     ];
@@ -28,6 +29,8 @@ let
             enable = true;
             port = 7310;
           };
+
+          services.komodo.enable = true;
 
           powerManagement.scheduledSuspend = {
             enable = true;
