@@ -3,6 +3,14 @@
 let
   hostResult = config.flake.lib.mkHost {
     preset = "server";
+    modules = [
+      "secrets"
+      "nas"
+      "services/home-assistant"
+      "services/termix"
+      "virtualization/podman"
+      "system/scheduled-suspend"
+    ];
 
     hostImports = [
       ../../machines/msi-cubi/configuration.nix
@@ -20,16 +28,24 @@ let
             enable = true;
             port = 7310;
           };
+
+          powerManagement.scheduledSuspend = {
+            enable = true;
+            schedules = {
+              weekday = {
+                suspendTime = "23:30";
+                wakeTime = "05:30";
+                days = "Mon,Tue,Wed,Thu,Fri";
+              };
+              weekend = {
+                suspendTime = "02:00";
+                wakeTime = "07:30";
+                days = "Sat,Sun";
+              };
+            };
+          };
         }
       )
-    ];
-
-    modules = [
-      "secrets"
-      "nas"
-      "services/home-assistant"
-      "services/termix"
-      "virtualization/podman"
     ];
 
     inherit (config.flake.meta.user) username;
