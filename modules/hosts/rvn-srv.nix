@@ -30,7 +30,12 @@ let
             port = 7310;
           };
 
-          services.komodo.enable = true;
+          services.komodo = {
+            enable = true;
+            core.host = "https://komodo.corvus-corax.synology.me";
+            core.allowSignups = false;
+            periphery.requirePasskey = false;
+          };
 
           powerManagement.scheduledSuspend = {
             enable = true;
