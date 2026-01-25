@@ -10,6 +10,7 @@ let
       "services/termix"
       "services/komodo"
       "services/plex"
+      "services/servarr"
       "virtualization/podman"
       "system/scheduled-suspend"
     ];
@@ -39,6 +40,7 @@ let
           };
 
           services.plex.enable = true;
+
           services.uptime-kuma.enable = true;
           services.uptime-kuma.settings.HOST = "0.0.0.0";
 
