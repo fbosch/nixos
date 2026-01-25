@@ -73,14 +73,23 @@
                 };
 
                 script = ''
-                  # Calculate tomorrow's wake time timestamp
+                  # Calculate wake time relative to the suspend time
+                  SUSPEND_TIME="${schedule.suspendTime}"
                   WAKE_TIME="${schedule.wakeTime}"
-                  TOMORROW=$(date -d "tomorrow $WAKE_TIME" +%s)
+
+                  SUSPEND_TS=$(date -d "today $SUSPEND_TIME" +%s)
+                  WAKE_TS_TODAY=$(date -d "today $WAKE_TIME" +%s)
+
+                  if [ "$WAKE_TS_TODAY" -le "$SUSPEND_TS" ]; then
+                    WAKE_TS=$(date -d "tomorrow $WAKE_TIME" +%s)
+                  else
+                    WAKE_TS="$WAKE_TS_TODAY"
+                  fi
 
                   # Set RTC wake alarm and suspend
                   # -m mem: suspend to RAM
                   # -t: wake time as Unix timestamp
-                  ${pkgs.util-linux}/bin/rtcwake -m mem -t $TOMORROW
+                  ${pkgs.util-linux}/bin/rtcwake -m mem -t "$WAKE_TS"
                 '';
               };
             };
