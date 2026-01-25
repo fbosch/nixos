@@ -1,10 +1,11 @@
 { config, ... }:
 {
   flake.modules.nixos."services/home-assistant" =
-    { config
-    , lib
-    , pkgs
-    , ...
+    {
+      config,
+      lib,
+      pkgs,
+      ...
     }:
     let
       # Use a hardcoded port since services.home-assistant is a NixOS option namespace
@@ -49,6 +50,7 @@
             "wake_on_lan" # Wake-on-LAN support (useful for Samsung TV)
             "apple_tv" # Apple TV
             "tuya" # Tuya/SmartLife (for Nedis SmartLife devices)
+            "pi_hole"
             # Add more as needed:
             # "hue"
             # "homekit"

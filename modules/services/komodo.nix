@@ -8,21 +8,16 @@
     }:
     let
       cfg = config.services.komodo;
-      effectivePasskeyFile =
-        if cfg.passkeyFile != null then
-          cfg.passkeyFile
-        else if config ? sops && config.sops.secrets ? "komodo-passkey" then
-          config.sops.secrets.komodo-passkey.path
-        else
-          null;
+      effectivePasskeyFile = lib.attrByPath [ "sops" "secrets" "komodo-passkey" "path" ] null config;
       usePasskey = cfg.periphery.requirePasskey && effectivePasskeyFile != null;
-      effectiveAdminPasswordFile =
-        if cfg.core.initAdminPasswordFile != null then
-          cfg.core.initAdminPasswordFile
-        else if config ? sops && config.sops.secrets ? "komodo-admin-password" then
-          config.sops.secrets.komodo-admin-password.path
-        else
-          null;
+      effectiveAdminPasswordFile = lib.attrByPath [
+        "sops"
+        "secrets"
+        "komodo-admin-password"
+        "path"
+      ]
+        null
+        config;
       useAdminBootstrap = cfg.core.initAdminUsername != null && effectiveAdminPasswordFile != null;
       composeFilePath = "/etc/komodo/compose.yaml";
       composeEnvPath = "/etc/komodo/compose.env";
@@ -90,35 +85,10 @@
           ];
         in
         lib.concatStringsSep "\n" lines + "\n";
-      composeEnvText =
-        let
-          lines = builtins.filter (line: line != null) [
-            "COMPOSE_KOMODO_IMAGE_TAG=${cfg.core.imageTag}"
-            "KOMODO_DB_USERNAME=admin"
-            "KOMODO_DB_PASSWORD=admin"
-            "KOMODO_HOST=${cfg.core.host}"
-            "KOMODO_TITLE=Komodo"
-            "KOMODO_LOCAL_AUTH=true"
-            "KOMODO_DISABLE_USER_REGISTRATION=${if cfg.core.allowSignups then "false" else "true"}"
-            (if useAdminBootstrap then "KOMODO_INIT_ADMIN_USERNAME=${cfg.core.initAdminUsername}" else null)
-            (
-              if useAdminBootstrap then "KOMODO_INIT_ADMIN_PASSWORD_FILE=${effectiveAdminPasswordFile}" else null
-            )
-            (if usePasskey then "KOMODO_PASSKEY_FILE=${effectivePasskeyFile}" else null)
-          ];
-        in
-        lib.concatStringsSep "\n" lines + "\n";
     in
     {
       options.services.komodo = {
         enable = lib.mkEnableOption "Komodo build and deployment system";
-
-        passkeyFile = lib.mkOption {
-          type = lib.types.nullOr lib.types.path;
-          default = null;
-          description = "Path to file containing the Komodo passkey (e.g., from SOPS)";
-          example = lib.literalExpression "config.sops.secrets.komodo-passkey.path";
-        };
 
         core = {
           enable = lib.mkOption {
@@ -149,13 +119,6 @@
             type = lib.types.nullOr lib.types.str;
             default = null;
             description = "Initial admin username to bootstrap when signups are disabled";
-          };
-
-          initAdminPasswordFile = lib.mkOption {
-            type = lib.types.nullOr lib.types.path;
-            default = null;
-            description = "Path to file containing initial admin password";
-            example = lib.literalExpression "config.sops.secrets.komodo-admin-password.path";
           };
 
           imageTag = lib.mkOption {
@@ -203,20 +166,13 @@
           text = composeYamlText;
         };
 
-        environment.etc."komodo/compose.env" = lib.mkIf (cfg.core.enable && !(config ? sops)) {
-          text = composeEnvText;
-          mode = "0400";
-        };
-
         system.activationScripts.komodoComposeEnv = lib.mkIf cfg.core.enable ''
           if [ -f /etc/komodo/compose.env ] && [ ! -L /etc/komodo/compose.env ]; then
             rm -f /etc/komodo/compose.env
           fi
-          ${lib.optionalString (config ? sops) ''
-            if [ -f ${config.sops.templates."komodo-compose-env".path} ]; then
-              install -m 0400 ${config.sops.templates."komodo-compose-env".path} /etc/komodo/compose.env
-            fi
-          ''}
+          if [ -f ${config.sops.templates."komodo-compose-env".path} ]; then
+            install -m 0400 ${config.sops.templates."komodo-compose-env".path} /etc/komodo/compose.env
+          fi
         '';
 
         systemd.services.komodo-core = lib.mkIf cfg.core.enable {
@@ -263,31 +219,26 @@
           8120
         ];
 
-        # Wire passkey through sops if available
-        sops.secrets.komodo-passkey =
-          lib.mkIf (config ? sops && cfg.passkeyFile == null && cfg.periphery.requirePasskey)
-            {
-              mode = "0440";
-              owner = "komodo-periphery";
-              group = "komodo-periphery";
-            };
+        # Wire passkey through sops
+        sops.secrets.komodo-passkey = lib.mkIf cfg.periphery.requirePasskey {
+          mode = "0440";
+          owner = "komodo-periphery";
+          group = "komodo-periphery";
+        };
 
-        sops.secrets.komodo-db-username = lib.mkIf (config ? sops) {
+        sops.secrets.komodo-db-username = {
           mode = "0400";
         };
 
-        sops.secrets.komodo-db-password = lib.mkIf (config ? sops) {
+        sops.secrets.komodo-db-password = {
           mode = "0400";
         };
 
-        sops.secrets.komodo-admin-password =
-          lib.mkIf
-            (config ? sops && cfg.core.initAdminUsername != null && cfg.core.initAdminPasswordFile == null)
-            {
-              mode = "0400";
-            };
+        sops.secrets.komodo-admin-password = lib.mkIf (cfg.core.initAdminUsername != null) {
+          mode = "0400";
+        };
 
-        sops.templates."komodo-compose-env" = lib.mkIf (config ? sops && cfg.core.enable) {
+        sops.templates."komodo-compose-env" = lib.mkIf cfg.core.enable {
           content = composeEnvTemplateText;
           mode = "0400";
         };
