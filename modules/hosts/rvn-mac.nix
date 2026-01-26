@@ -1,13 +1,37 @@
 { config, ... }:
 {
+  # rvn-mac: Dendritic host configuration for MacBook Pro
+  # Hardware: Apple Silicon MacBook Pro
+  # Role: Development workstation running nix-darwin with Home Manager
+
   flake.modules.darwin."hosts/rvn-mac" =
     { pkgs, ... }:
     {
       imports = [
+        # Darwin-specific modules
         config.flake.modules.darwin.security
         config.flake.modules.darwin.homebrew
       ];
 
+      # Home Manager configuration for user
+      home-manager.users.${config.flake.meta.user.username} = {
+        home.stateVersion = config.flake.meta.versions.homeManager;
+
+        # Home Manager modules (cross-platform)
+        imports = config.flake.lib.resolveHm [
+          # Home Manager preset modules
+          "users"
+          "dotfiles"
+          "security"
+          "development"
+          "shell"
+
+          # Secrets for home-manager context
+          "secrets"
+        ];
+      };
+
+      # macOS system configuration
       system = {
         stateVersion = 5;
         primaryUser = config.flake.meta.user.username;
@@ -44,8 +68,10 @@
         };
       };
 
+      # Allow unfree packages
       nixpkgs.config.allowUnfree = true;
 
+      # Nix daemon configuration
       nix.settings = {
         experimental-features = [
           "nix-command"
@@ -57,6 +83,7 @@
         ];
       };
 
+      # System environment
       environment = {
         systemPackages = with pkgs; [
           nh
@@ -72,21 +99,11 @@
         shells = [ pkgs.fish ];
       };
 
+      # User configuration
       users.users.${config.flake.meta.user.username} = {
         home = "/Users/${config.flake.meta.user.username}";
         shell = pkgs.fish;
         ignoreShellProgramCheck = true;
-      };
-
-      home-manager.users.${config.flake.meta.user.username} = {
-        home.stateVersion = config.flake.meta.versions.homeManager;
-
-        imports =
-          builtins.map
-            (
-              m: config.flake.modules.homeManager.${m} or { }
-            )
-            (config.flake.meta.presets.homeManagerOnly.homeManager ++ [ "secrets" ]);
       };
     };
 }
