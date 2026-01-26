@@ -20,11 +20,10 @@ let
       ../../machines/msi-cubi/hardware-configuration.nix
       inputs.nixos-hardware.nixosModules.common-cpu-intel
       (
-        {
-          config,
-          pkgs,
-          lib,
-          ...
+        { config
+        , pkgs
+        , lib
+        , ...
         }:
         {
           environment.systemPackages = [
@@ -56,11 +55,22 @@ let
             environmentFile = config.sops.templates."atticd-env".path;
             settings = {
               listen = "0.0.0.0:8081";
+              allowed-hosts = [ "attic.corvus-corax.synology.me" ];
+              api-endpoint = "https://attic.corvus-corax.synology.me/";
+              substituter-endpoint = "https://attic.corvus-corax.synology.me/";
               storage = {
                 type = "local";
                 path = "/mnt/nas/web/attic";
               };
             };
+          };
+
+          systemd.services.atticd = {
+            unitConfig.RequiresMountsFor = [
+              "/mnt/nas/web"
+              "/mnt/nas/web/attic"
+            ];
+            after = [ "mnt-nas-web.mount" ];
           };
 
           services.uptime-kuma.enable = true;

@@ -1,10 +1,11 @@
 { config, ... }:
 {
   flake.modules.nixos."services/komodo" =
-    { config
-    , lib
-    , pkgs
-    , ...
+    {
+      config,
+      lib,
+      pkgs,
+      ...
     }:
     let
       cfg = config.services.komodo;
@@ -15,9 +16,7 @@
         "secrets"
         "komodo-admin-password"
         "path"
-      ]
-        null
-        config;
+      ] null config;
       useAdminBootstrap = cfg.core.initAdminUsername != null && effectiveAdminPasswordFile != null;
       composeFilePath = "/etc/komodo/compose.yaml";
       composeEnvPath = "/etc/komodo/compose.env";
