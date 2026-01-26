@@ -37,7 +37,11 @@
         };
 
         nginx = {
-          enable = lib.mkEnableOption "nginx reverse proxy with caching for Plex";
+          enable = lib.mkOption {
+            type = lib.types.bool;
+            default = true;
+            description = "Enable nginx reverse proxy with caching for Plex";
+          };
 
           port = lib.mkOption {
             type = lib.types.port;
@@ -67,6 +71,9 @@
 
       config = lib.mkIf cfg.enable {
         services.plex.openFirewall = lib.mkDefault true;
+
+        # Add plex user to 'users' group for NAS write access
+        users.users.plex.extraGroups = [ "users" ];
 
         # Plex transcoding in RAM for faster performance and less disk wear
         fileSystems."/var/lib/plex/Plex Media Server/Cache/Transcode" = lib.mkIf cfg.transcodeInRAM {

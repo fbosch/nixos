@@ -68,16 +68,6 @@ let
               periphery.requirePasskey = false;
             };
 
-            plex = {
-              enable = true;
-              nginx = {
-                enable = true;
-                port = 32402; # Changed from 32401 to avoid conflict with Plex internal port
-                cacheSize = "2g";
-                cacheTTL = "24h";
-              };
-            };
-
             uptime-kuma = {
               enable = true;
               settings.HOST = "0.0.0.0";
