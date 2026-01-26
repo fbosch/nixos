@@ -88,7 +88,11 @@
     in
     {
       options.services.komodo = {
-        enable = lib.mkEnableOption "Komodo build and deployment system";
+        enable = lib.mkOption {
+          type = lib.types.bool;
+          default = true;
+          description = "Whether to enable Komodo build and deployment system";
+        };
 
         core = {
           enable = lib.mkOption {

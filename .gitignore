@@ -20,13 +20,6 @@ secrets/*.asc
 # Allow public GPG key (not a secret)
 !configs/gpg/public-key.asc
 
-# Markdown
-*.md
-!README.md
-!AGENTS.md
-!docs/**/*.md
-!.opencode/**/*.md
-
 # System state
 .direnv/
 **/.envrc  # Ignore .envrc in subdirectories (may contain secrets)

@@ -24,10 +24,11 @@ let
       ../../machines/msi-cubi/hardware-configuration.nix
       inputs.nixos-hardware.nixosModules.common-cpu-intel
       (
-        { config
-        , pkgs
-        , lib
-        , ...
+        {
+          config,
+          pkgs,
+          lib,
+          ...
         }:
         {
           boot.kernel.sysctl = {
@@ -59,15 +60,10 @@ let
           ];
 
           services = {
-            termix-container.port = 7310;
-
-            plex = {
-              enable = true;
-              nginx.port = 32402;
-            };
+            ananicy.enable = true;
+            plex.nginx.port = 32402;
 
             komodo = {
-              enable = true;
               core.host = "https://komodo.corvus-corax.synology.me";
               core.allowSignups = false;
               periphery.requirePasskey = false;
@@ -82,9 +78,6 @@ let
           networking.firewall.allowedTCPPorts = [
             3001
           ];
-
-          services.ananicy.enable = true;
-
         }
       )
     ];

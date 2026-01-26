@@ -1,10 +1,9 @@
 { config, ... }:
 {
   flake.modules.nixos."services/plex" =
-    {
-      config,
-      lib,
-      ...
+    { config
+    , lib
+    , ...
     }:
     let
       cfg = config.services.plex;
@@ -70,27 +69,30 @@
         };
       };
 
-      config = lib.mkIf cfg.enable {
+      config = {
+        services.plex.enable = lib.mkDefault true;
         services.plex.openFirewall = lib.mkDefault true;
 
         # Add plex user to 'users' group for NAS write access
-        users.users.plex.extraGroups = [ "users" ];
+        users.users.plex.extraGroups = lib.mkIf cfg.enable [ "users" ];
 
         # Plex transcoding in RAM for faster performance and less disk wear
-        fileSystems."/var/lib/plex/Plex Media Server/Cache/Transcode" = lib.mkIf cfg.transcodeInRAM {
-          device = "tmpfs";
-          fsType = "tmpfs";
-          options = [
-            "defaults"
-            "size=${cfg.transcodeRAMSize}"
-            "mode=0755"
-            "uid=plex"
-            "gid=plex"
-          ];
-        };
+        fileSystems."/var/lib/plex/Plex Media Server/Cache/Transcode" =
+          lib.mkIf (cfg.enable && cfg.transcodeInRAM)
+            {
+              device = "tmpfs";
+              fsType = "tmpfs";
+              options = [
+                "defaults"
+                "size=${cfg.transcodeRAMSize}"
+                "mode=0755"
+                "uid=plex"
+                "gid=plex"
+              ];
+            };
 
         # Nginx reverse proxy with caching
-        services.nginx = lib.mkIf cfg.nginx.enable {
+        services.nginx = lib.mkIf (cfg.enable && cfg.nginx.enable) {
           enable = true;
 
           # Recommended settings for reverse proxy
@@ -234,17 +236,17 @@
         };
 
         # Create cache directory
-        systemd.tmpfiles.rules = lib.mkIf cfg.nginx.enable [
+        systemd.tmpfiles.rules = lib.mkIf (cfg.enable && cfg.nginx.enable) [
           "d /var/cache/nginx/plex 0750 nginx nginx -"
         ];
 
         # Open firewall for nginx proxy port
-        networking.firewall.allowedTCPPorts = lib.mkIf cfg.nginx.enable [
+        networking.firewall.allowedTCPPorts = lib.mkIf (cfg.enable && cfg.nginx.enable) [
           cfg.nginx.port
         ];
 
         # Ananicy rules for Plex processes
-        services.ananicy.customRules = [
+        services.ananicy.customRules = lib.mkIf cfg.enable [
           # Main Plex Media Server - highest priority for smooth playback/transcoding
           {
             name = "Plex Media Serv";
