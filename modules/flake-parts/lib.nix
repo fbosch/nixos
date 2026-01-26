@@ -23,56 +23,5 @@
     resolveHm = builtins.map (
       m: if builtins.isString m then config.flake.modules.homeManager.${m} else m
     );
-
-    # Helper function to build host configurations from module lists
-    # Handles preset expansion, Home Manager wiring, and module resolution
-    mkHost =
-      { nixos ? [ ]
-      , homeManager ? [ ]
-      , modules ? [ ]
-      , preset ? null
-      , hostImports ? [ ]
-      , extraHomeManager ? [ ]
-      , extraNixos ? [ ]
-      , username
-      , displayManagerMode ? config.flake.meta.displayManager.defaultMode
-      ,
-      }:
-      let
-        emptyPreset = {
-          modules = [ ];
-          nixos = [ ];
-          homeManager = [ ];
-        };
-        presetConfig =
-          if preset != null then
-            config.flake.meta.presets.${preset} or (throw "Unknown preset: ${preset}")
-          else
-            emptyPreset;
-        nixosModules = presetConfig.modules ++ presetConfig.nixos ++ modules ++ nixos ++ extraNixos;
-        hmModules =
-          presetConfig.modules ++ presetConfig.homeManager ++ modules ++ homeManager ++ extraHomeManager;
-        resolveNixosModule = m: if builtins.isString m then (config.flake.modules.nixos.${m} or { }) else m;
-        resolveHmModule =
-          m: if builtins.isString m then (config.flake.modules.homeManager.${m} or { }) else m;
-      in
-      {
-        # Store metadata separately to be accessed by hosts.nix
-        _hostConfig = {
-          inherit displayManagerMode;
-        };
-
-        # Return the module function
-        _module = _: {
-          imports =
-            hostImports
-            ++ (builtins.map resolveNixosModule nixosModules)
-            ++ [
-              {
-                home-manager.users.${username}.imports = builtins.map resolveHmModule hmModules;
-              }
-            ];
-        };
-      };
   };
 }
