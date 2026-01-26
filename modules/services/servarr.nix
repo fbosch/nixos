@@ -55,6 +55,34 @@
             enable = true;
             openFirewall = lib.mkDefault true;
           };
+
+          # Ananicy rules for Servarr services - all background downloaders/managers
+          ananicy.customRules = [
+            {
+              name = "Radarr";
+              type = "BG_CPUIO";
+              nice = 10;
+              ioclass = "idle";
+            }
+            {
+              name = "Sonarr";
+              type = "BG_CPUIO";
+              nice = 10;
+              ioclass = "idle";
+            }
+            {
+              name = "Prowlarr";
+              type = "BG_CPUIO";
+              nice = 10;
+              ioclass = "idle";
+            }
+            {
+              name = "jackett";
+              type = "BG_CPUIO";
+              nice = 12;
+              ioclass = "idle";
+            }
+          ];
         };
       };
     };

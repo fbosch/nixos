@@ -15,6 +15,7 @@ let
       "services/servarr"
       "virtualization/podman"
       "system/scheduled-suspend"
+      "system/ananicy"
     ];
 
     hostImports = [
@@ -22,10 +23,11 @@ let
       ../../machines/msi-cubi/hardware-configuration.nix
       inputs.nixos-hardware.nixosModules.common-cpu-intel
       (
-        { config
-        , pkgs
-        , lib
-        , ...
+        {
+          config,
+          pkgs,
+          lib,
+          ...
         }:
         {
           environment.systemPackages = [
@@ -57,6 +59,8 @@ let
           networking.firewall.allowedTCPPorts = [
             3001
           ];
+
+          services.ananicy.enable = true;
 
           powerManagement.scheduledSuspend = {
             enable = true;

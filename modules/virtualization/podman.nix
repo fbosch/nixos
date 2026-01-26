@@ -38,5 +38,19 @@
         enable = true;
         wantedBy = [ "sockets.target" ];
       };
+
+      # Ananicy rules for Podman container runtime
+      services.ananicy.customRules = [
+        {
+          name = ".podman-wrapped";
+          type = "Service";
+          nice = 0;
+        }
+        {
+          name = "conmon";
+          type = "Service";
+          nice = 0;
+        }
+      ];
     };
 }
