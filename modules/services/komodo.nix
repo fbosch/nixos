@@ -166,14 +166,11 @@
           text = composeYamlText;
         };
 
-        system.activationScripts.komodoComposeEnv = lib.mkIf cfg.core.enable ''
-          if [ -f /etc/komodo/compose.env ] && [ ! -L /etc/komodo/compose.env ]; then
-            rm -f /etc/komodo/compose.env
-          fi
-          if [ -f ${config.sops.templates."komodo-compose-env".path} ]; then
-            install -m 0400 ${config.sops.templates."komodo-compose-env".path} /etc/komodo/compose.env
-          fi
-        '';
+        # Link the SOPS-rendered env file to /etc/komodo/compose.env
+        environment.etc."komodo/compose.env" = lib.mkIf cfg.core.enable {
+          source = config.sops.templates."komodo-compose-env".path;
+          mode = "0400";
+        };
 
         systemd = {
           services = {

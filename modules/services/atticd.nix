@@ -44,7 +44,11 @@
               "/mnt/nas/web"
               "/mnt/nas/web/attic"
             ];
-            after = [ "mnt-nas-web.mount" ];
+            after = [
+              "mnt-nas-web.mount"
+              "network-online.target"
+            ];
+            wants = [ "network-online.target" ];
             serviceConfig.SupplementaryGroups = [ "users" ];
           };
 
