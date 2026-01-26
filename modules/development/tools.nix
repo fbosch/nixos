@@ -41,6 +41,7 @@
         units
         ast-grep
         keychain
+        openssl
       ];
     };
 }
