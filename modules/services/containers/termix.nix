@@ -1,25 +1,29 @@
 { config, ... }:
 {
-  flake.modules.nixos."services/termix" =
+  flake.modules.nixos."services/containers/termix" =
     { config
     , lib
     , pkgs
     , ...
     }:
     {
-      options.services.termix = {
-        enable = lib.mkEnableOption "Termix SSH Terminal and Server Management Platform";
+      options.services.termix-container = {
+        enable = lib.mkOption {
+          type = lib.types.bool;
+          default = true;
+          description = "Enable Termix SSH Terminal and Server Management Platform";
+        };
 
         port = lib.mkOption {
           type = lib.types.port;
-          default = 8080;
+          default = 7310;
           description = "Port for Termix web interface";
         };
       };
 
-      config = lib.mkIf config.services.termix.enable {
+      config = lib.mkIf config.services.termix-container.enable {
         # Create systemd service for Termix container
-        systemd.services.termix = {
+        systemd.services.termix-container = {
           description = "Termix SSH Terminal and Server Management Platform";
           wantedBy = [ "multi-user.target" ];
           after = [
@@ -42,13 +46,23 @@
             # Remove existing container if it exists
             ${pkgs.podman}/bin/podman rm -f termix || true
 
-            # Run the container
+            # Run the container with performance optimizations
             ${pkgs.podman}/bin/podman run \
               --name termix \
               --rm \
-              -p ${toString config.services.termix.port}:8080 \
+              -p ${toString config.services.termix-container.port}:8080 \
               -v termix-data:/app/data \
               -e PORT=8080 \
+              --memory=1g \
+              --cpus=4 \
+              --pids-limit=500 \
+              --ulimit nofile=2048:4096 \
+              --health-cmd="curl -f http://localhost:8080/ || exit 1" \
+              --health-interval=30s \
+              --health-timeout=10s \
+              --health-retries=3 \
+              --log-driver=journald \
+              --log-opt=tag="termix" \
               ghcr.io/lukegus/termix:latest
           '';
 
@@ -58,7 +72,7 @@
         };
 
         # Open firewall for Termix web interface
-        networking.firewall.allowedTCPPorts = [ config.services.termix.port ];
+        networking.firewall.allowedTCPPorts = [ config.services.termix-container.port ];
       };
     };
 }

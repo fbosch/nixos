@@ -6,17 +6,17 @@ let
     modules = [
       "secrets"
       "nas"
+      "system/scheduled-suspend"
+      "system/ananicy"
       "services/home-assistant"
       "services/atticd"
       "services/attic-client"
-      "services/termix"
       "services/komodo"
       "services/plex"
       "services/servarr"
-      "services/redlib"
       "virtualization/podman"
-      "system/scheduled-suspend"
-      "system/ananicy"
+      "services/containers/redlib"
+      "services/containers/termix"
     ];
 
     hostImports = [
@@ -24,11 +24,10 @@ let
       ../../machines/msi-cubi/hardware-configuration.nix
       inputs.nixos-hardware.nixosModules.common-cpu-intel
       (
-        {
-          config,
-          pkgs,
-          lib,
-          ...
+        { config
+        , pkgs
+        , lib
+        , ...
         }:
         {
           environment.systemPackages = [
@@ -37,10 +36,7 @@ let
           ];
 
           services = {
-            termix = {
-              enable = true;
-              port = 7310;
-            };
+            termix-container.port = 7310;
 
             komodo = {
               enable = true;
