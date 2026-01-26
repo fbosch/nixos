@@ -24,12 +24,36 @@ let
       ../../machines/msi-cubi/hardware-configuration.nix
       inputs.nixos-hardware.nixosModules.common-cpu-intel
       (
-        { config
-        , pkgs
-        , lib
-        , ...
+        {
+          config,
+          pkgs,
+          lib,
+          ...
         }:
         {
+          boot.kernel.sysctl = {
+            "vm.swappiness" = 10; # Only swap when critically low on RAM
+            "vm.vfs_cache_pressure" = 50; # Keep filesystem cache longer
+            "vm.dirty_ratio" = 15; # Start sync at 15% RAM dirty
+            "vm.dirty_background_ratio" = 10; # Background writes at 10%
+          };
+
+          powerManagement.scheduledSuspend = {
+            enable = true;
+            schedules = {
+              weekday = {
+                suspendTime = "23:30";
+                wakeTime = "05:30";
+                days = "Mon,Tue,Wed,Thu,Fri";
+              };
+              weekend = {
+                suspendTime = "02:00";
+                wakeTime = "07:30";
+                days = "Sat,Sun";
+              };
+            };
+          };
+
           environment.systemPackages = [
             pkgs.xclip
             pkgs.xsel
@@ -59,21 +83,6 @@ let
 
           services.ananicy.enable = true;
 
-          powerManagement.scheduledSuspend = {
-            enable = true;
-            schedules = {
-              weekday = {
-                suspendTime = "23:30";
-                wakeTime = "05:30";
-                days = "Mon,Tue,Wed,Thu,Fri";
-              };
-              weekend = {
-                suspendTime = "02:00";
-                wakeTime = "07:30";
-                days = "Sat,Sun";
-              };
-            };
-          };
         }
       )
     ];
