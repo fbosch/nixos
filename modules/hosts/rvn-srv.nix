@@ -13,6 +13,7 @@ let
       "services/komodo"
       "services/plex"
       "services/servarr"
+      "services/redlib"
       "virtualization/podman"
       "system/scheduled-suspend"
       "system/ananicy"
