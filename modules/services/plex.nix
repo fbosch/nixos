@@ -1,9 +1,10 @@
 { config, ... }:
 {
   flake.modules.nixos."services/plex" =
-    { config
-    , lib
-    , ...
+    {
+      config,
+      lib,
+      ...
     }:
     let
       cfg = config.services.plex;

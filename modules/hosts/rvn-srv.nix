@@ -61,6 +61,11 @@ let
           services = {
             termix-container.port = 7310;
 
+            plex = {
+              enable = true;
+              nginx.port = 32402;
+            };
+
             komodo = {
               enable = true;
               core.host = "https://komodo.corvus-corax.synology.me";
