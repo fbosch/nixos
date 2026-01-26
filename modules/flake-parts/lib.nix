@@ -11,6 +11,19 @@
     # Kept here because icon-overrides is tightly coupled to this flake's structure
     iconOverrides = import ../../lib/icon-overrides.nix;
 
+    # Dendritic pattern helpers for module path resolution
+    # These helpers allow using string paths in imports while maintaining dendritic pattern compliance
+
+    # Resolve NixOS module paths
+    # Usage: imports = config.flake.lib.resolve [ "presets/server" "secrets" ../../hardware.nix ];
+    resolve = builtins.map (m: if builtins.isString m then config.flake.modules.nixos.${m} else m);
+
+    # Resolve Home Manager module paths
+    # Usage: home-manager.users.username.imports = config.flake.lib.resolveHm [ "users" "dotfiles" ];
+    resolveHm = builtins.map (
+      m: if builtins.isString m then config.flake.modules.homeManager.${m} else m
+    );
+
     # Helper function to build host configurations from module lists
     # Handles preset expansion, Home Manager wiring, and module resolution
     mkHost =
@@ -23,6 +36,7 @@
       , extraNixos ? [ ]
       , username
       , displayManagerMode ? config.flake.meta.displayManager.defaultMode
+      ,
       }:
       let
         emptyPreset = {
@@ -38,8 +52,7 @@
         nixosModules = presetConfig.modules ++ presetConfig.nixos ++ modules ++ nixos ++ extraNixos;
         hmModules =
           presetConfig.modules ++ presetConfig.homeManager ++ modules ++ homeManager ++ extraHomeManager;
-        resolveNixosModule =
-          m: if builtins.isString m then (config.flake.modules.nixos.${m} or { }) else m;
+        resolveNixosModule = m: if builtins.isString m then (config.flake.modules.nixos.${m} or { }) else m;
         resolveHmModule =
           m: if builtins.isString m then (config.flake.modules.homeManager.${m} or { }) else m;
       in
@@ -56,8 +69,7 @@
             ++ (builtins.map resolveNixosModule nixosModules)
             ++ [
               {
-                home-manager.users.${username}.imports =
-                  builtins.map resolveHmModule hmModules;
+                home-manager.users.${username}.imports = builtins.map resolveHmModule hmModules;
               }
             ];
         };
