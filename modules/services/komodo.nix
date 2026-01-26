@@ -1,11 +1,10 @@
 { config, ... }:
 {
   flake.modules.nixos."services/komodo" =
-    {
-      config,
-      lib,
-      pkgs,
-      ...
+    { config
+    , lib
+    , pkgs
+    , ...
     }:
     let
       cfg = config.services.komodo;
@@ -16,7 +15,9 @@
         "secrets"
         "komodo-admin-password"
         "path"
-      ] null config;
+      ]
+        null
+        config;
       useAdminBootstrap = cfg.core.initAdminUsername != null && effectiveAdminPasswordFile != null;
       composeFilePath = "/etc/komodo/compose.yaml";
       composeEnvPath = "/etc/komodo/compose.env";
@@ -146,7 +147,7 @@
 
         users.groups.docker = { };
         users.users.komodo-periphery.extraGroups = [ "podman" ];
-        systemd.services.komodo-periphery.serviceConfig.SupplementaryGroups = [ "podman" ];
+
         services.komodo-periphery.environment = lib.mkMerge [
           (lib.mkIf usePasskey {
             PERIPHERY_PASSKEYS_FILE = effectivePasskeyFile;
@@ -174,72 +175,82 @@
           fi
         '';
 
-        systemd.services.komodo-core = lib.mkIf cfg.core.enable {
-          description = "Komodo Core - Build and Deployment Web UI";
-          wantedBy = [ "multi-user.target" ];
-          after = [
-            "network-online.target"
-            "podman.service"
-          ];
-          requires = [ "podman.service" ];
+        systemd = {
+          services = {
+            komodo-periphery.serviceConfig.SupplementaryGroups = [ "podman" ];
 
-          path = [
-            pkgs.podman
-            pkgs.podman-compose
-          ];
+            komodo-core = lib.mkIf cfg.core.enable {
+              description = "Komodo Core - Build and Deployment Web UI";
+              wantedBy = [ "multi-user.target" ];
+              after = [
+                "network-online.target"
+                "podman.service"
+              ];
+              requires = [ "podman.service" ];
 
-          serviceConfig = {
-            Type = "oneshot";
-            RemainAfterExit = true;
+              path = [
+                pkgs.podman
+                pkgs.podman-compose
+              ];
+
+              serviceConfig = {
+                Type = "oneshot";
+                RemainAfterExit = true;
+              };
+
+              script = ''
+                ${pkgs.podman-compose}/bin/podman-compose -p komodo \
+                  -f ${composeFilePath} \
+                  --env-file ${composeEnvPath} \
+                  up -d
+              '';
+
+              preStop = ''
+                ${pkgs.podman-compose}/bin/podman-compose -p komodo \
+                  -f ${composeFilePath} \
+                  --env-file ${composeEnvPath} \
+                  down
+              '';
+            };
           };
 
-          script = ''
-            ${pkgs.podman-compose}/bin/podman-compose -p komodo \
-              -f ${composeFilePath} \
-              --env-file ${composeEnvPath} \
-              up -d
-          '';
-
-          preStop = ''
-            ${pkgs.podman-compose}/bin/podman-compose -p komodo \
-              -f ${composeFilePath} \
-              --env-file ${composeEnvPath} \
-              down
-          '';
+          tmpfiles.rules = lib.mkIf cfg.core.enable [
+            "d /var/lib/komodo 0750 root root -"
+            "d /var/lib/komodo/backups 0750 root root -"
+          ];
         };
-
-        systemd.tmpfiles.rules = lib.mkIf cfg.core.enable [
-          "d /var/lib/komodo 0750 root root -"
-          "d /var/lib/komodo/backups 0750 root root -"
-        ];
 
         networking.firewall.allowedTCPPorts = lib.mkIf cfg.core.enable [
           cfg.core.port
           8120
         ];
 
-        # Wire passkey through sops
-        sops.secrets.komodo-passkey = lib.mkIf cfg.periphery.requirePasskey {
-          mode = "0440";
-          owner = "komodo-periphery";
-          group = "komodo-periphery";
-        };
+        # Wire passkey and secrets through sops
+        sops = {
+          secrets = {
+            komodo-passkey = lib.mkIf cfg.periphery.requirePasskey {
+              mode = "0440";
+              owner = "komodo-periphery";
+              group = "komodo-periphery";
+            };
 
-        sops.secrets.komodo-db-username = {
-          mode = "0400";
-        };
+            komodo-db-username = {
+              mode = "0400";
+            };
 
-        sops.secrets.komodo-db-password = {
-          mode = "0400";
-        };
+            komodo-db-password = {
+              mode = "0400";
+            };
 
-        sops.secrets.komodo-admin-password = lib.mkIf (cfg.core.initAdminUsername != null) {
-          mode = "0400";
-        };
+            komodo-admin-password = lib.mkIf (cfg.core.initAdminUsername != null) {
+              mode = "0400";
+            };
+          };
 
-        sops.templates."komodo-compose-env" = lib.mkIf cfg.core.enable {
-          content = composeEnvTemplateText;
-          mode = "0400";
+          templates."komodo-compose-env" = lib.mkIf cfg.core.enable {
+            content = composeEnvTemplateText;
+            mode = "0400";
+          };
         };
       };
     };

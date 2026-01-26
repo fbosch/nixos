@@ -22,11 +22,10 @@ let
       ../../machines/msi-cubi/hardware-configuration.nix
       inputs.nixos-hardware.nixosModules.common-cpu-intel
       (
-        {
-          config,
-          pkgs,
-          lib,
-          ...
+        { config
+        , pkgs
+        , lib
+        , ...
         }:
         {
           environment.systemPackages = [
@@ -34,22 +33,26 @@ let
             pkgs.xsel
           ];
 
-          services.termix = {
-            enable = true;
-            port = 7310;
+          services = {
+            termix = {
+              enable = true;
+              port = 7310;
+            };
+
+            komodo = {
+              enable = true;
+              core.host = "https://komodo.corvus-corax.synology.me";
+              core.allowSignups = false;
+              periphery.requirePasskey = false;
+            };
+
+            plex.enable = true;
+
+            uptime-kuma = {
+              enable = true;
+              settings.HOST = "0.0.0.0";
+            };
           };
-
-          services.komodo = {
-            enable = true;
-            core.host = "https://komodo.corvus-corax.synology.me";
-            core.allowSignups = false;
-            periphery.requirePasskey = false;
-          };
-
-          services.plex.enable = true;
-
-          services.uptime-kuma.enable = true;
-          services.uptime-kuma.settings.HOST = "0.0.0.0";
 
           networking.firewall.allowedTCPPorts = [
             3001

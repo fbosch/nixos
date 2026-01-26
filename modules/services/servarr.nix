@@ -4,29 +4,31 @@
     { lib, ... }:
     {
       config = {
-        services.lidarr = {
-          enable = true;
-          openFirewall = lib.mkDefault true;
-        };
+        services = {
+          lidarr = {
+            enable = true;
+            openFirewall = lib.mkDefault true;
+          };
 
-        services.sonarr = {
-          enable = true;
-          openFirewall = lib.mkDefault true;
-        };
+          sonarr = {
+            enable = true;
+            openFirewall = lib.mkDefault true;
+          };
 
-        services.radarr = {
-          enable = true;
-          openFirewall = lib.mkDefault true;
-        };
+          radarr = {
+            enable = true;
+            openFirewall = lib.mkDefault true;
+          };
 
-        services.bazarr = {
-          enable = true;
-          openFirewall = lib.mkDefault true;
-        };
+          bazarr = {
+            enable = true;
+            openFirewall = lib.mkDefault true;
+          };
 
-        services.jackett = {
-          enable = true;
-          openFirewall = lib.mkDefault true;
+          jackett = {
+            enable = true;
+            openFirewall = lib.mkDefault true;
+          };
         };
       };
     };

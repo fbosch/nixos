@@ -94,7 +94,7 @@
               };
             };
 
-            schedules = config.powerManagement.scheduledSuspend.schedules;
+            inherit (config.powerManagement.scheduledSuspend) schedules;
           in
           {
             timers = lib.mkMerge (lib.mapAttrsToList mkSuspendTimer schedules);

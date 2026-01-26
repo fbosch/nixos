@@ -21,6 +21,14 @@ in
             user = "fbb";
             identityFile = config.sops.secrets.ssh-private-key.path;
           };
+          "ssh.dev.azure.com" = {
+            identityFile = "~/.ssh/id_rsa.pub";
+            identitiesOnly = true;
+            extraOptions = {
+              HostkeyAlgorithms = "+ssh-rsa";
+              PubkeyAcceptedKeyTypes = "ssh-rsa";
+            };
+          };
         };
       };
 
