@@ -31,6 +31,7 @@
       # All desktop features for home-manager-only systems
       users
       dotfiles
+      fonts
       security
       desktop
       applications

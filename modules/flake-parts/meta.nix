@@ -46,7 +46,7 @@ in
     displayManager = {
       # Default display manager mode for hosts
       # Can be overridden per-host in hostConfig
-      defaultMode = "regreet"; # Options: "regreet" | "tuigreet" | "hyprlock-autologin" (legacy)
+      defaultMode = "tuigreet"; # Options: "regreet" | "tuigreet" | "hyprlock-autologin" (legacy)
     };
 
     versions = {
