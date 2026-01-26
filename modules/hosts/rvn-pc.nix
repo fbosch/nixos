@@ -17,15 +17,6 @@ let
         {
           services.openssh.enable = true;
 
-          nix.settings = {
-            substituters = [
-              "https://attic.corvus-corax.synology.me/nix-cache"
-            ];
-            trusted-public-keys = [
-              "nix-cache:U6DL42pjWBPHYzWxhGK1W0Hh8nA0MD6sE0TtoWFqmAs="
-            ];
-          };
-
           environment.systemPackages = [
             pkgs.wlr-randr
           ];
@@ -46,6 +37,7 @@ let
     modules = [
       "secrets"
       "nas"
+      "services/attic-client"
       "gaming"
       "windows"
       "virtualization/docker"
