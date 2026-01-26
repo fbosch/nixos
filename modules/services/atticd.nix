@@ -1,5 +1,4 @@
-_:
-{
+_: {
   flake.modules.nixos."services/atticd" =
     { config
     , lib
@@ -8,6 +7,14 @@ _:
     let
       cfg = config.services.atticd;
       ownerUser = lib.attrByPath [ "flake" "meta" "user" "username" ] "root" config;
+      synologyDomain = lib.attrByPath [
+        "flake"
+        "meta"
+        "synology"
+        "domain"
+      ] "corvus-corax.synology.me"
+        config;
+      atticHost = "attic.${synologyDomain}";
     in
     {
       config = lib.mkMerge [
@@ -25,13 +32,13 @@ _:
             settings = {
               listen = "0.0.0.0:8081";
               allowed-hosts = [
-                "attic.corvus-corax.synology.me"
+                atticHost
                 "rvn-srv"
                 "localhost"
                 "127.0.0.1"
               ];
-              api-endpoint = "https://attic.corvus-corax.synology.me/";
-              substituter-endpoint = "https://attic.corvus-corax.synology.me/";
+              api-endpoint = "https://${atticHost}/";
+              substituter-endpoint = "https://${atticHost}/";
               storage = {
                 type = "local";
                 path = "/mnt/nas/web/attic";

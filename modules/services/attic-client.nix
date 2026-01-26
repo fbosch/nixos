@@ -1,5 +1,4 @@
-_:
-{
+_: {
   flake.modules.nixos."services/attic-client" =
     { config
     , lib
@@ -11,6 +10,13 @@ _:
       endpoint = lib.removeSuffix "/" cfg.endpoint;
       cacheUrl = "${endpoint}/${cfg.cacheName}";
       tokenFile = config.sops.secrets.attic-admin-token.path;
+      synologyDomain = lib.attrByPath [
+        "flake"
+        "meta"
+        "synology"
+        "domain"
+      ] "corvus-corax.synology.me"
+        config;
     in
     {
       options.services.attic-client = {
@@ -22,7 +28,7 @@ _:
 
         endpoint = lib.mkOption {
           type = lib.types.str;
-          default = "https://attic.corvus-corax.synology.me/";
+          default = "https://attic.${synologyDomain}/";
           description = "Attic server endpoint URL.";
         };
 

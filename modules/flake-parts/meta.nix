@@ -35,72 +35,13 @@ in
       url = "https://github.com/fbosch/dotfiles";
     };
 
-    bitwarden = {
-      serverUrl = "https://vault.corvus-corax.synology.me";
+    nas = {
+      hostname = "rvn-nas";
+      ipAddress = "192.168.1.2";
     };
 
-    ui = {
-      emojiFont = "Apple Color Emoji";
-    };
-
-    versions = {
-      homeManager = "25.05";
-    };
-
-    presets = {
-      # Full desktop environment with all features
-      desktop = {
-        modules = [
-          "users"
-          "fonts"
-          "security"
-          "desktop"
-          "applications"
-          "development"
-          "shell"
-        ];
-        nixos = [
-          "system"
-          "vpn"
-        ];
-        homeManager = [ "dotfiles" ];
-      };
-
-      # Headless server with development tools
-      server = {
-        modules = [
-          "users"
-          "security"
-          "development"
-          "shell"
-        ];
-        nixos = [
-          "system"
-          "vpn"
-        ];
-        homeManager = [ "dotfiles" ];
-      };
-
-      # Home Manager only (for macOS or non-NixOS systems)
-      homeManagerOnly = {
-        modules = [ ];
-        nixos = [ ];
-        homeManager = [
-          "users"
-          "dotfiles"
-          "security"
-          "development"
-          "shell"
-        ];
-      };
-    };
-
-    unfree = {
-      allowList = [
-        "git-credential-manager"
-        "steam"
-        "steam-unwrapped"
-      ];
+    synology = {
+      domain = "corvus-corax.synology.me";
     };
   };
 }

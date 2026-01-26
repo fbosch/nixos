@@ -8,8 +8,8 @@ in
     let
       nixosConfig = config;
       # NAS server configuration
-      nasHostname = "rvn-nas";
-      nasIpAddress = "192.168.1.2";
+      nasHostname = flakeConfig.flake.meta.nas.hostname;
+      nasIpAddress = flakeConfig.flake.meta.nas.ipAddress;
 
       # List of NAS shares to mount
       shares = [
