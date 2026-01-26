@@ -30,6 +30,9 @@
       # HDR support for NVIDIA
       "nvidia_drm.modeset=1" # Enable modesetting (required for HDR)
       "nvidia.NVreg_EnableGpuFirmware=0" # Improve compatibility
+      # NVIDIA stability fixes for RTX 4070 Ti
+      "nvidia.NVreg_DynamicPowerManagement=0x00" # Disable dynamic power management to prevent Xid errors
+      "nvidia.NVreg_PreserveVideoMemoryAllocations=1" # Preserve video memory allocations
     ];
 
     # Optimize tmpfs usage for 32GB RAM system
@@ -109,16 +112,5 @@
     vim
     neovim
   ];
-
-  # List services that you want to enable:
-
-  # Enable the OpenSSH daemon.
-  # services.openssh.enable = true;
-
-  # Open ports in the firewall.
-  # networking.firewall.allowedTCPPorts = [ ... ];
-  # networking.firewall.allowedUDPPorts = [ ... ];
-  # Or disable the firewall altogether.
-  # networking.firewall.enable = false;
 
 }

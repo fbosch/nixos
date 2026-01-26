@@ -1,9 +1,15 @@
 _: {
-  perSystem = { pkgs, ... }:
+  perSystem =
+    { pkgs, ... }:
     let
       lintScript = pkgs.writeShellApplication {
         name = "lint";
-        runtimeInputs = with pkgs; [ statix deadnix nixpkgs-fmt gum ];
+        runtimeInputs = with pkgs; [
+          statix
+          deadnix
+          nixpkgs-fmt
+          gum
+        ];
         text = ''
           set +e
           exit_code=0
@@ -56,36 +62,31 @@ _: {
         '';
       };
 
-      formatStagedScript = pkgs.writeShellApplication {
-        name = "fmt-staged";
-        runtimeInputs = with pkgs; [ nixpkgs-fmt git ];
-        text = ''
-          set -e
-
-          staged_files=$(git diff --cached --name-only --diff-filter=ACM | grep '\.nix$' || true)
-
-          if [ -z "$staged_files" ]; then
-            exit 0
-          fi
-
-          echo "$staged_files" | xargs -r nixpkgs-fmt
-          echo "$staged_files" | xargs -r git add
-        '';
-      };
-
       precommitWrapper = pkgs.writeShellApplication {
         name = "pre-commit-wrapper";
-        runtimeInputs = with pkgs; [ git ];
+        runtimeInputs = with pkgs; [
+          git
+          nixpkgs-fmt
+          statix
+          deadnix
+          gum
+        ];
         text = ''
-          # Run format on staged files
+          set +e
+          exit_code=0
+
+          # Format staged files
           staged_files=$(git diff --cached --name-only --diff-filter=ACM | grep '\.nix$' || true)
-          
+
           if [ -n "$staged_files" ]; then
-            echo "$staged_files" | xargs -r ${formatStagedScript}/bin/fmt-staged
+            echo "$staged_files" | xargs -r nixpkgs-fmt
+            echo "$staged_files" | xargs -r git add
           fi
-          
-          # Run lint
-          ${lintScript}/bin/lint
+
+          # Run lint checks on entire repository
+          ${lintScript}/bin/lint || exit_code=$?
+
+          exit $exit_code
         '';
       };
     in

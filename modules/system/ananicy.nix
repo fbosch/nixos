@@ -1,11 +1,10 @@
 { config, ... }:
 {
   flake.modules.nixos."system/ananicy" =
-    {
-      config,
-      pkgs,
-      lib,
-      ...
+    { config
+    , pkgs
+    , lib
+    , ...
     }:
     {
       options.services.ananicy.customRules = lib.mkOption {
