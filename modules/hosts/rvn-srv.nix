@@ -30,34 +30,12 @@ let
         , ...
         }:
         {
-          environment.systemPackages = [
-            pkgs.xclip
-            pkgs.xsel
-          ];
-
-          services = {
-            termix-container.port = 7310;
-
-            komodo = {
-              enable = true;
-              core.host = "https://komodo.corvus-corax.synology.me";
-              core.allowSignups = false;
-              periphery.requirePasskey = false;
-            };
-
-            plex.enable = true;
-
-            uptime-kuma = {
-              enable = true;
-              settings.HOST = "0.0.0.0";
-            };
+          boot.kernel.sysctl = {
+            "vm.swappiness" = 10; # Only swap when critically low on RAM
+            "vm.vfs_cache_pressure" = 50; # Keep filesystem cache longer
+            "vm.dirty_ratio" = 15; # Start sync at 15% RAM dirty
+            "vm.dirty_background_ratio" = 10; # Background writes at 10%
           };
-
-          networking.firewall.allowedTCPPorts = [
-            3001
-          ];
-
-          services.ananicy.enable = true;
 
           powerManagement.scheduledSuspend = {
             enable = true;
@@ -74,6 +52,39 @@ let
               };
             };
           };
+
+          environment.systemPackages = [
+            pkgs.xclip
+            pkgs.xsel
+          ];
+
+          services = {
+            termix-container.port = 7310;
+
+            plex = {
+              enable = true;
+              nginx.port = 32402;
+            };
+
+            komodo = {
+              enable = true;
+              core.host = "https://komodo.corvus-corax.synology.me";
+              core.allowSignups = false;
+              periphery.requirePasskey = false;
+            };
+
+            uptime-kuma = {
+              enable = true;
+              settings.HOST = "0.0.0.0";
+            };
+          };
+
+          networking.firewall.allowedTCPPorts = [
+            3001
+          ];
+
+          services.ananicy.enable = true;
+
         }
       )
     ];
