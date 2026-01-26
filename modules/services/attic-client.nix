@@ -14,7 +14,11 @@
     in
     {
       options.services.attic-client = {
-        enable = lib.mkEnableOption "Attic client configuration";
+        enable = lib.mkOption {
+          type = lib.types.bool;
+          default = true;
+          description = "Whether to enable the Attic client configuration.";
+        };
 
         endpoint = lib.mkOption {
           type = lib.types.str;
@@ -43,37 +47,32 @@
         };
       };
 
-      config = lib.mkMerge [
-        {
-          services.attic-client.enable = lib.mkDefault true;
-        }
-        (lib.mkIf cfg.enable {
-          nix.settings = {
-            substituters = [ cacheUrl ];
-            trusted-public-keys = [ cfg.publicKey ];
-          };
+      config = lib.mkIf cfg.enable {
+        nix.settings = {
+          substituters = [ cacheUrl ];
+          trusted-public-keys = [ cfg.publicKey ];
+        };
 
-          sops.secrets.attic-admin-token = lib.mkIf cfg.watchStore.enable {
-            mode = "0400";
-          };
+        sops.secrets.attic-admin-token = lib.mkIf cfg.watchStore.enable {
+          mode = "0400";
+        };
 
-          systemd.services.attic-watch-store = lib.mkIf cfg.watchStore.enable {
-            description = "Attic watch-store push";
-            after = [ "network-online.target" ];
-            wants = [ "network-online.target" ];
-            wantedBy = [ "multi-user.target" ];
-            serviceConfig = {
-              Type = "simple";
-              User = "root";
-              Restart = "always";
-              RestartSec = "5s";
-            };
-            script = ''
-              ${pkgs.attic-client}/bin/attic login --set-default rvn ${cfg.endpoint} "$(cat ${tokenFile})"
-              ${pkgs.attic-client}/bin/attic watch-store ${cfg.cacheName}
-            '';
+        systemd.services.attic-watch-store = lib.mkIf cfg.watchStore.enable {
+          description = "Attic watch-store push";
+          after = [ "network-online.target" ];
+          wants = [ "network-online.target" ];
+          wantedBy = [ "multi-user.target" ];
+          serviceConfig = {
+            Type = "simple";
+            User = "root";
+            Restart = "always";
+            RestartSec = "5s";
           };
-        })
-      ];
+          script = ''
+            ${pkgs.attic-client}/bin/attic login --set-default rvn ${cfg.endpoint} "$(cat ${tokenFile})"
+            ${pkgs.attic-client}/bin/attic watch-store ${cfg.cacheName}
+          '';
+        };
+      };
     };
 }
