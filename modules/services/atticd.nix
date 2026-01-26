@@ -1,4 +1,4 @@
-{ config, ... }:
+_:
 {
   flake.modules.nixos."services/atticd" =
     { config

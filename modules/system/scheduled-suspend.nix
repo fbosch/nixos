@@ -1,4 +1,4 @@
-{ config, ... }:
+_:
 {
   flake.modules.nixos."system/scheduled-suspend" =
     { config
