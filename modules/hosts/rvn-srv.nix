@@ -55,7 +55,12 @@ let
             environmentFile = config.sops.templates."atticd-env".path;
             settings = {
               listen = "0.0.0.0:8081";
-              allowed-hosts = [ "attic.corvus-corax.synology.me" ];
+              allowed-hosts = [
+                "attic.corvus-corax.synology.me"
+                "rvn-srv"
+                "localhost"
+                "127.0.0.1"
+              ];
               api-endpoint = "https://attic.corvus-corax.synology.me/";
               substituter-endpoint = "https://attic.corvus-corax.synology.me/";
               storage = {
@@ -76,6 +81,15 @@ let
           services.uptime-kuma.enable = true;
           services.uptime-kuma.settings.HOST = "0.0.0.0";
 
+          nix.settings = {
+            substituters = [
+              "https://attic.corvus-corax.synology.me/nix-cache"
+            ];
+            trusted-public-keys = [
+              "nix-cache:U6DL42pjWBPHYzWxhGK1W0Hh8nA0MD6sE0TtoWFqmAs="
+            ];
+          };
+
           networking.firewall.allowedTCPPorts = [
             3001
             8081
@@ -86,6 +100,10 @@ let
           ];
 
           sops.secrets.atticd-jwt = {
+            mode = "0400";
+          };
+
+          sops.secrets.attic-admin-token = {
             mode = "0400";
           };
 
