@@ -9,6 +9,8 @@ let
       "services/home-assistant"
       "services/termix"
       "services/komodo"
+      "services/plex"
+      "services/servarr"
       "virtualization/podman"
       "system/scheduled-suspend"
     ];
@@ -36,6 +38,8 @@ let
             core.allowSignups = false;
             periphery.requirePasskey = false;
           };
+
+          services.plex.enable = true;
 
           services.uptime-kuma.enable = true;
           services.uptime-kuma.settings.HOST = "0.0.0.0";
