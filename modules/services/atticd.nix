@@ -7,6 +7,7 @@
     }:
     let
       cfg = config.services.atticd;
+      ownerUser = lib.attrByPath [ "flake" "meta" "user" "username" ] "root" config;
     in
     {
       config = lib.mkMerge [
@@ -44,12 +45,13 @@
               "/mnt/nas/web/attic"
             ];
             after = [ "mnt-nas-web.mount" ];
+            serviceConfig.SupplementaryGroups = [ "users" ];
           };
 
           networking.firewall.allowedTCPPorts = [ 8081 ];
 
           systemd.tmpfiles.rules = [
-            "d /mnt/nas/web/attic 0750 atticd atticd -"
+            "d /mnt/nas/web/attic 0775 ${ownerUser} users -"
           ];
 
           sops.secrets.atticd-jwt = {
