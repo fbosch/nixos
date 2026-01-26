@@ -49,7 +49,7 @@
 
       config = lib.mkIf cfg.enable {
         nix.settings = {
-          substituters = [ cacheUrl ];
+          substituters = lib.mkBefore [ cacheUrl ];
           trusted-public-keys = [ cfg.publicKey ];
         };
 
