@@ -51,10 +51,12 @@
         substituters = [
           "https://cache.nixos.org"
           "https://nix-community.cachix.org"
+          "https://fbosch.cachix.org"
         ];
         trusted-public-keys = [
           "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ5QK1Z5X2N7A5AZGk="
           "nix-community.cachix.org-1:mB9FQ9Zf9hKXf2n1eEF2Q84F1Jr9H1+GJdG6HCmYf8w="
+          "fbosch.cachix.org-1:QGKDLpPb1MY7YtcCvFpDNqQzGsYtDgE3YyC6IXK1nO8="
         ];
       };
 
@@ -72,5 +74,6 @@
       useUserPackages = true;
       backupFileExtension = "hm-backup";
     };
+
   };
 }
