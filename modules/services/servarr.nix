@@ -4,6 +4,32 @@
     { lib, ... }:
     {
       config = {
+        users = {
+          groups.media = { };
+          users = {
+            bazarr.extraGroups = [
+              "media"
+              "users"
+            ];
+            jackett.extraGroups = [
+              "media"
+              "users"
+            ];
+            lidarr.extraGroups = [
+              "media"
+              "users"
+            ];
+            radarr.extraGroups = [
+              "media"
+              "users"
+            ];
+            sonarr.extraGroups = [
+              "media"
+              "users"
+            ];
+          };
+        };
+
         services = {
           lidarr = {
             enable = true;
