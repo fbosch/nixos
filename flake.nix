@@ -3,11 +3,11 @@
 
   # Uses dendritic pattern (https://vic.github.io/dendrix/)
   # All modules are declared under flake.modules.nixos.* and flake.modules.homeManager.*
-  # Hosts are built by referencing module paths, not importing files directly
+  # Hosts are built by directly defining flake.modules.{nixos,darwin}."hosts/*" modules
   # Custom outputs:
   #   - flake.meta: Project-wide metadata (user info, UI defaults, presets)
-  #   - flake.modules: Module tree (nixos/*, homeManager/*)
-  #   - flake.lib.mkHost: Helper function to build host configurations
+  #   - flake.modules: Module tree (nixos/*, homeManager/*, darwin/*)
+  #   - flake.lib.resolve/resolveHm: Helpers for importing modules by string path
   outputs = inputs: inputs.flake-parts.lib.mkFlake { inherit inputs; } (inputs.import-tree ./modules);
 
   inputs = {
