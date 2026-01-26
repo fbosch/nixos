@@ -24,11 +24,10 @@ let
       ../../machines/msi-cubi/hardware-configuration.nix
       inputs.nixos-hardware.nixosModules.common-cpu-intel
       (
-        {
-          config,
-          pkgs,
-          lib,
-          ...
+        { config
+        , pkgs
+        , lib
+        , ...
         }:
         {
           boot.kernel.sysctl = {
@@ -69,7 +68,15 @@ let
               periphery.requirePasskey = false;
             };
 
-            plex.enable = true;
+            plex = {
+              enable = true;
+              nginx = {
+                enable = true;
+                port = 32402; # Changed from 32401 to avoid conflict with Plex internal port
+                cacheSize = "2g";
+                cacheTTL = "24h";
+              };
+            };
 
             uptime-kuma = {
               enable = true;
