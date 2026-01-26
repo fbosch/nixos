@@ -7,10 +7,10 @@
   flake.modules.darwin."hosts/rvn-mac" =
     { pkgs, ... }:
     {
-      imports = [
+      imports = config.flake.lib.resolveDarwin [
         # Darwin-specific modules
-        config.flake.modules.darwin.security
-        config.flake.modules.darwin.homebrew
+        "security"
+        "homebrew"
       ];
 
       # Home Manager configuration for user

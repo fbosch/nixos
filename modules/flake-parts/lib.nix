@@ -1,11 +1,5 @@
-{ config, lib, ... }:
+{ config, ... }:
 {
-  options.flake.hostConfigs = lib.mkOption {
-    type = lib.types.attrsOf lib.types.attrs;
-    default = { };
-    description = "Host-specific configuration metadata";
-  };
-
   config.flake.lib = {
     # Icon override utilities (from lib/icon-overrides.nix)
     # Kept here because icon-overrides is tightly coupled to this flake's structure
@@ -22,6 +16,12 @@
     # Usage: home-manager.users.username.imports = config.flake.lib.resolveHm [ "users" "dotfiles" ];
     resolveHm = builtins.map (
       m: if builtins.isString m then config.flake.modules.homeManager.${m} else m
+    );
+
+    # Resolve Darwin module paths
+    # Usage: imports = config.flake.lib.resolveDarwin [ "security" "homebrew" ];
+    resolveDarwin = builtins.map (
+      m: if builtins.isString m then config.flake.modules.darwin.${m} else m
     );
   };
 }

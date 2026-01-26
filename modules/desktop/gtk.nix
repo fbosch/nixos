@@ -1,10 +1,8 @@
 { config, ... }:
 {
-  flake.modules.nixos.desktop =
-    { ... }:
-    {
-      imports = [ config.flake.modules.nixos.themes ];
-    };
+  flake.modules.nixos.desktop = {
+    imports = config.flake.lib.resolve [ "themes" ];
+  };
 
   flake.modules.homeManager.desktop = _: {
     dconf.settings = {

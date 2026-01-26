@@ -1,4 +1,4 @@
-{ inputs, ... }:
+{ config, ... }:
 {
   # Desktop preset - full desktop environment with all features
   # Replaces the mkHost preset="desktop" pattern with explicit dendritic imports
@@ -8,35 +8,35 @@
   #   nixos: system, vpn
   #   homeManager: dotfiles
 
-  flake.modules.nixos."presets/desktop" = with inputs.self.modules.nixos; {
-    imports = [
+  flake.modules.nixos."presets/desktop" = {
+    imports = config.flake.lib.resolve [
       # Common modules
-      users
-      fonts
-      security
-      desktop
-      applications
-      development
-      shell
+      "users"
+      "fonts"
+      "security"
+      "desktop"
+      "applications"
+      "development"
+      "shell"
 
       # NixOS-specific
-      system
-      vpn
+      "system"
+      "vpn"
     ];
   };
 
   # For Home Manager contexts (e.g., macOS with home-manager only)
-  flake.modules.homeManager."presets/desktop" = with inputs.self.modules.homeManager; {
-    imports = [
+  flake.modules.homeManager."presets/desktop" = {
+    imports = config.flake.lib.resolveHm [
       # All desktop features for home-manager-only systems
-      users
-      dotfiles
-      fonts
-      security
-      desktop
-      applications
-      development
-      shell
+      "users"
+      "dotfiles"
+      "fonts"
+      "security"
+      "desktop"
+      "applications"
+      "development"
+      "shell"
     ];
   };
 }

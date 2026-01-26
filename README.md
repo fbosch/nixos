@@ -24,18 +24,29 @@ For reproducibility, the repository is initially pinned to a specific ref. You c
 ## Layout
 
 ```text
-assets/         screenshots and art
-configs/        shared config files (gpg, etc)
-docs/           guides and agent docs
-lib/            helper functions
-machines/       machine-specific NixOS configs
+assets/            screenshots and art
+configs/           shared config files (gpg, etc)
+docs/              guides and agent docs
+lib/               pure utility functions
+  icon-overrides.nix    icon theme customization
+  module-resolver.nix   type-safe module resolution with validation
+machines/          machine-specific NixOS configs
 modules/
-  flake-parts/   host loader, overlays, meta
-  hosts/         one file per machine → nixosConfigurations.<name>
-  *.nix          single-purpose modules (desktop, apps, dev, shell, system)
-pkgs/by-name/    local packages
-scripts/        helper scripts
-secrets/        sops files
+  flake-parts/     meta, overlays, hosts loader, lib wiring
+  hosts/           one file per machine → nixosConfigurations.<name>
+  presets/         desktop, server presets
+  applications/    GUI apps (browsers, gaming, file management)
+  desktop/         desktop environment (hyprland, gtk, audio)
+  development/     dev tools (git, nodejs, python, ai)
+  hardware/        hardware-specific (fingerprint, storage, fancontrol)
+  services/        system services (plex, home-assistant, attic)
+  shell/           shell tools (fish, starship, direnv, eza)
+  system/          system config (ananicy, scheduled-suspend)
+  virtualization/  docker, libvirt
+  *.nix            core modules (users, fonts, security, nas, sops)
+pkgs/by-name/      local packages
+scripts/           helper scripts
+secrets/           sops files
 ```
 
 ```mermaid
@@ -43,69 +54,126 @@ flowchart LR
   flake[flake.nix]
   meta[flake.meta]
   modules[flake.modules]
-  lib[flake.lib.mkHost]
-  hostConfigs[flake.hostConfigs]
-  presets[meta.presets]
+  libResolvers[flake.lib.resolve*]
+  presets[presets/]
+
+  subgraph pureLib[lib/]
+    moduleResolver[module-resolver.nix]
+    iconOverrides[icon-overrides.nix]
+  end
 
   subgraph moduleTree[modules/]
     hosts[hosts/*]
-    moduleset[other modules]
+    presetsModules[presets/*]
+    moduleset[feature modules]
   end
 
   machines[machines/*]
 
   flake --> meta
   flake --> modules
-  flake --> lib
-  flake --> hostConfigs
-
-  meta --> presets
-  presets --> lib
+  flake --> libResolvers
+  flake -.imports.-> pureLib
 
   modules --> moduleTree
-  hosts --> lib
+  moduleTree --> presetsModules
+  
+  hosts --> libResolvers
   hosts --> machines
-  hostConfigs --> lib
+  presetsModules --> libResolvers
 
-  lib --> nixosConfigs[nixosConfigurations]
-  lib --> darwinConfigs[darwinConfigurations]
+  libResolvers -.uses.-> moduleResolver
+  libResolvers --> modules
+
+  libResolvers --> nixosConfigs[nixosConfigurations]
+  libResolvers --> darwinConfigs[darwinConfigurations]
 ```
 
 ## Module wiring
 
-Presets and hosts use three lists: `modules`, `nixos`, `homeManager`.
+Modules are resolved using type-safe helpers from `flake.lib`:
 
-- `modules`: loaded for both NixOS and Home Manager
-- `nixos`: system-only
-- `homeManager`: user-only
+- `config.flake.lib.resolve [ "module-name" ]` - Resolves NixOS modules
+- `config.flake.lib.resolveHm [ "module-name" ]` - Resolves Home Manager modules
+- `config.flake.lib.resolveDarwin [ "module-name" ]` - Resolves Darwin modules
 
-A module can define both sides, so one `modules` entry can wire both.
+These helpers validate module names and provide helpful error messages with suggestions.
+
+**Example:**
+
+```nix
+# modules/hosts/my-machine.nix
+{ config, ... }:
+{
+  flake.modules.nixos."hosts/my-machine" = {
+    imports = config.flake.lib.resolve [
+      "presets/desktop"  # String paths are validated
+      "secrets"
+      ../../machines/my-machine/hardware.nix  # Direct paths work too
+    ];
+    
+    home-manager.users.username.imports = config.flake.lib.resolveHm [
+      "secrets"
+      "flatpak"
+    ];
+  };
+}
+```
+
+**Error handling:**
+
+```
+Module 'secerts' not found in nixos modules
+
+Available nixos modules:
+  - applications
+  - desktop
+  - presets/desktop
+  - secrets      ← Did you mean this?
+  - security
+  ...
+```
 
 ## Presets
 
-```mermaid
-flowchart LR
-  subgraph desktop
-    direction LR
-    dModules["modules: users, fonts, security, desktop, applications, development, shell"]
-    dNixos["nixos: system, vpn"]
-    dHomeManager["homeManager: dotfiles"]
-  end
+Presets are reusable module bundles that use the resolve helpers for clean imports:
 
-  subgraph server
-    direction LR
-    sModules["modules: users, security, development, shell"]
-    sNixos["nixos: system, vpn"]
-    sHomeManager["homeManager: dotfiles"]
-  end
+```nix
+# modules/presets/desktop.nix
+{ config, ... }:
+{
+  flake.modules.nixos."presets/desktop" = {
+    imports = config.flake.lib.resolve [
+      "users"
+      "fonts"
+      "security"
+      "desktop"
+      "applications"
+      "development"
+      "shell"
+      "system"
+      "vpn"
+    ];
+  };
 
-  subgraph homeManagerOnly
-    direction LR
-    hHomeManager["homeManager: users, dotfiles, security, development, shell"]
-  end
-
-  desktop --- server --- homeManagerOnly
+  flake.modules.homeManager."presets/desktop" = {
+    imports = config.flake.lib.resolveHm [
+      "users"
+      "dotfiles"
+      "fonts"
+      "security"
+      "desktop"
+      "applications"
+      "development"
+      "shell"
+    ];
+  };
+}
 ```
+
+**Available presets:**
+- `presets/desktop` - Full desktop environment with all features
+- `presets/server` - Minimal server configuration
 
 ## Credits
 

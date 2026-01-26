@@ -38,18 +38,6 @@ let
           if matchingSystems != [ ] then builtins.head matchingSystems else platformDefaults.defaultSystem
         else
           platformDefaults.defaultSystem;
-
-      # Get host config from separate flake output (NixOS only for now)
-      hostConfigData = config.flake.hostConfigs.${hostId} or { };
-
-      hostConfigArgs =
-        if hostType == "nixos" then
-          {
-            name = hostId;
-          }
-          // hostConfigData
-        else
-          { };
     in
     {
       name = hostId;
@@ -59,7 +47,6 @@ let
           {
             _module.args = {
               inherit inputs;
-              hostConfig = hostConfigArgs;
             };
           }
           hostModule

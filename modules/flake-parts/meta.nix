@@ -43,12 +43,6 @@ in
       emojiFont = "Apple Color Emoji";
     };
 
-    displayManager = {
-      # Default display manager mode for hosts
-      # Can be overridden per-host in hostConfig
-      defaultMode = "tuigreet"; # Options: "regreet" | "tuigreet" | "hyprlock-autologin" (legacy)
-    };
-
     versions = {
       homeManager = "25.05";
     };

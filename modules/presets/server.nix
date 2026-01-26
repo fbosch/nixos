@@ -1,4 +1,4 @@
-{ inputs, ... }:
+{ config, ... }:
 {
   # Server preset - combines common server modules
   # Replaces the mkHost preset="server" pattern with explicit dendritic imports
@@ -8,29 +8,29 @@
   #   nixos: system, vpn
   #   homeManager: dotfiles
 
-  flake.modules.nixos."presets/server" = with inputs.self.modules.nixos; {
-    imports = [
+  flake.modules.nixos."presets/server" = {
+    imports = config.flake.lib.resolve [
       # Common modules
-      users
-      security
-      development
-      shell
+      "users"
+      "security"
+      "development"
+      "shell"
 
       # NixOS-specific
-      system
-      vpn
+      "system"
+      "vpn"
     ];
   };
 
   # For Home Manager contexts (e.g., macOS with home-manager only)
-  flake.modules.homeManager."presets/server" = with inputs.self.modules.homeManager; {
-    imports = [
+  flake.modules.homeManager."presets/server" = {
+    imports = config.flake.lib.resolveHm [
       # Common modules
-      users
-      dotfiles
-      security
-      development
-      shell
+      "users"
+      "dotfiles"
+      "security"
+      "development"
+      "shell"
     ];
   };
 }
