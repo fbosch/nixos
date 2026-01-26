@@ -20,7 +20,12 @@ let
       ../../machines/msi-cubi/hardware-configuration.nix
       inputs.nixos-hardware.nixosModules.common-cpu-intel
       (
-        { pkgs, ... }:
+        {
+          config,
+          pkgs,
+          lib,
+          ...
+        }:
         {
           environment.systemPackages = [
             pkgs.xclip
@@ -41,10 +46,38 @@ let
 
           services.plex.enable = true;
 
+          sops.templates."atticd-env" = {
+            content = "ATTIC_SERVER_TOKEN_RS256_SECRET_BASE64=${config.sops.placeholder.atticd-jwt}\n";
+            mode = "0400";
+          };
+
+          services.atticd = {
+            enable = true;
+            environmentFile = config.sops.templates."atticd-env".path;
+            settings = {
+              listen = "0.0.0.0:8081";
+              storage = {
+                type = "local";
+                path = "/mnt/nas/web/attic";
+              };
+            };
+          };
+
           services.uptime-kuma.enable = true;
           services.uptime-kuma.settings.HOST = "0.0.0.0";
 
-          networking.firewall.allowedTCPPorts = [ 3001 ];
+          networking.firewall.allowedTCPPorts = [
+            3001
+            8081
+          ];
+
+          systemd.tmpfiles.rules = [
+            "d /mnt/nas/web/attic 0750 atticd atticd -"
+          ];
+
+          sops.secrets.atticd-jwt = {
+            mode = "0400";
+          };
 
           powerManagement.scheduledSuspend = {
             enable = true;
