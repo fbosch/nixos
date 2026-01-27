@@ -1,9 +1,8 @@
 _: {
   flake.modules.nixos."services/home-assistant" =
-    {
-      config,
-      lib,
-      ...
+    { config
+    , lib
+    , ...
     }:
     let
       cfg = config.services.home-assistant;

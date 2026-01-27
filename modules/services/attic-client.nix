@@ -72,11 +72,16 @@ _: {
             Type = "simple";
             User = "root";
             Restart = "always";
-            RestartSec = "5s";
+            RestartSec = "30s";
+            # Don't limit restarts - we want it to keep trying
+            StartLimitIntervalSec = 0;
           };
+          # Use 'true' to ensure the service doesn't fail during activation
+          # The actual attic commands will run after, but failures won't block boot
           script = ''
-            ${pkgs.attic-client}/bin/attic login --set-default rvn ${cfg.endpoint} "$(cat ${tokenFile})"
-            ${pkgs.attic-client}/bin/attic watch-store ${cfg.cacheName}
+            set +e  # Don't exit on error
+            ${pkgs.attic-client}/bin/attic login --set-default rvn ${cfg.endpoint} "$(cat ${tokenFile})" || echo "Warning: attic login failed, will retry..."
+            ${pkgs.attic-client}/bin/attic watch-store ${cfg.cacheName} || echo "Warning: attic watch-store failed, will retry..."
           '';
         };
       };
