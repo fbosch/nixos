@@ -1,8 +1,9 @@
 _: {
   flake.modules.nixos."services/home-assistant" =
-    { config
-    , lib
-    , ...
+    {
+      config,
+      lib,
+      ...
     }:
     let
       cfg = config.services.home-assistant;
@@ -64,8 +65,9 @@ _: {
                 pyatv # Apple TV
                 pychromecast # Chromecast / Google Cast
                 pyicloud # Apple iCloud
+                gtts # Google Text-to-Speech
+                python-otbr-api # Thread support
                 # pymetno  # Met.no weather
-                # gTTS  # Google Text-to-Speech
                 # psycopg2  # PostgreSQL support
                 isal
                 zlib-ng
@@ -122,10 +124,9 @@ _: {
               # Enable frontend
               frontend = { };
 
-              # Enable automation UI
-              automation = [ ];
-              script = [ ];
-              scene = [ ];
+              automation = "!include automations.yaml";
+              # Automation UI is enabled by default_config
+              # UI-created automations will be stored in automations.yaml
             };
           };
 
