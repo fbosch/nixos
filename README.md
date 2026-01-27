@@ -142,27 +142,6 @@ Modules are resolved using helpers from `flake.lib`:
 - `config.flake.lib.resolveHm [ "module-name" ]` - Resolves Home Manager modules
 - `config.flake.lib.resolveDarwin [ "module-name" ]` - Resolves Darwin modules
 
-**Example:**
-
-```nix
-# modules/hosts/my-machine.nix
-{ config, ... }:
-{
-  flake.modules.nixos."hosts/my-machine" = {
-    imports = config.flake.lib.resolve [
-      "presets/desktop"
-      "secrets"
-      ../../machines/my-machine/hardware.nix  # Direct paths also work
-    ];
-
-    home-manager.users.username.imports = config.flake.lib.resolveHm [
-      "secrets"
-      "flatpak"
-    ];
-  };
-}
-```
-
 ## Presets
 
 Presets are reusable module bundles that provide a baseline configuration:
@@ -171,34 +150,6 @@ Presets are reusable module bundles that provide a baseline configuration:
 
 - `presets/desktop` - Full desktop environment with Hyprland, GUI apps, development tools
 - `presets/server` - Minimal server configuration
-
-## Troubleshooting
-
-### `nh` can't find flake
-
-- The `NH_FLAKE` environment variable is set in `modules/system/nh.nix`
-- Points to `/home/<username>/nixos` for NixOS hosts
-- Points to `/Users/<username>/nixos` for Darwin hosts
-- If `nh` commands fail, use absolute flake path: `nh os switch /path/to/nixos`
-
-### Secrets not decrypting
-
-- Ensure SOPS age key exists: `~/.config/sops/age/keys.txt`
-- Re-run bootstrap: `./scripts/bootstrap-age.sh`
-- Check `.sops.yaml` has the correct age public key
-
-### Module not found errors
-
-- Module paths are relative to `modules/` directory
-- Use `config.flake.lib.resolve` for NixOS modules
-- Use `config.flake.lib.resolveHm` for Home Manager modules
-- Direct file paths (../../machines/...) also work
-
-### Build fails after flake update
-
-- Check if any inputs introduced breaking changes
-- Roll back specific input: `git restore flake.lock` then selectively update
-- Use `nixos-rebuild --fallback` to build from source if cache fails
 
 ## Credits
 
