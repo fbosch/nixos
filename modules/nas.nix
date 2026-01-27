@@ -38,16 +38,19 @@ in
         what = "//${nasHostname}/${share}";
         where = "/mnt/nas/${share}";
         options = cifsOptions;
-        # Ensure network is ready before attempting mount
-        after = [ "network-online.target" ];
-        requires = [ "network-online.target" ];
+        unitConfig = {
+          After = "network-online.target";
+          Requires = "network-online.target";
+        };
       };
 
       # Generate automount configuration for a share
       mkAutomount = share: {
         where = "/mnt/nas/${share}";
         wantedBy = [ "multi-user.target" ];
-        after = [ "network-online.target" ];
+        unitConfig = {
+          After = "network-online.target";
+        };
         automountConfig = {
           TimeoutIdleSec = if share == "web" then "0" else "30s";
         };

@@ -1,8 +1,9 @@
 _: {
   flake.modules.nixos."services/home-assistant" =
-    { config
-    , lib
-    , ...
+    {
+      config,
+      lib,
+      ...
     }:
     {
       config = {
@@ -24,6 +25,7 @@ _: {
                 pyicloud # Apple iCloud
                 gtts # Google Text-to-Speech
                 python-otbr-api # Thread support
+                roombapy # iRobot Roomba
                 isal
                 zlib-ng
               ];
@@ -43,6 +45,7 @@ _: {
               "tuya"
               "pi_hole"
               "synology_dsm"
+              "roomba"
             ];
 
             # Configuration.yaml content
