@@ -17,7 +17,7 @@ _: {
           gum style --foreground 244 "Linting..."
 
           # Statix
-          if gum spin --spinner dot --title "statix" -- statix check . > /tmp/statix-output 2>&1; then
+          if gum spin --spinner dot --title "statix" -- statix check --ignore '.agents/**' '.opencode/skills/**' '.github/skills/**' . > /tmp/statix-output 2>&1; then
             echo "$(gum style --foreground 2 '[OK]') statix"
           else
             echo "$(gum style --foreground 1 '[FAIL]') statix"
@@ -26,7 +26,7 @@ _: {
           fi
 
           # Deadnix
-          if gum spin --spinner dot --title "deadnix" -- deadnix --fail --no-lambda-pattern-names . > /tmp/deadnix-output 2>&1; then
+          if gum spin --spinner dot --title "deadnix" -- deadnix --fail --no-lambda-pattern-names --exclude '.agents' '.opencode/skills' '.github/skills' . > /tmp/deadnix-output 2>&1; then
             echo "$(gum style --foreground 2 '[OK]') deadnix"
           else
             echo "$(gum style --foreground 1 '[FAIL]') deadnix"
@@ -58,7 +58,8 @@ _: {
         name = "fmt";
         runtimeInputs = with pkgs; [ nixpkgs-fmt ];
         text = ''
-          nixpkgs-fmt .
+          # Format all Nix files except skill directories (including symlinks)
+          find . -name '*.nix' -not -path './.agents/*' -not -path './.github/skills/*' -not -path './.opencode/skills/*' -exec nixpkgs-fmt {} +
         '';
       };
 
@@ -75,8 +76,8 @@ _: {
           set +e
           exit_code=0
 
-          # Format staged files
-          staged_files=$(git diff --cached --name-only --diff-filter=ACM | grep '\.nix$' || true)
+          # Format staged files (exclude skill directories and symlinks)
+          staged_files=$(git diff --cached --name-only --diff-filter=ACM | grep '\.nix$' | grep -v '^\.agents/' | grep -v '^\.github/skills/' | grep -v '^\.opencode/skills/' || true)
 
           if [ -n "$staged_files" ]; then
             echo "$staged_files" | xargs -r nixpkgs-fmt

@@ -30,9 +30,10 @@
       # HDR support for NVIDIA
       "nvidia_drm.modeset=1" # Enable modesetting (required for HDR)
       "nvidia.NVreg_EnableGpuFirmware=0" # Improve compatibility
-      # NVIDIA stability fixes for RTX 4070 Ti
-      "nvidia.NVreg_DynamicPowerManagement=0x00" # Disable dynamic power management to prevent Xid errors
-      "nvidia.NVreg_PreserveVideoMemoryAllocations=1" # Preserve video memory allocations
+      # NVIDIA suspend support
+      "nvidia.NVreg_PreserveVideoMemoryAllocations=1" # Preserve video memory allocations for suspend
+      # Use s2idle suspend mode for better NVIDIA compatibility
+      "mem_sleep_default=s2idle" # More reliable suspend with NVIDIA GPUs
     ];
 
     # Optimize tmpfs usage for 32GB RAM system

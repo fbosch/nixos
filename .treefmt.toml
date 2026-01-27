@@ -1,6 +1,7 @@
 [formatter.nix]
 command = "nixfmt"
 includes = ["*.nix"]
+excludes = [".agents/**/*.nix", ".github/skills/**/*.nix", ".opencode/skills/**/*.nix"]
 
 [formatter.shell]
 command = "shfmt"
