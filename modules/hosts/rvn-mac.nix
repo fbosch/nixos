@@ -4,6 +4,9 @@
   # Hardware: Apple Silicon MacBook Pro
   # Role: Development workstation running nix-darwin with Home Manager
 
+  # SSH configuration - use Tailscale IPs
+  flake.ssh.useTailscale = true;
+
   flake.modules.darwin."hosts/rvn-mac" =
     { pkgs, ... }:
     {
