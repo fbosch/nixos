@@ -15,24 +15,8 @@ in
   config.flake.modules.homeManager.shell =
     { config, ... }:
     let
-      # Define host configurations with both Tailscale and local IPs
-      hosts = {
-        pc = {
-          tailscale = "100.124.57.90";
-          local = "192.168.1.169";
-          user = "fbb";
-        };
-        srv = {
-          tailscale = "100.125.172.110";
-          local = "192.168.1.46";
-          user = "fbb";
-        };
-        mac = {
-          tailscale = "100.118.36.81";
-          local = "192.168.1.215";
-          user = "fbb";
-        };
-      };
+      # Read host configurations from flake.meta.hosts
+      hosts = flakeConfig.flake.meta.hosts or { };
 
       # Helper function to get the appropriate hostname
       getHostname = host:
@@ -41,9 +25,15 @@ in
       # Generate match blocks from host configurations
       mkMatchBlock = _name: host: {
         hostname = getHostname host;
-        inherit (host) user;
+        # Use host-specific user if defined, otherwise use default user
+        user = host.user or flakeConfig.flake.meta.user.username;
         identityFile = config.sops.secrets.ssh-private-key.path;
       };
+
+      # Collect all SSH public keys from hosts
+      allAuthorizedKeys =
+        flakeConfig.flake.meta.user.ssh.authorizedKeys
+        ++ (lib.mapAttrsToList (_name: host: host.sshPublicKey) hosts);
     in
     {
       programs.ssh = {
@@ -66,7 +56,7 @@ in
       };
 
       home.file.".ssh/authorized_keys" = {
-        text = lib.concatStringsSep "\n" flakeConfig.flake.meta.user.ssh.authorizedKeys;
+        text = lib.concatStringsSep "\n" allAuthorizedKeys;
       };
 
       # Enable and start ssh-agent

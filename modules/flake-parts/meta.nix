@@ -1,4 +1,4 @@
-_:
+{ lib, ... }:
 let
   user = rec {
     username = "fbb";
@@ -13,12 +13,8 @@ let
       publicKeyFile = ../../configs/gpg/public-key.asc;
     };
     ssh = {
-      # Primary SSH public key (from SOPS)
-      publicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIA9bFB0RZWl7ofsEMEW4i8UJv448U/RT429+roe1gc9K";
-      # Additional authorized keys for different machines
       authorizedKeys = [
-        "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIA9bFB0RZWl7ofsEMEW4i8UJv448U/RT429+roe1gc9K" # Primary key
-        "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEFNYtL1qSIxrsA27qkFRem9nj3hlR5vVyyaYO0otUNl frederik@bosch.dev" # Mac key
+        "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIA9bFB0RZWl7ofsEMEW4i8UJv448U/RT429+roe1gc9K"
       ];
     };
     avatar = {
@@ -34,7 +30,63 @@ let
   };
 in
 {
-  flake.meta = {
+  # Declare options for flake metadata
+  options.flake.meta = {
+    user = lib.mkOption {
+      type = lib.types.unspecified;
+      description = "User metadata";
+    };
+
+    dotfiles = lib.mkOption {
+      type = lib.types.unspecified;
+      default = { };
+      description = "Dotfiles configuration";
+    };
+
+    nas = lib.mkOption {
+      type = lib.types.unspecified;
+      default = { };
+      description = "NAS configuration";
+    };
+
+    synology = lib.mkOption {
+      type = lib.types.unspecified;
+      default = { };
+      description = "Synology configuration";
+    };
+
+    hosts = lib.mkOption {
+      type = lib.types.attrsOf (lib.types.submodule {
+        options = {
+          hostname = lib.mkOption {
+            type = lib.types.str;
+            description = "Human-readable hostname";
+          };
+          tailscale = lib.mkOption {
+            type = lib.types.str;
+            description = "Tailscale IP address";
+          };
+          local = lib.mkOption {
+            type = lib.types.str;
+            description = "Local network IP address";
+          };
+          sshPublicKey = lib.mkOption {
+            type = lib.types.str;
+            description = "SSH public key for this host";
+          };
+          user = lib.mkOption {
+            type = lib.types.nullOr lib.types.str;
+            default = null;
+            description = "Optional: Override default username for SSH connections";
+          };
+        };
+      });
+      default = { };
+      description = "Network and SSH metadata for each host";
+    };
+  };
+
+  config.flake.meta = {
     inherit user;
 
     dotfiles = {

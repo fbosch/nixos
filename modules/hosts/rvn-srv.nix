@@ -7,6 +7,14 @@
   # Hardware: Intel-based mini PC
   # Role: Home server running Plex, Home Assistant, and container services
 
+  # Host metadata
+  flake.meta.hosts.srv = {
+    hostname = "rvn-srv";
+    tailscale = "100.125.172.110";
+    local = "192.168.1.46";
+    sshPublicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJl/WCQsXEkE7em5A6d2Du2JAWngIPfA8sVuJP/9cuyq fbb@nixos";
+  };
+
   flake.modules.nixos."hosts/rvn-srv" =
     { pkgs, ... }:
     {
