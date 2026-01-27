@@ -29,7 +29,6 @@ configs/           shared config files (gpg, etc)
 docs/              guides and agent docs
 lib/               pure utility functions
   icon-overrides.nix    icon theme customization
-  module-resolver.nix   type-safe module resolution with validation
 machines/          machine-specific NixOS configs
 modules/
   flake-parts/     meta, overlays, hosts loader, lib wiring
@@ -58,7 +57,6 @@ flowchart LR
   presets[presets/]
 
   subgraph pureLib[lib/]
-    moduleResolver[module-resolver.nix]
     iconOverrides[icon-overrides.nix]
   end
 
@@ -82,7 +80,7 @@ flowchart LR
   hosts --> machines
   presetsModules --> libResolvers
 
-  libResolvers -.uses.-> moduleResolver
+  libResolvers -.uses.-> iconOverrides
   libResolvers --> modules
 
   libResolvers --> nixosConfigs[nixosConfigurations]
@@ -91,13 +89,11 @@ flowchart LR
 
 ## Module wiring
 
-Modules are resolved using type-safe helpers from `flake.lib`:
+Modules are resolved using helpers from `flake.lib`:
 
 - `config.flake.lib.resolve [ "module-name" ]` - Resolves NixOS modules
 - `config.flake.lib.resolveHm [ "module-name" ]` - Resolves Home Manager modules
 - `config.flake.lib.resolveDarwin [ "module-name" ]` - Resolves Darwin modules
-
-These helpers validate module names and provide helpful error messages with suggestions.
 
 **Example:**
 
@@ -107,9 +103,9 @@ These helpers validate module names and provide helpful error messages with sugg
 {
   flake.modules.nixos."hosts/my-machine" = {
     imports = config.flake.lib.resolve [
-      "presets/desktop"  # String paths are validated
+      "presets/desktop"
       "secrets"
-      ../../machines/my-machine/hardware.nix  # Direct paths work too
+      ../../machines/my-machine/hardware.nix  # Direct paths also work
     ];
     
     home-manager.users.username.imports = config.flake.lib.resolveHm [
@@ -120,58 +116,11 @@ These helpers validate module names and provide helpful error messages with sugg
 }
 ```
 
-**Error handling:**
-
-```
-Module 'secerts' not found in nixos modules
-
-Available nixos modules:
-  - applications
-  - desktop
-  - presets/desktop
-  - secrets      ← Did you mean this?
-  - security
-  ...
-```
-
 ## Presets
 
-Presets are reusable module bundles that use the resolve helpers for clean imports:
+Presets are reusable module bundles:
 
-```nix
-# modules/presets/desktop.nix
-{ config, ... }:
-{
-  flake.modules.nixos."presets/desktop" = {
-    imports = config.flake.lib.resolve [
-      "users"
-      "fonts"
-      "security"
-      "desktop"
-      "applications"
-      "development"
-      "shell"
-      "system"
-      "vpn"
-    ];
-  };
-
-  flake.modules.homeManager."presets/desktop" = {
-    imports = config.flake.lib.resolveHm [
-      "users"
-      "dotfiles"
-      "fonts"
-      "security"
-      "desktop"
-      "applications"
-      "development"
-      "shell"
-    ];
-  };
-}
-```
-
-**Available presets:**
+**Available:**
 - `presets/desktop` - Full desktop environment with all features
 - `presets/server` - Minimal server configuration
 
