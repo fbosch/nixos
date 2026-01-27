@@ -47,19 +47,27 @@ _: {
           };
 
           systemd.services.atticd = {
-            unitConfig.RequiresMountsFor = [
-              "/mnt/nas/web"
-              "/mnt/nas/web/attic"
-            ];
             after = [
               "mnt-nas-web.automount"
               "network-online.target"
             ];
-            wants = [
-              "network-online.target"
-              "mnt-nas-web.automount"
-            ];
+            requires = [ "mnt-nas-web.automount" ];
+            wants = [ "network-online.target" ];
             serviceConfig.SupplementaryGroups = [ "users" ];
+            # Trigger automount before service starts to ensure mount is ready
+            preStart = ''
+              # Access the directory to trigger automount and wait for it
+              timeout=60
+              until [ -d /mnt/nas/web/attic ] && timeout 5 ls /mnt/nas/web/attic > /dev/null 2>&1; do
+                if [ $timeout -le 0 ]; then
+                  echo "Timeout waiting for /mnt/nas/web/attic to be accessible"
+                  exit 1
+                fi
+                sleep 1
+                timeout=$((timeout - 1))
+              done
+              echo "Successfully accessed /mnt/nas/web/attic"
+            '';
           };
 
           networking.firewall.allowedTCPPorts = [ 8081 ];
