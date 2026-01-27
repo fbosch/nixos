@@ -1,23 +1,27 @@
 _:
 
 {
-  flake.overlays.chromium-webapps-hardening = final: prev:
+  flake.overlays.chromium-webapps-hardening =
+    final: prev:
     let
       inherit (prev) lib;
       hasChromiumLib = lib.hasAttrByPath [ "nix-webapps-lib" "mkChromiumApp" ] prev;
     in
-    if !hasChromiumLib then { }
+    if !hasChromiumLib then
+      { }
     else
       let
         oldMkChromiumApp = prev.nix-webapps-lib.mkChromiumApp;
-        mkHardenedChromiumApp = args:
+        mkHardenedChromiumApp =
+          args:
           let
             hardening = args.hardening or { };
             enabled = hardening.enabled or true;
             sanitizedArgs = builtins.removeAttrs args [ "hardening" ];
             baseDrv = oldMkChromiumApp sanitizedArgs;
           in
-          if !enabled then baseDrv
+          if !enabled then
+            baseDrv
           else
             let
               extraFlags = hardening.extraFlags or [ ];
@@ -30,6 +34,8 @@ _:
                 "--site-per-process"
                 "--isolate-origins=${args.url}"
                 "--disable-features=TranslateUI"
+                # Disable crash reporter to avoid crashpad issues on NixOS
+                "--disable-crash-reporter"
                 # Performance improvements
                 "--enable-gpu-rasterization"
                 "--enable-zero-copy"
@@ -62,7 +68,8 @@ _:
                 "--disable-component-update"
                 # Better desktop integration and performance
                 "--enable-features=VizDisplayCompositor"
-              ] ++ lib.optional (args ? class) "--class=${args.class}";
+              ]
+              ++ lib.optional (args ? class) "--class=${args.class}";
               hardenedFlags = lib.lists.unique (defaultFlags ++ extraFlags);
               policyBase = {
                 ExtensionInstallBlocklist = [ "*" ];
@@ -95,22 +102,34 @@ _:
               policyOverrides = hardening.policyOverrides or { };
               policy = lib.recursiveUpdate policyBase policyOverrides;
               policyFile = final.writeText "${args.appName}-managed-policy.json" (builtins.toJSON policy);
-              flagArgs = lib.concatMapStringsSep " " (flag: ''--add-flags ${lib.escapeShellArg flag}'') hardenedFlags;
+              flagArgs = lib.concatMapStringsSep " "
+                (
+                  flag: "--add-flags ${lib.escapeShellArg flag}"
+                )
+                hardenedFlags;
             in
-            baseDrv.overrideAttrs (_finalAttrs: prevAttrs:
+            baseDrv.overrideAttrs (
+              _finalAttrs: prevAttrs:
               let
                 basePostInstall = prevAttrs.postInstall or "";
-                wrapCommand = ''wrapProgram "$out/bin/${args.appName}" --set CHROME_POLICY_FILES_DIR "$out/share/chromium/policies"''
+                wrapCommand =
+                  ''wrapProgram "$out/bin/${args.appName}" --set CHROME_POLICY_FILES_DIR "$out/share/chromium/policies"''
                   + lib.optionalString (hardenedFlags != [ ]) " ${flagArgs}";
               in
               {
-                nativeBuildInputs = lib.lists.unique ((prevAttrs.nativeBuildInputs or [ ]) ++ [ final.makeWrapper final.librsvg ]);
+                nativeBuildInputs = lib.lists.unique (
+                  (prevAttrs.nativeBuildInputs or [ ])
+                  ++ [
+                    final.makeWrapper
+                    final.librsvg
+                  ]
+                );
                 buildInputs = lib.lists.unique ((prevAttrs.buildInputs or [ ]) ++ [ final.hicolor-icon-theme ]);
                 postInstall = ''
                   ${basePostInstall}
                   install -Dm644 ${policyFile} "$out/share/chromium/policies/managed/${args.appName}.json"
                   ${wrapCommand}
-                  
+
                   # Install hicolor icon theme index for proper icon discovery
                   mkdir -p "$out/share/icons/hicolor"
                   ln -sf "${final.hicolor-icon-theme}/share/icons/hicolor/index.theme" "$out/share/icons/hicolor/index.theme"
@@ -119,7 +138,7 @@ _:
                   # Improve desktop file and icon locations for better Waybar recognition
                   # This runs after the desktop file is copied
                   desktop_file="$out/share/applications/${args.appName}.desktop"
-                  
+
                   if [ -f "$desktop_file" ]; then
                     # Install icon to standard FreeDesktop locations
                     mkdir -p "$out/share/icons/hicolor/512x512/apps"
