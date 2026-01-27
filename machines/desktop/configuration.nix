@@ -32,8 +32,10 @@
       "nvidia.NVreg_EnableGpuFirmware=0" # Improve compatibility
       # NVIDIA suspend support
       "nvidia.NVreg_PreserveVideoMemoryAllocations=1" # Preserve video memory allocations for suspend
-      # Use s2idle suspend mode for better NVIDIA compatibility
-      "mem_sleep_default=s2idle" # More reliable suspend with NVIDIA GPUs
+      # Use deep suspend mode for better NVIDIA compatibility
+      "mem_sleep_default=deep" # More reliable suspend with NVIDIA GPUs
+      # Fix framebuffer console artifacts
+      "fbcon=nodefer" # Prevent deferred framebuffer console takeover
     ];
 
     # Optimize tmpfs usage for 32GB RAM system
