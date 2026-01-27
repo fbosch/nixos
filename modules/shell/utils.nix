@@ -18,6 +18,7 @@
   flake.modules.homeManager.shell =
     { pkgs, ... }:
     {
+      programs.fzf.enable = true;
       home.packages = with pkgs; [
         ripgrep
         eza

@@ -7,6 +7,7 @@
         [
           htop
           btop
+          glances
           dust
           dua
           fastfetch

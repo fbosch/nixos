@@ -12,9 +12,5 @@
         };
       };
     };
-
-    # Optional: Add direnv integration for your shell
-    # Fish integration is automatic when programs.fish.enable = true
-    # Bash integration is automatic when programs.bash.enable = true
   };
 }
