@@ -11,11 +11,8 @@
       tailscale = "100.118.36.81";
       local = "192.168.167.54";
       sshPublicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEFNYtL1qSIxrsA27qkFRem9nj3hlR5vVyyaYO0otUNl frederik@bosch.dev";
-      # user = "someuser"; # Optional: Override default username for SSH connections
+      useTailnet = true;
     };
-
-    # SSH configuration - use Tailscale IPs
-    ssh.useTailscale = true;
 
     modules.darwin."hosts/rvn-mac" =
       { pkgs, ... }:

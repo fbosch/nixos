@@ -3,25 +3,13 @@ let
   flakeConfig = config;
 in
 {
-  # Define flake-level option for SSH Tailscale preference
-  options.flake.ssh = {
-    useTailscale = lib.mkOption {
-      type = lib.types.bool;
-      default = false;
-      description = "Use Tailscale IPs for SSH hosts instead of local network IPs";
-    };
-  };
-
   config.flake.modules.homeManager.shell =
     { config, ... }:
     let
       # Read host configurations from flake.meta.hosts
       hosts = flakeConfig.flake.meta.hosts or { };
-
-      # Helper function to get the appropriate hostname
-      getHostname = host:
-        if flakeConfig.flake.ssh.useTailscale then host.tailscale else host.local;
-
+      # Helper function to get the appropriate hostname for a specific host
+      getHostname = host: if host.useTailnet or false then host.tailscale else host.local;
       # Generate match blocks from host configurations
       mkMatchBlock = _name: host: {
         hostname = getHostname host;
@@ -29,6 +17,19 @@ in
         user = host.user or flakeConfig.flake.meta.user.username;
         identityFile = config.sops.secrets.ssh-private-key.path;
       };
+
+      # Generate match blocks for both short key and full hostname
+      mkMatchBlocks =
+        name: host:
+        let
+          block = mkMatchBlock name host;
+        in
+        {
+          ${name} = block;
+        }
+        // lib.optionalAttrs (host.hostname != name) {
+          ${host.hostname} = block;
+        };
 
       # Collect all SSH public keys from hosts
       allAuthorizedKeys =
@@ -41,7 +42,7 @@ in
         enableDefaultConfig = false;
 
         matchBlocks = lib.mkMerge [
-          (lib.mapAttrs mkMatchBlock hosts)
+          (lib.mkMerge (lib.mapAttrsToList mkMatchBlocks hosts))
           {
             "ssh.dev.azure.com" = {
               identityFile = "~/.ssh/id_rsa.pub";

@@ -56,31 +56,38 @@ in
     };
 
     hosts = lib.mkOption {
-      type = lib.types.attrsOf (lib.types.submodule {
-        options = {
-          hostname = lib.mkOption {
-            type = lib.types.str;
-            description = "Human-readable hostname";
+      type = lib.types.attrsOf (
+        lib.types.submodule {
+          options = {
+            hostname = lib.mkOption {
+              type = lib.types.str;
+              description = "Human-readable hostname";
+            };
+            tailscale = lib.mkOption {
+              type = lib.types.str;
+              description = "Tailscale IP address";
+            };
+            local = lib.mkOption {
+              type = lib.types.str;
+              description = "Local network IP address";
+            };
+            sshPublicKey = lib.mkOption {
+              type = lib.types.str;
+              description = "SSH public key for this host";
+            };
+            user = lib.mkOption {
+              type = lib.types.nullOr lib.types.str;
+              default = null;
+              description = "Optional: Override default username for SSH connections";
+            };
+            useTailnet = lib.mkOption {
+              type = lib.types.bool;
+              default = false;
+              description = "Use Tailnet IP for SSH connections to this host";
+            };
           };
-          tailscale = lib.mkOption {
-            type = lib.types.str;
-            description = "Tailscale IP address";
-          };
-          local = lib.mkOption {
-            type = lib.types.str;
-            description = "Local network IP address";
-          };
-          sshPublicKey = lib.mkOption {
-            type = lib.types.str;
-            description = "SSH public key for this host";
-          };
-          user = lib.mkOption {
-            type = lib.types.nullOr lib.types.str;
-            default = null;
-            description = "Optional: Override default username for SSH connections";
-          };
-        };
-      });
+        }
+      );
       default = { };
       description = "Network and SSH metadata for each host";
     };
