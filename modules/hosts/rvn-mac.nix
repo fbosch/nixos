@@ -15,7 +15,7 @@
 
       # Home Manager configuration for user
       home-manager.users.${config.flake.meta.user.username} = {
-        home.stateVersion = config.flake.meta.versions.homeManager;
+        home.stateVersion = "25.05";
 
         # Home Manager modules (cross-platform)
         imports = config.flake.lib.resolveHm [
