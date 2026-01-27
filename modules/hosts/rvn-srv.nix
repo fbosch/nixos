@@ -1,6 +1,7 @@
-{ inputs
-, config
-, ...
+{
+  inputs,
+  config,
+  ...
 }:
 {
   # rvn-srv: Dendritic host configuration for MSI Cubi server
@@ -117,6 +118,54 @@
         # Open port for uptime-kuma
         networking.firewall.allowedTCPPorts = [ 3001 ];
 
+        # Enable systemd-networkd for bonding support
+        networking.useNetworkd = true;
+        networking.useDHCP = false; # Disable legacy DHCP
+        systemd.network.enable = true;
+
+        # NIC bonding configuration for dual ethernet ports
+        # Using balance-rr (no switch config needed)
+        systemd.network = {
+          netdevs."10-bond0" = {
+            netdevConfig = {
+              Kind = "bond";
+              Name = "bond0";
+            };
+            bondConfig = {
+              Mode = "balance-rr"; # Round-robin (no switch config needed)
+              TransmitHashPolicy = "layer3+4"; # Hash by IP+port
+              MIIMonitorSec = "100ms"; # Link monitoring
+            };
+          };
+
+          # Assign enp2s0 to bond
+          networks."30-enp2s0" = {
+            matchConfig.Name = "enp2s0";
+            networkConfig.Bond = "bond0";
+          };
+
+          # Assign enp3s0 to bond
+          networks."30-enp3s0" = {
+            matchConfig.Name = "enp3s0";
+            networkConfig.Bond = "bond0";
+          };
+
+          # Configure bond0 interface with static IP
+          networks."40-bond0" = {
+            matchConfig.Name = "bond0";
+            linkConfig.RequiredForOnline = "carrier";
+            networkConfig = {
+              Address = "192.168.1.46/24";
+              Gateway = "192.168.1.1";
+              DNS = [
+                "192.168.1.202"
+                "192.168.1.2"
+              ];
+              LinkLocalAddressing = "no";
+            };
+          };
+        };
       };
+
   };
 }
