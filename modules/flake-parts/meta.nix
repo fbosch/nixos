@@ -13,7 +13,13 @@ let
       publicKeyFile = ../../configs/gpg/public-key.asc;
     };
     ssh = {
+      # Primary SSH public key (from SOPS)
       publicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIA9bFB0RZWl7ofsEMEW4i8UJv448U/RT429+roe1gc9K";
+      # Additional authorized keys for different machines
+      authorizedKeys = [
+        "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIA9bFB0RZWl7ofsEMEW4i8UJv448U/RT429+roe1gc9K" # Primary key
+        "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEFNYtL1qSIxrsA27qkFRem9nj3hlR5vVyyaYO0otUNl frederik@bosch.dev" # Mac key
+      ];
     };
     avatar = {
       # Path to custom avatar file, or null to auto-fetch from GitHub

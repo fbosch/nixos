@@ -66,7 +66,7 @@ in
       };
 
       home.file.".ssh/authorized_keys" = {
-        text = "${flakeConfig.flake.meta.user.ssh.publicKey}\n";
+        text = lib.concatStringsSep "\n" flakeConfig.flake.meta.user.ssh.authorizedKeys;
       };
 
       # Enable and start ssh-agent
