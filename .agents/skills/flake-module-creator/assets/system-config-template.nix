@@ -1,9 +1,10 @@
 _: {
   flake.modules.nixos."system/<NAME>" =
-    { config
-    , lib
-    , pkgs
-    , ...
+    {
+      config,
+      lib,
+      pkgs,
+      ...
     }:
     {
       config = {
