@@ -1,7 +1,6 @@
-{
-  inputs,
-  config,
-  ...
+{ inputs
+, config
+, ...
 }:
 {
   # rvn-srv: Dendritic host configuration for MSI Cubi server
@@ -77,9 +76,9 @@
             weekday = {
               suspendTime = "00:30";
               wakeTime = "06:00";
-              days = "Mon,Tue,Wed,Thu,Fri";
+              days = "Mon,Tue,Wed,Thu";
             };
-            fridays = {
+            friday = {
               suspendTime = "02:00";
               wakeTime = "06:00";
               days = "Fri";
