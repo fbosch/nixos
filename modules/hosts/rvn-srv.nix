@@ -1,7 +1,6 @@
-{
-  inputs,
-  config,
-  ...
+{ inputs
+, config
+, ...
 }:
 {
   # rvn-srv: Dendritic host configuration for MSI Cubi server
@@ -115,12 +114,16 @@
           };
         };
 
-        # Open port for uptime-kuma
-        networking.firewall.allowedTCPPorts = [ 3001 ];
+        # Networking configuration
+        networking = {
+          # Open port for uptime-kuma
+          firewall.allowedTCPPorts = [ 3001 ];
 
-        # Enable systemd-networkd for bonding support
-        networking.useNetworkd = true;
-        networking.useDHCP = false; # Disable legacy DHCP
+          # Enable systemd-networkd for bonding support
+          useNetworkd = true;
+          useDHCP = false; # Disable legacy DHCP
+        };
+
         systemd.network.enable = true;
 
         # NIC bonding configuration for dual ethernet ports
@@ -138,30 +141,34 @@
             };
           };
 
-          # Assign enp2s0 to bond
-          networks."30-enp2s0" = {
-            matchConfig.Name = "enp2s0";
-            networkConfig.Bond = "bond0";
-          };
+          networks = {
+            # Assign enp2s0 to bond
+            "30-enp2s0" = {
+              matchConfig.Name = "enp2s0";
+              networkConfig.Bond = "bond0";
+            };
 
-          # Assign enp3s0 to bond
-          networks."30-enp3s0" = {
-            matchConfig.Name = "enp3s0";
-            networkConfig.Bond = "bond0";
-          };
+            # Assign enp3s0 to bond
+            "30-enp3s0" = {
+              matchConfig.Name = "enp3s0";
+              networkConfig.Bond = "bond0";
+            };
 
-          # Configure bond0 interface with static IP
-          networks."40-bond0" = {
-            matchConfig.Name = "bond0";
-            linkConfig.RequiredForOnline = "carrier";
-            networkConfig = {
-              Address = "192.168.1.46/24";
-              Gateway = "192.168.1.1";
-              DNS = [
-                "192.168.1.202"
-                "192.168.1.2"
-              ];
-              LinkLocalAddressing = "no";
+            # Configure bond0 interface with static IP
+            "40-bond0" = {
+              matchConfig.Name = "bond0";
+              linkConfig.RequiredForOnline = "carrier";
+              networkConfig = {
+                Address = "192.168.1.46/24";
+                Gateway = "192.168.1.1";
+                DNS = [
+                  "192.168.1.202"
+                  "192.168.1.2",
+                  "45.90.28.240",
+                  "45.90.30.240"
+                ];
+                LinkLocalAddressing = "no";
+              };
             };
           };
         };
