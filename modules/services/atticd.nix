@@ -47,18 +47,12 @@ _: {
           };
 
           systemd.services.atticd = {
-            unitConfig.RequiresMountsFor = [
-              "/mnt/nas/web"
-              "/mnt/nas/web/attic"
-            ];
             after = [
               "mnt-nas-web.automount"
               "network-online.target"
             ];
-            wants = [
-              "network-online.target"
-              "mnt-nas-web.automount"
-            ];
+            requires = [ "mnt-nas-web.automount" ];
+            wants = [ "network-online.target" ];
             serviceConfig.SupplementaryGroups = [ "users" ];
           };
 

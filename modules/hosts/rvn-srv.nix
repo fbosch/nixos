@@ -74,13 +74,18 @@
           enable = true;
           schedules = {
             weekday = {
-              suspendTime = "23:30";
-              wakeTime = "05:30";
-              days = "Mon,Tue,Wed,Thu,Fri";
+              suspendTime = "00:30";
+              wakeTime = "06:00";
+              days = "Mon,Tue,Wed,Thu";
+            };
+            friday = {
+              suspendTime = "02:00";
+              wakeTime = "06:00";
+              days = "Fri";
             };
             weekend = {
               suspendTime = "02:00";
-              wakeTime = "07:30";
+              wakeTime = "08:00";
               days = "Sat,Sun";
             };
           };

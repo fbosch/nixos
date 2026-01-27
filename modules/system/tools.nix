@@ -10,6 +10,7 @@
         parted
         usbutils
         lsof
+        ethtool
       ];
     };
 }
