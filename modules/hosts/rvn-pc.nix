@@ -14,7 +14,6 @@
       tailscale = "100.124.57.90";
       local = "192.168.1.169";
       sshPublicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIA9bFB0RZWl7ofsEMEW4i8UJv448U/RT429+roe1gc9K";
-      # user = "someuser"; # Optional: Override default username for SSH connections
     };
 
     modules.nixos."hosts/rvn-pc" =
