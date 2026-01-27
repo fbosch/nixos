@@ -1,5 +1,4 @@
-_:
-{
+_: {
   flake.modules.nixos."services/home-assistant" =
     { config
     , lib
@@ -64,6 +63,7 @@ _:
                 aiohomekit # HomeKit Controller
                 pyatv # Apple TV
                 pychromecast # Chromecast / Google Cast
+                pyicloud # Apple iCloud
                 # pymetno  # Met.no weather
                 # gTTS  # Google Text-to-Speech
                 # psycopg2  # PostgreSQL support
@@ -83,6 +83,7 @@ _:
               "cast" # Chromecast / Google Cast
               "wake_on_lan" # Wake-on-LAN support (useful for Samsung TV)
               "apple_tv" # Apple TV
+              "icloud" # Apple iCloud
               "tuya" # Tuya/SmartLife (for Nedis SmartLife devices)
               "pi_hole"
               "synology_dsm"
