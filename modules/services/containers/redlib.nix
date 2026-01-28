@@ -52,10 +52,6 @@ _: {
               --cpus=2 \
               --pids-limit=200 \
               --ulimit nofile=1024:2048 \
-              --health-cmd="curl -f http://localhost:8080/ || exit 1" \
-              --health-interval=30s \
-              --health-timeout=10s \
-              --health-retries=3 \
               --log-driver=journald \
               --log-opt=tag="redlib" \
               quay.io/redlib/redlib:latest

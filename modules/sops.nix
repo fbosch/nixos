@@ -139,7 +139,7 @@ in
 
           templates."pihole-webpassword" = {
             content = ''
-              WEBPASSWORD=${nixosConfig.sops.placeholder.pihole-password}
+              FTLCONF_webserver_api_password=${nixosConfig.sops.placeholder.pihole-password}
             '';
             mode = "0400";
           };

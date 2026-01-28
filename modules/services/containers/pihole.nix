@@ -46,7 +46,25 @@ _: {
         webPasswordFile = lib.mkOption {
           type = lib.types.nullOr lib.types.str;
           default = null;
-          description = "Path to env file containing WEBPASSWORD";
+          description = "Path to env file containing FTLCONF_webserver_api_password";
+        };
+
+        dnsListeningMode = lib.mkOption {
+          type = lib.types.str;
+          default = "ALL";
+          description = "FTL DNS listening mode (recommended ALL for bridge networking)";
+        };
+
+        dnsUpstreams = lib.mkOption {
+          type = lib.types.listOf lib.types.str;
+          default = [ ];
+          description = "Upstream DNS servers (semicolon-delimited in FTLCONF_dns_upstreams)";
+        };
+
+        dnsForwardMax = lib.mkOption {
+          type = lib.types.nullOr lib.types.int;
+          default = 300;
+          description = "dnsmasq --dns-forward-max value; set null to use default";
         };
       };
 
@@ -86,13 +104,23 @@ _: {
               -v pihole-data:/etc/pihole \
               -v pihole-dnsmasq:/etc/dnsmasq.d \
               -e TZ=${lib.escapeShellArg config.services.pihole-container.timezone} \
+              -e FTLCONF_dns_listeningMode=${lib.escapeShellArg config.services.pihole-container.dnsListeningMode} \
+              ${
+                lib.optionalString (config.services.pihole-container.dnsUpstreams != [ ]) ''
+                  -e FTLCONF_dns_upstreams=${lib.escapeShellArg (lib.concatStringsSep ";" config.services.pihole-container.dnsUpstreams)} \
+                ''
+              }${
+                lib.optionalString (config.services.pihole-container.dnsForwardMax != null) ''
+                  -e FTL_CMD=${lib.escapeShellArg "no-daemon -- --dns-forward-max ${toString config.services.pihole-container.dnsForwardMax}"} \
+                ''
+              } \
               ${
                 lib.optionalString (config.services.pihole-container.webPasswordFile != null) ''
                   --env-file ${lib.escapeShellArg config.services.pihole-container.webPasswordFile} \
                 ''
               }${
                 lib.optionalString (config.services.pihole-container.webPasswordFile == null) ''
-                  -e WEBPASSWORD=${lib.escapeShellArg config.services.pihole-container.webPassword} \
+                  -e FTLCONF_webserver_api_password=${lib.escapeShellArg config.services.pihole-container.webPassword} \
                 ''
               } \
               --health-cmd="curl -fsS http://localhost/admin/ || exit 1" \

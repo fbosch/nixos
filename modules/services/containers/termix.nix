@@ -57,10 +57,6 @@ _: {
               --cpus=4 \
               --pids-limit=500 \
               --ulimit nofile=2048:4096 \
-              --health-cmd="curl -f http://localhost:8080/ || exit 1" \
-              --health-interval=30s \
-              --health-timeout=10s \
-              --health-retries=3 \
               --log-driver=journald \
               --log-opt=tag="termix" \
               ghcr.io/lukegus/termix:latest
