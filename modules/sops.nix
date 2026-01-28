@@ -16,10 +16,9 @@ in
 
       # Home Manager SOPS module - works on both NixOS and Darwin
       secrets =
-        {
-          config,
-          lib,
-          ...
+        { config
+        , lib
+        , ...
         }:
         let
           hmConfig = config;
@@ -82,9 +81,8 @@ in
 
     # NixOS-specific SOPS module (system-level secrets)
     nixos.secrets =
-      {
-        config,
-        ...
+      { config
+      , ...
       }:
       let
         nixosConfig = config;
@@ -140,7 +138,7 @@ in
               owner = flakeConfig.flake.meta.user.username;
             };
 
-            templates."pihole-webpassword" = {
+            "pihole-webpassword" = {
               content = ''
                 FTLCONF_webserver_api_password=${nixosConfig.sops.placeholder.pihole-password}
               '';
