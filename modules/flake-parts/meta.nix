@@ -85,6 +85,11 @@ in
               default = false;
               description = "Use Tailnet IP for SSH connections to this host";
             };
+            dnsServers = lib.mkOption {
+              type = lib.types.listOf lib.types.str;
+              default = [ ];
+              description = "DNS servers for this host";
+            };
           };
         }
       );

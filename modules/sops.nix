@@ -101,6 +101,9 @@ in
               mode = "0440";
               group = "wheel";
             };
+            pihole-password = {
+              mode = "0400";
+            };
             smb-username = {
               mode = "0400";
             };
@@ -132,6 +135,13 @@ in
             '';
             mode = "0600";
             owner = flakeConfig.flake.meta.user.username;
+          };
+
+          templates."pihole-webpassword" = {
+            content = ''
+              WEBPASSWORD=${nixosConfig.sops.placeholder.pihole-password}
+            '';
+            mode = "0400";
           };
 
           # Generate nix.conf snippet with GitHub token

@@ -1,5 +1,4 @@
-_:
-{
+_: {
   flake.modules.nixos."services/komodo" =
     { config
     , lib
@@ -187,6 +186,7 @@ _:
                 "network-online.target"
                 "podman.service"
               ];
+              wants = [ "network-online.target" ];
               requires = [ "podman.service" ];
 
               path = [

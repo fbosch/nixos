@@ -1,5 +1,4 @@
-_:
-{
+_: {
   flake.modules.nixos."services/containers/termix" =
     { config
     , lib
@@ -30,6 +29,7 @@ _:
             "network-online.target"
             "podman.service"
           ];
+          wants = [ "network-online.target" ];
           requires = [ "podman.service" ];
 
           serviceConfig = {

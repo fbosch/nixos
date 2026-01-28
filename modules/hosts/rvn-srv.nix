@@ -14,10 +14,16 @@
       tailscale = "100.125.172.110";
       local = "192.168.1.46";
       sshPublicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJl/WCQsXEkE7em5A6d2Du2JAWngIPfA8sVuJP/9cuyq fbb@nixos";
+      dnsServers = [
+        "127.0.0.1"
+        "192.168.1.202"
+        "45.90.28.240"
+        "45.90.30.240"
+      ];
     };
 
     modules.nixos."hosts/rvn-srv" =
-      { pkgs, ... }:
+      { pkgs, lib, ... }:
       {
         imports = config.flake.lib.resolve [
           # Server preset (users, security, development, shell, system, vpn)
@@ -41,6 +47,7 @@
           "virtualization/podman"
           "services/containers/redlib"
           "services/containers/termix"
+          "services/containers/pihole"
 
           # hardware configuration
           ../../machines/msi-cubi/configuration.nix
@@ -91,16 +98,12 @@
           };
         };
 
-        # Clipboard utilities for remote X11 sessions
-        environment.systemPackages = [
-          pkgs.xclip
-          pkgs.xsel
-        ];
-
         # Service-specific configuration
         services = {
           ananicy.enable = true;
           plex.nginx.port = 32402;
+          pihole-container.listenAddress = config.flake.meta.hosts.srv.local;
+          pihole-container.webPort = 8082;
 
           komodo = {
             core.host = "https://komodo.corvus-corax.synology.me";
@@ -112,6 +115,18 @@
             enable = true;
             settings.HOST = "0.0.0.0";
           };
+
+          resolved = {
+            enable = true;
+            settings = {
+              Resolve = {
+                DNSStubListener = "no";
+              };
+            };
+          };
+        }
+        // lib.optionalAttrs (config ? sops && config.sops ? templates) {
+          pihole-container.webPasswordFile = config.sops.templates."pihole-webpassword".path;
         };
 
         # Networking configuration
@@ -122,6 +137,7 @@
           # Enable systemd-networkd for bonding support
           useNetworkd = true;
           useDHCP = false; # Disable legacy DHCP
+          nameservers = config.flake.meta.hosts.srv.dnsServers;
         };
 
         systemd.network.enable = true;
@@ -161,12 +177,7 @@
               networkConfig = {
                 Address = "192.168.1.46/24";
                 Gateway = "192.168.1.1";
-                DNS = [
-                  "192.168.1.202"
-                  "192.168.1.2"
-                  "45.90.28.240"
-                  "45.90.30.240"
-                ];
+                DNS = config.flake.meta.hosts.srv.dnsServers;
                 LinkLocalAddressing = "no";
               };
             };
