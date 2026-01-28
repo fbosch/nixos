@@ -127,30 +127,32 @@ in
             };
           };
 
-          # Generate .smbcredentials file from SOPS secrets
-          templates."smbcredentials" = {
-            content = ''
-              username=${nixosConfig.sops.placeholder.smb-username}
-              password=${nixosConfig.sops.placeholder.smb-password}
-            '';
-            mode = "0600";
-            owner = flakeConfig.flake.meta.user.username;
-          };
+          templates = {
+            # Generate .smbcredentials file from SOPS secrets
+            "smbcredentials" = {
+              content = ''
+                username=${nixosConfig.sops.placeholder.smb-username}
+                password=${nixosConfig.sops.placeholder.smb-password}
+              '';
+              mode = "0600";
+              owner = flakeConfig.flake.meta.user.username;
+            };
 
-          templates."pihole-webpassword" = {
-            content = ''
-              WEBPASSWORD=${nixosConfig.sops.placeholder.pihole-password}
-            '';
-            mode = "0400";
-          };
+            "pihole-webpassword" = {
+              content = ''
+                WEBPASSWORD=${nixosConfig.sops.placeholder.pihole-password}
+              '';
+              mode = "0400";
+            };
 
-          # Generate nix.conf snippet with GitHub token
-          templates."nix-github-token" = {
-            content = ''
-              access-tokens = github.com=${nixosConfig.sops.placeholder.github-token}
-            '';
-            mode = "0440";
-            group = "wheel";
+            # Generate nix.conf snippet with GitHub token
+            "nix-github-token" = {
+              content = ''
+                access-tokens = github.com=${nixosConfig.sops.placeholder.github-token}
+              '';
+              mode = "0440";
+              group = "wheel";
+            };
           };
         };
 
