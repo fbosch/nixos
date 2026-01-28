@@ -5,7 +5,6 @@
       environment.systemPackages = with pkgs; [
         selectdefaultapplication
         nemo-with-extensions
-        sushi
         zip
         libwebp
         libjpeg
@@ -29,7 +28,6 @@
     in
     {
       home.packages = with pkgs; [
-        loupe
         xdg-utils
       ];
 

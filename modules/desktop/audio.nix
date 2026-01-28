@@ -10,9 +10,4 @@
       jack.enable = true;
     };
   };
-  flake.modules.homeManager.desktop = { pkgs, ... }: {
-    home.packages = with pkgs; [
-      pavucontrol
-    ];
-  };
 }

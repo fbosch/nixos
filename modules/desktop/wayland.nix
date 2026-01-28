@@ -12,7 +12,8 @@
       ];
     };
 
-  flake.modules.homeManager.desktop = { pkgs, lib, ... }:
+  flake.modules.homeManager.desktop =
+    { pkgs, lib, ... }:
     let
       inherit (pkgs.stdenv.hostPlatform) system;
     in
@@ -37,7 +38,6 @@
           pkgs.wl-clip-persist
           pkgs.waybar
           pkgs.swaynotificationcenter
-          pkgs.swayimg
           pkgs.libnotify
           pkgs.swayosd
           pkgs.gsettings-desktop-schemas
