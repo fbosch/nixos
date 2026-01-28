@@ -113,7 +113,7 @@ _:
               let
                 basePostInstall = prevAttrs.postInstall or "";
                 wrapCommand =
-                  ''wrapProgram "$out/bin/${args.appName}" --set CHROME_POLICY_FILES_DIR "$out/share/chromium/policies"''
+                  ''wrapProgram "$out/bin/${args.appName}" --set CHROME_POLICY_FILES_DIR "$out/share/chromium/policies" --set BREAKPAD_DUMP_LOCATION "/tmp"''
                   + lib.optionalString (hardenedFlags != [ ]) " ${flagArgs}";
               in
               {

@@ -2,7 +2,10 @@
 
 pkgs.nix-webapps-lib.mkChromiumApp {
   appName = "chromium-chatgpt";
-  categories = [ "Office" "Utility" ];
+  categories = [
+    "Office"
+    "Utility"
+  ];
   class = "ChatGPT";
   desktopName = "ChatGPT";
   comment = "AI-powered conversational assistant by OpenAI";
@@ -18,6 +21,8 @@ pkgs.nix-webapps-lib.mkChromiumApp {
     policyOverrides = {
       # Allow notifications for ChatGPT (may be needed for responses)
       DefaultNotificationsSetting = 1;
+      # Allow popups so external links can open in new windows/browser
+      DefaultPopupsSetting = 1; # 1 = Allow, 2 = Block
     };
   };
 }
