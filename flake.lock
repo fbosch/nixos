@@ -184,11 +184,11 @@
     "dotfiles": {
       "flake": false,
       "locked": {
-        "lastModified": 1769547656,
-        "narHash": "sha256-d4wPmKbLTvhdv+WTXGDubQ/cmrRsABUGFbYz/b3atgU=",
+        "lastModified": 1769607361,
+        "narHash": "sha256-5fMqFd0SIG8cnNHJumDLOZpqMj1qmB1q0mYhkr8J1kQ=",
         "owner": "fbosch",
         "repo": "dotfiles",
-        "rev": "ab28e8bbcf513d34c02df763b3a62526f1225eb9",
+        "rev": "4ef3dc7b30f2e22638c96705ba6a9aad7ecb4aa5",
         "type": "github"
       },
       "original": {
@@ -313,11 +313,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1769544286,
-        "narHash": "sha256-tJzEPNC6fMCzF4W8h2YdnvjlI4TpRV/yJg9cTnbwkfc=",
+        "lastModified": 1769638001,
+        "narHash": "sha256-hGwdJ/+oo+IRo2TiWV/V8BWWptQihcdFV/olTONaHqg=",
         "owner": "nix-community",
         "repo": "home-manager",
-        "rev": "d505dc46dc9831d1db4e7d6e323b2c42d5eba3e6",
+        "rev": "bd9f031efc634be4b80c5090b9171cc3a9f8e49c",
         "type": "github"
       },
       "original": {
@@ -1618,11 +1618,11 @@
         "systems": "systems_2"
       },
       "locked": {
-        "lastModified": 1769547888,
-        "narHash": "sha256-x/WIhul+slaDhW8PvcHpa/FElraGCWfFvgT7Xgw1Hbo=",
+        "lastModified": 1769549280,
+        "narHash": "sha256-ItsbjW7pIZd/+yx1ZgdCCYL7RpnFFByxrJlBlrB/ETM=",
         "owner": "vicinaehq",
         "repo": "vicinae",
-        "rev": "d2f38c2b1fff24c4aba5bb0ea2c2bddd4ea5a5df",
+        "rev": "4233336d03d52d1e748e0571ba52b6d0aff2fe8b",
         "type": "github"
       },
       "original": {
