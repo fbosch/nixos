@@ -164,17 +164,17 @@ _: {
 
       devShells.default = pkgs.mkShell {
         shellHook = ''
-                              # Install pre-commit hook wrapper (no hardcoded store paths)
-                              if [ ! -f .git/hooks/pre-commit ]; then
-                                mkdir -p .git/hooks
-                                cat > .git/hooks/pre-commit << 'EOF'
-          #!/usr/bin/env bash
-          # Wrapper that always uses current flake environment
-          exec nix run .#pre-commit-wrapper "$@"
-          EOF
-                                chmod +x .git/hooks/pre-commit
-                                echo "Installed pre-commit hook"
-                              fi
+          # Install pre-commit hook wrapper (no hardcoded store paths)
+          if [ ! -f .git/hooks/pre-commit ]; then
+            mkdir -p .git/hooks
+            cat > .git/hooks/pre-commit << 'EOF'
+            #!/usr/bin/env bash
+            # Wrapper that always uses current flake environment
+            exec nix run .#pre-commit-wrapper "$@"
+            EOF
+            chmod +x .git/hooks/pre-commit
+            echo "Installed pre-commit hook"
+          fi
         '';
         packages = with pkgs; [
           statix
