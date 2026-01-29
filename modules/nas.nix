@@ -4,12 +4,13 @@ let
 in
 {
   flake.modules.nixos.nas =
-    { config, ... }:
+    { config, lib, ... }:
     let
       nixosConfig = config;
       # NAS server configuration
       nasHostname = flakeConfig.flake.meta.nas.hostname;
       nasIpAddress = flakeConfig.flake.meta.nas.ipAddress;
+      encryptedConditionPath = "/run/nas/encrypted.available";
 
       # List of NAS shares to mount
       shares = [
@@ -41,6 +42,9 @@ in
         unitConfig = {
           After = "network-online.target";
           Requires = "network-online.target";
+        }
+        // lib.optionalAttrs (share == "encrypted") {
+          ConditionPathExists = encryptedConditionPath;
         };
       };
 
@@ -50,6 +54,9 @@ in
         wantedBy = [ "multi-user.target" ];
         unitConfig = {
           After = "network-online.target";
+        }
+        // lib.optionalAttrs (share == "encrypted") {
+          ConditionPathExists = encryptedConditionPath;
         };
         automountConfig = {
           TimeoutIdleSec = if share == "web" then "0" else "30s";
