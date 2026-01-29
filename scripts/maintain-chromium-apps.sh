@@ -8,12 +8,12 @@ echo "============================"
 
 # Check for available chromium apps
 echo "📦 Available Chromium Apps:"
-APPS=$(cd /home/fbb/nixos && nix flake show 2>/dev/null | grep "chromium-" | sed 's/.*chromium-/chromium-/' | sed 's/:.*//')
+APPS=$(cd ~/nixos && nix flake show 2>/dev/null | grep "chromium-" | sed 's/\x1b\[[0-9;]*m//g' | sed 's/.*chromium-/chromium-/' | sed 's/[[:space:]].*//' | sed 's/:$//' | sort -u)
 echo "$APPS"
 
 echo ""
 echo "🔍 Checking for updates..."
-cd /home/fbb/nixos
+cd ~/nixos
 if git status --porcelain | grep -q .; then
     echo "⚠️  Working directory has uncommitted changes"
     echo "   Run 'git status' to see changes"
