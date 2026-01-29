@@ -3,7 +3,7 @@ let
   user = rec {
     username = "fbb";
     fullName = "Frederik Bosch";
-    email = "fbb.privacy+gpg@protonmail.com";
+    email = "fbosch@corax.aleeas.com";
     github = {
       username = "fbosch";
     };
@@ -56,23 +56,31 @@ in
     };
 
     hosts = lib.mkOption {
-      type = lib.types.attrsOf (
+      type = lib.types.listOf (
         lib.types.submodule {
           options = {
-            hostname = lib.mkOption {
+            name = lib.mkOption {
               type = lib.types.str;
-              description = "Human-readable hostname";
+              description = "Full host name (matches flake host id)";
+            };
+            sshAlias = lib.mkOption {
+              type = lib.types.nullOr lib.types.str;
+              default = null;
+              description = "Optional short SSH alias";
             };
             tailscale = lib.mkOption {
-              type = lib.types.str;
+              type = lib.types.nullOr lib.types.str;
+              default = null;
               description = "Tailscale IP address";
             };
             local = lib.mkOption {
-              type = lib.types.str;
+              type = lib.types.nullOr lib.types.str;
+              default = null;
               description = "Local network IP address";
             };
             sshPublicKey = lib.mkOption {
-              type = lib.types.str;
+              type = lib.types.nullOr lib.types.str;
+              default = null;
               description = "SSH public key for this host";
             };
             user = lib.mkOption {
@@ -83,7 +91,7 @@ in
             useTailnet = lib.mkOption {
               type = lib.types.bool;
               default = false;
-              description = "Use Tailnet IP for SSH connections to this host";
+              description = "Prefer Tailnet IPs when initiating SSH from this host";
             };
             dnsServers = lib.mkOption {
               type = lib.types.listOf lib.types.str;
@@ -93,7 +101,7 @@ in
           };
         }
       );
-      default = { };
+      default = [ ];
       description = "Network and SSH metadata for each host";
     };
   };

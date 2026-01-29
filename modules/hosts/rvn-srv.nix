@@ -2,6 +2,21 @@
 , config
 , ...
 }:
+let
+  hostMeta = {
+    name = "rvn-srv";
+    sshAlias = "srv";
+    tailscale = "100.125.172.110";
+    local = "192.168.1.46";
+    sshPublicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJl/WCQsXEkE7em5A6d2Du2JAWngIPfA8sVuJP/9cuyq fbb@nixos";
+    dnsServers = [
+      "127.0.0.1"
+      "192.168.1.202"
+      "45.90.28.240"
+      "45.90.30.240"
+    ];
+  };
+in
 {
   # rvn-srv: Dendritic host configuration for MSI Cubi server
   # Hardware: Intel-based mini PC
@@ -9,18 +24,7 @@
 
   flake = {
     # Host metadata
-    meta.hosts.srv = {
-      hostname = "rvn-srv";
-      tailscale = "100.125.172.110";
-      local = "192.168.1.46";
-      sshPublicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJl/WCQsXEkE7em5A6d2Du2JAWngIPfA8sVuJP/9cuyq fbb@nixos";
-      dnsServers = [
-        "127.0.0.1"
-        "192.168.1.202"
-        "45.90.28.240"
-        "45.90.30.240"
-      ];
-    };
+    meta.hosts = [ hostMeta ];
 
     modules.nixos."hosts/rvn-srv" =
       { pkgs, lib, ... }:
@@ -102,7 +106,7 @@
         services = {
           ananicy.enable = true;
           plex.nginx.port = 32402;
-          pihole-container.listenAddress = config.flake.meta.hosts.srv.local;
+          pihole-container.listenAddress = hostMeta.local;
           pihole-container.webPort = 8082;
 
           komodo = {
@@ -137,7 +141,7 @@
           # Enable systemd-networkd for bonding support
           useNetworkd = true;
           useDHCP = false; # Disable legacy DHCP
-          nameservers = config.flake.meta.hosts.srv.dnsServers;
+          nameservers = hostMeta.dnsServers;
         };
 
         systemd.network.enable = true;
@@ -177,7 +181,7 @@
               networkConfig = {
                 Address = "192.168.1.46/24";
                 Gateway = "192.168.1.1";
-                DNS = config.flake.meta.hosts.srv.dnsServers;
+                DNS = hostMeta.dnsServers;
                 LinkLocalAddressing = "no";
               };
             };

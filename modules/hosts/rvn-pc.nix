@@ -2,6 +2,15 @@
 , config
 , ...
 }:
+let
+  hostMeta = {
+    name = "rvn-pc";
+    sshAlias = "pc";
+    tailscale = "100.124.57.90";
+    local = "192.168.1.169";
+    sshPublicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIA9bFB0RZWl7ofsEMEW4i8UJv448U/RT429+roe1gc9K";
+  };
+in
 {
   # rvn-pc: Dendritic host configuration for desktop workstation
   # Hardware: Custom desktop with Intel CPU and NVIDIA GPU
@@ -9,12 +18,7 @@
 
   flake = {
     # Host metadata
-    meta.hosts.pc = {
-      hostname = "rvn-pc";
-      tailscale = "100.124.57.90";
-      local = "192.168.1.169";
-      sshPublicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIA9bFB0RZWl7ofsEMEW4i8UJv448U/RT429+roe1gc9K";
-    };
+    meta.hosts = [ hostMeta ];
 
     modules.nixos."hosts/rvn-pc" =
       { pkgs, ... }:

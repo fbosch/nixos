@@ -1,4 +1,14 @@
 { config, ... }:
+let
+  hostMeta = {
+    name = "rvn-mac";
+    sshAlias = "mac";
+    tailscale = "100.118.36.81";
+    local = "192.168.167.54";
+    sshPublicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKFeunJFBraRV+0gG6sjGxCu0iEPMvxvDlfAb7FxribY";
+    useTailnet = true;
+  };
+in
 {
   # rvn-mac: Dendritic host configuration for MacBook Pro
   # Hardware: Apple Silicon MacBook Pro
@@ -6,13 +16,7 @@
 
   flake = {
     # Host metadata
-    meta.hosts.mac = {
-      hostname = "rvn-mac";
-      tailscale = "100.118.36.81";
-      local = "192.168.167.54";
-      sshPublicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKFeunJFBraRV+0gG6sjGxCu0iEPMvxvDlfAb7FxribY";
-      useTailnet = true;
-    };
+    meta.hosts = [ hostMeta ];
 
     modules.darwin."hosts/rvn-mac" =
       { pkgs, ... }:
@@ -102,6 +106,7 @@
             wezterm
             rectangle
             firefox
+            tailscale
             bitwarden-desktop
             _1password-gui
           ];

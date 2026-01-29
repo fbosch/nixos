@@ -55,6 +55,9 @@ let
             home-manager = {
               useGlobalPkgs = true;
               useUserPackages = true;
+              extraSpecialArgs = {
+                currentHostId = hostId;
+              };
             };
           }
         ];
