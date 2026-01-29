@@ -1,4 +1,5 @@
-_: {
+{ inputs, ... }:
+{
   flake.modules.nixos."services/komodo" =
     { config
     , lib
@@ -86,6 +87,10 @@ _: {
         lib.concatStringsSep "\n" lines + "\n";
     in
     {
+      imports = [
+        "${inputs.nixpkgs-komodo}/nixos/modules/services/admin/komodo-periphery.nix"
+      ];
+
       options.services.komodo = {
         core = {
           enable = lib.mkOption {
