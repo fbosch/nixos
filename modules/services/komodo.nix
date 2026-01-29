@@ -20,6 +20,7 @@ _: {
       useAdminBootstrap = cfg.core.initAdminUsername != null && effectiveAdminPasswordFile != null;
       composeFilePath = "/etc/komodo/compose.yaml";
       composeEnvPath = "/etc/komodo/compose.env";
+      peripheryConfigPath = "/etc/komodo/periphery.toml";
       composeYamlText =
         let
           baseLines = [
@@ -52,20 +53,48 @@ _: {
             "    volumes:"
             "      - /var/lib/komodo/backups:/backups"
           ];
-          passkeyLine =
+          corePasskeyLine =
             if effectivePasskeyFile != null then
               [
                 "      - ${effectivePasskeyFile}:${effectivePasskeyFile}:ro"
               ]
             else
               [ ];
+          peripheryPasskeyLine =
+            if effectivePasskeyFile != null then
+              [
+                "      - ${effectivePasskeyFile}:${effectivePasskeyFile}:ro"
+              ]
+            else
+              [ ];
+          peripheryLines = [
+            ""
+            "  periphery:"
+            "    image: ghcr.io/moghtech/komodo-periphery:latest"
+            "    restart: unless-stopped"
+            "    ports:"
+            "      - \"8120:8120\""
+            "    group_add:"
+            "      - \"991\""
+            "    command: [\"periphery\", \"--config-path\", \"/etc/komodo/periphery.toml\"]"
+            "    environment:"
+            "      DOCKER_HOST: unix:///run/podman/podman.sock"
+          ]
+          ++ (if usePasskey then [ "      PERIPHERY_PASSKEYS_FILE: ${effectivePasskeyFile}" ] else [ ])
+          ++ [
+            "    volumes:"
+            "      - /run/podman/podman.sock:/run/podman/podman.sock"
+            "      - /var/lib/komodo-periphery:/var/lib/komodo-periphery"
+            "      - ${peripheryConfigPath}:${peripheryConfigPath}:ro"
+          ]
+          ++ peripheryPasskeyLine;
           tailLines = [
             "volumes:"
             "  komodo-mongo-data:"
             "  komodo-mongo-config:"
           ];
         in
-        lib.concatStringsSep "\n" (baseLines ++ passkeyLine ++ tailLines) + "\n";
+        lib.concatStringsSep "\n" (baseLines ++ corePasskeyLine ++ peripheryLines ++ tailLines) + "\n";
       composeEnvTemplateText =
         let
           lines = builtins.filter (line: line != null) [
@@ -81,6 +110,16 @@ _: {
               if useAdminBootstrap then "KOMODO_INIT_ADMIN_PASSWORD_FILE=${effectiveAdminPasswordFile}" else null
             )
             (if usePasskey then "KOMODO_PASSKEY_FILE=${effectivePasskeyFile}" else null)
+          ];
+        in
+        lib.concatStringsSep "\n" lines + "\n";
+      peripheryConfigText =
+        let
+          lines = [
+            "port = 8120"
+            "bind_ip = \"0.0.0.0\""
+            "root_directory = \"/var/lib/komodo-periphery\""
+            "ssl_enabled = false"
           ];
         in
         lib.concatStringsSep "\n" lines + "\n";
@@ -135,24 +174,6 @@ _: {
       };
 
       config = {
-        services.komodo-periphery = {
-          enable = lib.mkDefault true;
-          ssl.enable = false;
-          bindIp = "0.0.0.0";
-        };
-
-        users.groups.docker = { };
-        users.users.komodo-periphery.extraGroups = [ "podman" ];
-
-        services.komodo-periphery.environment = lib.mkMerge [
-          (lib.mkIf usePasskey {
-            PERIPHERY_PASSKEYS_FILE = effectivePasskeyFile;
-          })
-          {
-            DOCKER_HOST = "unix:///run/podman/podman.sock";
-          }
-        ];
-
         # Disable Docker since komodo-periphery enables it by default
         # We use Podman with docker-compat instead (from virtualization/podman.nix)
         virtualisation.docker.enable = lib.mkForce false;
@@ -168,10 +189,13 @@ _: {
           mode = "0400";
         };
 
+        environment.etc."komodo/periphery.toml" = lib.mkIf cfg.core.enable {
+          text = peripheryConfigText;
+          mode = "0400";
+        };
+
         systemd = {
           services = {
-            komodo-periphery.serviceConfig.SupplementaryGroups = [ "podman" ];
-
             komodo-core = lib.mkIf cfg.core.enable {
               description = "Komodo Core - Build and Deployment Web UI";
               wantedBy = [ "multi-user.target" ];
@@ -211,6 +235,7 @@ _: {
           tmpfiles.rules = lib.mkIf cfg.core.enable [
             "d /var/lib/komodo 0750 root root -"
             "d /var/lib/komodo/backups 0750 root root -"
+            "d /var/lib/komodo-periphery 0750 root root -"
           ];
         };
 
@@ -224,8 +249,6 @@ _: {
           secrets = {
             komodo-passkey = lib.mkIf cfg.periphery.requirePasskey {
               mode = "0440";
-              owner = "komodo-periphery";
-              group = "komodo-periphery";
             };
 
             komodo-db-username = {

@@ -37,7 +37,7 @@ in
         type = "cifs";
         what = "//${nasHostname}/${share}";
         where = "/mnt/nas/${share}";
-        options = cifsOptions;
+        options = if share == "encrypted" then "${cifsOptions},nofail" else cifsOptions;
         unitConfig = {
           After = "network-online.target";
           Requires = "network-online.target";
