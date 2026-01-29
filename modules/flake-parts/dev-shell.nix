@@ -98,9 +98,12 @@ _: {
           # First try to auto-fix issues
           if [ -n "$staged_files" ]; then
             if gum spin --spinner dot --title "statix (fixing)" -- sh -c "echo '$staged_files' | xargs -r statix fix" > /tmp/statix-fix-output 2>&1; then
-              # Re-stage fixed files
-              echo "$staged_files" | xargs -r git add
-              echo "$(gum style --foreground 3 '[FIXED]') statix auto-fixed issues"
+              # Check if anything was actually fixed
+              if [ -s /tmp/statix-fix-output ]; then
+                # Re-stage fixed files
+                echo "$staged_files" | xargs -r git add
+                echo "$(gum style --foreground 3 '[FIXED]') statix auto-fixed issues"
+              fi
             else
               echo "$(gum style --foreground 1 '[FAIL]') statix fix failed"
               cat /tmp/statix-fix-output
