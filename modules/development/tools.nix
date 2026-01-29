@@ -19,7 +19,6 @@
         lnav
         evemu
         flake-checker
-        # Nix linting and code quality tools
         statix
         deadnix
         nixpkgs-fmt
@@ -42,6 +41,9 @@
         ast-grep
         keychain
         openssl
+        statix
+        deadnix
+        nixpkgs-fmt
       ];
     };
 }

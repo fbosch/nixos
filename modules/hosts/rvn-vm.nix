@@ -2,10 +2,21 @@
 , config
 , ...
 }:
+let
+  hostMeta = {
+    name = "rvn-vm";
+    sshAlias = "vm";
+    tailscale = null;
+    local = null;
+    sshPublicKey = null;
+  };
+in
 {
   # rvn-vm: Dendritic host configuration for VirtualBox VM
   # Hardware: VirtualBox virtual machine
   # Role: Testing and development environment
+
+  flake.meta.hosts = [ hostMeta ];
 
   flake.modules.nixos."hosts/rvn-vm" =
     { ... }:
