@@ -102,19 +102,22 @@ _: {
               echo "$staged_files" | xargs -r git add
               echo "$(gum style --foreground 3 '[FIXED]') statix auto-fixed issues"
             else
-              echo "$(gum style --foreground 3 '[WARN]') statix fix had issues"
+              echo "$(gum style --foreground 1 '[FAIL]') statix fix failed"
               cat /tmp/statix-fix-output
+              exit_code=1
             fi
           fi
 
-          # Now check for any remaining issues
-          if gum spin --spinner dot --title "statix" -- statix check --ignore '.agents/**' '.opencode/skills/**' '.github/skills/**' . > /tmp/statix-output 2>&1; then
-            echo "$(gum style --foreground 2 '[OK]') statix"
-          else
-            echo "$(gum style --foreground 1 '[FAIL]') statix"
-            cat /tmp/statix-output
-            echo "  $(gum style --foreground 3 '[HINT]') Some issues cannot be auto-fixed - please fix manually"
-            exit_code=1
+          # Now check for any remaining issues (only if fix succeeded or no files to fix)
+          if [ $exit_code -eq 0 ]; then
+            if gum spin --spinner dot --title "statix" -- statix check --ignore '.agents/**' '.opencode/skills/**' '.github/skills/**' . > /tmp/statix-output 2>&1; then
+              echo "$(gum style --foreground 2 '[OK]') statix"
+            else
+              echo "$(gum style --foreground 1 '[FAIL]') statix"
+              cat /tmp/statix-output
+              echo "  $(gum style --foreground 3 '[HINT]') Some issues cannot be auto-fixed - please fix manually"
+              exit_code=1
+            fi
           fi
 
           # Deadnix - check entire repository
