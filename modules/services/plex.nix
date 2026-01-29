@@ -1,5 +1,4 @@
-_:
-{
+_: {
   flake.modules.nixos."services/plex" =
     { config
     , lib
@@ -13,58 +12,45 @@ _:
         transcodeInRAM = lib.mkOption {
           type = lib.types.bool;
           default = true;
-          description = ''
-            Store Plex transcoding cache in RAM (tmpfs) for better performance.
-            Recommended for systems with sufficient RAM (8GB+).
-            Reduces disk wear and significantly speeds up transcoding.
-          '';
+          description = "Store Plex transcoding cache in RAM (tmpfs) for better performance and reduced disk wear.";
         };
 
         transcodeRAMSize = lib.mkOption {
           type = lib.types.str;
           default = "4G";
           example = "8G";
-          description = ''
-            Size of tmpfs for transcode cache when transcodeInRAM is enabled.
-
-            Recommended sizes:
-            - 2G: Systems with 8GB RAM (1 concurrent 1080p stream)
-            - 4G: Systems with 16GB RAM (2 concurrent 1080p streams)
-            - 8G: Systems with 32GB+ RAM (4K transcoding or 4+ streams)
-
-            Note: tmpfs grows on-demand and only uses RAM when actively transcoding.
-          '';
+          description = "Size of tmpfs for transcode cache (2G for 8GB RAM, 4G for 16GB RAM, 8G for 32GB+ RAM).";
         };
 
         nginx = {
           enable = lib.mkOption {
             type = lib.types.bool;
             default = true;
-            description = "Enable nginx reverse proxy with caching for Plex";
+            description = "Enable nginx reverse proxy with caching for Plex.";
           };
 
           port = lib.mkOption {
             type = lib.types.port;
             default = 32401;
-            description = "Port for nginx reverse proxy (use different from Plex's 32400)";
+            description = "Port for nginx reverse proxy.";
           };
 
           backendPort = lib.mkOption {
             type = lib.types.port;
             default = 32400;
-            description = "Backend Plex port";
+            description = "Backend Plex port.";
           };
 
           cacheSize = lib.mkOption {
             type = lib.types.str;
             default = "2g";
-            description = "Maximum size of nginx cache for Plex static content";
+            description = "Maximum size of nginx cache for Plex static content.";
           };
 
           cacheTTL = lib.mkOption {
             type = lib.types.str;
             default = "24h";
-            description = "Time to cache static content (images, CSS, JS)";
+            description = "Time to cache static content.";
           };
         };
       };
@@ -77,7 +63,7 @@ _:
           };
 
           # Nginx reverse proxy with caching
-          nginx = lib.mkIf (cfg.enable && cfg.nginx.enable) {
+          nginx = lib.mkIf cfg.nginx.enable {
             enable = true;
 
             # Recommended settings for reverse proxy
@@ -221,8 +207,7 @@ _:
           };
 
           # Ananicy rules for Plex processes
-          ananicy.customRules = lib.mkIf cfg.enable [
-            # Main Plex Media Server - highest priority for smooth playback/transcoding
+          ananicy.customRules = [
             {
               name = "Plex Media Serv";
               type = "Player-Video";
@@ -230,13 +215,11 @@ _:
               ioclass = "best-effort";
               ionice = 0;
             }
-            # Plex Tuner Service - medium-high priority for live TV
             {
               name = "Plex Tuner Serv";
               type = "Player-Video";
               nice = -3;
             }
-            # Plex Plugin Host - normal priority
             {
               name = "Plex Script Hos";
               nice = 0;
@@ -244,31 +227,25 @@ _:
           ];
         };
 
-        # Add plex user to 'users' group for NAS write access
-        users.users.plex.extraGroups = lib.mkIf cfg.enable [ "users" ];
+        users.users.plex.extraGroups = [ "users" ];
 
-        # Plex transcoding in RAM for faster performance and less disk wear
-        fileSystems."/var/lib/plex/Plex Media Server/Cache/Transcode" =
-          lib.mkIf (cfg.enable && cfg.transcodeInRAM)
-            {
-              device = "tmpfs";
-              fsType = "tmpfs";
-              options = [
-                "defaults"
-                "size=${cfg.transcodeRAMSize}"
-                "mode=0755"
-                "uid=plex"
-                "gid=plex"
-              ];
-            };
+        fileSystems."/var/lib/plex/Plex Media Server/Cache/Transcode" = lib.mkIf cfg.transcodeInRAM {
+          device = "tmpfs";
+          fsType = "tmpfs";
+          options = [
+            "defaults"
+            "size=${cfg.transcodeRAMSize}"
+            "mode=0755"
+            "uid=plex"
+            "gid=plex"
+          ];
+        };
 
-        # Create cache directory
-        systemd.tmpfiles.rules = lib.mkIf (cfg.enable && cfg.nginx.enable) [
+        systemd.tmpfiles.rules = lib.mkIf cfg.nginx.enable [
           "d /var/cache/nginx/plex 0750 nginx nginx -"
         ];
 
-        # Open firewall for nginx proxy port
-        networking.firewall.allowedTCPPorts = lib.mkIf (cfg.enable && cfg.nginx.enable) [
+        networking.firewall.allowedTCPPorts = lib.mkIf cfg.nginx.enable [
           cfg.nginx.port
         ];
       };

@@ -7,12 +7,6 @@ _: {
     }:
     {
       options.services.termix-container = {
-        enable = lib.mkOption {
-          type = lib.types.bool;
-          default = true;
-          description = "Enable Termix SSH Terminal and Server Management Platform";
-        };
-
         port = lib.mkOption {
           type = lib.types.port;
           default = 7310;
@@ -20,7 +14,7 @@ _: {
         };
       };
 
-      config = lib.mkIf config.services.termix-container.enable {
+      config = {
         # Create systemd service for Termix container
         systemd.services.termix-container = {
           description = "Termix SSH Terminal and Server Management Platform";

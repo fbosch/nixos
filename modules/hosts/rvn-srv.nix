@@ -5,11 +5,16 @@ let
     sshAlias = "srv";
     tailscale = "100.125.172.110";
     local = "192.168.1.46";
-    sshPublicKey =
-      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJl/WCQsXEkE7em5A6d2Du2JAWngIPfA8sVuJP/9cuyq fbb@nixos";
-    dnsServers = [ "127.0.0.1" "192.168.1.202" "45.90.28.240" "45.90.30.240" ];
+    sshPublicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJl/WCQsXEkE7em5A6d2Du2JAWngIPfA8sVuJP/9cuyq fbb@nixos";
+    dnsServers = [
+      "127.0.0.1"
+      "192.168.1.202"
+      "45.90.28.240"
+      "45.90.30.240"
+    ];
   };
-in {
+in
+{
   # rvn-srv: Dendritic host configuration for MSI Cubi server
   # Hardware: Intel-based mini PC
   # Role: Home server running Plex, Home Assistant, and container services
@@ -18,40 +23,42 @@ in {
     # Host metadata
     meta.hosts = [ hostMeta ];
 
-    modules.nixos."hosts/rvn-srv" = { pkgs, lib, ... }: {
-      imports = config.flake.lib.resolve [
-        # Server preset (users, security, development, shell, system, vpn)
-        "presets/server"
+    modules.nixos."hosts/rvn-srv" =
+      { pkgs, lib, ... }:
+      {
+        imports = config.flake.lib.resolve [
+          # Server preset (users, security, development, shell, system, vpn)
+          "presets/server"
 
-        # system
-        "secrets"
-        "nas"
-        "system/scheduled-suspend"
-        "system/ananicy"
+          # system
+          "secrets"
+          "nas"
+          "system/scheduled-suspend"
+          "system/ananicy"
 
-        # services
-        "services/home-assistant"
-        "services/atticd"
-        "services/attic-client"
-        "services/komodo"
-        "services/plex"
-        "services/servarr"
+          # services
+          "services/home-assistant"
+          "services/atticd"
+          "services/attic-client"
+          "services/komodo"
+          "services/plex"
+          "services/servarr"
+          "services/tinyproxy"
 
-        # containerized services
-        "virtualization/podman"
-        "services/containers/redlib"
-        "services/containers/termix"
-        "services/containers/pihole"
+          # containerized services
+          "virtualization/podman"
+          "services/containers/redlib"
+          "services/containers/termix"
+          "services/containers/pihole"
 
-        # hardware configuration
-        ../../machines/msi-cubi/configuration.nix
-        ../../machines/msi-cubi/hardware-configuration.nix
-        inputs.nixos-hardware.nixosModules.common-cpu-intel
-      ];
+          # hardware configuration
+          ../../machines/msi-cubi/configuration.nix
+          ../../machines/msi-cubi/hardware-configuration.nix
+          inputs.nixos-hardware.nixosModules.common-cpu-intel
+        ];
 
-      # Home Manager configuration for user
-      home-manager.users.${config.flake.meta.user.username}.imports =
-        config.flake.lib.resolveHm [
+        # Home Manager configuration for user
+        home-manager.users.${config.flake.meta.user.username}.imports = config.flake.lib.resolveHm [
           # Server preset modules for Home Manager
           "users"
           "dotfiles"
@@ -63,125 +70,132 @@ in {
           "secrets"
         ];
 
-      # Kernel tuning for server workload
-      boot.kernel.sysctl = {
-        "vm.swappiness" = 10; # Only swap when critically low on RAM
-        "vm.vfs_cache_pressure" = 50; # Keep filesystem cache longer
-        "vm.dirty_ratio" = 15; # Start sync at 15% RAM dirty
-        "vm.dirty_background_ratio" = 10; # Background writes at 10%
-      };
-
-      # Scheduled suspend/wake for power savings
-      powerManagement.scheduledSuspend = {
-        enable = true;
-        schedules = {
-          weekday = {
-            suspendTime = "00:30";
-            wakeTime = "06:00";
-            days = "Mon,Tue,Wed,Thu";
-          };
-          friday = {
-            suspendTime = "02:00";
-            wakeTime = "06:00";
-            days = "Fri";
-          };
-          weekend = {
-            suspendTime = "02:00";
-            wakeTime = "08:00";
-            days = "Sat,Sun";
-          };
-        };
-      };
-
-      # Service-specific configuration
-      services = {
-        ananicy.enable = true;
-        plex.nginx.port = 32402;
-        pihole-container.listenAddress = hostMeta.local;
-        pihole-container.webPort = 8082;
-
-        komodo = {
-          core.host = "https://komodo.corvus-corax.synology.me";
-          core.allowSignups = false;
-          periphery.requirePasskey = false;
+        # Kernel tuning for server workload
+        boot.kernel.sysctl = {
+          "vm.swappiness" = 10; # Only swap when critically low on RAM
+          "vm.vfs_cache_pressure" = 50; # Keep filesystem cache longer
+          "vm.dirty_ratio" = 15; # Start sync at 15% RAM dirty
+          "vm.dirty_background_ratio" = 10; # Background writes at 10%
         };
 
-        uptime-kuma = {
+        # Scheduled suspend/wake for power savings
+        powerManagement.scheduledSuspend = {
           enable = true;
-          settings.HOST = "0.0.0.0";
-        };
-
-        glances = {
-          enable = true;
-          openFirewall = true;
-          extraArgs =
-            [ "-w" ]; # Enable web server mode for Home Assistant integration
-        };
-
-        resolved = {
-          enable = true;
-          settings = { Resolve = { DNSStubListener = "no"; }; };
-        };
-      } // lib.optionalAttrs (config ? sops && config.sops ? templates) {
-        pihole-container.webPasswordFile =
-          config.sops.templates."pihole-webpassword".path;
-      };
-
-      # Networking configuration
-      networking = {
-        # Open port for uptime-kuma
-        firewall.allowedTCPPorts = [ 3001 ];
-
-        # Enable systemd-networkd for bonding support
-        useNetworkd = true;
-        useDHCP = false; # Disable legacy DHCP
-        nameservers = hostMeta.dnsServers;
-      };
-
-      systemd.network.enable = true;
-
-      # NIC bonding configuration for dual ethernet ports
-      # Using balance-rr (no switch config needed)
-      systemd.network = {
-        netdevs."10-bond0" = {
-          netdevConfig = {
-            Kind = "bond";
-            Name = "bond0";
-          };
-          bondConfig = {
-            Mode = "balance-rr"; # Round-robin (no switch config needed)
-            TransmitHashPolicy = "layer3+4"; # Hash by IP+port
-            MIIMonitorSec = "100ms"; # Link monitoring
+          schedules = {
+            weekday = {
+              suspendTime = "00:30";
+              wakeTime = "06:00";
+              days = "Mon,Tue,Wed,Thu";
+            };
+            friday = {
+              suspendTime = "02:00";
+              wakeTime = "06:00";
+              days = "Fri";
+            };
+            weekend = {
+              suspendTime = "02:00";
+              wakeTime = "08:00";
+              days = "Sat,Sun";
+            };
           };
         };
 
-        networks = {
-          # Assign enp2s0 to bond
-          "30-enp2s0" = {
-            matchConfig.Name = "enp2s0";
-            networkConfig.Bond = "bond0";
+        # Service-specific configuration (only overrides from defaults)
+        services = {
+          ananicy.enable = true;
+
+          tinyproxy = {
+            port = 8888;
+            listenAddress = hostMeta.local;
+            allowedClients = [ "192.168.1.0/24" ];
+            anonymize = false;
           };
 
-          # Assign enp3s0 to bond
-          "30-enp3s0" = {
-            matchConfig.Name = "enp3s0";
-            networkConfig.Bond = "bond0";
+          plex.nginx.port = 32402;
+          pihole-container.listenAddress = hostMeta.local;
+          pihole-container.webPort = 8082;
+
+          komodo = {
+            core.host = "https://komodo.corvus-corax.synology.me";
+            core.allowSignups = false;
+            periphery.requirePasskey = false;
           };
 
-          # Configure bond0 interface with static IP
-          "40-bond0" = {
-            matchConfig.Name = "bond0";
-            linkConfig.RequiredForOnline = "carrier";
-            networkConfig = {
-              Address = "192.168.1.46/24";
-              Gateway = "192.168.1.1";
-              DNS = hostMeta.dnsServers;
-              LinkLocalAddressing = "no";
+          uptime-kuma = {
+            enable = true;
+            settings.HOST = "0.0.0.0";
+          };
+
+          glances = {
+            enable = true;
+            openFirewall = true;
+            extraArgs = [ "-w" ];
+          };
+
+          resolved = {
+            enable = true;
+            settings.Resolve.DNSStubListener = "no";
+          };
+        }
+        // lib.optionalAttrs (config ? sops && config.sops ? templates) {
+          pihole-container.webPasswordFile = config.sops.templates."pihole-webpassword".path;
+        };
+
+        # Networking configuration
+        networking = {
+          # Open port for uptime-kuma
+          firewall.allowedTCPPorts = [ 3001 ];
+
+          # Enable systemd-networkd for bonding support
+          useNetworkd = true;
+          useDHCP = false; # Disable legacy DHCP
+          nameservers = hostMeta.dnsServers;
+        };
+
+        systemd.network.enable = true;
+
+        # NIC bonding configuration for dual ethernet ports
+        # Using balance-rr (no switch config needed)
+        systemd.network = {
+          netdevs."10-bond0" = {
+            netdevConfig = {
+              Kind = "bond";
+              Name = "bond0";
+            };
+            bondConfig = {
+              Mode = "balance-rr"; # Round-robin (no switch config needed)
+              TransmitHashPolicy = "layer3+4"; # Hash by IP+port
+              MIIMonitorSec = "100ms"; # Link monitoring
+            };
+          };
+
+          networks = {
+            # Assign enp2s0 to bond
+            "30-enp2s0" = {
+              matchConfig.Name = "enp2s0";
+              networkConfig.Bond = "bond0";
+            };
+
+            # Assign enp3s0 to bond
+            "30-enp3s0" = {
+              matchConfig.Name = "enp3s0";
+              networkConfig.Bond = "bond0";
+            };
+
+            # Configure bond0 interface with static IP
+            "40-bond0" = {
+              matchConfig.Name = "bond0";
+              linkConfig.RequiredForOnline = "carrier";
+              networkConfig = {
+                Address = "192.168.1.46/24";
+                Gateway = "192.168.1.1";
+                DNS = hostMeta.dnsServers;
+                LinkLocalAddressing = "no";
+              };
             };
           };
         };
       };
-    };
 
   };
 }

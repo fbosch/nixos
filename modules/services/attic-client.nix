@@ -20,12 +20,6 @@ _: {
     in
     {
       options.services.attic-client = {
-        enable = lib.mkOption {
-          type = lib.types.bool;
-          default = true;
-          description = "Whether to enable the Attic client configuration.";
-        };
-
         endpoint = lib.mkOption {
           type = lib.types.str;
           default = "https://attic.${synologyDomain}/";
@@ -53,7 +47,7 @@ _: {
         };
       };
 
-      config = lib.mkIf cfg.enable {
+      config = {
         nix.settings = {
           substituters = lib.mkBefore [ cacheUrl ];
           trusted-public-keys = [ cfg.publicKey ];

@@ -87,12 +87,6 @@ _: {
     in
     {
       options.services.komodo = {
-        enable = lib.mkOption {
-          type = lib.types.bool;
-          default = true;
-          description = "Whether to enable Komodo build and deployment system";
-        };
-
         core = {
           enable = lib.mkOption {
             type = lib.types.bool;
@@ -140,10 +134,9 @@ _: {
         };
       };
 
-      config = lib.mkIf cfg.enable {
-        # Enable Komodo Periphery service
+      config = {
         services.komodo-periphery = {
-          enable = true;
+          enable = lib.mkDefault true;
           ssl.enable = false;
           bindIp = "0.0.0.0";
         };

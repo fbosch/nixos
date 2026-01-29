@@ -7,12 +7,6 @@ _: {
     }:
     {
       options.services.pihole-container = {
-        enable = lib.mkOption {
-          type = lib.types.bool;
-          default = true;
-          description = "Enable Pi-hole DNS sinkhole";
-        };
-
         webPort = lib.mkOption {
           type = lib.types.port;
           default = 8081;
@@ -68,7 +62,7 @@ _: {
         };
       };
 
-      config = lib.mkIf config.services.pihole-container.enable {
+      config = {
         systemd.services.pihole-container = {
           description = "Pi-hole DNS sinkhole";
           wantedBy = [ "multi-user.target" ];

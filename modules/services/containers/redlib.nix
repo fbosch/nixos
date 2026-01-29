@@ -7,12 +7,6 @@ _: {
     }:
     {
       options.services.redlib-container = {
-        enable = lib.mkOption {
-          type = lib.types.bool;
-          default = true;
-          description = "Enable Redlib - Private front-end for Reddit";
-        };
-
         port = lib.mkOption {
           type = lib.types.port;
           default = 8282;
@@ -20,7 +14,7 @@ _: {
         };
       };
 
-      config = lib.mkIf config.services.redlib-container.enable {
+      config = {
         # Create systemd service for Redlib container
         systemd.services.redlib-container = {
           description = "Redlib - Private front-end for Reddit";
