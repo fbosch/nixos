@@ -179,19 +179,21 @@ _: {
         virtualisation.docker.enable = lib.mkForce false;
 
         # Komodo Core via podman-compose
-        environment.etc."komodo/compose.yaml" = lib.mkIf cfg.core.enable {
-          text = composeYamlText;
-        };
+        environment.etc = {
+          "komodo/compose.yaml" = lib.mkIf cfg.core.enable {
+            text = composeYamlText;
+          };
 
-        # Link the SOPS-rendered env file to /etc/komodo/compose.env
-        environment.etc."komodo/compose.env" = lib.mkIf cfg.core.enable {
-          source = config.sops.templates."komodo-compose-env".path;
-          mode = "0400";
-        };
+          # Link the SOPS-rendered env file to /etc/komodo/compose.env
+          "komodo/compose.env" = lib.mkIf cfg.core.enable {
+            source = config.sops.templates."komodo-compose-env".path;
+            mode = "0400";
+          };
 
-        environment.etc."komodo/periphery.toml" = lib.mkIf cfg.core.enable {
-          text = peripheryConfigText;
-          mode = "0400";
+          "komodo/periphery.toml" = lib.mkIf cfg.core.enable {
+            text = peripheryConfigText;
+            mode = "0400";
+          };
         };
 
         systemd = {

@@ -22,6 +22,7 @@ _: {
           else
             echo "$(gum style --foreground 1 '[FAIL]') statix"
             cat /tmp/statix-output
+            echo "  $(gum style --foreground 3 '[HINT]') Run 'statix fix .' to auto-fix issues"
             exit_code=1
           fi
 
@@ -94,11 +95,25 @@ _: {
           fi
 
           # Statix - check entire repository
+          # First try to auto-fix issues
+          if [ -n "$staged_files" ]; then
+            if gum spin --spinner dot --title "statix (fixing)" -- sh -c "echo '$staged_files' | xargs -r statix fix" > /tmp/statix-fix-output 2>&1; then
+              # Re-stage fixed files
+              echo "$staged_files" | xargs -r git add
+              echo "$(gum style --foreground 3 '[FIXED]') statix auto-fixed issues"
+            else
+              echo "$(gum style --foreground 3 '[WARN]') statix fix had issues"
+              cat /tmp/statix-fix-output
+            fi
+          fi
+
+          # Now check for any remaining issues
           if gum spin --spinner dot --title "statix" -- statix check --ignore '.agents/**' '.opencode/skills/**' '.github/skills/**' . > /tmp/statix-output 2>&1; then
             echo "$(gum style --foreground 2 '[OK]') statix"
           else
             echo "$(gum style --foreground 1 '[FAIL]') statix"
             cat /tmp/statix-output
+            echo "  $(gum style --foreground 3 '[HINT]') Some issues cannot be auto-fixed - please fix manually"
             exit_code=1
           fi
 
