@@ -9,6 +9,14 @@ let
     tailscale = "100.124.57.90";
     local = "192.168.1.169";
     sshPublicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIA9bFB0RZWl7ofsEMEW4i8UJv448U/RT429+roe1gc9K";
+    dnsServers = [
+      "192.168.1.46"
+      "192.168.1.2"
+      "45.90.28.240"
+      "45.90.30.240"
+      "1.1.1.1"
+      "1.0.0.1"
+    ];
   };
 in
 {
@@ -79,6 +87,9 @@ in
 
         # Enable SSH for remote access
         services.openssh.enable = true;
+
+        # DNS configuration
+        networking.nameservers = hostMeta.dnsServers;
 
         # Desktop-specific packages
         environment.systemPackages = [
