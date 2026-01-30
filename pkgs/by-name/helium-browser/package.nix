@@ -1,13 +1,17 @@
-{ lib, fetchurl, appimageTools, makeWrapper }:
+{ lib
+, fetchurl
+, appimageTools
+, makeWrapper
+,
+}:
 
 let
   pname = "helium-browser";
-  version = "0.7.7.1";
+  version = "0.8.4.1";
 
   src = fetchurl {
-    url =
-      "https://github.com/imputnet/helium-linux/releases/download/${version}/helium-${version}-x86_64.AppImage";
-    hash = "sha256-qEHUFzCwsCyFNLFCC62wo2x1lr/boAI/UDsaaNP1vrc=";
+    url = "https://github.com/imputnet/helium-linux/releases/download/${version}/helium-${version}-x86_64.AppImage";
+    hash = "sha256-y4KzR+pkBUuyVU+ALrzdY0n2rnTB7lTN2ZmVSzag5vE=";
   };
 
   appimageContents = appimageTools.extractType2 { inherit pname version src; };
