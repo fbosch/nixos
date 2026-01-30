@@ -106,8 +106,11 @@ in
 
           tinyproxy = {
             port = 8888;
-            listenAddress = hostMeta.local;
-            allowedClients = [ "192.168.1.0/24" ];
+            listenAddress = "0.0.0.0";
+            allowedClients = [
+              "192.168.1.0/24"
+              "100.64.0.0/10"
+            ];
             anonymize = false;
           };
 
