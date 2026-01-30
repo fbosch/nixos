@@ -51,8 +51,6 @@ My dotfiles (https://github.com/fbosch/dotfiles) are managed via Home Manager + 
 - **Development**: Work directly on the default branch
 - **Deployment**: Pin to specific commit in `flake.nix` for reproducibility
 
-This keeps dotfiles consistent across Nix and non-Nix hosts.
-
 ## Layout
 
 ```text
@@ -144,8 +142,3 @@ Presets are reusable module bundles that provide a baseline configuration:
 - Dendritic pattern — https://vic.github.io/dendrix/
 - Inspiration — https://github.com/MrSom3body/dotfiles
 - Inspiration — https://github.com/drupol/infra
-- Fastfetch ANSI art — https://github.com/4DBug/nix-ansi
-
----
-
-_Last reviewed: January 2026_

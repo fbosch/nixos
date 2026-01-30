@@ -22,6 +22,7 @@ _: {
           else
             echo "$(gum style --foreground 1 '[FAIL]') statix"
             cat /tmp/statix-output
+            echo "  $(gum style --foreground 3 '[HINT]') Run 'statix fix .' to auto-fix issues"
             exit_code=1
           fi
 
@@ -94,12 +95,32 @@ _: {
           fi
 
           # Statix - check entire repository
-          if gum spin --spinner dot --title "statix" -- statix check --ignore '.agents/**' '.opencode/skills/**' '.github/skills/**' . > /tmp/statix-output 2>&1; then
-            echo "$(gum style --foreground 2 '[OK]') statix"
-          else
-            echo "$(gum style --foreground 1 '[FAIL]') statix"
-            cat /tmp/statix-output
-            exit_code=1
+          # First try to auto-fix issues
+          if [ -n "$staged_files" ]; then
+            if gum spin --spinner dot --title "statix (fixing)" -- sh -c "echo '$staged_files' | xargs -r statix fix" > /tmp/statix-fix-output 2>&1; then
+              # Check if anything was actually fixed
+              if [ -s /tmp/statix-fix-output ]; then
+                # Re-stage fixed files
+                echo "$staged_files" | xargs -r git add
+                echo "$(gum style --foreground 3 '[FIXED]') statix auto-fixed issues"
+              fi
+            else
+              echo "$(gum style --foreground 1 '[FAIL]') statix fix failed"
+              cat /tmp/statix-fix-output
+              exit_code=1
+            fi
+          fi
+
+          # Now check for any remaining issues (only if fix succeeded or no files to fix)
+          if [ $exit_code -eq 0 ]; then
+            if gum spin --spinner dot --title "statix" -- statix check --ignore '.agents/**' '.opencode/skills/**' '.github/skills/**' . > /tmp/statix-output 2>&1; then
+              echo "$(gum style --foreground 2 '[OK]') statix"
+            else
+              echo "$(gum style --foreground 1 '[FAIL]') statix"
+              cat /tmp/statix-output
+              echo "  $(gum style --foreground 3 '[HINT]') Some issues cannot be auto-fixed - please fix manually"
+              exit_code=1
+            fi
           fi
 
           # Deadnix - check entire repository
@@ -146,17 +167,17 @@ _: {
 
       devShells.default = pkgs.mkShell {
         shellHook = ''
-                              # Install pre-commit hook wrapper (no hardcoded store paths)
-                              if [ ! -f .git/hooks/pre-commit ]; then
-                                mkdir -p .git/hooks
-                                cat > .git/hooks/pre-commit << 'EOF'
-          #!/usr/bin/env bash
-          # Wrapper that always uses current flake environment
-          exec nix run .#pre-commit-wrapper "$@"
-          EOF
-                                chmod +x .git/hooks/pre-commit
-                                echo "Installed pre-commit hook"
-                              fi
+          # Install pre-commit hook wrapper (no hardcoded store paths)
+          if [ ! -f .git/hooks/pre-commit ]; then
+            mkdir -p .git/hooks
+            cat > .git/hooks/pre-commit << 'EOF'
+            #!/usr/bin/env bash
+            # Wrapper that always uses current flake environment
+            exec nix run .#pre-commit-wrapper "$@"
+            EOF
+            chmod +x .git/hooks/pre-commit
+            echo "Installed pre-commit hook"
+          fi
         '';
         packages = with pkgs; [
           statix
