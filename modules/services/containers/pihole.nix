@@ -63,6 +63,17 @@ _: {
       };
 
       config = {
+        services.containerPorts = lib.mkAfter [
+          {
+            service = "pihole-container";
+            tcpPorts = [
+              config.services.pihole-container.webPort
+              config.services.pihole-container.dnsPort
+            ];
+            udpPorts = [ config.services.pihole-container.dnsPort ];
+          }
+        ];
+
         systemd.services.pihole-container = {
           description = "Pi-hole DNS sinkhole";
           wantedBy = [ "multi-user.target" ];

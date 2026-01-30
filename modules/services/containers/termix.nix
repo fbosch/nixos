@@ -15,6 +15,13 @@ _: {
       };
 
       config = {
+        services.containerPorts = lib.mkAfter [
+          {
+            service = "termix-container";
+            tcpPorts = [ config.services.termix-container.port ];
+          }
+        ];
+
         # Create systemd service for Termix container
         systemd.services.termix-container = {
           description = "Termix SSH Terminal and Server Management Platform";

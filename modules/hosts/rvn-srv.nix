@@ -50,6 +50,10 @@ in
           "services/containers/redlib"
           "services/containers/termix"
           "services/containers/pihole"
+          "services/containers/helium"
+
+          # validation
+          "validation/container-port-conflicts"
 
           # hardware configuration
           ../../machines/msi-cubi/configuration.nix
@@ -117,6 +121,11 @@ in
           plex.nginx.port = 32402;
           pihole-container.listenAddress = hostMeta.local;
           pihole-container.webPort = 8082;
+          helium-services-container = {
+            proxyBaseUrl = "https://helium.corvus-corax.synology.me";
+            httpPort = 8100;
+          };
+
 
           komodo = {
             core.host = "https://komodo.corvus-corax.synology.me";

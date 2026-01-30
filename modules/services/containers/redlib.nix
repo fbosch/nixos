@@ -15,6 +15,13 @@ _: {
       };
 
       config = {
+        services.containerPorts = lib.mkAfter [
+          {
+            service = "redlib-container";
+            tcpPorts = [ config.services.redlib-container.port ];
+          }
+        ];
+
         # Create systemd service for Redlib container
         systemd.services.redlib-container = {
           description = "Redlib - Private front-end for Reddit";
