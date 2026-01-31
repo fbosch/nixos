@@ -129,8 +129,8 @@ in
 
           komodo = {
             core.host = "https://komodo.corvus-corax.synology.me";
-            core.allowSignups = false;
-            periphery.requirePasskey = false;
+            core.allowSignups = true;
+            # periphery.requirePasskey = false;
           };
 
           uptime-kuma = {

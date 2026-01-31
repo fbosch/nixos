@@ -2,7 +2,6 @@ _: {
   flake.modules.nixos."services/komodo" =
     { config
     , lib
-    , pkgs
     , ...
     }:
     let
@@ -18,93 +17,23 @@ _: {
         null
         config;
       useAdminBootstrap = cfg.core.initAdminUsername != null && effectiveAdminPasswordFile != null;
-      composeFilePath = "/etc/komodo/compose.yaml";
       composeEnvPath = "/etc/komodo/compose.env";
       peripheryConfigPath = "/etc/komodo/periphery.toml";
-      composeYamlText =
-        let
-          baseLines = [
-            "version: \"3.8\""
-            "services:"
-            "  mongo:"
-            "    image: mongo"
-            "    command: --quiet --wiredTigerCacheSizeGB 0.25"
-            "    restart: unless-stopped"
-            "    volumes:"
-            "      - komodo-mongo-data:/data/db"
-            "      - komodo-mongo-config:/data/configdb"
-            "    environment:"
-            "      MONGO_INITDB_ROOT_USERNAME: ${"$"}{KOMODO_DB_USERNAME}"
-            "      MONGO_INITDB_ROOT_PASSWORD: ${"$"}{KOMODO_DB_PASSWORD}"
-            ""
-            "  core:"
-            "    image: ghcr.io/moghtech/komodo-core:${"$"}{COMPOSE_KOMODO_IMAGE_TAG:-latest}"
-            "    restart: unless-stopped"
-            "    depends_on:"
-            "      - mongo"
-            "    ports:"
-            "      - \"${toString cfg.core.port}:9120\""
-            "    env_file:"
-            "      - ${composeEnvPath}"
-            "    environment:"
-            "      KOMODO_DATABASE_ADDRESS: mongo:27017"
-            "      KOMODO_DATABASE_USERNAME: ${"$"}{KOMODO_DB_USERNAME}"
-            "      KOMODO_DATABASE_PASSWORD: ${"$"}{KOMODO_DB_PASSWORD}"
-            "    volumes:"
-            "      - /var/lib/komodo/backups:/backups"
-          ];
-          corePasskeyLine =
-            if effectivePasskeyFile != null then
-              [
-                "      - ${effectivePasskeyFile}:${effectivePasskeyFile}:ro"
-              ]
-            else
-              [ ];
-          peripheryPasskeyLine =
-            if effectivePasskeyFile != null then
-              [
-                "      - ${effectivePasskeyFile}:${effectivePasskeyFile}:ro"
-              ]
-            else
-              [ ];
-          peripheryLines = [
-            ""
-            "  periphery:"
-            "    image: ghcr.io/moghtech/komodo-periphery:latest"
-            "    restart: unless-stopped"
-            "    ports:"
-            "      - \"8120:8120\""
-            "    group_add:"
-            "      - \"991\""
-            "    command: [\"periphery\", \"--config-path\", \"/etc/komodo/periphery.toml\"]"
-            "    environment:"
-            "      DOCKER_HOST: unix:///run/podman/podman.sock"
-          ]
-          ++ (if usePasskey then [ "      PERIPHERY_PASSKEYS_FILE: ${effectivePasskeyFile}" ] else [ ])
-          ++ [
-            "    volumes:"
-            "      - /run/podman/podman.sock:/run/podman/podman.sock"
-            "      - /var/lib/komodo-periphery:/var/lib/komodo-periphery"
-            "      - ${peripheryConfigPath}:${peripheryConfigPath}:ro"
-          ]
-          ++ peripheryPasskeyLine;
-          tailLines = [
-            "volumes:"
-            "  komodo-mongo-data:"
-            "  komodo-mongo-config:"
-          ];
-        in
-        lib.concatStringsSep "\n" (baseLines ++ corePasskeyLine ++ peripheryLines ++ tailLines) + "\n";
       composeEnvTemplateText =
         let
           lines = builtins.filter (line: line != null) [
             "COMPOSE_KOMODO_IMAGE_TAG=${cfg.core.imageTag}"
             "KOMODO_DB_USERNAME=${config.sops.placeholder.komodo-db-username}"
             "KOMODO_DB_PASSWORD=${config.sops.placeholder.komodo-db-password}"
+            "MONGO_INITDB_ROOT_USERNAME=${config.sops.placeholder.komodo-db-username}"
+            "MONGO_INITDB_ROOT_PASSWORD=${config.sops.placeholder.komodo-db-password}"
             "KOMODO_HOST=${cfg.core.host}"
             "KOMODO_TITLE=Komodo"
             "KOMODO_LOCAL_AUTH=true"
             "KOMODO_DISABLE_USER_REGISTRATION=${if cfg.core.allowSignups then "false" else "true"}"
+            "KOMODO_DATABASE_ADDRESS=komodo-mongo:27017"
+            "KOMODO_DATABASE_USERNAME=${config.sops.placeholder.komodo-db-username}"
+            "KOMODO_DATABASE_PASSWORD=${config.sops.placeholder.komodo-db-password}"
             (if useAdminBootstrap then "KOMODO_INIT_ADMIN_USERNAME=${cfg.core.initAdminUsername}" else null)
             (
               if useAdminBootstrap then "KOMODO_INIT_ADMIN_PASSWORD_FILE=${effectiveAdminPasswordFile}" else null
@@ -178,12 +107,8 @@ _: {
         # We use Podman with docker-compat instead (from virtualization/podman.nix)
         virtualisation.docker.enable = lib.mkForce false;
 
-        # Komodo Core via podman-compose
+        # Komodo Core via Quadlet
         environment.etc = {
-          "komodo/compose.yaml" = lib.mkIf cfg.core.enable {
-            text = composeYamlText;
-          };
-
           # Link the SOPS-rendered env file to /etc/komodo/compose.env
           "komodo/compose.env" = lib.mkIf cfg.core.enable {
             source = config.sops.templates."komodo-compose-env".path;
@@ -194,46 +119,117 @@ _: {
             text = peripheryConfigText;
             mode = "0400";
           };
+
+          "containers/systemd/komodo.network" = lib.mkIf cfg.core.enable {
+            text = ''
+              [Network]
+              NetworkName=komodo
+            '';
+          };
+
+          "containers/systemd/komodo-mongo.container" = lib.mkIf cfg.core.enable {
+            text = ''
+              [Unit]
+              After=network-online.target
+              Wants=network-online.target
+
+              [Container]
+              ContainerName=komodo-mongo
+              Image=mongo:latest
+              Exec=--quiet --wiredTigerCacheSizeGB 0.25
+              Network=komodo.network
+              EnvironmentFile=${composeEnvPath}
+              Volume=komodo-mongo-data.volume:/data/db
+              Volume=komodo-mongo-config.volume:/data/configdb
+
+              [Service]
+              Restart=always
+              RestartSec=10
+
+              [Install]
+              WantedBy=multi-user.target
+            '';
+          };
+
+          "containers/systemd/komodo-core.container" = lib.mkIf cfg.core.enable {
+            text = ''
+              [Unit]
+              After=network-online.target komodo-mongo.service
+              Wants=network-online.target
+              Requires=komodo-mongo.service
+
+              [Container]
+              ContainerName=komodo-core
+              Image=ghcr.io/moghtech/komodo-core:${cfg.core.imageTag}
+              Network=komodo.network
+              PublishPort=${toString cfg.core.port}:9120
+              EnvironmentFile=${composeEnvPath}
+              Environment=KOMODO_DATABASE_ADDRESS=komodo-mongo:27017
+              Volume=/var/lib/komodo/backups:/backups
+              ${lib.optionalString (effectivePasskeyFile != null) ''
+                Volume=${effectivePasskeyFile}:${effectivePasskeyFile}:ro
+              ''}
+
+              [Service]
+              Restart=always
+              RestartSec=10
+              TimeoutStartSec=300
+
+              [Install]
+              WantedBy=multi-user.target
+            '';
+          };
+
+          "containers/systemd/komodo-periphery.container" = lib.mkIf cfg.core.enable {
+            text = ''
+              [Unit]
+              After=network-online.target
+              Wants=network-online.target
+
+              [Container]
+              ContainerName=komodo-periphery
+              Image=ghcr.io/moghtech/komodo-periphery:latest
+              Network=komodo.network
+              PublishPort=8120:8120
+              GroupAdd=991
+              Exec=periphery --config-path ${peripheryConfigPath}
+              Environment=DOCKER_HOST=unix:///run/podman/podman.sock
+              ${lib.optionalString usePasskey ''
+                Environment=PERIPHERY_PASSKEYS_FILE=${effectivePasskeyFile}
+              ''}
+              Volume=/run/podman/podman.sock:/run/podman/podman.sock
+              Volume=/var/lib/komodo-periphery:/var/lib/komodo-periphery
+              Volume=${peripheryConfigPath}:${peripheryConfigPath}:ro
+              ${lib.optionalString (effectivePasskeyFile != null) ''
+                Volume=${effectivePasskeyFile}:${effectivePasskeyFile}:ro
+              ''}
+
+              [Service]
+              Restart=always
+              RestartSec=10
+              TimeoutStartSec=300
+
+              [Install]
+              WantedBy=multi-user.target
+            '';
+          };
+
+          "containers/systemd/komodo-mongo-data.volume" = lib.mkIf cfg.core.enable {
+            text = ''
+              [Volume]
+              VolumeName=komodo-mongo-data
+            '';
+          };
+
+          "containers/systemd/komodo-mongo-config.volume" = lib.mkIf cfg.core.enable {
+            text = ''
+              [Volume]
+              VolumeName=komodo-mongo-config
+            '';
+          };
         };
 
         systemd = {
-          services = {
-            komodo-core = lib.mkIf cfg.core.enable {
-              description = "Komodo Core - Build and Deployment Web UI";
-              wantedBy = [ "multi-user.target" ];
-              after = [
-                "network-online.target"
-                "podman.service"
-              ];
-              wants = [ "network-online.target" ];
-              requires = [ "podman.service" ];
-
-              path = [
-                pkgs.podman
-                pkgs.podman-compose
-              ];
-
-              serviceConfig = {
-                Type = "oneshot";
-                RemainAfterExit = true;
-              };
-
-              script = ''
-                ${pkgs.podman-compose}/bin/podman-compose -p komodo \
-                  -f ${composeFilePath} \
-                  --env-file ${composeEnvPath} \
-                  up -d
-              '';
-
-              preStop = ''
-                ${pkgs.podman-compose}/bin/podman-compose -p komodo \
-                  -f ${composeFilePath} \
-                  --env-file ${composeEnvPath} \
-                  down
-              '';
-            };
-          };
-
           tmpfiles.rules = lib.mkIf cfg.core.enable [
             "d /var/lib/komodo 0750 root root -"
             "d /var/lib/komodo/backups 0750 root root -"
