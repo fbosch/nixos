@@ -21,7 +21,7 @@
         gnome-desktop # Required for Nemo thumbnail generation
         gdk-pixbuf # Image loading library for thumbnails
         ffmpegthumbnailer # Video thumbnail support
-        poppler_utils # PDF thumbnail support
+        poppler-utils # PDF thumbnail support
       ];
 
       xdg.mime.defaultApplications = {
