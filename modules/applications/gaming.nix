@@ -51,6 +51,15 @@ _: {
     lib.optionalAttrs osConfig.programs.steam.enable {
       home.packages = [ pkgs.adwsteamgtk ];
 
+      # Flatpak gaming applications
+      # Note: Flatpak overrides are centralized in flatpak.nix
+      services.flatpak.packages = [
+        "net.lutris.Lutris" # Game launcher
+        "net.davidotek.pupgui2" # ProtonUp-Qt for managing Proton versions
+        "io.github.Faugus.faugus-launcher" # Game launcher
+        "org.freedesktop.Platform.VulkanLayer.vkBasalt//25.08" # Vulkan post-processing
+      ];
+
       home.activation =
         let
           applySteamTheme = pkgs.writeShellScript "applySteamTheme" ''

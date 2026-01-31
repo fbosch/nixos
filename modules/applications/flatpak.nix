@@ -42,34 +42,42 @@
           }
         ];
         packages = [
-          "com.github.tchx84.Flatseal"
-          "io.github.flattool.Warehouse"
-          "com.discordapp.Discord"
-          "org.signal.Signal"
-          "org.keepassxc.KeePassXC"
-          "md.obsidian.Obsidian"
-          "com.usebottles.bottles"
-          "org.gnome.baobab"
-          "org.gnome.FileRoller"
-          "org.gnome.TextEditor"
-          "org.gnome.World.PikaBackup"
+          # Flatpak management tools
+          "com.github.tchx84.Flatseal" # Flatpak permission manager
+          "io.github.flattool.Warehouse" # Flatpak app manager
+
+          # Browsers
           "app.zen_browser.zen"
           "be.alexandervanhee.gradia"
           "one.ablaze.floorp"
-          "org.freedesktop.Platform.VulkanLayer.vkBasalt//25.08"
-          "net.lutris.Lutris"
-          "net.davidotek.pupgui2"
-          "io.github.Faugus.faugus-launcher"
+
+          # Productivity
+          "org.keepassxc.KeePassXC"
+          "md.obsidian.Obsidian"
+
+          # Moved to domain-specific modules:
+          # - communication.nix: com.discordapp.Discord, org.signal.Signal
+          # - file-management.nix: org.gnome.FileRoller, org.gnome.baobab, org.gnome.TextEditor
+          # - media.nix: org.gnome.Decibels, com.plexamp.Plexamp, tv.plex.PlexDesktop, com.obsproject.Studio
+          # - gaming.nix: net.lutris.Lutris, net.davidotek.pupgui2, io.github.Faugus.faugus-launcher, org.freedesktop.Platform.VulkanLayer.vkBasalt
+          # - windows.nix: com.usebottles.bottles
+          # - system.nix: org.gnome.World.PikaBackup
+
+          # Commented out / Future additions:
           # "org.freedesktop.Platform.VulkanLayer.MangoHud"
           # "net.displaycal.DisplayCAL"
           # "re.sonny.OhMySVG"
           # "dev.zed.Zed"
-          # "com.rustdesk.RustDesk"
-          # "org.localsend.localsend_app"
-          # "com.todoist.Todoist"
-          # "io.mgba.mGBA"
+          # "com.rustdesk.RustDesk" (would go in communication.nix)
+          # "org.localsend.localsend_app" (would go in communication.nix)
+          # "com.todoist.Todoist" (would go in productivity.nix)
+          # "io.mgba.mGBA" (would go in gaming.nix)
         ];
 
+        # Flatpak application overrides
+        # Note: All overrides are centralized here even if packages are defined
+        # in domain-specific modules (gaming.nix, media.nix, etc.) to avoid
+        # potential merge conflicts with the services.flatpak.overrides option
         overrides = {
           global = {
             Context.sockets = [
