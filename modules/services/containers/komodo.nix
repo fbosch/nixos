@@ -1,5 +1,5 @@
 _: {
-  flake.modules.nixos."services/komodo" =
+  flake.modules.nixos."services/containers/komodo" =
     { config
     , lib
     , ...

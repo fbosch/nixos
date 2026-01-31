@@ -40,7 +40,7 @@ in
           "services/home-assistant"
           "services/atticd"
           "services/attic-client"
-          "services/komodo"
+          "services/containers/komodo"
           "services/plex"
           "services/servarr"
           "services/tinyproxy"
@@ -125,7 +125,6 @@ in
             proxyBaseUrl = "https://helium.corvus-corax.synology.me";
             httpPort = 8100;
           };
-
 
           komodo = {
             core.host = "https://komodo.corvus-corax.synology.me";
