@@ -75,10 +75,16 @@ _: {
           description = "Git repository URL for helium-services";
         };
 
-        gitRef = lib.mkOption {
+        gitRev = lib.mkOption {
           type = lib.types.str;
-          default = "main";
-          description = "Git ref (branch/tag/commit) to use";
+          default = "6839e30dc01fe144bfef2730c165ab3e0265d68b";
+          description = "Git revision (commit) to fetch";
+        };
+
+        gitSha256 = lib.mkOption {
+          type = lib.types.str;
+          default = "sha256-i785PDqPQee0El9h6zLX8cP+w4Hh/JVBRiiT3byiZ6k=";
+          description = "SHA256 for fetched helium-services source";
         };
       };
 
@@ -86,7 +92,12 @@ _: {
         let
           cfg = config.services.helium-services-container;
           envFile = "${cfg.dataDir}/env";
-          repoDir = "${cfg.dataDir}/repo";
+          repoSrc = pkgs.fetchgit {
+            url = cfg.gitRepo;
+            rev = cfg.gitRev;
+            hash = cfg.gitSha256;
+          };
+          buildDir = "${cfg.dataDir}/repo";
           nginxConf = pkgs.writeText "helium-nginx.conf.j2" ''
             user nginx;
             worker_processes auto;
@@ -203,32 +214,8 @@ _: {
 
           systemd.tmpfiles.rules = [
             "d ${cfg.dataDir} 0755 root root -"
-            "d ${repoDir} 0755 root root -"
+            "d ${buildDir} 0755 root root -"
           ];
-
-          systemd.services.helium-services-clone = {
-            description = "Clone/update helium-services repository";
-            wantedBy = [ "multi-user.target" ];
-            before = [
-              "helium-services-build.service"
-            ];
-
-            serviceConfig = {
-              Type = "oneshot";
-              RemainAfterExit = true;
-            };
-
-            script = ''
-              if [ ! -d "${repoDir}/.git" ]; then
-                ${pkgs.git}/bin/git clone ${lib.escapeShellArg cfg.gitRepo} "${repoDir}"
-              fi
-
-              cd "${repoDir}"
-              ${pkgs.git}/bin/git fetch origin
-              ${pkgs.git}/bin/git checkout ${lib.escapeShellArg cfg.gitRef}
-              ${pkgs.git}/bin/git reset --hard origin/${lib.escapeShellArg cfg.gitRef}
-            '';
-          };
 
           systemd.services.helium-services-build = {
             description = "Build helium-services container images";
@@ -236,12 +223,10 @@ _: {
             after = [
               "network-online.target"
               "podman.service"
-              "helium-services-clone.service"
             ];
             wants = [ "network-online.target" ];
             requires = [
               "podman.service"
-              "helium-services-clone.service"
             ];
 
             serviceConfig = {
@@ -251,10 +236,12 @@ _: {
             };
 
             script = ''
-              cd "${repoDir}"
+              ${pkgs.coreutils}/bin/rm -rf "${buildDir}"
+              ${pkgs.coreutils}/bin/cp -R ${repoSrc} "${buildDir}"
+              cd "${buildDir}"
 
-              ${pkgs.coreutils}/bin/install -m 0644 ${nginxConf} "${repoDir}/svc/nginx/nginx.conf.j2"
-              ${pkgs.coreutils}/bin/install -m 0755 ${nginxEntrypoint} "${repoDir}/svc/nginx/entrypoint.sh"
+              ${pkgs.coreutils}/bin/install -m 0644 ${nginxConf} "${buildDir}/svc/nginx/nginx.conf.j2"
+              ${pkgs.coreutils}/bin/install -m 0755 ${nginxEntrypoint} "${buildDir}/svc/nginx/entrypoint.sh"
 
               ${pkgs.podman}/bin/podman build \
                 -t helium-nginx:latest \
