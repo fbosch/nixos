@@ -2,7 +2,6 @@ _: {
   flake.modules.nixos."services/containers/redlib" =
     { config
     , lib
-    , pkgs
     , ...
     }:
     {
@@ -15,46 +14,37 @@ _: {
       };
 
       config = {
-        # Create systemd service for Redlib container
-        systemd.services.redlib-container = {
-          description = "Redlib - Private front-end for Reddit";
-          wantedBy = [ "multi-user.target" ];
-          after = [
-            "network-online.target"
-            "podman.service"
-          ];
-          wants = [ "network-online.target" ];
-          requires = [ "podman.service" ];
+        services.containerPorts = lib.mkAfter [
+          {
+            service = "redlib-container";
+            tcpPorts = [ config.services.redlib-container.port ];
+          }
+        ];
 
-          serviceConfig = {
-            Type = "simple";
-            Restart = "always";
-            RestartSec = "10";
-            TimeoutStartSec = "300";
-          };
+        environment.etc."containers/systemd/redlib.container".text = ''
+          [Unit]
+          After=network-online.target
+          Wants=network-online.target
 
-          script = ''
-            # Remove existing container if it exists
-            ${pkgs.podman}/bin/podman rm -f redlib || true
+          [Container]
+          ContainerName=redlib
+          Image=quay.io/redlib/redlib:latest
+          PublishPort=${toString config.services.redlib-container.port}:8080
+          Memory=512m
+          PidsLimit=200
+          Ulimit=nofile=1024:2048
+          LogDriver=journald
+          LogOpt=tag=redlib
 
-            # Run the container with performance optimizations
-            ${pkgs.podman}/bin/podman run \
-              --name redlib \
-              --rm \
-              -p ${toString config.services.redlib-container.port}:8080 \
-              --memory=512m \
-              --cpus=2 \
-              --pids-limit=200 \
-              --ulimit nofile=1024:2048 \
-              --log-driver=journald \
-              --log-opt=tag="redlib" \
-              quay.io/redlib/redlib:latest
-          '';
+          [Service]
+          CPUQuota=200%
+          Restart=always
+          RestartSec=10
+          TimeoutStartSec=300
 
-          preStop = ''
-            ${pkgs.podman}/bin/podman stop -t 10 redlib || true
-          '';
-        };
+          [Install]
+          WantedBy=multi-user.target
+        '';
 
         # Open firewall for Redlib web interface
         networking.firewall.allowedTCPPorts = [ config.services.redlib-container.port ];

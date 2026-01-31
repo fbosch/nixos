@@ -2,7 +2,6 @@ _: {
   flake.modules.nixos."services/containers/termix" =
     { config
     , lib
-    , pkgs
     , ...
     }:
     {
@@ -15,51 +14,44 @@ _: {
       };
 
       config = {
-        # Create systemd service for Termix container
-        systemd.services.termix-container = {
-          description = "Termix SSH Terminal and Server Management Platform";
-          wantedBy = [ "multi-user.target" ];
-          after = [
-            "network-online.target"
-            "podman.service"
-          ];
-          wants = [ "network-online.target" ];
-          requires = [ "podman.service" ];
+        services.containerPorts = lib.mkAfter [
+          {
+            service = "termix-container";
+            tcpPorts = [ config.services.termix-container.port ];
+          }
+        ];
 
-          serviceConfig = {
-            Type = "simple";
-            Restart = "always";
-            RestartSec = "10";
-            TimeoutStartSec = "300";
-          };
+        environment.etc."containers/systemd/termix.container".text = ''
+          [Unit]
+          After=network-online.target
+          Wants=network-online.target
 
-          script = ''
-            # Ensure the volume exists
-            ${pkgs.podman}/bin/podman volume create termix-data || true
+          [Container]
+          ContainerName=termix
+          Image=ghcr.io/lukegus/termix:latest
+          PublishPort=${toString config.services.termix-container.port}:8080
+          Volume=termix-data.volume:/app/data
+          Environment=PORT=8080
+          Memory=1g
+          PidsLimit=500
+          Ulimit=nofile=2048:4096
+          LogDriver=journald
+          LogOpt=tag=termix
 
-            # Remove existing container if it exists
-            ${pkgs.podman}/bin/podman rm -f termix || true
+          [Service]
+          CPUQuota=400%
+          Restart=always
+          RestartSec=10
+          TimeoutStartSec=300
 
-            # Run the container with performance optimizations
-            ${pkgs.podman}/bin/podman run \
-              --name termix \
-              --rm \
-              -p ${toString config.services.termix-container.port}:8080 \
-              -v termix-data:/app/data \
-              -e PORT=8080 \
-              --memory=1g \
-              --cpus=4 \
-              --pids-limit=500 \
-              --ulimit nofile=2048:4096 \
-              --log-driver=journald \
-              --log-opt=tag="termix" \
-              ghcr.io/lukegus/termix:latest
-          '';
+          [Install]
+          WantedBy=multi-user.target
+        '';
 
-          preStop = ''
-            ${pkgs.podman}/bin/podman stop -t 10 termix || true
-          '';
-        };
+        environment.etc."containers/systemd/termix-data.volume".text = ''
+          [Volume]
+          VolumeName=termix-data
+        '';
 
         # Open firewall for Termix web interface
         networking.firewall.allowedTCPPorts = [ config.services.termix-container.port ];

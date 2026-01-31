@@ -2,7 +2,6 @@ _: {
   flake.modules.nixos."services/containers/pihole" =
     { config
     , lib
-    , pkgs
     , ...
     }:
     {
@@ -63,73 +62,70 @@ _: {
       };
 
       config = {
-        systemd.services.pihole-container = {
-          description = "Pi-hole DNS sinkhole";
-          wantedBy = [ "multi-user.target" ];
-          after = [
-            "network-online.target"
-            "podman.service"
-          ];
-          wants = [ "network-online.target" ];
-          requires = [ "podman.service" ];
+        services.containerPorts = lib.mkAfter [
+          {
+            service = "pihole-container";
+            tcpPorts = [
+              config.services.pihole-container.webPort
+              config.services.pihole-container.dnsPort
+            ];
+            udpPorts = [ config.services.pihole-container.dnsPort ];
+          }
+        ];
 
-          serviceConfig = {
-            Type = "simple";
-            Restart = "always";
-            RestartSec = "10";
-            TimeoutStartSec = "300";
-          };
+        environment.etc."containers/systemd/pihole.container".text = ''
+          [Unit]
+          After=network-online.target
+          Wants=network-online.target
 
-          script = ''
-            # Ensure the volumes exist
-            ${pkgs.podman}/bin/podman volume create pihole-data || true
-            ${pkgs.podman}/bin/podman volume create pihole-dnsmasq || true
+          [Container]
+          ContainerName=pihole
+          Image=pihole/pihole:latest
+          PublishPort=${config.services.pihole-container.listenAddress}:${toString config.services.pihole-container.dnsPort}:53/tcp
+          PublishPort=${config.services.pihole-container.listenAddress}:${toString config.services.pihole-container.dnsPort}:53/udp
+          PublishPort=${config.services.pihole-container.listenAddress}:${toString config.services.pihole-container.webPort}:80/tcp
+          Volume=pihole-data.volume:/etc/pihole
+          Volume=pihole-dnsmasq.volume:/etc/dnsmasq.d
+          Environment=TZ=${lib.escapeShellArg config.services.pihole-container.timezone}
+          Environment=FTLCONF_dns_listeningMode=${lib.escapeShellArg config.services.pihole-container.dnsListeningMode}
+          ${lib.optionalString (config.services.pihole-container.dnsUpstreams != [ ]) ''
+            Environment=FTLCONF_dns_upstreams=${lib.escapeShellArg (lib.concatStringsSep ";" config.services.pihole-container.dnsUpstreams)}
+          ''}
+          ${lib.optionalString (config.services.pihole-container.dnsForwardMax != null) ''
+            Environment=FTL_CMD=${lib.escapeShellArg "no-daemon -- --dns-forward-max ${toString config.services.pihole-container.dnsForwardMax}"}
+          ''}
+          ${lib.optionalString (config.services.pihole-container.webPasswordFile != null) ''
+            EnvironmentFile=${lib.escapeShellArg config.services.pihole-container.webPasswordFile}
+          ''}
+          ${lib.optionalString (config.services.pihole-container.webPasswordFile == null) ''
+            Environment=FTLCONF_webserver_api_password=${lib.escapeShellArg config.services.pihole-container.webPassword}
+          ''}
+          HealthCmd=curl -fsS http://localhost/admin/ || exit 1
+          HealthInterval=30s
+          HealthTimeout=10s
+          HealthStartPeriod=60s
+          HealthRetries=3
+          LogDriver=journald
+          LogOpt=tag=pihole
 
-            # Remove existing container if it exists
-            ${pkgs.podman}/bin/podman rm -f pihole || true
+          [Service]
+          Restart=always
+          RestartSec=10
+          TimeoutStartSec=300
 
-            # Run the container
-            ${pkgs.podman}/bin/podman run \
-              --name pihole \
-              --rm \
-              -p ${config.services.pihole-container.listenAddress}:${toString config.services.pihole-container.dnsPort}:53/tcp \
-              -p ${config.services.pihole-container.listenAddress}:${toString config.services.pihole-container.dnsPort}:53/udp \
-              -p ${config.services.pihole-container.listenAddress}:${toString config.services.pihole-container.webPort}:80/tcp \
-              -v pihole-data:/etc/pihole \
-              -v pihole-dnsmasq:/etc/dnsmasq.d \
-              -e TZ=${lib.escapeShellArg config.services.pihole-container.timezone} \
-              -e FTLCONF_dns_listeningMode=${lib.escapeShellArg config.services.pihole-container.dnsListeningMode} \
-              ${
-                lib.optionalString (config.services.pihole-container.dnsUpstreams != [ ]) ''
-                  -e FTLCONF_dns_upstreams=${lib.escapeShellArg (lib.concatStringsSep ";" config.services.pihole-container.dnsUpstreams)} \
-                ''
-              }${
-                lib.optionalString (config.services.pihole-container.dnsForwardMax != null) ''
-                  -e FTL_CMD=${lib.escapeShellArg "no-daemon -- --dns-forward-max ${toString config.services.pihole-container.dnsForwardMax}"} \
-                ''
-              } \
-              ${
-                lib.optionalString (config.services.pihole-container.webPasswordFile != null) ''
-                  --env-file ${lib.escapeShellArg config.services.pihole-container.webPasswordFile} \
-                ''
-              }${
-                lib.optionalString (config.services.pihole-container.webPasswordFile == null) ''
-                  -e FTLCONF_webserver_api_password=${lib.escapeShellArg config.services.pihole-container.webPassword} \
-                ''
-              } \
-              --health-cmd="curl -fsS http://localhost/admin/ || exit 1" \
-              --health-interval=30s \
-              --health-timeout=10s \
-              --health-retries=3 \
-              --log-driver=journald \
-              --log-opt=tag="pihole" \
-              pihole/pihole:latest
-          '';
+          [Install]
+          WantedBy=multi-user.target
+        '';
 
-          preStop = ''
-            ${pkgs.podman}/bin/podman stop -t 10 pihole || true
-          '';
-        };
+        environment.etc."containers/systemd/pihole-data.volume".text = ''
+          [Volume]
+          VolumeName=pihole-data
+        '';
+
+        environment.etc."containers/systemd/pihole-dnsmasq.volume".text = ''
+          [Volume]
+          VolumeName=pihole-dnsmasq
+        '';
 
         networking.firewall.allowedTCPPorts = [
           config.services.pihole-container.webPort
