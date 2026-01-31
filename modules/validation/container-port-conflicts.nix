@@ -39,7 +39,7 @@ _: {
                   svc:
                   map
                     (port: {
-                      service = svc.service;
+                      inherit (svc) service;
                       inherit port;
                     })
                     svc.tcpPorts
@@ -53,7 +53,7 @@ _: {
                   svc:
                   map
                     (port: {
-                      service = svc.service;
+                      inherit (svc) service;
                       inherit port;
                     })
                     svc.udpPorts
@@ -66,7 +66,7 @@ _: {
               portList:
               let
                 # Group by port number
-                grouped = lib.groupBy (item: toString item.port) portList;
+                grouped = builtins.groupBy (item: toString item.port) portList;
 
                 # Find groups with more than one entry
                 duplicates = lib.filterAttrs (port: items: (lib.length items) > 1) grouped;

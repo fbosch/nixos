@@ -212,191 +212,193 @@ _: {
             }
           ];
 
-          systemd.tmpfiles.rules = [
-            "d ${cfg.dataDir} 0755 root root -"
-            "d ${buildDir} 0755 root root -"
-          ];
-
-          systemd.services.helium-services-build = {
-            description = "Build helium-services container images";
-            wantedBy = [ "multi-user.target" ];
-            after = [
-              "network-online.target"
-              "podman.service"
-            ];
-            wants = [ "network-online.target" ];
-            requires = [
-              "podman.service"
+          systemd = {
+            tmpfiles.rules = [
+              "d ${cfg.dataDir} 0755 root root -"
+              "d ${buildDir} 0755 root root -"
             ];
 
-            serviceConfig = {
-              Type = "oneshot";
-              RemainAfterExit = true;
-              TimeoutStartSec = "600";
+            services.helium-services-build = {
+              description = "Build helium-services container images";
+              wantedBy = [ "multi-user.target" ];
+              after = [
+                "network-online.target"
+                "podman.service"
+              ];
+              wants = [ "network-online.target" ];
+              requires = [
+                "podman.service"
+              ];
+
+              serviceConfig = {
+                Type = "oneshot";
+                RemainAfterExit = true;
+                TimeoutStartSec = "600";
+              };
+
+              script = ''
+                ${pkgs.coreutils}/bin/rm -rf "${buildDir}"
+                ${pkgs.coreutils}/bin/cp -R ${repoSrc} "${buildDir}"
+                cd "${buildDir}"
+
+                ${pkgs.coreutils}/bin/install -m 0644 ${nginxConf} "${buildDir}/svc/nginx/nginx.conf.j2"
+                ${pkgs.coreutils}/bin/install -m 0755 ${nginxEntrypoint} "${buildDir}/svc/nginx/entrypoint.sh"
+
+                ${pkgs.podman}/bin/podman build \
+                  -t helium-nginx:latest \
+                  -f ./svc/nginx/Dockerfile \
+                  --build-arg SERVICES_HOSTNAME=${lib.escapeShellArg cfg.hostname} \
+                  ./svc
+
+                ${pkgs.podman}/bin/podman build \
+                  -t helium-ubo-proxy:latest \
+                  -f ./svc/ubo/Dockerfile \
+                  ./svc/ubo
+
+                ${pkgs.podman}/bin/podman build \
+                  -t helium-ext-proxy:latest \
+                  -f ./svc/extension-proxy/Dockerfile \
+                  ./svc/extension-proxy
+              '';
             };
 
-            script = ''
-              ${pkgs.coreutils}/bin/rm -rf "${buildDir}"
-              ${pkgs.coreutils}/bin/cp -R ${repoSrc} "${buildDir}"
-              cd "${buildDir}"
+            services.helium-services-env = {
+              description = "Write helium-services environment file";
+              wantedBy = [ "multi-user.target" ];
+              before = [
+                "container-helium-ubo-proxy.service"
+                "container-helium-ext-proxy.service"
+                "container-helium-ext-proxy-backup.service"
+              ];
 
-              ${pkgs.coreutils}/bin/install -m 0644 ${nginxConf} "${buildDir}/svc/nginx/nginx.conf.j2"
-              ${pkgs.coreutils}/bin/install -m 0755 ${nginxEntrypoint} "${buildDir}/svc/nginx/entrypoint.sh"
+              serviceConfig = {
+                Type = "oneshot";
+                RemainAfterExit = true;
+              };
 
-              ${pkgs.podman}/bin/podman build \
-                -t helium-nginx:latest \
-                -f ./svc/nginx/Dockerfile \
-                --build-arg SERVICES_HOSTNAME=${lib.escapeShellArg cfg.hostname} \
-                ./svc
+              script = ''
+                install -m 600 /dev/null "${envFile}"
 
-              ${pkgs.podman}/bin/podman build \
-                -t helium-ubo-proxy:latest \
-                -f ./svc/ubo/Dockerfile \
-                ./svc/ubo
+                HMAC_SECRET_VALUE=${lib.escapeShellArg cfg.hmacSecret}
+                ${lib.optionalString (cfg.hmacSecretFile != null) ''
+                  HMAC_SECRET_VALUE="$(cat ${lib.escapeShellArg cfg.hmacSecretFile})"
+                ''}
 
-              ${pkgs.podman}/bin/podman build \
-                -t helium-ext-proxy:latest \
-                -f ./svc/extension-proxy/Dockerfile \
-                ./svc/extension-proxy
+                printf '%s\n' "HMAC_SECRET=$HMAC_SECRET_VALUE" >> "${envFile}"
+                printf '%s\n' "SERVICES_HOSTNAME=${cfg.hostname}" >> "${envFile}"
+                printf '%s\n' "PROXY_BASE_URL=${cfg.proxyBaseUrl}" >> "${envFile}"
+                printf '%s\n' "UBO_PROXY_BASE_URL=${cfg.uboProxyBaseUrl}" >> "${envFile}"
+                printf '%s\n' "UBO_USE_ORIGINAL_UBLOCK_ASSETS=${
+                  if cfg.useOriginalUboAssets then "1" else "0"
+                }" >> "${envFile}"
+                ${lib.optionalString (cfg.uboAssetsJsonUrl != null) ''
+                  printf '%s\n' "UBO_ASSETS_JSON_URL=${cfg.uboAssetsJsonUrl}" >> "${envFile}"
+                ''}
+                ${lib.optionalString (cfg.uboAssetsJsonSha256 != null) ''
+                  printf '%s\n' "UBO_ASSETS_JSON_SHA256=${cfg.uboAssetsJsonSha256}" >> "${envFile}"
+                ''}
+              '';
+            };
+          };
+
+          environment.etc = {
+            "containers/systemd/helium-ubo-proxy.container".text = ''
+              [Unit]
+              After=network-online.target helium-services-build.service helium-services-env.service
+              Wants=network-online.target
+              Requires=helium-services-build.service helium-services-env.service
+
+              [Container]
+              ContainerName=ubo_proxy
+              Image=helium-ubo-proxy:latest
+              ReadOnly=true
+              Network=helium.network
+              EnvironmentFile=${envFile}
+
+              [Service]
+              Restart=always
+              RestartSec=10
+
+              [Install]
+              WantedBy=multi-user.target
+            '';
+
+            "containers/systemd/helium-ext-proxy.container".text = ''
+              [Unit]
+              After=network-online.target helium-services-build.service helium-services-env.service
+              Wants=network-online.target
+              Requires=helium-services-build.service helium-services-env.service
+
+              [Container]
+              ContainerName=ext_proxy
+              Image=helium-ext-proxy:latest
+              ReadOnly=true
+              Network=helium.network
+              EnvironmentFile=${envFile}
+
+              [Service]
+              Restart=always
+              RestartSec=10
+
+              [Install]
+              WantedBy=multi-user.target
+            '';
+
+            "containers/systemd/helium-ext-proxy-backup.container".text = ''
+              [Unit]
+              After=network-online.target helium-services-build.service helium-services-env.service
+              Wants=network-online.target
+              Requires=helium-services-build.service helium-services-env.service
+
+              [Container]
+              ContainerName=ext_proxy_backup
+              Image=helium-ext-proxy:latest
+              ReadOnly=true
+              Network=helium.network
+              EnvironmentFile=${envFile}
+
+              [Service]
+              Restart=always
+              RestartSec=10
+
+              [Install]
+              WantedBy=multi-user.target
+            '';
+
+            "containers/systemd/helium.network".text = ''
+              [Network]
+              NetworkName=helium
+            '';
+
+            "containers/systemd/helium-nginx.container".text = ''
+              [Unit]
+              After=network-online.target helium-services-build.service helium-services-env.service
+              Wants=network-online.target
+              Requires=helium-services-build.service helium-services-env.service
+
+              [Container]
+              ContainerName=nginx
+              Image=helium-nginx:latest
+              ReadOnly=true
+              RunInit=true
+              Network=helium.network
+              ${lib.optionalString (cfg.httpPort != null) "PublishPort=${toString cfg.httpPort}:80/tcp"}
+              Tmpfs=/tmp:rw,size=512M
+              ShmSize=512m
+              EnvironmentFile=${envFile}
+              LogDriver=journald
+              LogOpt=tag=helium-nginx
+
+              [Service]
+              Restart=always
+              RestartSec=10
+
+              [Install]
+              WantedBy=multi-user.target
             '';
           };
 
-          systemd.services.helium-services-env = {
-            description = "Write helium-services environment file";
-            wantedBy = [ "multi-user.target" ];
-            before = [
-              "container-helium-ubo-proxy.service"
-              "container-helium-ext-proxy.service"
-              "container-helium-ext-proxy-backup.service"
-            ];
-
-            serviceConfig = {
-              Type = "oneshot";
-              RemainAfterExit = true;
-            };
-
-            script = ''
-              install -m 600 /dev/null "${envFile}"
-
-              HMAC_SECRET_VALUE=${lib.escapeShellArg cfg.hmacSecret}
-              ${lib.optionalString (cfg.hmacSecretFile != null) ''
-                HMAC_SECRET_VALUE="$(cat ${lib.escapeShellArg cfg.hmacSecretFile})"
-              ''}
-
-              printf '%s\n' "HMAC_SECRET=$HMAC_SECRET_VALUE" >> "${envFile}"
-              printf '%s\n' "SERVICES_HOSTNAME=${cfg.hostname}" >> "${envFile}"
-              printf '%s\n' "PROXY_BASE_URL=${cfg.proxyBaseUrl}" >> "${envFile}"
-              printf '%s\n' "UBO_PROXY_BASE_URL=${cfg.uboProxyBaseUrl}" >> "${envFile}"
-              printf '%s\n' "UBO_USE_ORIGINAL_UBLOCK_ASSETS=${
-                if cfg.useOriginalUboAssets then "1" else "0"
-              }" >> "${envFile}"
-              ${lib.optionalString (cfg.uboAssetsJsonUrl != null) ''
-                printf '%s\n' "UBO_ASSETS_JSON_URL=${cfg.uboAssetsJsonUrl}" >> "${envFile}"
-              ''}
-              ${lib.optionalString (cfg.uboAssetsJsonSha256 != null) ''
-                printf '%s\n' "UBO_ASSETS_JSON_SHA256=${cfg.uboAssetsJsonSha256}" >> "${envFile}"
-              ''}
-            '';
-          };
-
-          environment.etc."containers/systemd/helium-ubo-proxy.container".text = ''
-            [Unit]
-            After=network-online.target helium-services-build.service helium-services-env.service
-            Wants=network-online.target
-            Requires=helium-services-build.service helium-services-env.service
-
-            [Container]
-            ContainerName=ubo_proxy
-            Image=helium-ubo-proxy:latest
-            ReadOnly=true
-            Network=helium.network
-            EnvironmentFile=${envFile}
-
-            [Service]
-            Restart=always
-            RestartSec=10
-
-            [Install]
-            WantedBy=multi-user.target
-          '';
-
-          environment.etc."containers/systemd/helium-ext-proxy.container".text = ''
-            [Unit]
-            After=network-online.target helium-services-build.service helium-services-env.service
-            Wants=network-online.target
-            Requires=helium-services-build.service helium-services-env.service
-
-            [Container]
-            ContainerName=ext_proxy
-            Image=helium-ext-proxy:latest
-            ReadOnly=true
-            Network=helium.network
-            EnvironmentFile=${envFile}
-
-            [Service]
-            Restart=always
-            RestartSec=10
-
-            [Install]
-            WantedBy=multi-user.target
-          '';
-
-          environment.etc."containers/systemd/helium-ext-proxy-backup.container".text = ''
-            [Unit]
-            After=network-online.target helium-services-build.service helium-services-env.service
-            Wants=network-online.target
-            Requires=helium-services-build.service helium-services-env.service
-
-            [Container]
-            ContainerName=ext_proxy_backup
-            Image=helium-ext-proxy:latest
-            ReadOnly=true
-            Network=helium.network
-            EnvironmentFile=${envFile}
-
-            [Service]
-            Restart=always
-            RestartSec=10
-
-            [Install]
-            WantedBy=multi-user.target
-          '';
-
-          environment.etc."containers/systemd/helium.network".text = ''
-            [Network]
-            NetworkName=helium
-          '';
-
-          environment.etc."containers/systemd/helium-nginx.container".text = ''
-            [Unit]
-            After=network-online.target helium-services-build.service helium-services-env.service
-            Wants=network-online.target
-            Requires=helium-services-build.service helium-services-env.service
-
-            [Container]
-            ContainerName=nginx
-            Image=helium-nginx:latest
-            ReadOnly=true
-            RunInit=true
-            Network=helium.network
-            ${lib.optionalString (cfg.httpPort != null) "PublishPort=${toString cfg.httpPort}:80/tcp"}
-            Tmpfs=/tmp:rw,size=512M
-            ShmSize=512m
-            EnvironmentFile=${envFile}
-            LogDriver=journald
-            LogOpt=tag=helium-nginx
-
-            [Service]
-            Restart=always
-            RestartSec=10
-
-            [Install]
-            WantedBy=multi-user.target
-          '';
-
-          networking.firewall.allowedTCPPorts = [
-          ]
-          ++ lib.optional (cfg.httpPort != null) cfg.httpPort;
+          networking.firewall.allowedTCPPorts = lib.optional (cfg.httpPort != null) cfg.httpPort;
         };
     };
 }

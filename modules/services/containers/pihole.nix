@@ -73,59 +73,61 @@ _: {
           }
         ];
 
-        environment.etc."containers/systemd/pihole.container".text = ''
-          [Unit]
-          After=network-online.target
-          Wants=network-online.target
+        environment.etc = {
+          "containers/systemd/pihole.container".text = ''
+            [Unit]
+            After=network-online.target
+            Wants=network-online.target
 
-          [Container]
-          ContainerName=pihole
-          Image=pihole/pihole:latest
-          PublishPort=${config.services.pihole-container.listenAddress}:${toString config.services.pihole-container.dnsPort}:53/tcp
-          PublishPort=${config.services.pihole-container.listenAddress}:${toString config.services.pihole-container.dnsPort}:53/udp
-          PublishPort=${config.services.pihole-container.listenAddress}:${toString config.services.pihole-container.webPort}:80/tcp
-          Volume=pihole-data.volume:/etc/pihole
-          Volume=pihole-dnsmasq.volume:/etc/dnsmasq.d
-          Environment=TZ=${lib.escapeShellArg config.services.pihole-container.timezone}
-          Environment=FTLCONF_dns_listeningMode=${lib.escapeShellArg config.services.pihole-container.dnsListeningMode}
-          ${lib.optionalString (config.services.pihole-container.dnsUpstreams != [ ]) ''
-            Environment=FTLCONF_dns_upstreams=${lib.escapeShellArg (lib.concatStringsSep ";" config.services.pihole-container.dnsUpstreams)}
-          ''}
-          ${lib.optionalString (config.services.pihole-container.dnsForwardMax != null) ''
-            Environment=FTL_CMD=${lib.escapeShellArg "no-daemon -- --dns-forward-max ${toString config.services.pihole-container.dnsForwardMax}"}
-          ''}
-          ${lib.optionalString (config.services.pihole-container.webPasswordFile != null) ''
-            EnvironmentFile=${lib.escapeShellArg config.services.pihole-container.webPasswordFile}
-          ''}
-          ${lib.optionalString (config.services.pihole-container.webPasswordFile == null) ''
-            Environment=FTLCONF_webserver_api_password=${lib.escapeShellArg config.services.pihole-container.webPassword}
-          ''}
-          HealthCmd=curl -fsS http://localhost/admin/ || exit 1
-          HealthInterval=30s
-          HealthTimeout=10s
-          HealthStartPeriod=60s
-          HealthRetries=3
-          LogDriver=journald
-          LogOpt=tag=pihole
+            [Container]
+            ContainerName=pihole
+            Image=pihole/pihole:latest
+            PublishPort=${config.services.pihole-container.listenAddress}:${toString config.services.pihole-container.dnsPort}:53/tcp
+            PublishPort=${config.services.pihole-container.listenAddress}:${toString config.services.pihole-container.dnsPort}:53/udp
+            PublishPort=${config.services.pihole-container.listenAddress}:${toString config.services.pihole-container.webPort}:80/tcp
+            Volume=pihole-data.volume:/etc/pihole
+            Volume=pihole-dnsmasq.volume:/etc/dnsmasq.d
+            Environment=TZ=${lib.escapeShellArg config.services.pihole-container.timezone}
+            Environment=FTLCONF_dns_listeningMode=${lib.escapeShellArg config.services.pihole-container.dnsListeningMode}
+            ${lib.optionalString (config.services.pihole-container.dnsUpstreams != [ ]) ''
+              Environment=FTLCONF_dns_upstreams=${lib.escapeShellArg (lib.concatStringsSep ";" config.services.pihole-container.dnsUpstreams)}
+            ''}
+            ${lib.optionalString (config.services.pihole-container.dnsForwardMax != null) ''
+              Environment=FTL_CMD=${lib.escapeShellArg "no-daemon -- --dns-forward-max ${toString config.services.pihole-container.dnsForwardMax}"}
+            ''}
+            ${lib.optionalString (config.services.pihole-container.webPasswordFile != null) ''
+              EnvironmentFile=${lib.escapeShellArg config.services.pihole-container.webPasswordFile}
+            ''}
+            ${lib.optionalString (config.services.pihole-container.webPasswordFile == null) ''
+              Environment=FTLCONF_webserver_api_password=${lib.escapeShellArg config.services.pihole-container.webPassword}
+            ''}
+            HealthCmd=curl -fsS http://localhost/admin/ || exit 1
+            HealthInterval=30s
+            HealthTimeout=10s
+            HealthStartPeriod=60s
+            HealthRetries=3
+            LogDriver=journald
+            LogOpt=tag=pihole
 
-          [Service]
-          Restart=always
-          RestartSec=10
-          TimeoutStartSec=300
+            [Service]
+            Restart=always
+            RestartSec=10
+            TimeoutStartSec=300
 
-          [Install]
-          WantedBy=multi-user.target
-        '';
+            [Install]
+            WantedBy=multi-user.target
+          '';
 
-        environment.etc."containers/systemd/pihole-data.volume".text = ''
-          [Volume]
-          VolumeName=pihole-data
-        '';
+          "containers/systemd/pihole-data.volume".text = ''
+            [Volume]
+            VolumeName=pihole-data
+          '';
 
-        environment.etc."containers/systemd/pihole-dnsmasq.volume".text = ''
-          [Volume]
-          VolumeName=pihole-dnsmasq
-        '';
+          "containers/systemd/pihole-dnsmasq.volume".text = ''
+            [Volume]
+            VolumeName=pihole-dnsmasq
+          '';
+        };
 
         networking.firewall.allowedTCPPorts = [
           config.services.pihole-container.webPort
