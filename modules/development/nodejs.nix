@@ -41,16 +41,13 @@
         sessionVariables = {
           PNPM_HOME = "$HOME/.local/share/pnpm";
           NODE_PATH = "$HOME/.npm-packages/lib/node_modules";
+          NPM_CONFIG_PREFIX = "$HOME/.npm-packages";
         };
 
         sessionPath = [
           "$HOME/.local/share/pnpm"
           "$HOME/.npm-packages/bin"
         ];
-
-        file.".npmrc".text = ''
-          prefix = ${config.home.homeDirectory}/.npm-packages
-        '';
 
         activation.installNpmGlobalPackages = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
           npm_packages_dir="$HOME/.npm-packages"
