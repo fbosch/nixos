@@ -27,14 +27,8 @@ Fresh installation? See [docs/INSTALLATION.md](docs/INSTALLATION.md).
 ```sh
 nh os switch          # Build and switch
 nh os test            # Test without switching
+nh os rollback        # Rollback to previous build
 nh os switch --update # Update and rebuild
-```
-
-### Package Management
-
-```sh
-nh search <package>   # Find packages
-nh clean all          # Auto-cleanup (keeps last 15 or from last 7 days)
 ```
 
 ### Development
@@ -44,12 +38,10 @@ nix run .#lint        # statix + deadnix checks
 nix run .#fmt         # nixpkgs-fmt formatting
 ```
 
-### Dotfiles Workflow
+### Dotfiles
 
-My dotfiles (https://github.com/fbosch/dotfiles) are managed via Home Manager + GNU Stow.
-
-- **Development**: Work directly on the default branch
-- **Deployment**: Pin to specific commit in `flake.nix` for reproducibility
+My dotfiles are managed via Home Manager + GNU Stow.
+**→ [https://github.com/fbosch/dotfiles](https://github.com/fbosch/dotfiles)**
 
 ## Layout
 
@@ -119,14 +111,6 @@ flowchart LR
   libResolvers --> nixosConfigs[nixosConfigurations]
   libResolvers --> darwinConfigs[darwinConfigurations]
 ```
-
-## Module wiring
-
-Modules are resolved using helpers from `flake.lib`:
-
-- `config.flake.lib.resolve [ "module-name" ]` - Resolves NixOS modules
-- `config.flake.lib.resolveHm [ "module-name" ]` - Resolves Home Manager modules
-- `config.flake.lib.resolveDarwin [ "module-name" ]` - Resolves Darwin modules
 
 ## Presets
 
