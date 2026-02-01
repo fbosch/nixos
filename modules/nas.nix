@@ -52,10 +52,7 @@ in
       mkAutomount = share: {
         where = "/mnt/nas/${share}";
         wantedBy = [ "multi-user.target" ];
-        unitConfig = {
-          After = "network-online.target";
-        }
-        // lib.optionalAttrs (share == "encrypted") {
+        unitConfig = lib.optionalAttrs (share == "encrypted") {
           ConditionPathExists = encryptedConditionPath;
         };
         automountConfig = {
