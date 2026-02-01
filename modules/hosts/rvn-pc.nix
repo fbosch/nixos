@@ -88,7 +88,6 @@ in
         # Enable SSH for remote access
         services.openssh.enable = true;
 
-        # DNS configuration
         networking.nameservers = hostMeta.dnsServers;
 
         # Desktop-specific packages

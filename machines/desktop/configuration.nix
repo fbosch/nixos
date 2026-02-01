@@ -83,6 +83,16 @@
     config.allowUnfree = true;
   };
 
+  # hardware.opengl = {
+  #   enable = true;
+  #   driSupport32Bit = true;
+  #   extraPackages = with pkgs; [
+  #     nvidia-vaapi-driver
+  #     libva-vdpau-driver
+  #     libvdpau-va-gl
+  #   ];
+  # };
+
   services = {
     upower.enable = true;
     dbus.enable = true;
