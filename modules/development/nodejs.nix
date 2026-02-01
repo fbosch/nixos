@@ -16,6 +16,7 @@
         "opencode-ai@latest" # AI code assistant
         "neovim@latest" # Neovim npm package
         "typescript-language-server@latest" # TS LSP server
+        "dorita980"
       ];
 
       # Hash of package list to detect changes
