@@ -16,7 +16,7 @@
         "opencode-ai@latest" # AI code assistant
         "neovim@latest" # Neovim npm package
         "typescript-language-server@latest" # TS LSP server
-        "dorita980"
+        # "dorita980" # Roomba password 
       ];
 
       # Hash of package list to detect changes
