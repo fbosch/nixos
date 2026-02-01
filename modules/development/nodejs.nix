@@ -16,10 +16,13 @@
         "opencode-ai@latest" # AI code assistant
         "neovim@latest" # Neovim npm package
         "typescript-language-server@latest" # TS LSP server
+        # "dorita980" # Roomba password 
       ];
 
       # Hash of package list to detect changes
-      packagesHash = builtins.hashString "sha256" (lib.concatStringsSep "," npmGlobalPackages);
+      packagesHash = builtins.hashString
+        "sha256"
+        (lib.concatStringsSep "," npmGlobalPackages);
     in
     {
       home = {
