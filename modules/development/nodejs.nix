@@ -16,117 +16,119 @@
         "opencode-ai@latest" # AI code assistant
         "neovim@latest" # Neovim npm package
         "typescript-language-server@latest" # TS LSP server
-        "dorita980"
-      ];
+        # "dorita980" # Roomba password
+        ;
 
-      # Hash of package list to detect changes
-      packagesHash = builtins.hashString "sha256" (lib.concatStringsSep "," npmGlobalPackages);
-    in
-    {
-      home = {
-        packages = with pkgs; [
-          fnm
-          nodejs_22
-          bun
-          nodePackages.pnpm
-          nodePackages.yarn
-          # Prefer Nix packages for better reproducibility
-          nodePackages.typescript
-          nodePackages.prettier
-          nodePackages.eslint
-          nodePackages.vercel
-          nodePackages.npm-check-updates
-          playwright-test # Pure Nix Playwright with pre-configured browsers
-        ];
+        # Hash of package list to detect changes
+        packagesHash = builtins.hashString
+        "sha256"
+        (lib.concatStringsSep "," npmGlobalPackages);
+        in
+        {
+          home = {
+            packages = with pkgs; [
+              fnm
+              nodejs_22
+              bun
+              nodePackages.pnpm
+              nodePackages.yarn
+              # Prefer Nix packages for better reproducibility
+              nodePackages.typescript
+              nodePackages.prettier
+              nodePackages.eslint
+              nodePackages.vercel
+              nodePackages.npm-check-updates
+              playwright-test # Pure Nix Playwright with pre-configured browsers
+            ];
 
-        sessionVariables = {
-          PNPM_HOME = "$HOME/.local/share/pnpm";
-          NODE_PATH = "$HOME/.npm-packages/lib/node_modules";
-          NPM_CONFIG_PREFIX = "$HOME/.npm-packages";
-        };
+            sessionVariables = {
+              PNPM_HOME = "$HOME/.local/share/pnpm";
+              NODE_PATH = "$HOME/.npm-packages/lib/node_modules";
+              NPM_CONFIG_PREFIX = "$HOME/.npm-packages";
+            };
 
-        sessionPath = [
-          "$HOME/.local/share/pnpm"
-          "$HOME/.npm-packages/bin"
-        ];
+            sessionPath = [
+              "$HOME/.local/share/pnpm"
+              "$HOME/.npm-packages/bin"
+            ];
 
-        activation.installNpmGlobalPackages = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
-          npm_packages_dir="$HOME/.npm-packages"
-          state_dir="$HOME/.local/state/npm-globals"
-          hash_file="$state_dir/packages.hash"
-          current_hash="${packagesHash}"
+            activation.installNpmGlobalPackages = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
+              npm_packages_dir="$HOME/.npm-packages"
+              state_dir="$HOME/.local/state/npm-globals"
+              hash_file="$state_dir/packages.hash"
+              current_hash="${packagesHash}"
 
-          mkdir -p "$npm_packages_dir/bin" "$npm_packages_dir/lib/node_modules" "$state_dir"
+              mkdir -p "$npm_packages_dir/bin" "$npm_packages_dir/lib/node_modules" "$state_dir"
 
-          # Skip installation if package list hasn't changed
-          if [ -f "$hash_file" ] && [ "$(cat "$hash_file")" = "$current_hash" ]; then
-            echo "npm global packages unchanged, skipping installation"
-            exit 0
-          fi
+              # Skip installation if package list hasn't changed
+              if [ -f "$hash_file" ] && [ "$(cat "$hash_file")" = "$current_hash" ]; then
+                echo "npm global packages unchanged, skipping installation"
+                exit 0
+              fi
 
-          echo "Package list changed or first run, checking npm globals..."
+              echo "Package list changed or first run, checking npm globals..."
 
-          # Ensure npm uses the correct prefix
-          export npm_config_prefix="$npm_packages_dir"
+              # Ensure npm uses the correct prefix
+              export npm_config_prefix="$npm_packages_dir"
 
-          # Add node and bun to PATH for postinstall scripts
-          export PATH="${pkgs.nodejs_22}/bin:${pkgs.bun}/bin:$PATH"
+              # Add node and bun to PATH for postinstall scripts
+              export PATH="${pkgs.nodejs_22}/bin:${pkgs.bun}/bin:$PATH"
 
-          install_failed=0
+              install_failed=0
 
-          for package in ${lib.concatStringsSep " " (map lib.escapeShellArg npmGlobalPackages)}; do
-            # Extract package name for checking (handle scoped packages)
-            if [[ "$package" =~ ^@ ]]; then
-              # Scoped package: @scope/name@version -> @scope/name
-              package_name=$(echo "$package" | sed -E 's/(@[^@]+\/[^@]+)@?.*/\1/')
-              package_path="$npm_packages_dir/lib/node_modules/$package_name"
-            else
-              # Regular package: name@version -> name
-              package_name=$(echo "$package" | cut -d'@' -f1)
-              package_path="$npm_packages_dir/lib/node_modules/$package_name"
-            fi
-
-            # Check if we need to install/update
-            should_install=false
-            if [ ! -d "$package_path" ]; then
-              echo "Installing $package globally..."
-              should_install=true
-            else
-              # Check if version differs (for packages with @version)
-              if [[ "$package" == *@* ]] && [[ "$package" != *@latest ]]; then
-                installed_version=$(${pkgs.nodejs_22}/bin/npm list -g --depth=0 "$package_name" 2>/dev/null | grep "$package_name" | sed -E 's/.*@([0-9.]+).*/\1/' || echo "")
-                requested_version=$(echo "$package" | sed -E 's/.*@([0-9.]+).*/\1/')
-                if [ "$installed_version" != "$requested_version" ]; then
-                  echo "Updating $package_name from $installed_version to $requested_version..."
-                  should_install=true
+              for package in ${lib.concatStringsSep " " (map lib.escapeShellArg npmGlobalPackages)}; do
+                # Extract package name for checking (handle scoped packages)
+                if [[ "$package" =~ ^@ ]]; then
+                  # Scoped package: @scope/name@version -> @scope/name
+                  package_name=$(echo "$package" | sed -E 's/(@[^@]+\/[^@]+)@?.*/\1/')
+                  package_path="$npm_packages_dir/lib/node_modules/$package_name"
+                else
+                  # Regular package: name@version -> name
+                  package_name=$(echo "$package" | cut -d'@' -f1)
+                  package_path="$npm_packages_dir/lib/node_modules/$package_name"
                 fi
-              fi
-            fi
 
-            if [ "$should_install" = true ]; then
-              if ${pkgs.nodejs_22}/bin/npm install -g "$package" --no-fund --no-audit 2>&1; then
-                echo "✓ Successfully installed $package"
+                # Check if we need to install/update
+                should_install=false
+                if [ ! -d "$package_path" ]; then
+                  echo "Installing $package globally..."
+                  should_install=true
+                else
+                  # Check if version differs (for packages with @version)
+                  if [[ "$package" == *@* ]] && [[ "$package" != *@latest ]]; then
+                    installed_version=$(${pkgs.nodejs_22}/bin/npm list -g --depth=0 "$package_name" 2>/dev/null | grep "$package_name" | sed -E 's/.*@([0-9.]+).*/\1/' || echo "")
+                    requested_version=$(echo "$package" | sed -E 's/.*@([0-9.]+).*/\1/')
+                    if [ "$installed_version" != "$requested_version" ]; then
+                      echo "Updating $package_name from $installed_version to $requested_version..."
+                      should_install=true
+                    fi
+                  fi
+                fi
+
+                if [ "$should_install" = true ]; then
+                  if ${pkgs.nodejs_22}/bin/npm install -g "$package" --no-fund --no-audit 2>&1; then
+                    echo "✓ Successfully installed $package"
+                  else
+                    echo "✗ ERROR: Failed to install $package" >&2
+                    install_failed=1
+                  fi
+                else
+                  echo "✓ $package_name already installed"
+                fi
+              done
+
+              if [ "$install_failed" -eq 0 ]; then
+                # Save hash only if all installations succeeded
+                echo "$current_hash" > "$hash_file"
+                echo ""
+                echo "All npm global packages installed successfully to: $npm_packages_dir"
               else
-                echo "✗ ERROR: Failed to install $package" >&2
-                install_failed=1
+                echo ""
+                echo "WARNING: Some packages failed to install. Hash not updated." >&2
+                echo "Run 'home-manager switch' again to retry failed installations." >&2
+                exit 1
               fi
-            else
-              echo "✓ $package_name already installed"
-            fi
-          done
-
-          if [ "$install_failed" -eq 0 ]; then
-            # Save hash only if all installations succeeded
-            echo "$current_hash" > "$hash_file"
-            echo ""
-            echo "All npm global packages installed successfully to: $npm_packages_dir"
-          else
-            echo ""
-            echo "WARNING: Some packages failed to install. Hash not updated." >&2
-            echo "Run 'home-manager switch' again to retry failed installations." >&2
-            exit 1
-          fi
-        '';
-      };
-    };
-}
+            '';
+          };
+        };
+        }
