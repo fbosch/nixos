@@ -97,7 +97,7 @@ _: {
           # Statix - check entire repository
           # First try to auto-fix issues
           if [ -n "$staged_files" ]; then
-            if gum spin --spinner dot --title "statix (fixing)" -- sh -c "echo '$staged_files' | xargs -r statix fix" > /tmp/statix-fix-output 2>&1; then
+            if gum spin --spinner dot --title "statix (fixing)" -- sh -c "printf '%s\n' \"$staged_files\" | xargs -r -n 1 statix fix" > /tmp/statix-fix-output 2>&1; then
               # Check if anything was actually fixed
               if [ -s /tmp/statix-fix-output ]; then
                 # Re-stage fixed files
