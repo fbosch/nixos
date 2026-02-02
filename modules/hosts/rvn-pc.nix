@@ -96,29 +96,25 @@ in
           wants = [ "NetworkManager.service" ];
           serviceConfig = {
             Type = "oneshot";
-            ExecStart = [
-              "${pkgs.bash}/bin/bash"
-              "-lc"
-              ''
-                set -euo pipefail
-                iface="enp0s31f6"
-                nmcli -g GENERAL.STATE dev show "$iface" >/tmp/ethernet-watchdog.state 2>&1 || {
-                  systemd-cat -t ethernet-watchdog echo "nmcli failed; unable to read state"
-                  exit 0
-                }
-                state=$(cat /tmp/ethernet-watchdog.state)
-                if [ "$state" != "100" ]; then
-                  systemd-cat -t ethernet-watchdog echo "state=$state; reconnecting $iface"
-                  nmcli dev disconnect "$iface" || true
-                  nmcli dev connect "$iface" || {
-                    systemd-cat -t ethernet-watchdog echo "reconnect failed for $iface"
-                    exit 0
-                  }
-                  systemd-cat -t ethernet-watchdog echo "reconnected $iface"
-                fi
-              ''
-            ];
           };
+          script = ''
+            set -euo pipefail
+            iface="enp0s31f6"
+            ${pkgs.networkmanager}/bin/nmcli -g GENERAL.STATE dev show "$iface" >/tmp/ethernet-watchdog.state 2>&1 || {
+              echo "nmcli failed; unable to read state"
+              exit 0
+            }
+            state=$(cat /tmp/ethernet-watchdog.state)
+            if [ "$state" != "100" ]; then
+              echo "state=$state; reconnecting $iface"
+              ${pkgs.networkmanager}/bin/nmcli dev disconnect "$iface" || true
+              ${pkgs.networkmanager}/bin/nmcli dev connect "$iface" || {
+                echo "reconnect failed for $iface"
+                exit 0
+              }
+              echo "reconnected $iface"
+            fi
+          '';
         };
 
         systemd.timers.ethernet-watchdog = {
