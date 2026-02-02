@@ -51,6 +51,7 @@ in
           "services/containers/termix"
           "services/containers/pihole"
           "services/containers/helium"
+          "services/containers/openmemory"
 
           # validation
           "validation/container-port-conflicts"
@@ -107,6 +108,9 @@ in
         # Service-specific configuration (only overrides from defaults)
         services = {
           ananicy.enable = true;
+
+          # OpenMemory: First enable buildImages, rebuild, run build-openmemory-images, then disable and rebuild
+          openmemory-container.buildImages = true;
 
           tinyproxy = {
             port = 8888;
