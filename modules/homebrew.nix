@@ -15,6 +15,7 @@
           "numi"
           "font-noto-sans-runic"
           "floorp"
+          "firefox"
           "arc"
           "zen"
           "helium-browser"

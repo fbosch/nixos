@@ -105,7 +105,6 @@ in
             keychain
             wezterm
             rectangle
-            firefox
             tailscale
             bitwarden-desktop
             _1password-gui

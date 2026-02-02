@@ -4,7 +4,7 @@
     { pkgs, ... }:
     {
       home.packages = with pkgs; [
-        git-credential-manager
+        # git-credential-manager
         lazygit
         delta
         difftastic
