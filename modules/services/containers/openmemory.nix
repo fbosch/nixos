@@ -71,6 +71,9 @@ _: {
         COPY package*.json ./
         RUN npm install --omit=dev
 
+        # Ensure TypeScript is available to load next.config.ts at runtime
+        RUN npm install --no-save typescript
+
         # Copy built assets from builder
         COPY --from=builder /app/.next ./.next
         COPY --from=builder /app/public ./public
@@ -293,9 +296,11 @@ _: {
           system.activationScripts.openmemoryBuildImages = lib.mkIf cfg.buildImages ''
             log_file=/var/log/openmemory-build.log
             mkdir -p /var/log
+            stamp_file="${cfg.dataDir}/.openmemory-image-rev"
+            mkdir -p "${cfg.dataDir}"
             echo "==> $(date -Iseconds) activation: checking images" >> "$log_file"
-            missing=0
 
+            missing=0
             if ! ${pkgs.podman}/bin/podman image exists localhost/openmemory:${cfg.imageTag}; then
               missing=1
             fi
@@ -304,9 +309,15 @@ _: {
               missing=1
             fi
 
-            if [ "$missing" -eq 1 ]; then
-              echo "OpenMemory images missing; building..." | tee -a "$log_file"
+            stamp_rev=""
+            if [ -f "$stamp_file" ]; then
+              stamp_rev=$(cat "$stamp_file")
+            fi
+
+            if [ "$missing" -eq 1 ] || [ "$stamp_rev" != "${openmemoryRev}" ]; then
+              echo "OpenMemory images missing or out of date; building..." | tee -a "$log_file"
               ${buildImagesScript}/bin/build-openmemory-images >> "$log_file" 2>&1
+              echo "${openmemoryRev}" > "$stamp_file"
             fi
           '';
 
