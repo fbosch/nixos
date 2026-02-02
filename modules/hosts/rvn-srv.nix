@@ -113,6 +113,10 @@ in
           openmemory-container = {
             buildImages = true;
             dashboardApiUrl = "https://memory.corvus-corax.synology.me";
+            openaiApiKey = lib.attrByPath [ "sops" "placeholder" "openai-api-key" ] "" config;
+            embeddings = "openai";
+            embeddingFallback = "synthetic";
+            tier = "deep";
           };
 
           tinyproxy = {
