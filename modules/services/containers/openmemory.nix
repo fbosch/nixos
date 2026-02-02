@@ -16,112 +16,126 @@ _: {
       };
 
       # Script to build images using podman build (wraps existing Dockerfiles)
-      buildImagesScript = pkgs.writeShellScriptBin "build-openmemory-images" ''
-        set -euo pipefail
+      mkBuildImagesScript =
+        dashboardApiUrl:
+        pkgs.writeShellScriptBin "build-openmemory-images" ''
+          set -euo pipefail
 
-        if [ "$(id -u)" -ne 0 ]; then
-          echo "This command must run as root so systemd can use the images."
-          echo "Run: sudo build-openmemory-images"
-          exit 1
-        fi
+          if [ "$(id -u)" -ne 0 ]; then
+            echo "This command must run as root so systemd can use the images."
+            echo "Run: sudo build-openmemory-images"
+            exit 1
+          fi
 
-        OPENMEMORY_TAG="${openmemoryRev}"
+          OPENMEMORY_TAG="${openmemoryRev}"
 
-        TEMP_DIR=$(mktemp -d)
-        trap "rm -rf $TEMP_DIR" EXIT
+          TEMP_DIR=$(mktemp -d)
+          trap "rm -rf $TEMP_DIR" EXIT
 
-        echo "==> Copying OpenMemory source..."
-        cp -a ${openmemorySource}/. "$TEMP_DIR"
-        chmod -R u+w $TEMP_DIR
+          echo "==> Copying OpenMemory source..."
+          cp -a ${openmemorySource}/. "$TEMP_DIR"
+          chmod -R u+w "$TEMP_DIR"
 
-        if [ ! -d "$TEMP_DIR/backend" ]; then
-          echo "Missing backend in build context"
-          ls -la "$TEMP_DIR"
-          exit 1
-        fi
+          if [ ! -d "$TEMP_DIR/backend" ]; then
+            echo "Missing backend in build context"
+            ls -la "$TEMP_DIR"
+            exit 1
+          fi
 
-        if [ ! -d "$TEMP_DIR/dashboard" ]; then
-          echo "Missing dashboard in build context"
-          ls -la "$TEMP_DIR"
-          exit 1
-        fi
+          if [ ! -d "$TEMP_DIR/dashboard" ]; then
+            echo "Missing dashboard in build context"
+            ls -la "$TEMP_DIR"
+            exit 1
+          fi
 
-        cat > "$TEMP_DIR/dashboard/Dockerfile" <<'EOF'
-        # ===== BUILD STAGE =====
-        FROM node:20-alpine AS builder
+          cat > "$TEMP_DIR/dashboard/Dockerfile" <<'EOF'
+          # ===== BUILD STAGE =====
+          FROM node:20-alpine AS builder
 
-        WORKDIR /app
+          WORKDIR /app
 
-        # Install dependencies
-        COPY package*.json ./
-        RUN npm install
+          ARG NEXT_PUBLIC_API_URL
+          ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
-        # Copy source code
-        COPY . .
+          # Install dependencies
+          COPY package*.json ./
+          RUN npm install
 
-        # Build the Next.js application
-        RUN npm run build
+          # Copy source code
+          COPY . .
 
-        # ===== PRODUCTION STAGE =====
-        FROM node:20-alpine AS production
+          # Ensure the API URL is baked into the build
+          RUN echo "NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL" > .env.production
 
-        WORKDIR /app
+          # Build the Next.js application
+          RUN npm run build
 
-        # Install only production dependencies
-        COPY package*.json ./
-        RUN npm install --omit=dev
+          # ===== PRODUCTION STAGE =====
+          FROM node:20-alpine AS production
 
-        # Ensure TypeScript is available to load next.config.ts at runtime
-        RUN npm install --no-save typescript
+          WORKDIR /app
 
-        # Copy built assets from builder
-        COPY --from=builder /app/.next ./.next
-        COPY --from=builder /app/public ./public
-        COPY --from=builder /app/next.config.ts ./next.config.ts
+          # Install only production dependencies
+          COPY package*.json ./
+          RUN npm install --omit=dev
 
-        # Create a dedicated non-root user for security
-        RUN addgroup -g 1001 -S nodejs \
-         && adduser -u 1001 -S nextjs -G nodejs \
-         && chown -R nextjs:nodejs /app
+          # Ensure TypeScript is available to load next.config.ts at runtime
+          RUN npm install --no-save typescript
 
-        USER nextjs
+          ARG NEXT_PUBLIC_API_URL
+          ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
-        # Expose the application port
-        EXPOSE 3000
+          # Copy built assets from builder
+          COPY --from=builder /app/.next ./.next
+          COPY --from=builder /app/public ./public
+          COPY --from=builder /app/next.config.ts ./next.config.ts
 
-        # Set environment to production
-        ENV NODE_ENV=production
+          # Create a dedicated non-root user for security
+          RUN addgroup -g 1001 -S nodejs \
+           && adduser -u 1001 -S nextjs -G nodejs \
+           && chown -R nextjs:nodejs /app
 
-        # Start the Next.js application
-        CMD ["npm", "start"]
-        EOF
+          USER nextjs
 
-        cd $TEMP_DIR
+          # Expose the application port
+          EXPOSE 3000
 
-        echo "==> Building API server image..."
-        ${pkgs.podman}/bin/podman build --format docker \
-          -t localhost/openmemory:latest \
-          -t localhost/openmemory:$OPENMEMORY_TAG \
-          -f backend/Dockerfile \
-          backend/
+          # Set environment to production
+          ENV NODE_ENV=production
 
-        echo ""
-        echo "==> Building dashboard image..."
-        ${pkgs.podman}/bin/podman build --format docker \
-          -t localhost/openmemory-dashboard:latest \
-          -t localhost/openmemory-dashboard:$OPENMEMORY_TAG \
-          -f dashboard/Dockerfile \
-          dashboard/
+          # Start the Next.js application
+          CMD ["npm", "start"]
+          EOF
 
-        echo ""
-        echo "✓ Images built and loaded successfully!"
-        echo "  localhost/openmemory:latest"
-        echo "  localhost/openmemory:$OPENMEMORY_TAG"
-        echo "  localhost/openmemory-dashboard:latest"
-        echo "  localhost/openmemory-dashboard:$OPENMEMORY_TAG"
-        echo ""
-        echo "You can now rebuild your system to start the containers."
-      '';
+          cd "$TEMP_DIR"
+
+          echo "==> Building API server image..."
+          ${pkgs.podman}/bin/podman build --format docker \
+            -t localhost/openmemory:latest \
+            -t localhost/openmemory:$OPENMEMORY_TAG \
+            -f backend/Dockerfile \
+            backend/
+
+          echo ""
+          echo "==> Building dashboard image..."
+          DASHBOARD_API_URL=${lib.escapeShellArg dashboardApiUrl}
+
+          ${pkgs.podman}/bin/podman build --format docker \
+            -t localhost/openmemory-dashboard:latest \
+            -t localhost/openmemory-dashboard:$OPENMEMORY_TAG \
+            --build-arg NEXT_PUBLIC_API_URL="$DASHBOARD_API_URL" \
+            -f dashboard/Dockerfile \
+            dashboard/
+
+          echo ""
+          echo "✓ Images built and loaded successfully!"
+          echo "  localhost/openmemory:latest"
+          echo "  localhost/openmemory:$OPENMEMORY_TAG"
+          echo "  localhost/openmemory-dashboard:latest"
+          echo "  localhost/openmemory-dashboard:$OPENMEMORY_TAG"
+          echo ""
+          echo "You can now rebuild your system to start the containers."
+        '';
 
     in
     {
@@ -165,7 +179,25 @@ _: {
         dataDir = lib.mkOption {
           type = lib.types.str;
           default = "/var/lib/openmemory";
-          description = "Directory for persistent OpenMemory data";
+          description = "Directory for persistent OpenMemory data (used when useHostStorage = true)";
+        };
+
+        useHostStorage = lib.mkOption {
+          type = lib.types.nullOr lib.types.bool;
+          default = null;
+          description = "Store data on the host at dataDir instead of a Podman volume (null defaults to true when dataDir is set)";
+        };
+
+        runAsUser = lib.mkOption {
+          type = lib.types.nullOr lib.types.str;
+          default = null;
+          description = "Host user to run the API container as when using host storage";
+        };
+
+        runAsGroup = lib.mkOption {
+          type = lib.types.nullOr lib.types.str;
+          default = null;
+          description = "Host group to run the API container as when using host storage";
         };
 
         # Core Configuration
@@ -288,6 +320,21 @@ _: {
       config =
         let
           cfg = config.services.openmemory-container;
+          buildImagesScript = mkBuildImagesScript cfg.dashboardApiUrl;
+          hostUser =
+            if cfg.runAsUser == null then
+              null
+            else
+              lib.attrByPath [ "users" "users" cfg.runAsUser ] null config;
+          hostGroup =
+            if cfg.runAsGroup == null then
+              null
+            else
+              lib.attrByPath [ "users" "groups" cfg.runAsGroup ] null config;
+          hostUid = if hostUser == null then null else hostUser.uid or null;
+          hostGid = if hostGroup == null then null else hostGroup.gid or null;
+          useHostStorageEffective =
+            if cfg.useHostStorage != null then cfg.useHostStorage else cfg.dataDir != "/var/lib/openmemory";
         in
         {
           # Make build script available if enabled
@@ -314,10 +361,12 @@ _: {
               stamp_rev=$(cat "$stamp_file")
             fi
 
-            if [ "$missing" -eq 1 ] || [ "$stamp_rev" != "${openmemoryRev}" ]; then
+            desired_stamp="${openmemoryRev}|${cfg.dashboardApiUrl}"
+
+            if [ "$missing" -eq 1 ] || [ "$stamp_rev" != "$desired_stamp" ]; then
               echo "OpenMemory images missing or out of date; building..." | tee -a "$log_file"
               ${buildImagesScript}/bin/build-openmemory-images >> "$log_file" 2>&1
-              echo "${openmemoryRev}" > "$stamp_file"
+              echo "$desired_stamp" > "$stamp_file"
             fi
           '';
 
@@ -334,6 +383,11 @@ _: {
 
           environment.etc = lib.mkMerge [
             {
+              "containers/systemd/openmemory.network".text = ''
+                [Network]
+                NetworkName=openmemory
+              '';
+
               "containers/systemd/openmemory.container".text = ''
                 [Unit]
                 Description=OpenMemory API Server
@@ -344,8 +398,16 @@ _: {
                 ContainerName=openmemory
                 Image=localhost/openmemory:${cfg.imageTag}
                 Pull=never
+                Network=openmemory.network
+                ${lib.optionalString (useHostStorageEffective && hostUid != null) "User=${toString hostUid}"}
+                ${lib.optionalString (useHostStorageEffective && hostGid != null) "Group=${toString hostGid}"}
                 PublishPort=${toString cfg.port}:8080
-                Volume=openmemory-data.volume:/data
+                ${
+                  if useHostStorageEffective then
+                    "Volume=${cfg.dataDir}:/data"
+                  else
+                    "Volume=openmemory-data.volume:/data"
+                }
 
                 # Core Configuration
                 Environment=OM_PORT=8080
@@ -401,11 +463,14 @@ _: {
                 WantedBy=multi-user.target
               '';
 
+            }
+
+            (lib.mkIf (!useHostStorageEffective) {
               "containers/systemd/openmemory-data.volume".text = ''
                 [Volume]
                 VolumeName=openmemory-data
               '';
-            }
+            })
 
             (lib.mkIf cfg.enableDashboard {
               "containers/systemd/openmemory-dashboard.container".text = ''
@@ -419,6 +484,7 @@ _: {
                 ContainerName=openmemory-dashboard
                 Image=localhost/openmemory-dashboard:${cfg.imageTag}
                 Pull=never
+                Network=openmemory.network
                 PublishPort=${toString cfg.dashboardPort}:3000
                 Environment=NEXT_PUBLIC_API_URL=${lib.escapeShellArg cfg.dashboardApiUrl}
 

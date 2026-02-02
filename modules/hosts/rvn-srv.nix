@@ -109,8 +109,11 @@ in
         services = {
           ananicy.enable = true;
 
-          # OpenMemory: First enable buildImages, rebuild, run build-openmemory-images, then disable and rebuild
-          openmemory-container.buildImages = true;
+          # OpenMemory
+          openmemory-container = {
+            buildImages = true;
+            dashboardApiUrl = "https://memory.corvus-corax.synology.me";
+          };
 
           tinyproxy = {
             port = 8888;
