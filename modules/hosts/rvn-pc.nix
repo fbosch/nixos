@@ -73,9 +73,6 @@ in
             # Shared modules with Home Manager components
             "secrets"
             "windows"
-
-            # files
-            "files/wakatime"
           ]
           ++ [
             # External Home Manager modules

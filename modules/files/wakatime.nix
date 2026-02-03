@@ -47,9 +47,5 @@ in
 
     # Darwin module: Create SOPS template and symlink via activation script
     darwin."files/wakatime" = mkWakatimeModule;
-
-    # Home-manager module: Do nothing - file is managed at system level
-    # We still need this module to exist so the import doesn't fail
-    homeManager."files/wakatime" = _: { };
   };
 }
