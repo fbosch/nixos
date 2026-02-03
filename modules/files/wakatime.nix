@@ -1,20 +1,51 @@
-_: {
-  flake.modules.homeManager."files/wakatime" =
-    { config
-    , lib
-    , ...
-    }:
+{ config, ... }:
+let
+  flakeConfig = config;
+
+  # Shared SOPS template + symlink configuration for both NixOS and Darwin
+  mkWakatimeModule =
+    { config, lib, ... }:
     let
-      hasApiKey = lib.hasAttrByPath [ "sops" "placeholder" "wakapi-api-key" ] config;
-      apiKey = lib.attrByPath [ "sops" "placeholder" "wakapi-api-key" ] "" config;
+      hasApiKey = config.sops.secrets ? wakapi-api-key;
+      inherit (flakeConfig.flake.meta.user) username;
+      homeDir = config.users.users.${username}.home;
+      wakatimePath = "${homeDir}/.wakatime.cfg";
+      templatePath = config.sops.templates."wakatime.cfg".path;
     in
     {
       config = lib.mkIf hasApiKey {
-        home.file.".wakatime.cfg".text = ''
-          [settings]
-          api_url = https://wakapi.corvus-corax.synology.me/api
-          api_key = ${apiKey}
-        '';
+        # Create SOPS template with actual secret
+        sops.templates."wakatime.cfg" = {
+          content = ''
+            [settings]
+            api_url = https://wakapi.corvus-corax.synology.me/api
+            api_key = ${config.sops.placeholder.wakapi-api-key}
+          '';
+          mode = "0600";
+          owner = username;
+        };
+
+        # Create symlink from home directory to rendered template
+        # Use tmpfiles for NixOS, activation script for Darwin
+        systemd.tmpfiles.rules = lib.mkIf (config ? systemd) [
+          "L+ ${wakatimePath} - - - - ${templatePath}"
+        ];
+
+        system.activationScripts.postActivation.text = lib.mkIf (config ? system.activationScripts) (
+          lib.mkAfter ''
+            ln -sf ${templatePath} ${wakatimePath}
+            chown ${username} ${wakatimePath}
+          ''
+        );
       };
     };
+in
+{
+  flake.modules = {
+    # NixOS module: Create SOPS template and symlink via tmpfiles
+    nixos."files/wakatime" = mkWakatimeModule;
+
+    # Darwin module: Create SOPS template and symlink via activation script
+    darwin."files/wakatime" = mkWakatimeModule;
+  };
 }
