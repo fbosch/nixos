@@ -121,6 +121,14 @@ in
               mode = "0440";
               group = "wheel";
             };
+            wakapi-api-key = {
+              mode = "0440";
+              group = "wheel";
+            };
+            wakapi-password-salt = {
+              mode = "0440";
+              group = "wheel";
+            };
             ssh-private-key = {
               mode = "0600";
               owner = flakeConfig.flake.meta.user.username;
