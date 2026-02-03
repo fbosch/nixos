@@ -53,4 +53,14 @@
         }
       ];
     };
+
+  flake.modules.homeManager."virtualization/podman" =
+    { pkgs, ... }:
+    {
+      home.packages = with pkgs; [
+        podman
+        podman-compose
+        podman-tui
+      ];
+    };
 }

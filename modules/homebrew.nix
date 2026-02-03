@@ -15,6 +15,7 @@
           "numi"
           "font-noto-sans-runic"
           "floorp"
+          "firefox"
           "arc"
           "zen"
           "helium-browser"
@@ -23,8 +24,8 @@
           "cursor"
           "figma"
           "cleanshot"
-          "steipete/tap/codexbar"
           "obsidian"
+          "podman-desktop"
         ];
 
         brews = [ ];

@@ -39,6 +39,7 @@ in
             "security"
             "development"
             "shell"
+            "virtualization/podman"
 
             # Secrets for home-manager context
             "secrets"
@@ -105,7 +106,6 @@ in
             keychain
             wezterm
             rectangle
-            firefox
             tailscale
             bitwarden-desktop
             _1password-gui
