@@ -44,6 +44,7 @@ in
           "services/plex"
           "services/servarr"
           "services/tinyproxy"
+          "services/wakapi"
 
           # containerized services
           "virtualization/podman"

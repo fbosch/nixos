@@ -6,7 +6,6 @@ _: {
     }:
     let
       port = 3033;
-      hasSopsSalt = lib.hasAttrByPath [ "sops" "placeholder" "wakapi-password-salt" ] config;
     in
     {
       config = lib.mkMerge [
@@ -14,20 +13,21 @@ _: {
           services.wakapi = {
             enable = lib.mkDefault true;
             stateDir = lib.mkDefault "/var/lib/wakapi";
-            settings = lib.mkDefault {
-              server = {
-                listen_ipv4 = "0.0.0.0";
-                listen_ipv6 = "::";
-                port = port;
-                public_url = "http://localhost:${toString port}";
-              };
+          };
+
+          services.wakapi.settings = {
+            server = {
+              listen_ipv4 = "0.0.0.0";
+              listen_ipv6 = "::";
+              port = port;
+              public_url = "http://localhost:${toString port}";
             };
           };
         }
-        (lib.mkIf hasSopsSalt {
+        (lib.mkIf (config ? sops) {
           sops.secrets.wakapi-password-salt = {
-            mode = "0400";
-            group = "wheel";
+            mode = lib.mkDefault "0440";
+            group = lib.mkDefault "wheel";
           };
 
           sops.templates."wakapi-env" = {
