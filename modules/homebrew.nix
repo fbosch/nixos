@@ -24,8 +24,8 @@
           "cursor"
           "figma"
           "cleanshot"
-          "steipete/tap/codexbar"
           "obsidian"
+          "podman-desktop"
         ];
 
         brews = [ ];

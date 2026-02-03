@@ -39,6 +39,7 @@ in
             "security"
             "development"
             "shell"
+            "virtualization/podman"
 
             # Secrets for home-manager context
             "secrets"
