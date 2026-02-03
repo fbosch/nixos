@@ -40,6 +40,9 @@ in
           "nas"
           "services/attic-client"
 
+          # files
+          "files/wakatime"
+
           # hardware
           "hardware/usb-automount"
           "hardware/storage"
@@ -70,6 +73,9 @@ in
             # Shared modules with Home Manager components
             "secrets"
             "windows"
+
+            # files
+            "files/wakatime"
           ]
           ++ [
             # External Home Manager modules

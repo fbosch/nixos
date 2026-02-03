@@ -19,7 +19,7 @@ _: {
             server = {
               listen_ipv4 = "0.0.0.0";
               listen_ipv6 = "::";
-              port = port;
+              inherit port;
               public_url = "http://localhost:${toString port}";
             };
           };

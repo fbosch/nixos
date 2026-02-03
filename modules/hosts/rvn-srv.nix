@@ -74,6 +74,9 @@ in
 
           # Secrets for home-manager context
           "secrets"
+
+          # files
+          "files/wakatime"
         ];
 
         # Kernel tuning for server workload
