@@ -36,6 +36,9 @@ in
           "system/scheduled-suspend"
           "system/ananicy"
 
+          # files
+          "files/wakatime"
+
           # services
           "services/home-assistant"
           "services/atticd"
@@ -74,9 +77,6 @@ in
 
           # Secrets for home-manager context
           "secrets"
-
-          # files
-          "files/wakatime"
         ];
 
         # Kernel tuning for server workload
