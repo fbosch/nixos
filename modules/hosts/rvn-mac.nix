@@ -24,7 +24,9 @@ in
         imports = config.flake.lib.resolveDarwin [
           # Darwin-specific modules
           "security"
+          "secrets"
           "homebrew"
+          "files/wakatime"
         ];
 
         # Home Manager configuration for user

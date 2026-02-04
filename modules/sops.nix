@@ -168,5 +168,85 @@ in
           !include ${nixosConfig.sops.templates."nix-github-token".path}
         '';
       };
+
+    # Darwin-specific SOPS module (system-level secrets)
+    darwin.secrets =
+      { config
+      , ...
+      }:
+      let
+        darwinConfig = config;
+      in
+      {
+        imports = [ inputs.sops-nix.darwinModules.sops ];
+
+        sops = {
+          defaultSopsFile = ../secrets/secrets.yaml;
+          age.keyFile = "/var/lib/sops-nix/key.txt";
+          # This will generate a new key if the key specified above does not exist
+          age.generateKey = true;
+
+          secrets = {
+            github-token = {
+              mode = "0440";
+              group = "wheel";
+            };
+            smb-username = {
+              mode = "0400";
+            };
+            smb-password = {
+              mode = "0400";
+            };
+            context7-api-key = {
+              mode = "0444";
+            };
+            kagi-api-token = {
+              mode = "0440";
+              group = "wheel";
+            };
+            openai-api-key = {
+              mode = "0440";
+              group = "wheel";
+            };
+            wakapi-api-key = {
+              mode = "0440";
+              group = "wheel";
+            };
+            wakapi-password-salt = {
+              mode = "0440";
+              group = "wheel";
+            };
+            ssh-private-key = {
+              mode = "0600";
+              owner = flakeConfig.flake.meta.user.username;
+            };
+          };
+
+          templates = {
+            # Generate .smbcredentials file from SOPS secrets
+            "smbcredentials" = {
+              content = ''
+                username=${darwinConfig.sops.placeholder.smb-username}
+                password=${darwinConfig.sops.placeholder.smb-password}
+              '';
+              mode = "0600";
+              owner = flakeConfig.flake.meta.user.username;
+            };
+
+            # Generate nix.conf snippet with GitHub token
+            "nix-github-token" = {
+              content = ''
+                access-tokens = github.com=${darwinConfig.sops.placeholder.github-token}
+              '';
+              mode = "0440";
+              group = "wheel";
+            };
+          };
+        };
+
+        nix.extraOptions = ''
+          !include ${darwinConfig.sops.templates."nix-github-token".path}
+        '';
+      };
   };
 }
