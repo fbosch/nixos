@@ -42,6 +42,7 @@ in
 
           # files
           "files/wakatime"
+          "files/npmrc"
 
           # hardware
           "hardware/usb-automount"

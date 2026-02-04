@@ -27,6 +27,7 @@ in
           "secrets"
           "homebrew"
           "files/wakatime"
+          "files/npmrc"
         ];
 
         # Home Manager configuration for user
