@@ -7,7 +7,9 @@ _: {
     let
       cfg = config.services.glance-container;
       configDir = if cfg.configDir != null then cfg.configDir else "${cfg.dataDir}/config";
-      assetsDir = if cfg.assetsDir != null then cfg.assetsDir else "${cfg.dataDir}/assets";
+      assetsDir = if cfg.assetsDir != null then cfg.assetsDir else "${configDir}/assets";
+      # Only mount assets separately if it's not inside configDir
+      assetsDirIsSubdir = lib.hasPrefix "${configDir}/" assetsDir;
     in
     {
       options.services.glance-container = {
@@ -52,6 +54,26 @@ _: {
           default = false;
           description = "Mount the Podman socket for the containers widget";
         };
+
+        komodo = {
+          url = lib.mkOption {
+            type = lib.types.nullOr lib.types.str;
+            default = null;
+            description = "Komodo Core URL (e.g., 'https://komodo.example.com')";
+          };
+
+          apiKey = lib.mkOption {
+            type = lib.types.nullOr lib.types.str;
+            default = null;
+            description = "Komodo API Key (begins with 'K-...')";
+          };
+
+          apiSecret = lib.mkOption {
+            type = lib.types.nullOr lib.types.str;
+            default = null;
+            description = "Komodo API Secret (begins with 'S-...')";
+          };
+        };
       };
 
       config = {
@@ -78,10 +100,15 @@ _: {
           Image=glanceapp/glance:${cfg.imageTag}
           PublishPort=${toString cfg.port}:8080
           Volume=${configDir}:/app/config
-          Volume=${assetsDir}:/app/assets
+          ${lib.optionalString (!assetsDirIsSubdir) "Volume=${assetsDir}:/app/assets"}
           Volume=/etc/localtime:/etc/localtime:ro
           ${lib.optionalString cfg.enableDockerSocket "Volume=/run/podman/podman.sock:/run/podman/podman.sock:ro"}
           ${lib.optionalString cfg.enableDockerSocket "Environment=DOCKER_HOST=unix:///run/podman/podman.sock"}
+          ${lib.optionalString (cfg.komodo.url != null) "Environment=KOMODO_URL=${cfg.komodo.url}"}
+          ${lib.optionalString (cfg.komodo.apiKey != null) "Environment=KOMODO_API_KEY=${cfg.komodo.apiKey}"}
+          ${lib.optionalString (
+            cfg.komodo.apiSecret != null
+          ) "Environment=KOMODO_API_SECRET=${cfg.komodo.apiSecret}"}
           ${lib.optionalString (cfg.envFile != null) "EnvironmentFile=${lib.escapeShellArg cfg.envFile}"}
           LogDriver=journald
           LogOpt=tag=glance
