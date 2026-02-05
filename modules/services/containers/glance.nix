@@ -54,26 +54,6 @@ _: {
           default = false;
           description = "Mount the Podman socket for the containers widget";
         };
-
-        komodo = {
-          url = lib.mkOption {
-            type = lib.types.nullOr lib.types.str;
-            default = null;
-            description = "Komodo Core URL (e.g., 'https://komodo.example.com')";
-          };
-
-          apiKey = lib.mkOption {
-            type = lib.types.nullOr lib.types.str;
-            default = null;
-            description = "Komodo API Key (begins with 'K-...')";
-          };
-
-          apiSecret = lib.mkOption {
-            type = lib.types.nullOr lib.types.str;
-            default = null;
-            description = "Komodo API Secret (begins with 'S-...')";
-          };
-        };
       };
 
       config = {
@@ -104,11 +84,6 @@ _: {
           Volume=/etc/localtime:/etc/localtime:ro
           ${lib.optionalString cfg.enableDockerSocket "Volume=/run/podman/podman.sock:/run/podman/podman.sock:ro"}
           ${lib.optionalString cfg.enableDockerSocket "Environment=DOCKER_HOST=unix:///run/podman/podman.sock"}
-          ${lib.optionalString (cfg.komodo.url != null) "Environment=KOMODO_URL=${cfg.komodo.url}"}
-          ${lib.optionalString (cfg.komodo.apiKey != null) "Environment=KOMODO_API_KEY=${cfg.komodo.apiKey}"}
-          ${lib.optionalString (
-            cfg.komodo.apiSecret != null
-          ) "Environment=KOMODO_API_SECRET=${cfg.komodo.apiSecret}"}
           ${lib.optionalString (cfg.envFile != null) "EnvironmentFile=${lib.escapeShellArg cfg.envFile}"}
           LogDriver=journald
           LogOpt=tag=glance

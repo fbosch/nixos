@@ -144,11 +144,7 @@ in
 
           glance-container = {
             configDir = "/home/${config.flake.meta.user.username}/.config/glance";
-            komodo = {
-              url = "https://komodo.corvus-corax.synology.me";
-              apiKey = lib.attrByPath [ "sops" "placeholder" "komodo-web-api-key" ] "" config;
-              apiSecret = lib.attrByPath [ "sops" "placeholder" "komodo-web-api-secret" ] "" config;
-            };
+            envFile = "/run/secrets/rendered/glance-komodo-env";
           };
 
           komodo = {

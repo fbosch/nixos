@@ -138,6 +138,14 @@ in
               mode = "0600";
               owner = flakeConfig.flake.meta.user.username;
             };
+            komodo-web-api-key = {
+              mode = "0440";
+              group = "wheel";
+            };
+            komodo-web-api-secret = {
+              mode = "0440";
+              group = "wheel";
+            };
           };
 
           templates = {
@@ -154,6 +162,15 @@ in
             "pihole-webpassword" = {
               content = ''
                 FTLCONF_webserver_api_password=${nixosConfig.sops.placeholder.pihole-password}
+              '';
+              mode = "0400";
+            };
+
+            "glance-komodo-env" = {
+              content = ''
+                KOMODO_URL=https://komodo.corvus-corax.synology.me
+                KOMODO_API_KEY=${nixosConfig.sops.placeholder.komodo-web-api-key}
+                KOMODO_API_SECRET=${nixosConfig.sops.placeholder.komodo-web-api-secret}
               '';
               mode = "0400";
             };
