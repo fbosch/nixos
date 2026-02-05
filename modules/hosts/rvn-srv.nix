@@ -53,6 +53,7 @@ in
           "virtualization/podman"
           "services/containers/redlib"
           "services/containers/termix"
+          "services/containers/glance"
           "services/containers/pihole"
           "services/containers/helium"
           "services/containers/openmemory"
@@ -139,6 +140,11 @@ in
           helium-services-container = {
             proxyBaseUrl = "https://helium.corvus-corax.synology.me";
             httpPort = 8100;
+          };
+
+          glance-container = {
+            configDir = "/home/${config.flake.meta.user.username}/.config/glance";
+            assetsDir = "/home/${config.flake.meta.user.username}/.config/glance/assets";
           };
 
           komodo = {

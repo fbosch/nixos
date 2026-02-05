@@ -26,10 +26,12 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     PLATFORM="Darwin"
     AGE_KEY_FILE="$HOME/.config/sops/age/keys.txt"
     REBUILD_CMD="darwin-rebuild switch --flake .#\$(hostname -s)"
+    SED_INPLACE=(-i '')
 else
     PLATFORM="NixOS"
     AGE_KEY_FILE="/var/lib/sops-nix/key.txt"
     REBUILD_CMD="sudo nixos-rebuild switch --flake .#\$(hostname)"
+    SED_INPLACE=(-i)
 fi
 
 # Detect hostname
@@ -115,9 +117,9 @@ if grep -q "&${HOSTNAME}" .sops.yaml; then
         exit 0
     fi
     # Remove old key reference (macOS compatible)
-    sed -i '' "/&${HOSTNAME}/d" .sops.yaml
+    sed "${SED_INPLACE[@]}" "/&${HOSTNAME}/d" .sops.yaml
     # Remove old age reference in creation_rules (macOS compatible)
-    sed -i '' "/\*${HOSTNAME}/d" .sops.yaml
+    sed "${SED_INPLACE[@]}" "/\*${HOSTNAME}/d" .sops.yaml
 fi
 
 # Add new age key to .sops.yaml
@@ -127,7 +129,7 @@ echo "Adding age public key to .sops.yaml..."
 KEYS_LINE=$(grep -n "^keys:" .sops.yaml | cut -d: -f1)
 
 # Insert new key after the keys: line (macOS compatible)
-sed -i '' "${KEYS_LINE}a\\
+sed "${SED_INPLACE[@]}" "${KEYS_LINE}a\\
   - &${HOSTNAME} ${AGE_PUBLIC_KEY}
 " .sops.yaml
 
@@ -135,7 +137,7 @@ sed -i '' "${KEYS_LINE}a\\
 if grep -q "age:" .sops.yaml; then
     # Add to existing age list
     AGE_SECTION_LINE=$(grep -n "^\s*age:" .sops.yaml | tail -1 | cut -d: -f1)
-    sed -i '' "${AGE_SECTION_LINE}a\\
+    sed "${SED_INPLACE[@]}" "${AGE_SECTION_LINE}a\\
           - *${HOSTNAME}
 " .sops.yaml
 else
