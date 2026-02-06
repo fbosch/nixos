@@ -144,7 +144,7 @@ in
 
           glance-container = {
             configDir = "/home/${config.flake.meta.user.username}/.config/glance";
-            envFile = "/run/secrets/rendered/glance-komodo-env";
+            envFile = "/run/secrets/rendered/glance-env";
           };
 
           komodo = {

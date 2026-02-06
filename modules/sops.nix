@@ -111,6 +111,12 @@ in
             smb-password = {
               mode = "0400";
             };
+            synology-api-username = {
+              mode = "0400";
+            };
+            synology-api-password = {
+              mode = "0400";
+            };
             context7-api-key = {
               mode = "0444";
             };
@@ -146,6 +152,10 @@ in
               mode = "0440";
               group = "wheel";
             };
+            portainer-api-key = {
+              mode = "0440";
+              group = "wheel";
+            };
           };
 
           templates = {
@@ -166,11 +176,16 @@ in
               mode = "0400";
             };
 
-            "glance-komodo-env" = {
+            "glance-env" = {
               content = ''
                 KOMODO_URL=https://komodo.corvus-corax.synology.me
                 KOMODO_API_KEY=${nixosConfig.sops.placeholder.komodo-web-api-key}
                 KOMODO_API_SECRET=${nixosConfig.sops.placeholder.komodo-web-api-secret}
+                PORTAINER_URL=https://portainer.corvus-corax.synology.me
+                PORTAINER_API_KEY=${nixosConfig.sops.placeholder.portainer-api-key}
+                SYNOLOGY_URL=https://corvus-corax.synology.me
+                SYNOLOGY_USERNAME=${nixosConfig.sops.placeholder.synology-api-username}
+                SYNOLOGY_PASSWORD=${nixosConfig.sops.placeholder.synology-api-password}
               '';
               mode = "0400";
             };
