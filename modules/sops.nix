@@ -160,6 +160,15 @@ in
               mode = "0440";
               group = "wheel";
             };
+            linkwarden-postgres-password = {
+              mode = "0400";
+            };
+            linkwarden-nextauth-secret = {
+              mode = "0400";
+            };
+            linkwarden-meili-master-key = {
+              mode = "0400";
+            };
           };
 
           templates = {
@@ -203,6 +212,16 @@ in
               '';
               mode = "0440";
               group = "wheel";
+            };
+
+            # Linkwarden environment file with secrets
+            "linkwarden-env" = {
+              content = ''
+                POSTGRES_PASSWORD=${nixosConfig.sops.placeholder.linkwarden-postgres-password}
+                NEXTAUTH_SECRET=${nixosConfig.sops.placeholder.linkwarden-nextauth-secret}
+                MEILI_MASTER_KEY=${nixosConfig.sops.placeholder.linkwarden-meili-master-key}
+              '';
+              mode = "0400";
             };
           };
         };

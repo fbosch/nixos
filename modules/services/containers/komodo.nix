@@ -1,8 +1,9 @@
 _: {
   flake.modules.nixos."services/containers/komodo" =
-    { config
-    , lib
-    , ...
+    {
+      config,
+      lib,
+      ...
     }:
     let
       cfg = config.services.komodo;
@@ -13,9 +14,7 @@ _: {
         "secrets"
         "komodo-admin-password"
         "path"
-      ]
-        null
-        config;
+      ] null config;
       useAdminBootstrap = cfg.core.initAdminUsername != null && effectiveAdminPasswordFile != null;
       composeEnvPath = "/etc/komodo/compose.env";
       peripheryConfigPath = "/etc/komodo/periphery.toml";
@@ -141,10 +140,17 @@ _: {
               EnvironmentFile=${composeEnvPath}
               Volume=komodo-mongo-data.volume:/data/db
               Volume=komodo-mongo-config.volume:/data/configdb
+              Memory=2g
+              PidsLimit=1000
+              Ulimit=nofile=2048:4096
+              LogDriver=journald
+              LogOpt=tag=komodo-mongo
 
               [Service]
               Restart=always
               RestartSec=10
+              CPUQuota=200%
+              TimeoutStartSec=300
 
               [Install]
               WantedBy=multi-user.target
@@ -169,10 +175,16 @@ _: {
               ${lib.optionalString (effectivePasskeyFile != null) ''
                 Volume=${effectivePasskeyFile}:${effectivePasskeyFile}:ro
               ''}
+              Memory=512m
+              PidsLimit=500
+              Ulimit=nofile=2048:4096
+              LogDriver=journald
+              LogOpt=tag=komodo-core
 
               [Service]
               Restart=always
               RestartSec=10
+              CPUQuota=100%
               TimeoutStartSec=300
 
               [Install]
@@ -203,10 +215,16 @@ _: {
               ${lib.optionalString (effectivePasskeyFile != null) ''
                 Volume=${effectivePasskeyFile}:${effectivePasskeyFile}:ro
               ''}
+              Memory=512m
+              PidsLimit=500
+              Ulimit=nofile=2048:4096
+              LogDriver=journald
+              LogOpt=tag=komodo-periphery
 
               [Service]
               Restart=always
               RestartSec=10
+              CPUQuota=100%
               TimeoutStartSec=300
 
               [Install]

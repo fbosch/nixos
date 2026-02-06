@@ -1,9 +1,10 @@
 _: {
   flake.modules.nixos."services/containers/openmemory" =
-    { config
-    , lib
-    , pkgs
-    , ...
+    {
+      config,
+      lib,
+      pkgs,
+      ...
     }:
     let
       # OpenMemory source from GitHub
@@ -444,6 +445,10 @@ _: {
                 Environment=OM_DECAY_INTERVAL_MINUTES=${toString cfg.decayIntervalMinutes}
                 Environment=OM_DECAY_REINFORCE_ON_QUERY=${if cfg.decayReinforceOnQuery then "true" else "false"}
 
+                Memory=1g
+                PidsLimit=500
+                Ulimit=nofile=2048:4096
+
                 # Health Check
                 HealthCmd=wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
                 HealthInterval=30s
@@ -457,6 +462,7 @@ _: {
                 [Service]
                 Restart=always
                 RestartSec=10
+                CPUQuota=200%
                 TimeoutStartSec=300
 
                 [Install]
@@ -488,6 +494,10 @@ _: {
                 PublishPort=${toString cfg.dashboardPort}:3000
                 Environment=NEXT_PUBLIC_API_URL=${lib.escapeShellArg cfg.dashboardApiUrl}
 
+                Memory=512m
+                PidsLimit=300
+                Ulimit=nofile=2048:4096
+
                 # Health Check
                 HealthCmd=wget --no-verbose --tries=1 --spider http://localhost:3000 || exit 1
                 HealthInterval=30s
@@ -501,6 +511,7 @@ _: {
                 [Service]
                 Restart=always
                 RestartSec=10
+                CPUQuota=100%
                 TimeoutStartSec=300
 
                 [Install]

@@ -1,9 +1,10 @@
 _: {
   flake.modules.nixos."services/containers/helium" =
-    { config
-    , lib
-    , pkgs
-    , ...
+    {
+      config,
+      lib,
+      pkgs,
+      ...
     }:
     {
       options.services.helium-services-container = {
@@ -314,10 +315,16 @@ _: {
               ReadOnly=true
               Network=helium.network
               EnvironmentFile=${envFile}
+              Memory=256m
+              PidsLimit=200
+              Ulimit=nofile=1024:2048
+              LogDriver=journald
+              LogOpt=tag=helium-ubo-proxy
 
               [Service]
               Restart=always
               RestartSec=10
+              CPUQuota=50%
 
               [Install]
               WantedBy=multi-user.target
@@ -335,10 +342,16 @@ _: {
               ReadOnly=true
               Network=helium.network
               EnvironmentFile=${envFile}
+              Memory=256m
+              PidsLimit=200
+              Ulimit=nofile=1024:2048
+              LogDriver=journald
+              LogOpt=tag=helium-ext-proxy
 
               [Service]
               Restart=always
               RestartSec=10
+              CPUQuota=50%
 
               [Install]
               WantedBy=multi-user.target
@@ -356,10 +369,16 @@ _: {
               ReadOnly=true
               Network=helium.network
               EnvironmentFile=${envFile}
+              Memory=256m
+              PidsLimit=200
+              Ulimit=nofile=1024:2048
+              LogDriver=journald
+              LogOpt=tag=helium-ext-proxy-backup
 
               [Service]
               Restart=always
               RestartSec=10
+              CPUQuota=50%
 
               [Install]
               WantedBy=multi-user.target
@@ -386,12 +405,16 @@ _: {
               Tmpfs=/tmp:rw,size=512M
               ShmSize=512m
               EnvironmentFile=${envFile}
+              Memory=512m
+              PidsLimit=500
+              Ulimit=nofile=2048:4096
               LogDriver=journald
               LogOpt=tag=helium-nginx
 
               [Service]
               Restart=always
               RestartSec=10
+              CPUQuota=100%
 
               [Install]
               WantedBy=multi-user.target

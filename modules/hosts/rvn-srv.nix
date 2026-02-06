@@ -43,7 +43,6 @@ in
           "services/home-assistant"
           "services/atticd"
           "services/attic-client"
-          "services/containers/komodo"
           "services/plex"
           "services/servarr"
           "services/tinyproxy"
@@ -57,7 +56,9 @@ in
           "services/containers/glance"
           "services/containers/pihole"
           "services/containers/helium"
+          "services/containers/komodo"
           "services/containers/openmemory"
+          "services/containers/linkwarden"
 
           # validation
           "validation/container-port-conflicts"
@@ -175,6 +176,19 @@ in
             enable = true;
             openFirewall = true;
             extraArgs = [ "-w" ];
+          };
+
+          linkwarden-container = {
+            enable = true;
+            port = 3100;
+            nextauthUrl = "https://linkwarden.corvus-corax.synology.me";
+            envFile = "/run/secrets/rendered/linkwarden-env";
+            disableRegistration = true; # Set to true after first user registration
+            # Performance tuning
+            cpus = "2.0";
+            memory = "2g";
+            memoryReservation = "1g";
+            shmSize = "256m"; # Important for PDF/screenshot generation
           };
 
           resolved = {

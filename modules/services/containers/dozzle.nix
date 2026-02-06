@@ -1,9 +1,10 @@
 _: {
   flake.modules.nixos."services/containers/dozzle" =
-    { config
-    , lib
-    , pkgs
-    , ...
+    {
+      config,
+      lib,
+      pkgs,
+      ...
     }:
     let
       cfg = config.services.dozzle;
@@ -82,20 +83,17 @@ _: {
             let
               envVars = lib.concatStringsSep "\n" (
                 lib.filter (x: x != null) [
-                  (lib.optionalString
-                    (
-                      cfg.hostname != null
-                    ) "Environment=DOZZLE_HOSTNAME=${lib.escapeShellArg cfg.hostname}")
+                  (lib.optionalString (
+                    cfg.hostname != null
+                  ) "Environment=DOZZLE_HOSTNAME=${lib.escapeShellArg cfg.hostname}")
                   (lib.optionalString cfg.enableActions "Environment=DOZZLE_ENABLE_ACTIONS=true")
                   (lib.optionalString cfg.enableShell "Environment=DOZZLE_ENABLE_SHELL=true")
-                  (lib.optionalString
-                    (
-                      cfg.filter != null
-                    ) "Environment=DOZZLE_FILTER=${lib.escapeShellArg cfg.filter}")
-                  (lib.optionalString
-                    (
-                      cfg.authProvider != null
-                    ) "Environment=DOZZLE_AUTH_PROVIDER=${cfg.authProvider}")
+                  (lib.optionalString (
+                    cfg.filter != null
+                  ) "Environment=DOZZLE_FILTER=${lib.escapeShellArg cfg.filter}")
+                  (lib.optionalString (
+                    cfg.authProvider != null
+                  ) "Environment=DOZZLE_AUTH_PROVIDER=${cfg.authProvider}")
                   (lib.optionalString cfg.noAnalytics "Environment=DOZZLE_NO_ANALYTICS=true")
                 ]
               );
@@ -114,6 +112,9 @@ _: {
               Volume=/run/podman/podman.sock:/var/run/docker.sock:ro
               Volume=/var/lib/docker/engine-id:/var/lib/docker/engine-id:ro
               ${envVars}
+              Memory=256m
+              PidsLimit=200
+              Ulimit=nofile=2048:4096
               HealthCmd=wget --no-verbose --tries=1 --spider http://localhost:8080/healthcheck || exit 1
               HealthInterval=30s
               HealthTimeout=10s
@@ -125,6 +126,7 @@ _: {
               [Service]
               Restart=always
               RestartSec=10
+              CPUQuota=50%
               TimeoutStartSec=60
 
               [Install]

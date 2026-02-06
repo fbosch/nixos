@@ -1,8 +1,9 @@
 _: {
   flake.modules.nixos."services/containers/pihole" =
-    { config
-    , lib
-    , ...
+    {
+      config,
+      lib,
+      ...
     }:
     {
       options.services.pihole-container = {
@@ -101,6 +102,9 @@ _: {
             ${lib.optionalString (config.services.pihole-container.webPasswordFile == null) ''
               Environment=FTLCONF_webserver_api_password=${lib.escapeShellArg config.services.pihole-container.webPassword}
             ''}
+            Memory=512m
+            PidsLimit=500
+            Ulimit=nofile=2048:4096
             HealthCmd=curl -fsS http://localhost/admin/ || exit 1
             HealthInterval=30s
             HealthTimeout=10s
@@ -112,6 +116,7 @@ _: {
             [Service]
             Restart=always
             RestartSec=10
+            CPUQuota=100%
             TimeoutStartSec=300
 
             [Install]
