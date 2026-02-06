@@ -51,6 +51,7 @@ in
 
           # containerized services
           "virtualization/podman"
+          "services/containers/dozzle"
           "services/containers/redlib"
           "services/containers/termix"
           "services/containers/glance"
@@ -145,6 +146,12 @@ in
           glance-container = {
             configDir = "/home/${config.flake.meta.user.username}/.config/glance";
             envFile = "/run/secrets/rendered/glance-env";
+          };
+
+          dozzle = {
+            enable = true;
+            port = 8090;
+            noAnalytics = true;
           };
 
           komodo = {

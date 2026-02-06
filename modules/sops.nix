@@ -156,6 +156,10 @@ in
               mode = "0440";
               group = "wheel";
             };
+            ha-access-token = {
+              mode = "0440";
+              group = "wheel";
+            };
           };
 
           templates = {
@@ -186,6 +190,8 @@ in
                 SYNOLOGY_URL=https://corvus-corax.synology.me
                 SYNOLOGY_USERNAME=${nixosConfig.sops.placeholder.synology-api-username}
                 SYNOLOGY_PASSWORD=${nixosConfig.sops.placeholder.synology-api-password}
+                HASS_URL=https://ha.corvus-corax.synology.me
+                HASS_API_KEY=${nixosConfig.sops.placeholder.ha-access-token}
               '';
               mode = "0400";
             };
