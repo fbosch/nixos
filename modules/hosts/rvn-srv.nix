@@ -146,11 +146,17 @@ in
           glance-container = {
             configDir = "/home/${config.flake.meta.user.username}/.config/glance";
             envFile = "/run/secrets/rendered/glance-env";
+            # Resource allocation for better performance
+            cpus = "2.0";
+            memory = "1g";
+            memoryReservation = "512m";
+            shmSize = "128m";
           };
 
           dozzle = {
             enable = true;
             port = 8090;
+            hostname = "rvn-srv";
             noAnalytics = true;
           };
 

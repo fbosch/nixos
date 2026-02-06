@@ -54,6 +54,34 @@ _: {
           default = false;
           description = "Mount the Podman socket for the containers widget";
         };
+
+        cpus = lib.mkOption {
+          type = lib.types.nullOr lib.types.str;
+          default = null;
+          example = "2.0";
+          description = "Number of CPUs to allocate to the container (e.g., '2.0' for 2 cores, '0.5' for half a core)";
+        };
+
+        memory = lib.mkOption {
+          type = lib.types.nullOr lib.types.str;
+          default = null;
+          example = "2g";
+          description = "Memory limit for the container (e.g., '512m', '2g')";
+        };
+
+        memoryReservation = lib.mkOption {
+          type = lib.types.nullOr lib.types.str;
+          default = null;
+          example = "1g";
+          description = "Memory soft limit - allows container to use more if available";
+        };
+
+        shmSize = lib.mkOption {
+          type = lib.types.nullOr lib.types.str;
+          default = "64m";
+          example = "128m";
+          description = "Shared memory size for /dev/shm (can improve performance for cached operations)";
+        };
       };
 
       config = {
@@ -63,7 +91,6 @@ _: {
             tcpPorts = [ cfg.port ];
           }
         ];
-
         systemd.tmpfiles.rules = [
           "d ${cfg.dataDir} 0755 root root -"
           "d ${configDir} 0755 root root -"
@@ -85,13 +112,19 @@ _: {
           ${lib.optionalString cfg.enableDockerSocket "Volume=/run/podman/podman.sock:/run/podman/podman.sock:ro"}
           ${lib.optionalString cfg.enableDockerSocket "Environment=DOCKER_HOST=unix:///run/podman/podman.sock"}
           ${lib.optionalString (cfg.envFile != null) "EnvironmentFile=${lib.escapeShellArg cfg.envFile}"}
+          ${lib.optionalString (cfg.cpus != null) "PodmanArgs=--cpus=${cfg.cpus}"}
+          ${lib.optionalString (cfg.memory != null) "PodmanArgs=--memory=${cfg.memory}"}
+          ${lib.optionalString (
+            cfg.memoryReservation != null
+          ) "PodmanArgs=--memory-reservation=${cfg.memoryReservation}"}
+          ${lib.optionalString (cfg.shmSize != null) "PodmanArgs=--shm-size=${cfg.shmSize}"}
           LogDriver=journald
           LogOpt=tag=glance
 
           [Service]
           Restart=always
           RestartSec=10
-          TimeoutStartSec=300
+          TimeoutStartSec=60
 
           [Install]
           WantedBy=multi-user.target
