@@ -8,6 +8,7 @@
         aichat
         tesseract
         claude-code
+        local.codexbar
       ];
     };
 }
