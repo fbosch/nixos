@@ -175,6 +175,9 @@ in
             linkwarden-access-token = {
               mode = "0400";
             };
+            tailscale-api-key = {
+              mode = "0400";
+            };
           };
 
           templates = {
@@ -209,6 +212,8 @@ in
                 HASS_API_KEY=${nixosConfig.sops.placeholder.ha-access-token}
                 LINKWARDEN_TOKEN=${nixosConfig.sops.placeholder.linkwarden-access-token}
                 PIHOLE_PASSWORD=${nixosConfig.sops.placeholder.rpi-pihole-password-token}
+                GITHUB_TOKEN=${nixosConfig.sops.placeholder.github-token}
+                TAILSCALE_API_KEY=${nixosConfig.sops.placeholder.tailscale-api-key}
               '';
               mode = "0400";
             };
