@@ -223,6 +223,7 @@ _: {
           ContainerName=linkwarden-meilisearch
           Image=docker.io/getmeili/meilisearch:v1.12.8
           Network=linkwarden.network
+          PodmanArgs=--network-alias=meilisearch
           ${lib.optionalString (cfg.envFile != null) "EnvironmentFile=${cfg.envFile}"}
           ${lib.optionalString (
             cfg.meiliMasterKey != null
@@ -272,6 +273,7 @@ _: {
           Environment=PAGINATION_TAKE_COUNT=${toString cfg.paginationTakeCount}
           Environment=AUTOSCROLL_TIMEOUT=${toString cfg.autoscrollTimeout}
           Environment=STORAGE_FOLDER=/data/data
+          Environment=NODE_OPTIONS=--max-old-space-size=3072
           ${lib.optionalString (cfg.cpus != null) "PodmanArgs=--cpus=${cfg.cpus}"}
           ${lib.optionalString (cfg.memory != null) "PodmanArgs=--memory=${cfg.memory}"}
           ${lib.optionalString (

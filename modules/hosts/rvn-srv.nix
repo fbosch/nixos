@@ -186,9 +186,11 @@ in
             disableRegistration = true; # Set to true after first user registration
             # Performance tuning
             cpus = "2.0";
-            memory = "2g";
-            memoryReservation = "1g";
+            memory = "4g";
+            memoryReservation = "2g";
             shmSize = "256m"; # Important for PDF/screenshot generation
+            # Meilisearch resource limits (was hitting OOM at 512m)
+            meilisearch.memory = "1g";
           };
 
           resolved = {

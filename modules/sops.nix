@@ -102,7 +102,10 @@ in
               mode = "0440";
               group = "wheel";
             };
-            pihole-password = {
+            pihole-default-password = {
+              mode = "0400";
+            };
+            rpi-pihole-password-token = {
               mode = "0400";
             };
             smb-username = {
@@ -169,6 +172,9 @@ in
             linkwarden-meili-master-key = {
               mode = "0400";
             };
+            linkwarden-access-token = {
+              mode = "0400";
+            };
           };
 
           templates = {
@@ -184,7 +190,7 @@ in
 
             "pihole-webpassword" = {
               content = ''
-                FTLCONF_webserver_api_password=${nixosConfig.sops.placeholder.pihole-password}
+                FTLCONF_webserver_api_password=${nixosConfig.sops.placeholder.pihole-default-password}
               '';
               mode = "0400";
             };
@@ -201,6 +207,8 @@ in
                 SYNOLOGY_PASSWORD=${nixosConfig.sops.placeholder.synology-api-password}
                 HASS_URL=https://ha.corvus-corax.synology.me
                 HASS_API_KEY=${nixosConfig.sops.placeholder.ha-access-token}
+                LINKWARDEN_TOKEN=${nixosConfig.sops.placeholder.linkwarden-access-token}
+                PIHOLE_PASSWORD=${nixosConfig.sops.placeholder.rpi-pihole-password-token}
               '';
               mode = "0400";
             };
@@ -220,6 +228,7 @@ in
                 POSTGRES_PASSWORD=${nixosConfig.sops.placeholder.linkwarden-postgres-password}
                 NEXTAUTH_SECRET=${nixosConfig.sops.placeholder.linkwarden-nextauth-secret}
                 MEILI_MASTER_KEY=${nixosConfig.sops.placeholder.linkwarden-meili-master-key}
+                DISABLE_PRESERVATION=true
               '';
               mode = "0400";
             };
