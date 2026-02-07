@@ -1,8 +1,9 @@
 _: {
   flake.modules.nixos."services/containers/glance" =
-    { config
-    , lib
-    , ...
+    {
+      config,
+      lib,
+      ...
     }:
     let
       cfg = config.services.glance-container;
@@ -82,6 +83,13 @@ _: {
           example = "128m";
           description = "Shared memory size for /dev/shm (can improve performance for cached operations)";
         };
+
+        timezone = lib.mkOption {
+          type = lib.types.str;
+          default = "Europe/Copenhagen";
+          example = "America/New_York";
+          description = "Timezone for the Glance container (IANA timezone identifier)";
+        };
       };
 
       config = {
@@ -109,6 +117,7 @@ _: {
           Volume=${configDir}:/app/config
           ${lib.optionalString (!assetsDirIsSubdir) "Volume=${assetsDir}:/app/assets"}
           Volume=/etc/localtime:/etc/localtime:ro
+          Environment=TZ=${cfg.timezone}
           ${lib.optionalString cfg.enableDockerSocket "Volume=/run/podman/podman.sock:/run/podman/podman.sock:ro"}
           ${lib.optionalString cfg.enableDockerSocket "Environment=DOCKER_HOST=unix:///run/podman/podman.sock"}
           ${lib.optionalString (cfg.envFile != null) "EnvironmentFile=${lib.escapeShellArg cfg.envFile}"}
