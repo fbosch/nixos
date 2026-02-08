@@ -48,8 +48,8 @@ _: {
     , osConfig
     , ...
     }:
-    lib.optionalAttrs osConfig.programs.steam.enable {
-      home.packages = [ pkgs.adwsteamgtk ];
+    {
+      home.packages = lib.mkIf osConfig.programs.steam.enable [ pkgs.adwsteamgtk ];
 
       # Flatpak gaming applications
       services.flatpak.packages = [
@@ -83,7 +83,7 @@ _: {
         Session.Talk = [ "org.freedesktop.Notifications" ];
       };
 
-      home.activation =
+      home.activation = lib.mkIf osConfig.programs.steam.enable (
         let
           applySteamTheme = pkgs.writeShellScript "applySteamTheme" ''
             # This file gets copied with read-only permission from the nix store
@@ -99,33 +99,40 @@ _: {
           updateSteamTheme = config.lib.dag.entryAfter [ "writeBoundary" "dconfSettings" ] ''
             run ${applySteamTheme}
           '';
-        };
+        }
+      );
 
-      dconf.settings."io/github/Foldex/AdwSteamGtk".prefs-install-custom-css = true;
+      dconf.settings = lib.mkIf osConfig.programs.steam.enable {
+        "io/github/Foldex/AdwSteamGtk".prefs-install-custom-css = true;
+      };
 
       # Custom CSS to match MonoThemeDark color scheme
-      xdg.configFile."AdwSteamGtk/custom.css".source = ../../assets/steam-theme/custom.css;
-
-      xdg.desktopEntries.steam = lib.mkIf osConfig.services.mullvad-vpn.enable {
-        name = "Steam";
-        comment = "Application for managing and playing games on Steam";
-        exec = "${lib.getExe' pkgs.mullvad-vpn "mullvad-exclude"} steam %U";
-        icon = "steam";
-        type = "Application";
-        categories = [
-          "Network"
-          "FileTransfer"
-          "Game"
-        ];
-        mimeType = [
-          "x-scheme-handler/steam"
-          "x-scheme-handler/steamlink"
-        ];
-        terminal = false;
-        settings = {
-          PrefersNonDefaultGPU = "true";
-          X-KDE-RunOnDiscreteGpu = "true";
-        };
+      xdg.configFile."AdwSteamGtk/custom.css" = lib.mkIf osConfig.programs.steam.enable {
+        source = ../../assets/steam-theme/custom.css;
       };
+
+      xdg.desktopEntries.steam =
+        lib.mkIf (osConfig.programs.steam.enable && osConfig.services.mullvad-vpn.enable)
+          {
+            name = "Steam";
+            comment = "Application for managing and playing games on Steam";
+            exec = "${lib.getExe' pkgs.mullvad-vpn "mullvad-exclude"} steam %U";
+            icon = "steam";
+            type = "Application";
+            categories = [
+              "Network"
+              "FileTransfer"
+              "Game"
+            ];
+            mimeType = [
+              "x-scheme-handler/steam"
+              "x-scheme-handler/steamlink"
+            ];
+            terminal = false;
+            settings = {
+              PrefersNonDefaultGPU = "true";
+              X-KDE-RunOnDiscreteGpu = "true";
+            };
+          };
     };
 }
