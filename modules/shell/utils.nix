@@ -38,6 +38,7 @@
         xh
         lynx
         jq
+        yq
         fd
         hyperfine
         html2text
