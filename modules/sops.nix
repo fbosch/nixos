@@ -5,16 +5,47 @@
 }:
 let
   flakeConfig = config;
+  user = flakeConfig.flake.meta.user.username;
+
+  # Secret file paths
   commonFile = ../secrets/common.yaml;
   apisFile = ../secrets/apis.yaml;
   containersFile = ../secrets/containers.yaml;
   developmentFile = ../secrets/development.yaml;
-  mkSecret =
-    file: extra:
-    lib.mkMerge [
-      { sopsFile = file; }
-      extra
-    ];
+
+  # Permission presets
+  rootOnly = {
+    mode = "0400";
+  };
+  wheelReadable = {
+    mode = "0440";
+    group = "wheel";
+  };
+  worldReadable = {
+    mode = "0444";
+  };
+  userOwned = {
+    mode = "0600";
+    owner = user;
+  };
+  userReadOnly = {
+    mode = "0400";
+    owner = user;
+  };
+
+  # Bulk secret generators
+  mkSecrets =
+    file: names:
+    lib.genAttrs names (_: {
+      sopsFile = file;
+    });
+
+  mkSecretsWithOpts =
+    file: opts: names:
+    lib.genAttrs names (_: { sopsFile = file; } // opts);
+
+  # Single secret with full control
+  mkSecret = file: opts: { sopsFile = file; } // opts;
 in
 {
   flake.modules = {
@@ -43,39 +74,45 @@ in
           sops = {
             defaultSopsFile = commonFile;
             age.keyFile = "${hmConfig.home.homeDirectory}/.config/sops/age/keys.txt";
-            # Auto-generate age key on first activation
             age.generateKey = true;
 
-            secrets = {
-              github-token = mkSecret commonFile { };
-              smb-username = mkSecret commonFile { };
-              smb-password = mkSecret commonFile { };
-              context7-api-key = mkSecret apisFile { };
-              kagi-api-token = mkSecret apisFile { };
-              openai-api-key = mkSecret apisFile { };
-              ssh-private-key = mkSecret commonFile {
-                path = "${hmConfig.home.homeDirectory}/.ssh/id_ed25519";
-              };
-            };
+            secrets = lib.mkMerge [
+              # Common secrets (no special options needed for HM)
+              (mkSecrets commonFile [
+                "github-token"
+                "smb-username"
+                "smb-password"
+              ])
 
+              # API secrets
+              (mkSecrets apisFile [
+                "context7-api-key"
+                "kagi-api-token"
+                "openai-api-key"
+              ])
+
+              # Special cases with custom options
+              {
+                ssh-private-key = mkSecret commonFile {
+                  path = "${hmConfig.home.homeDirectory}/.ssh/id_ed25519";
+                };
+              }
+            ];
           };
 
           # Use activation script to generate Fish secrets file after SOPS decryption
           home.activation.generateFishSecrets =
             let
-              # Map environment variable names to secret paths
               secretsMap = {
                 CONTEXT7_API_KEY = hmConfig.sops.secrets.context7-api-key.path;
                 KAGI_API_TOKEN = hmConfig.sops.secrets.kagi-api-token.path;
                 OPENAI_API_KEY = hmConfig.sops.secrets.openai-api-key.path;
               };
 
-              # Generate script to read each secret into a variable
               readSecrets = lib.concatStringsSep "\n" (
                 lib.mapAttrsToList (name: path: ''${name}=$(cat ${path} 2>/dev/null || echo "")'') secretsMap
               );
 
-              # Generate Fish set commands with bash variable expansion
               fishExports = lib.concatStringsSep "\n" (
                 lib.mapAttrsToList (name: _: "set -gx ${name} '$" + name + "'") secretsMap
               );
@@ -90,7 +127,6 @@ in
               ${fishExports}
               EOF
             '';
-
         };
     };
 
@@ -108,101 +144,73 @@ in
         sops = {
           defaultSopsFile = commonFile;
           age.keyFile = "/var/lib/sops-nix/key.txt";
-          # This will generate a new key if the key specified above does not exist
           age.generateKey = true;
 
-          secrets = {
-            github-token = mkSecret commonFile {
-              mode = "0440";
-              group = "wheel";
-            };
-            pihole-default-password = mkSecret containersFile {
-              mode = "0400";
-            };
-            rpi-pihole-password-token = mkSecret containersFile {
-              mode = "0400";
-            };
-            smb-username = mkSecret commonFile {
-              mode = "0400";
-            };
-            smb-password = mkSecret commonFile {
-              mode = "0400";
-            };
-            synology-api-username = mkSecret containersFile {
-              mode = "0400";
-            };
-            synology-api-password = mkSecret containersFile {
-              mode = "0400";
-            };
-            context7-api-key = mkSecret apisFile {
-              mode = "0444";
-            };
-            kagi-api-token = mkSecret apisFile {
-              mode = "0440";
-              group = "wheel";
-            };
-            openai-api-key = mkSecret apisFile {
-              mode = "0440";
-              group = "wheel";
-            };
-            npm-personal-access-token = mkSecret developmentFile {
-              mode = "0400";
-              owner = flakeConfig.flake.meta.user.username;
-            };
-            wakapi-api-key = mkSecret apisFile {
-              mode = "0440";
-              group = "wheel";
-            };
-            wakapi-password-salt = mkSecret apisFile {
-              mode = "0440";
-              group = "wheel";
-            };
-            ssh-private-key = mkSecret commonFile {
-              mode = "0600";
-              owner = flakeConfig.flake.meta.user.username;
-            };
-            komodo-web-api-key = mkSecret containersFile {
-              mode = "0440";
-              group = "wheel";
-            };
-            komodo-web-api-secret = mkSecret containersFile {
-              mode = "0440";
-              group = "wheel";
-            };
-            portainer-api-key = mkSecret containersFile {
-              mode = "0440";
-              group = "wheel";
-            };
-            ha-access-token = mkSecret containersFile {
-              mode = "0440";
-              group = "wheel";
-            };
-            linkwarden-postgres-password = mkSecret containersFile {
-              mode = "0400";
-            };
-            linkwarden-nextauth-secret = mkSecret containersFile {
-              mode = "0400";
-            };
-            linkwarden-meili-master-key = mkSecret containersFile {
-              mode = "0400";
-            };
-            linkwarden-access-token = mkSecret containersFile {
-              mode = "0400";
-            };
-            tailscale-api-key = mkSecret containersFile {
-              mode = "0400";
-            };
-          };
+          secrets = lib.mkMerge [
+            # Common secrets - root only
+            (mkSecretsWithOpts commonFile rootOnly [
+              "smb-username"
+              "smb-password"
+            ])
+
+            # Common secrets - wheel readable
+            (mkSecretsWithOpts commonFile wheelReadable [
+              "github-token"
+            ])
+
+            # API secrets - wheel readable
+            (mkSecretsWithOpts apisFile wheelReadable [
+              "kagi-api-token"
+              "openai-api-key"
+              "wakapi-api-key"
+              "wakapi-password-salt"
+            ])
+
+            # API secrets - world readable
+            (mkSecretsWithOpts apisFile worldReadable [
+              "context7-api-key"
+            ])
+
+            # Container secrets - root only
+            (mkSecretsWithOpts containersFile rootOnly [
+              "pihole-default-password"
+              "rpi-pihole-password-token"
+              "synology-api-username"
+              "synology-api-password"
+              "linkwarden-postgres-password"
+              "linkwarden-nextauth-secret"
+              "linkwarden-meili-master-key"
+              "linkwarden-access-token"
+              "tailscale-api-key"
+            ])
+
+            # Container secrets - wheel readable
+            (mkSecretsWithOpts containersFile wheelReadable [
+              "komodo-web-api-key"
+              "komodo-web-api-secret"
+              "portainer-api-key"
+              "ha-access-token"
+            ])
+
+            # Development secrets - user owned
+            (mkSecretsWithOpts developmentFile userReadOnly [
+              "npm-personal-access-token"
+            ])
+
+            # Special cases
+            {
+              ssh-private-key = mkSecret commonFile userOwned;
+            }
+          ];
 
           templates = {
-            # Generate .smbcredentials file from SOPS secrets
             "smbcredentials" = {
               content = ''
                 username=${nixosConfig.sops.placeholder.smb-username}
                 password=${nixosConfig.sops.placeholder.smb-password}
               '';
               mode = "0600";
-              owner = flakeConfig.flake.meta.user.username;
+              owner = user;
             };
 
             "pihole-webpassword" = {
@@ -232,7 +240,6 @@ in
               mode = "0400";
             };
 
-            # Generate nix.conf snippet with GitHub token
             "nix-github-token" = {
               content = ''
                 access-tokens = github.com=${nixosConfig.sops.placeholder.github-token}
@@ -241,7 +248,6 @@ in
               group = "wheel";
             };
 
-            # Linkwarden environment file with secrets
             "linkwarden-env" = {
               content = ''
                 POSTGRES_PASSWORD=${nixosConfig.sops.placeholder.linkwarden-postgres-password}
@@ -273,61 +279,54 @@ in
         sops = {
           defaultSopsFile = commonFile;
           age.keyFile = "/var/lib/sops-nix/key.txt";
-          # This will generate a new key if the key specified above does not exist
           age.generateKey = true;
 
-          secrets = {
-            github-token = mkSecret commonFile {
-              mode = "0440";
-              group = "wheel";
-            };
-            smb-username = mkSecret commonFile {
-              mode = "0400";
-            };
-            smb-password = mkSecret commonFile {
-              mode = "0400";
-            };
-            context7-api-key = mkSecret apisFile {
-              mode = "0444";
-            };
-            kagi-api-token = mkSecret apisFile {
-              mode = "0440";
-              group = "wheel";
-            };
-            openai-api-key = mkSecret apisFile {
-              mode = "0440";
-              group = "wheel";
-            };
-            npm-personal-access-token = mkSecret developmentFile {
-              mode = "0400";
-              owner = flakeConfig.flake.meta.user.username;
-            };
-            wakapi-api-key = mkSecret apisFile {
-              mode = "0440";
-              group = "wheel";
-            };
-            wakapi-password-salt = mkSecret apisFile {
-              mode = "0440";
-              group = "wheel";
-            };
-            ssh-private-key = mkSecret commonFile {
-              mode = "0600";
-              owner = flakeConfig.flake.meta.user.username;
-            };
-          };
+          secrets = lib.mkMerge [
+            # Common secrets - root only
+            (mkSecretsWithOpts commonFile rootOnly [
+              "smb-username"
+              "smb-password"
+            ])
+
+            # Common secrets - wheel readable
+            (mkSecretsWithOpts commonFile wheelReadable [
+              "github-token"
+            ])
+
+            # API secrets - wheel readable
+            (mkSecretsWithOpts apisFile wheelReadable [
+              "kagi-api-token"
+              "openai-api-key"
+              "wakapi-api-key"
+              "wakapi-password-salt"
+            ])
+
+            # API secrets - world readable
+            (mkSecretsWithOpts apisFile worldReadable [
+              "context7-api-key"
+            ])
+
+            # Development secrets - user owned
+            (mkSecretsWithOpts developmentFile userReadOnly [
+              "npm-personal-access-token"
+            ])
+
+            # Special cases
+            {
+              ssh-private-key = mkSecret commonFile userOwned;
+            }
+          ];
 
           templates = {
-            # Generate .smbcredentials file from SOPS secrets
             "smbcredentials" = {
               content = ''
                 username=${darwinConfig.sops.placeholder.smb-username}
                 password=${darwinConfig.sops.placeholder.smb-password}
               '';
               mode = "0600";
-              owner = flakeConfig.flake.meta.user.username;
+              owner = user;
             };
 
-            # Generate nix.conf snippet with GitHub token
             "nix-github-token" = {
               content = ''
                 access-tokens = github.com=${darwinConfig.sops.placeholder.github-token}
