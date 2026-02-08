@@ -1,10 +1,20 @@
-{ inputs, config, ... }:
+{ inputs
+, config
+, lib
+, ...
+}:
 let
   flakeConfig = config;
   commonFile = ../secrets/common.yaml;
   apisFile = ../secrets/apis.yaml;
   containersFile = ../secrets/containers.yaml;
   developmentFile = ../secrets/development.yaml;
+  mkSecret =
+    file: extra:
+    lib.mkMerge [
+      { sopsFile = file; }
+      extra
+    ];
 in
 {
   flake.modules = {
@@ -37,27 +47,14 @@ in
             age.generateKey = true;
 
             secrets = {
-              github-token = {
-                sopsFile = commonFile;
-              };
-              smb-username = {
-                sopsFile = commonFile;
-              };
-              smb-password = {
-                sopsFile = commonFile;
-              };
-              context7-api-key = {
-                sopsFile = apisFile;
-              };
-              kagi-api-token = {
-                sopsFile = apisFile;
-              };
-              openai-api-key = {
-                sopsFile = apisFile;
-              };
-              ssh-private-key = {
+              github-token = mkSecret commonFile { };
+              smb-username = mkSecret commonFile { };
+              smb-password = mkSecret commonFile { };
+              context7-api-key = mkSecret apisFile { };
+              kagi-api-token = mkSecret apisFile { };
+              openai-api-key = mkSecret apisFile { };
+              ssh-private-key = mkSecret commonFile {
                 path = "${hmConfig.home.homeDirectory}/.ssh/id_ed25519";
-                sopsFile = commonFile;
               };
             };
 
@@ -115,108 +112,85 @@ in
           age.generateKey = true;
 
           secrets = {
-            github-token = {
+            github-token = mkSecret commonFile {
               mode = "0440";
               group = "wheel";
-              sopsFile = commonFile;
             };
-            pihole-default-password = {
+            pihole-default-password = mkSecret containersFile {
               mode = "0400";
-              sopsFile = containersFile;
             };
-            rpi-pihole-password-token = {
+            rpi-pihole-password-token = mkSecret containersFile {
               mode = "0400";
-              sopsFile = containersFile;
             };
-            smb-username = {
+            smb-username = mkSecret commonFile {
               mode = "0400";
-              sopsFile = commonFile;
             };
-            smb-password = {
+            smb-password = mkSecret commonFile {
               mode = "0400";
-              sopsFile = commonFile;
             };
-            synology-api-username = {
+            synology-api-username = mkSecret containersFile {
               mode = "0400";
-              sopsFile = containersFile;
             };
-            synology-api-password = {
+            synology-api-password = mkSecret containersFile {
               mode = "0400";
-              sopsFile = containersFile;
             };
-            context7-api-key = {
+            context7-api-key = mkSecret apisFile {
               mode = "0444";
-              sopsFile = apisFile;
             };
-            kagi-api-token = {
+            kagi-api-token = mkSecret apisFile {
               mode = "0440";
               group = "wheel";
-              sopsFile = apisFile;
             };
-            openai-api-key = {
+            openai-api-key = mkSecret apisFile {
               mode = "0440";
               group = "wheel";
-              sopsFile = apisFile;
             };
-            npm-personal-access-token = {
+            npm-personal-access-token = mkSecret developmentFile {
               mode = "0400";
               owner = flakeConfig.flake.meta.user.username;
-              sopsFile = developmentFile;
             };
-            wakapi-api-key = {
+            wakapi-api-key = mkSecret apisFile {
               mode = "0440";
               group = "wheel";
-              sopsFile = apisFile;
             };
-            wakapi-password-salt = {
+            wakapi-password-salt = mkSecret apisFile {
               mode = "0440";
               group = "wheel";
-              sopsFile = apisFile;
             };
-            ssh-private-key = {
+            ssh-private-key = mkSecret commonFile {
               mode = "0600";
               owner = flakeConfig.flake.meta.user.username;
-              sopsFile = commonFile;
             };
-            komodo-web-api-key = {
+            komodo-web-api-key = mkSecret containersFile {
               mode = "0440";
               group = "wheel";
-              sopsFile = containersFile;
             };
-            komodo-web-api-secret = {
+            komodo-web-api-secret = mkSecret containersFile {
               mode = "0440";
               group = "wheel";
-              sopsFile = containersFile;
             };
-            portainer-api-key = {
+            portainer-api-key = mkSecret containersFile {
               mode = "0440";
               group = "wheel";
-              sopsFile = containersFile;
             };
-            ha-access-token = {
+            ha-access-token = mkSecret containersFile {
               mode = "0440";
               group = "wheel";
-              sopsFile = containersFile;
             };
-            linkwarden-postgres-password = {
+            linkwarden-postgres-password = mkSecret containersFile {
               mode = "0400";
-              sopsFile = containersFile;
             };
-            linkwarden-nextauth-secret = {
+            linkwarden-nextauth-secret = mkSecret containersFile {
               mode = "0400";
-              sopsFile = containersFile;
             };
-            linkwarden-meili-master-key = {
+            linkwarden-meili-master-key = mkSecret containersFile {
               mode = "0400";
-              sopsFile = containersFile;
             };
-            linkwarden-access-token = {
+            linkwarden-access-token = mkSecret containersFile {
               mode = "0400";
-              sopsFile = containersFile;
             };
-            tailscale-api-key = {
+            tailscale-api-key = mkSecret containersFile {
               mode = "0400";
-              sopsFile = containersFile;
             };
           };
 
@@ -303,52 +277,42 @@ in
           age.generateKey = true;
 
           secrets = {
-            github-token = {
+            github-token = mkSecret commonFile {
               mode = "0440";
               group = "wheel";
-              sopsFile = commonFile;
             };
-            smb-username = {
+            smb-username = mkSecret commonFile {
               mode = "0400";
-              sopsFile = commonFile;
             };
-            smb-password = {
+            smb-password = mkSecret commonFile {
               mode = "0400";
-              sopsFile = commonFile;
             };
-            context7-api-key = {
+            context7-api-key = mkSecret apisFile {
               mode = "0444";
-              sopsFile = apisFile;
             };
-            kagi-api-token = {
+            kagi-api-token = mkSecret apisFile {
               mode = "0440";
               group = "wheel";
-              sopsFile = apisFile;
             };
-            openai-api-key = {
+            openai-api-key = mkSecret apisFile {
               mode = "0440";
               group = "wheel";
-              sopsFile = apisFile;
             };
-            npm-personal-access-token = {
+            npm-personal-access-token = mkSecret developmentFile {
               mode = "0400";
               owner = flakeConfig.flake.meta.user.username;
-              sopsFile = developmentFile;
             };
-            wakapi-api-key = {
+            wakapi-api-key = mkSecret apisFile {
               mode = "0440";
               group = "wheel";
-              sopsFile = apisFile;
             };
-            wakapi-password-salt = {
+            wakapi-password-salt = mkSecret apisFile {
               mode = "0440";
               group = "wheel";
-              sopsFile = apisFile;
             };
-            ssh-private-key = {
+            ssh-private-key = mkSecret commonFile {
               mode = "0600";
               owner = flakeConfig.flake.meta.user.username;
-              sopsFile = commonFile;
             };
           };
 

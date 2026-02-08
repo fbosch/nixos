@@ -1,9 +1,8 @@
 _: {
   flake.modules.nixos."services/containers/komodo" =
-    {
-      config,
-      lib,
-      ...
+    { config
+    , lib
+    , ...
     }:
     let
       cfg = config.services.komodo;
@@ -14,7 +13,9 @@ _: {
         "secrets"
         "komodo-admin-password"
         "path"
-      ] null config;
+      ]
+        null
+        config;
       useAdminBootstrap = cfg.core.initAdminUsername != null && effectiveAdminPasswordFile != null;
       composeEnvPath = "/etc/komodo/compose.env";
       peripheryConfigPath = "/etc/komodo/periphery.toml";
@@ -265,18 +266,22 @@ _: {
           secrets = {
             komodo-passkey = lib.mkIf cfg.periphery.requirePasskey {
               mode = "0440";
+              sopsFile = ../../../secrets/containers.yaml;
             };
 
             komodo-db-username = {
               mode = "0400";
+              sopsFile = ../../../secrets/containers.yaml;
             };
 
             komodo-db-password = {
               mode = "0400";
+              sopsFile = ../../../secrets/containers.yaml;
             };
 
             komodo-admin-password = lib.mkIf (cfg.core.initAdminUsername != null) {
               mode = "0400";
+              sopsFile = ../../../secrets/containers.yaml;
             };
           };
 
