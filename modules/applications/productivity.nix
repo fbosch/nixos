@@ -9,5 +9,7 @@
         pkgs.local.chromium-protonmail
         pkgs.local.chromium-protoncalendar
       ];
+
+      services.flatpak.packages = [ "md.obsidian.Obsidian" ];
     };
 }

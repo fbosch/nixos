@@ -26,7 +26,10 @@
         fi
       '';
 
-      services.flatpak.packages = [ "app.zen_browser.zen" ];
+      services.flatpak.packages = [
+        "app.zen_browser.zen"
+        "one.ablaze.floorp"
+      ];
 
       services.flatpak.overrides."app.zen_browser.zen" = {
         Context = {

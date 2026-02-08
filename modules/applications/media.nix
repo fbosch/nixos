@@ -34,6 +34,7 @@
         "tv.plex.PlexDesktop" # Media center
         "com.obsproject.Studio" # Video recording/streaming
         "com.obsproject.Studio.Plugin.OBSVkCapture" # OBS plugin
+        "be.alexandervanhee.gradia" # image editor
       ];
     };
 }
