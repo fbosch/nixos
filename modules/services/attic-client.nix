@@ -55,6 +55,7 @@ _: {
 
         sops.secrets.attic-admin-token = lib.mkIf cfg.watchStore.enable {
           mode = "0400";
+          sopsFile = ../../secrets/development.yaml;
         };
 
         systemd.services.attic-watch-store = lib.mkIf cfg.watchStore.enable {

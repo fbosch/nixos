@@ -64,6 +64,7 @@ _: {
 
           sops.secrets.atticd-jwt = {
             mode = "0400";
+            sopsFile = ../../secrets/development.yaml;
           };
         })
       ];

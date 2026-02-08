@@ -1,6 +1,10 @@
 { inputs, config, ... }:
 let
   flakeConfig = config;
+  commonFile = ../secrets/common.yaml;
+  apisFile = ../secrets/apis.yaml;
+  containersFile = ../secrets/containers.yaml;
+  developmentFile = ../secrets/development.yaml;
 in
 {
   flake.modules = {
@@ -27,20 +31,33 @@ in
           imports = [ inputs.sops-nix.homeManagerModules.sops ];
 
           sops = {
-            defaultSopsFile = ../secrets/secrets.yaml;
+            defaultSopsFile = commonFile;
             age.keyFile = "${hmConfig.home.homeDirectory}/.config/sops/age/keys.txt";
             # Auto-generate age key on first activation
             age.generateKey = true;
 
             secrets = {
-              github-token = { };
-              smb-username = { };
-              smb-password = { };
-              context7-api-key = { };
-              kagi-api-token = { };
-              openai-api-key = { };
+              github-token = {
+                sopsFile = commonFile;
+              };
+              smb-username = {
+                sopsFile = commonFile;
+              };
+              smb-password = {
+                sopsFile = commonFile;
+              };
+              context7-api-key = {
+                sopsFile = apisFile;
+              };
+              kagi-api-token = {
+                sopsFile = apisFile;
+              };
+              openai-api-key = {
+                sopsFile = apisFile;
+              };
               ssh-private-key = {
                 path = "${hmConfig.home.homeDirectory}/.ssh/id_ed25519";
+                sopsFile = commonFile;
               };
             };
 
@@ -92,7 +109,7 @@ in
         imports = [ inputs.sops-nix.nixosModules.sops ];
 
         sops = {
-          defaultSopsFile = ../secrets/secrets.yaml;
+          defaultSopsFile = commonFile;
           age.keyFile = "/var/lib/sops-nix/key.txt";
           # This will generate a new key if the key specified above does not exist
           age.generateKey = true;
@@ -101,82 +118,105 @@ in
             github-token = {
               mode = "0440";
               group = "wheel";
+              sopsFile = commonFile;
             };
             pihole-default-password = {
               mode = "0400";
+              sopsFile = containersFile;
             };
             rpi-pihole-password-token = {
               mode = "0400";
+              sopsFile = containersFile;
             };
             smb-username = {
               mode = "0400";
+              sopsFile = commonFile;
             };
             smb-password = {
               mode = "0400";
+              sopsFile = commonFile;
             };
             synology-api-username = {
               mode = "0400";
+              sopsFile = containersFile;
             };
             synology-api-password = {
               mode = "0400";
+              sopsFile = containersFile;
             };
             context7-api-key = {
               mode = "0444";
+              sopsFile = apisFile;
             };
             kagi-api-token = {
               mode = "0440";
               group = "wheel";
+              sopsFile = apisFile;
             };
             openai-api-key = {
               mode = "0440";
               group = "wheel";
+              sopsFile = apisFile;
             };
             npm-personal-access-token = {
               mode = "0400";
               owner = flakeConfig.flake.meta.user.username;
+              sopsFile = developmentFile;
             };
             wakapi-api-key = {
               mode = "0440";
               group = "wheel";
+              sopsFile = apisFile;
             };
             wakapi-password-salt = {
               mode = "0440";
               group = "wheel";
+              sopsFile = apisFile;
             };
             ssh-private-key = {
               mode = "0600";
               owner = flakeConfig.flake.meta.user.username;
+              sopsFile = commonFile;
             };
             komodo-web-api-key = {
               mode = "0440";
               group = "wheel";
+              sopsFile = containersFile;
             };
             komodo-web-api-secret = {
               mode = "0440";
               group = "wheel";
+              sopsFile = containersFile;
             };
             portainer-api-key = {
               mode = "0440";
               group = "wheel";
+              sopsFile = containersFile;
             };
             ha-access-token = {
               mode = "0440";
               group = "wheel";
+              sopsFile = containersFile;
             };
             linkwarden-postgres-password = {
               mode = "0400";
+              sopsFile = containersFile;
             };
             linkwarden-nextauth-secret = {
               mode = "0400";
+              sopsFile = containersFile;
             };
             linkwarden-meili-master-key = {
               mode = "0400";
+              sopsFile = containersFile;
             };
             linkwarden-access-token = {
               mode = "0400";
+              sopsFile = containersFile;
             };
             tailscale-api-key = {
               mode = "0400";
+              sopsFile = containersFile;
             };
           };
 
@@ -257,7 +297,7 @@ in
         imports = [ inputs.sops-nix.darwinModules.sops ];
 
         sops = {
-          defaultSopsFile = ../secrets/secrets.yaml;
+          defaultSopsFile = commonFile;
           age.keyFile = "/var/lib/sops-nix/key.txt";
           # This will generate a new key if the key specified above does not exist
           age.generateKey = true;
@@ -266,39 +306,49 @@ in
             github-token = {
               mode = "0440";
               group = "wheel";
+              sopsFile = commonFile;
             };
             smb-username = {
               mode = "0400";
+              sopsFile = commonFile;
             };
             smb-password = {
               mode = "0400";
+              sopsFile = commonFile;
             };
             context7-api-key = {
               mode = "0444";
+              sopsFile = apisFile;
             };
             kagi-api-token = {
               mode = "0440";
               group = "wheel";
+              sopsFile = apisFile;
             };
             openai-api-key = {
               mode = "0440";
               group = "wheel";
+              sopsFile = apisFile;
             };
             npm-personal-access-token = {
               mode = "0400";
               owner = flakeConfig.flake.meta.user.username;
+              sopsFile = developmentFile;
             };
             wakapi-api-key = {
               mode = "0440";
               group = "wheel";
+              sopsFile = apisFile;
             };
             wakapi-password-salt = {
               mode = "0440";
               group = "wheel";
+              sopsFile = apisFile;
             };
             ssh-private-key = {
               mode = "0600";
               owner = flakeConfig.flake.meta.user.username;
+              sopsFile = commonFile;
             };
           };
 

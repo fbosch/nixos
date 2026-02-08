@@ -28,6 +28,7 @@ _: {
           sops.secrets.wakapi-password-salt = {
             mode = lib.mkDefault "0440";
             group = lib.mkDefault "wheel";
+            sopsFile = ../../secrets/apis.yaml;
           };
 
           sops.templates."wakapi-env" = {
