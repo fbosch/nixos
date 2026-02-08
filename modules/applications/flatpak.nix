@@ -1,30 +1,8 @@
 {
   flake.modules.nixos.applications = _: { services.flatpak.enable = true; };
   flake.modules.homeManager.applications =
-    { pkgs, config, ... }:
+    _:
     {
-      home.activation.zenCacheToRAM = config.lib.dag.entryAfter [ "writeBoundary" ] ''
-        ZEN_PROFILE="$HOME/.var/app/app.zen_browser.zen/.zen"
-        if [ -d "$ZEN_PROFILE" ]; then
-          PROFILE_DIR=$(${pkgs.findutils}/bin/find "$ZEN_PROFILE" -maxdepth 1 -name "*.default*" -type d | ${pkgs.coreutils}/bin/head -1)
-          if [ -n "$PROFILE_DIR" ] && [ -d "$PROFILE_DIR" ]; then
-            CACHE_DIR="$PROFILE_DIR/cache2"
-            RAM_CACHE="/run/user/$(${pkgs.coreutils}/bin/id -u)/zen-cache"
-            
-            ${pkgs.coreutils}/bin/mkdir -p "$RAM_CACHE"
-            
-            if [ -d "$CACHE_DIR" ] && [ ! -L "$CACHE_DIR" ]; then
-              ${pkgs.coreutils}/bin/rm -rf "$CACHE_DIR"
-            fi
-            
-            if [ ! -L "$CACHE_DIR" ]; then
-              ${pkgs.coreutils}/bin/ln -sf "$RAM_CACHE" "$CACHE_DIR"
-              echo "Zen browser cache symlinked to RAM at $RAM_CACHE"
-            fi
-          fi
-        fi
-      '';
-
       services.flatpak = {
         enable = true;
         uninstallUnmanaged = true;
@@ -47,7 +25,6 @@
           "io.github.flattool.Warehouse" # Flatpak app manager
 
           # Browsers
-          "app.zen_browser.zen"
           "be.alexandervanhee.gradia"
           "one.ablaze.floorp"
 
@@ -56,6 +33,7 @@
           "md.obsidian.Obsidian"
 
           # Moved to domain-specific modules:
+          # - browsers.nix: app.zen_browser.zen
           # - communication.nix: com.discordapp.Discord, org.signal.Signal
           # - file-management.nix: org.gnome.FileRoller, org.gnome.baobab, org.gnome.TextEditor
           # - media.nix: org.gnome.Decibels, com.plexamp.Plexamp, tv.plex.PlexDesktop, com.obsproject.Studio
@@ -137,57 +115,6 @@
             };
             Session.Talk = [ "org.freedesktop.Notifications" ];
           };
-
-          "app.zen_browser.zen" = {
-            Context = {
-              sockets = [
-                "wayland"
-                "fallback-x11"
-                "pulseaudio"
-                "cups"
-              ];
-              shared = [
-                "network"
-                "ipc"
-              ];
-              devices = [ "dri" ];
-            };
-            Environment = {
-              MOZ_ENABLE_WAYLAND = "1";
-              MOZ_USE_XINPUT2 = "1";
-              GDK_BACKEND = "wayland";
-            };
-          };
-        };
-      };
-
-      xdg.desktopEntries."app.zen_browser.zen" = {
-        name = "Zen Browser";
-        exec = "mullvad-exclude flatpak run --env=MOZ_ENABLE_WAYLAND=1 app.zen_browser.zen %U";
-        icon = "app.zen_browser.zen";
-        type = "Application";
-        categories = [
-          "Network"
-          "WebBrowser"
-        ];
-        mimeType = [
-          "text/html"
-          "text/xml"
-          "application/xhtml+xml"
-          "x-scheme-handler/http"
-          "x-scheme-handler/https"
-          "application/x-xpinstall"
-          "application/pdf"
-          "application/json"
-        ];
-        startupNotify = false;
-        terminal = false;
-        settings = {
-          StartupWMClass = "zen";
-          X-MultipleArgs = "false";
-          Keywords = "Internet;WWW;Browser;Web;Explorer;";
-          X-Flatpak = "app.zen_browser.zen";
-          PrefersNonDefaultGPU = "true";
         };
       };
     };
