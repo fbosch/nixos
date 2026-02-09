@@ -88,6 +88,14 @@ in
           "vm.vfs_cache_pressure" = 50; # Keep filesystem cache longer
           "vm.dirty_ratio" = 15; # Start sync at 15% RAM dirty
           "vm.dirty_background_ratio" = 10; # Background writes at 10%
+
+          # TCP optimizations for nginx/web serving (conservative values)
+          "net.core.somaxconn" = 4096; # Increase max connection backlog
+          "net.ipv4.tcp_fastopen" = 3; # Enable TCP Fast Open (client + server)
+          "net.ipv4.tcp_keepalive_time" = 600; # Keep connections alive longer
+          "net.ipv4.tcp_keepalive_intvl" = 60;
+          "net.ipv4.tcp_keepalive_probes" = 3;
+          "net.core.netdev_max_backlog" = 5000; # Increase network device backlog
         };
 
         # Scheduled suspend/wake for power savings

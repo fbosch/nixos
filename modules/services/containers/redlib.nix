@@ -76,7 +76,19 @@ _: {
           cacheTTL = lib.mkOption {
             type = lib.types.str;
             default = "1h";
-            description = "Time to cache static content.";
+            description = "Time to cache static content (CSS/JS).";
+          };
+
+          imageCacheTTL = lib.mkOption {
+            type = lib.types.str;
+            default = "2h";
+            description = "Time to cache images and media.";
+          };
+
+          enableHttp2 = lib.mkOption {
+            type = lib.types.bool;
+            default = true;
+            description = "Enable HTTP/2 support for better performance.";
           };
         };
       };
@@ -129,8 +141,16 @@ _: {
           recommendedProxySettings = true;
           recommendedOptimisation = true;
           recommendedGzipSettings = true;
+          recommendedTlsSettings = true;
 
-          # Cache path configuration
+          # Performance tuning
+          eventsConfig = ''
+            worker_connections 2048;
+            use epoll;
+            multi_accept on;
+          '';
+
+          # Cache path configuration + connection pooling
           appendHttpConfig = ''
             proxy_cache_path /var/cache/nginx/redlib
               levels=1:2
@@ -138,6 +158,17 @@ _: {
               max_size=${cfg.nginx.cacheSize}
               inactive=${cfg.nginx.cacheTTL}
               use_temp_path=off;
+
+            # Connection pooling to Redlib backend
+            upstream redlib_backend {
+              server 127.0.0.1:${toString cfg.port};
+              keepalive 32;
+              keepalive_requests 100;
+              keepalive_timeout 60s;
+            }
+
+            # Enable HTTP/2 push for static assets
+            http2_push_preload on;
           '';
 
           upstreams.redlib = {
@@ -152,10 +183,13 @@ _: {
               }
             ];
 
+            # Enable HTTP/2
+            http2 = cfg.nginx.enableHttp2;
+
             locations = {
               # Cache static assets (CSS, JS, images)
               "~ ^/(style\\.css|static/)" = {
-                proxyPass = "http://redlib";
+                proxyPass = "http://redlib_backend";
                 extraConfig = ''
                   proxy_cache redlib_cache;
                   proxy_cache_valid 200 ${cfg.nginx.cacheTTL};
@@ -166,6 +200,10 @@ _: {
                   # Enable buffering for caching
                   proxy_buffering on;
 
+                  # Connection pooling
+                  proxy_http_version 1.1;
+                  proxy_set_header Connection "";
+
                   # Headers
                   proxy_set_header Host $host;
                   proxy_set_header X-Real-IP $remote_addr;
@@ -174,19 +212,48 @@ _: {
                 '';
               };
 
-              # Cache Reddit media proxied through Redlib
+              # Cache Reddit media proxied through Redlib (aggressive caching)
               "~ ^/(vid|img|thumb|hls|emoji)" = {
-                proxyPass = "http://redlib";
+                proxyPass = "http://redlib_backend";
                 extraConfig = ''
                   proxy_cache redlib_cache;
-                  proxy_cache_valid 200 30m;
+                  proxy_cache_valid 200 ${cfg.nginx.imageCacheTTL};
                   proxy_cache_key "$scheme$request_method$host$request_uri";
                   add_header X-Cache-Status $upstream_cache_status;
+                  add_header Cache-Control "public, max-age=7200";
 
                   # Enable buffering for caching
                   proxy_buffering on;
                   proxy_buffer_size 16k;
                   proxy_buffers 32 16k;
+
+                  # Connection pooling
+                  proxy_http_version 1.1;
+                  proxy_set_header Connection "";
+
+                  # Headers
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
+                '';
+              };
+
+              # Cache user profiles and subreddit info briefly
+              "~ ^/(r/[^/]+/(about|sidebar)|u/[^/]+/about)" = {
+                proxyPass = "http://redlib_backend";
+                extraConfig = ''
+                  proxy_cache redlib_cache;
+                  proxy_cache_valid 200 10m;
+                  proxy_cache_key "$scheme$request_method$host$request_uri";
+                  add_header X-Cache-Status $upstream_cache_status;
+
+                  # Enable buffering for caching
+                  proxy_buffering on;
+
+                  # Connection pooling
+                  proxy_http_version 1.1;
+                  proxy_set_header Connection "";
 
                   # Headers
                   proxy_set_header Host $host;
@@ -198,7 +265,7 @@ _: {
 
               # Don't cache dynamic content (subreddit pages, user pages, etc.)
               "/" = {
-                proxyPass = "http://redlib";
+                proxyPass = "http://redlib_backend";
                 extraConfig = ''
                   # Disable caching for dynamic content
                   proxy_no_cache 1;
@@ -206,6 +273,10 @@ _: {
 
                   # Disable buffering for dynamic responses
                   proxy_buffering off;
+
+                  # Connection pooling
+                  proxy_http_version 1.1;
+                  proxy_set_header Connection "";
 
                   # Headers
                   proxy_set_header Host $host;
