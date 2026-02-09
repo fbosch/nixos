@@ -57,7 +57,7 @@ in
           "services/containers/pihole"
           "services/containers/helium"
           "services/containers/komodo"
-          "services/containers/openmemory"
+          # "services/containers/openmemory"
           "services/containers/linkwarden"
 
           # validation
@@ -117,14 +117,14 @@ in
           ananicy.enable = true;
 
           # OpenMemory
-          openmemory-container = {
-            buildImages = true;
-            dashboardApiUrl = "https://memory.corvus-corax.synology.me";
-            openaiApiKey = lib.attrByPath [ "sops" "placeholder" "openai-api-key" ] "" config;
-            embeddings = "openai";
-            embeddingFallback = "synthetic";
-            tier = "deep";
-          };
+          # openmemory-container = {
+          #   buildImages = true;
+          #   dashboardApiUrl = "https://memory.corvus-corax.synology.me";
+          #   openaiApiKey = lib.attrByPath [ "sops" "placeholder" "openai-api-key" ] "" config;
+          #   embeddings = "openai";
+          #   embeddingFallback = "synthetic";
+          #   tier = "deep";
+          # };
 
           tinyproxy = {
             port = 8888;
