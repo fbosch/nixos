@@ -254,6 +254,7 @@ in
                 NEXTAUTH_SECRET=${nixosConfig.sops.placeholder.linkwarden-nextauth-secret}
                 MEILI_MASTER_KEY=${nixosConfig.sops.placeholder.linkwarden-meili-master-key}
                 DISABLE_PRESERVATION=true
+                DISABLE_PRESERVATION=true
               '';
               mode = "0400";
             };
