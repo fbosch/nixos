@@ -26,6 +26,7 @@
           "cleanshot"
           "obsidian"
           "podman-desktop"
+          "steipete/tap/codexbar"
         ];
 
         brews = [ ];
