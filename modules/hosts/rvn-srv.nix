@@ -137,8 +137,23 @@ in
           };
 
           plex.nginx.port = 32402;
+
           pihole-container.listenAddress = hostMeta.local;
           pihole-container.webPort = 8082;
+
+          redlib-container = {
+            # Performance tuning
+            memory = "2g";
+            cpuQuota = "600%";
+            pidsLimit = 1024;
+
+            # Enable nginx caching for better performance
+            nginx.enable = true;
+            nginx.port = 8283;
+            nginx.cacheSize = "500m";
+            nginx.cacheTTL = "1h";
+          };
+
           helium-services-container = {
             proxyBaseUrl = "https://helium.corvus-corax.synology.me";
             httpPort = 8100;
