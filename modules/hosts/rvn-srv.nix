@@ -175,11 +175,6 @@ in
             memory = "1g";
             memoryReservation = "512m";
             shmSize = "128m";
-            # Enable nginx reverse proxy with service worker support
-            reverseProxy = {
-              enable = true;
-              port = 8083;
-            };
           };
 
           dozzle = {

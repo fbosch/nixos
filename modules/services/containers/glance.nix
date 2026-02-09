@@ -1,8 +1,9 @@
 _: {
   flake.modules.nixos."services/containers/glance" =
-    { config
-    , lib
-    , ...
+    {
+      config,
+      lib,
+      ...
     }:
     let
       cfg = config.services.glance-container;
@@ -89,20 +90,6 @@ _: {
           example = "America/New_York";
           description = "Timezone for the Glance container (IANA timezone identifier)";
         };
-
-        reverseProxy = {
-          enable = lib.mkOption {
-            type = lib.types.bool;
-            default = false;
-            description = "Enable nginx reverse proxy with service worker header support for Glance.";
-          };
-
-          port = lib.mkOption {
-            type = lib.types.port;
-            default = 8081;
-            description = "Port for nginx reverse proxy (separate from container port).";
-          };
-        };
       };
 
       config = {
@@ -152,36 +139,7 @@ _: {
           WantedBy=multi-user.target
         '';
 
-        networking.firewall.allowedTCPPorts = [
-          cfg.port
-        ]
-        ++ lib.optional cfg.reverseProxy.enable cfg.reverseProxy.port;
-
-        # Nginx reverse proxy with Service-Worker-Allowed header
-        services.nginx = lib.mkIf cfg.reverseProxy.enable {
-          enable = true;
-
-          virtualHosts."_" = {
-            default = true;
-            listen = [
-              {
-                addr = "0.0.0.0";
-                port = cfg.reverseProxy.port;
-              }
-            ];
-
-            locations."/" = {
-              proxyPass = "http://127.0.0.1:${toString cfg.port}";
-            };
-
-            locations."/assets/js/service-worker.js" = {
-              proxyPass = "http://127.0.0.1:${toString cfg.port}";
-              extraConfig = ''
-                add_header Service-Worker-Allowed "/" always;
-              '';
-            };
-          };
-        };
+        networking.firewall.allowedTCPPorts = [ cfg.port ];
       };
     };
 }
