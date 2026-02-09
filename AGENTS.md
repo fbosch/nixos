@@ -14,6 +14,23 @@ Operator note: When command-line diagnostics are needed, ask whether you should 
 - Do NOT create custom systemd build services
 - If upstream does not publish images, it is acceptable to ship a Nix-provided build helper command (not a systemd unit) that builds images from the upstream Dockerfiles
 
+## Port Allocation
+
+**IMPORTANT**: When adding new services that expose ports, always validate against existing port assignments to avoid collisions.
+
+Check for conflicts by searching the codebase for existing port usage before assigning a new port:
+```bash
+rg "port = [0-9]+" --type nix
+rg "listen.*:[0-9]+" --type nix
+```
+
+Common port assignments in this flake:
+- 8080: glance-container (container port)
+- 8081: atticd
+- 8082: pihole-container (web UI)
+- 8083: glance-container (nginx reverse proxy)
+- 8090: dozzle
+
 See the detailed guides:
 - [Dendritic core concepts](docs/agents/dendritic-core.md)
 - [Module authoring rules](docs/agents/module-authoring.md)
