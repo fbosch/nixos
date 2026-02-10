@@ -180,7 +180,7 @@ _:
                     echo "X-KDE-StartupNotify=true" >> "$desktop_file"
                   fi
                 '';
-                passthru = (prevAttrs.passthru or { }) // {
+                passthru = lib.recursiveUpdate (prevAttrs.passthru or { }) {
                   hardenedChromium = {
                     inherit policyFile;
                     flags = hardenedFlags;
@@ -190,7 +190,7 @@ _:
             );
       in
       {
-        nix-webapps-lib = prev.nix-webapps-lib // {
+        nix-webapps-lib = lib.recursiveUpdate prev.nix-webapps-lib {
           mkChromiumApp = mkHardenedChromiumApp;
         };
       };

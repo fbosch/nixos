@@ -68,23 +68,25 @@ _: {
       config = {
         services.tinyproxy = {
           enable = lib.mkDefault true;
-          settings = {
-            Port = cfg.port;
-            Listen = cfg.listenAddress;
-            Timeout = cfg.timeout;
-            MaxClients = cfg.maxClients;
-            LogLevel = cfg.logLevel;
-            Allow = cfg.allowedClients;
-            DisableViaHeader = cfg.anonymize;
-          }
-          // lib.optionalAttrs cfg.anonymize {
-            Anonymous = [
-              "User-Agent"
-              "Referer"
-              "Cookie"
-              "Set-Cookie"
-            ];
-          };
+          settings = lib.mkMerge [
+            {
+              Port = cfg.port;
+              Listen = cfg.listenAddress;
+              Timeout = cfg.timeout;
+              MaxClients = cfg.maxClients;
+              LogLevel = cfg.logLevel;
+              Allow = cfg.allowedClients;
+              DisableViaHeader = cfg.anonymize;
+            }
+            (lib.mkIf cfg.anonymize {
+              Anonymous = [
+                "User-Agent"
+                "Referer"
+                "Cookie"
+                "Set-Cookie"
+              ];
+            })
+          ];
         };
 
         networking.firewall.allowedTCPPorts = lib.mkIf cfg.openFirewall [ cfg.port ];

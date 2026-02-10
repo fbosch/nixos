@@ -1,5 +1,4 @@
-_:
-{
+_: {
   flake.modules.nixos."system/scheduled-suspend" =
     { config
     , lib
@@ -8,8 +7,6 @@ _:
     }:
     {
       options.powerManagement.scheduledSuspend = {
-        enable = lib.mkEnableOption "scheduled suspend and wake";
-
         schedules = lib.mkOption {
           type = lib.types.attrsOf (
             lib.types.submodule {
@@ -52,7 +49,7 @@ _:
         };
       };
 
-      config = lib.mkIf config.powerManagement.scheduledSuspend.enable {
+      config = lib.mkIf (config.powerManagement.scheduledSuspend.schedules != { }) {
         systemd =
           let
             mkSuspendTimer = name: schedule: {

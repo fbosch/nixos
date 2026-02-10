@@ -42,10 +42,10 @@ let
 
   mkSecretsWithOpts =
     file: opts: names:
-    lib.genAttrs names (_: { sopsFile = file; } // opts);
+    lib.genAttrs names (_: lib.recursiveUpdate { sopsFile = file; } opts);
 
   # Single secret with full control
-  mkSecret = file: opts: { sopsFile = file; } // opts;
+  mkSecret = file: opts: lib.recursiveUpdate { sopsFile = file; } opts;
 in
 {
   flake.modules = {

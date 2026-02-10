@@ -100,7 +100,6 @@ in
 
         # Scheduled suspend/wake for power savings
         powerManagement.scheduledSuspend = {
-          enable = true;
           schedules = {
             weekday = {
               suspendTime = "00:30";
@@ -121,111 +120,111 @@ in
         };
 
         # Service-specific configuration (only overrides from defaults)
-        services = {
-          ananicy.enable = true;
+        services = lib.mkMerge [
+          {
+            ananicy.enable = true;
 
-          # OpenMemory
-          # openmemory-container = {
-          #   buildImages = true;
-          #   dashboardApiUrl = "https://memory.corvus-corax.synology.me";
-          #   openaiApiKey = lib.attrByPath [ "sops" "placeholder" "openai-api-key" ] "" config;
-          #   embeddings = "openai";
-          #   embeddingFallback = "synthetic";
-          #   tier = "deep";
-          # };
+            # OpenMemory
+            # openmemory-container = {
+            #   buildImages = true;
+            #   dashboardApiUrl = "https://memory.corvus-corax.synology.me";
+            #   openaiApiKey = lib.attrByPath [ "sops" "placeholder" "openai-api-key" ] "" config;
+            #   embeddings = "openai";
+            #   embeddingFallback = "synthetic";
+            #   tier = "deep";
+            # };
 
-          tinyproxy = {
-            port = 8888;
-            listenAddress = "0.0.0.0";
-            allowedClients = [
-              "192.168.1.0/24"
-              "100.64.0.0/10"
-            ];
-            anonymize = false;
-          };
-
-          plex.nginx.port = 32402;
-
-          pihole-container.listenAddress = hostMeta.local;
-          pihole-container.webPort = 8082;
-
-          redlib-container = {
-            # Performance tuning
-            memory = "2g";
-            cpuQuota = "600%";
-            pidsLimit = 1024;
-
-            # Enable nginx caching for better performance
-            nginx = {
-              enable = true;
-              port = 8283;
-              cacheSize = "500m";
-              cacheTTL = "1h";
+            tinyproxy = {
+              port = 8888;
+              listenAddress = "0.0.0.0";
+              allowedClients = [
+                "192.168.1.0/24"
+                "100.64.0.0/10"
+              ];
+              anonymize = false;
             };
-          };
 
-          helium-services-container = {
-            proxyBaseUrl = "https://helium.corvus-corax.synology.me";
-            httpPort = 8100;
-          };
+            plex.nginx.port = 32402;
 
-          glance-container = {
-            configDir = "/home/${config.flake.meta.user.username}/.config/glance";
-            envFile = "/run/secrets/rendered/glance-env";
-            # Resource allocation for better performance
-            cpus = "2.0";
-            memory = "1g";
-            memoryReservation = "512m";
-            shmSize = "128m";
-          };
+            pihole-container.listenAddress = hostMeta.local;
+            pihole-container.webPort = 8082;
 
-          dozzle = {
-            enable = true;
-            port = 8090;
-            hostname = "rvn-srv";
-            noAnalytics = true;
-          };
+            redlib-container = {
+              # Performance tuning
+              memory = "2g";
+              cpuQuota = "600%";
+              pidsLimit = 1024;
 
-          komodo = {
-            core.host = "https://komodo.corvus-corax.synology.me";
-            core.allowSignups = true;
-            # periphery.requirePasskey = false;
-          };
+              # Enable nginx caching for better performance
+              nginx = {
+                enable = true;
+                port = 8283;
+                cacheSize = "500m";
+                cacheTTL = "1h";
+              };
+            };
 
-          uptime-kuma = {
-            enable = true;
-            settings.HOST = "0.0.0.0";
-          };
+            helium-services-container = {
+              proxyBaseUrl = "https://helium.corvus-corax.synology.me";
+              httpPort = 8100;
+            };
 
-          glances = {
-            enable = true;
-            openFirewall = true;
-            extraArgs = [ "-w" ];
-          };
+            glance-container = {
+              configDir = "/home/${config.flake.meta.user.username}/.config/glance";
+              envFile = "/run/secrets/rendered/glance-env";
+              # Resource allocation for better performance
+              cpus = "2.0";
+              memory = "1g";
+              memoryReservation = "512m";
+              shmSize = "128m";
+            };
 
-          linkwarden-container = {
-            enable = true;
-            port = 3100;
-            nextauthUrl = "https://linkwarden.corvus-corax.synology.me";
-            envFile = "/run/secrets/rendered/linkwarden-env";
-            disableRegistration = true; # Set to true after first user registration
-            # Performance tuning
-            cpus = "2.0";
-            memory = "4g";
-            memoryReservation = "2g";
-            shmSize = "256m"; # Important for PDF/screenshot generation
-            # Meilisearch resource limits (was hitting OOM at 512m)
-            meilisearch.memory = "1g";
-          };
+            dozzle = {
+              port = 8090;
+              hostname = "rvn-srv";
+              noAnalytics = true;
+            };
 
-          resolved = {
-            enable = true;
-            settings.Resolve.DNSStubListener = "no";
-          };
-        }
-        // lib.optionalAttrs (config ? sops && config.sops ? templates) {
-          pihole-container.webPasswordFile = config.sops.templates."pihole-webpassword".path;
-        };
+            komodo = {
+              core.host = "https://komodo.corvus-corax.synology.me";
+              core.allowSignups = true;
+              # periphery.requirePasskey = false;
+            };
+
+            uptime-kuma = {
+              enable = true;
+              settings.HOST = "0.0.0.0";
+            };
+
+            glances = {
+              enable = true;
+              openFirewall = true;
+              extraArgs = [ "-w" ];
+            };
+
+            linkwarden-container = {
+              port = 3100;
+              nextauthUrl = "https://linkwarden.corvus-corax.synology.me";
+              envFile = "/run/secrets/rendered/linkwarden-env";
+              disableRegistration = true; # Set to true after first user registration
+              # Performance tuning
+              cpus = "2.0";
+              memory = "4g";
+              memoryReservation = "2g";
+              shmSize = "256m"; # Important for PDF/screenshot generation
+              # Meilisearch resource limits (was hitting OOM at 512m)
+              meilisearch.memory = "1g";
+            };
+
+            resolved = {
+              enable = true;
+              settings.Resolve.DNSStubListener = "no";
+            };
+          }
+          (lib.mkIf (config ? sops && config.sops ? templates) {
+            pihole-container.webPasswordFile = config.sops.templates."pihole-webpassword".path;
+          })
+        ];
 
         # Networking configuration
         networking = {

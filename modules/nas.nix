@@ -39,13 +39,15 @@ in
         what = "//${nasHostname}/${share}";
         where = "/mnt/nas/${share}";
         options = if share == "encrypted" then "${cifsOptions},nofail" else cifsOptions;
-        unitConfig = {
-          After = "network-online.target";
-          Requires = "network-online.target";
-        }
-        // lib.optionalAttrs (share == "encrypted") {
-          ConditionPathExists = encryptedConditionPath;
-        };
+        unitConfig = lib.mkMerge [
+          {
+            After = "network-online.target";
+            Requires = "network-online.target";
+          }
+          (lib.optionalAttrs (share == "encrypted") {
+            ConditionPathExists = encryptedConditionPath;
+          })
+        ];
       };
 
       # Generate automount configuration for a share

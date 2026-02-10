@@ -10,8 +10,6 @@ _: {
     in
     {
       options.services.dozzle = {
-        enable = lib.mkEnableOption "Dozzle real-time container log viewer";
-
         port = lib.mkOption {
           type = lib.types.port;
           default = 8090;
@@ -61,7 +59,7 @@ _: {
         };
       };
 
-      config = lib.mkIf cfg.enable {
+      config = {
         # Ensure Podman socket is available
         virtualisation.podman = {
           enable = true;
