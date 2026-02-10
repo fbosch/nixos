@@ -57,7 +57,7 @@ in
           "services/containers/pihole"
           "services/containers/helium"
           "services/containers/komodo"
-          "services/containers/openmemory"
+          # "services/containers/openmemory"
           "services/containers/linkwarden"
 
           # validation
@@ -88,6 +88,14 @@ in
           "vm.vfs_cache_pressure" = 50; # Keep filesystem cache longer
           "vm.dirty_ratio" = 15; # Start sync at 15% RAM dirty
           "vm.dirty_background_ratio" = 10; # Background writes at 10%
+
+          # TCP optimizations for nginx/web serving (conservative values)
+          "net.core.somaxconn" = 4096; # Increase max connection backlog
+          "net.ipv4.tcp_fastopen" = 3; # Enable TCP Fast Open (client + server)
+          "net.ipv4.tcp_keepalive_time" = 600; # Keep connections alive longer
+          "net.ipv4.tcp_keepalive_intvl" = 60;
+          "net.ipv4.tcp_keepalive_probes" = 3;
+          "net.core.netdev_max_backlog" = 5000; # Increase network device backlog
         };
 
         # Scheduled suspend/wake for power savings
@@ -117,14 +125,14 @@ in
           ananicy.enable = true;
 
           # OpenMemory
-          openmemory-container = {
-            buildImages = true;
-            dashboardApiUrl = "https://memory.corvus-corax.synology.me";
-            openaiApiKey = lib.attrByPath [ "sops" "placeholder" "openai-api-key" ] "" config;
-            embeddings = "openai";
-            embeddingFallback = "synthetic";
-            tier = "deep";
-          };
+          # openmemory-container = {
+          #   buildImages = true;
+          #   dashboardApiUrl = "https://memory.corvus-corax.synology.me";
+          #   openaiApiKey = lib.attrByPath [ "sops" "placeholder" "openai-api-key" ] "" config;
+          #   embeddings = "openai";
+          #   embeddingFallback = "synthetic";
+          #   tier = "deep";
+          # };
 
           tinyproxy = {
             port = 8888;
@@ -137,8 +145,25 @@ in
           };
 
           plex.nginx.port = 32402;
+
           pihole-container.listenAddress = hostMeta.local;
           pihole-container.webPort = 8082;
+
+          redlib-container = {
+            # Performance tuning
+            memory = "2g";
+            cpuQuota = "600%";
+            pidsLimit = 1024;
+
+            # Enable nginx caching for better performance
+            nginx = {
+              enable = true;
+              port = 8283;
+              cacheSize = "500m";
+              cacheTTL = "1h";
+            };
+          };
+
           helium-services-container = {
             proxyBaseUrl = "https://helium.corvus-corax.synology.me";
             httpPort = 8100;

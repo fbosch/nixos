@@ -1,9 +1,8 @@
 _: {
   flake.modules.nixos."services/containers/glance" =
-    {
-      config,
-      lib,
-      ...
+    { config
+    , lib
+    , ...
     }:
     let
       cfg = config.services.glance-container;
