@@ -10,6 +10,10 @@
           upgrade = true;
         };
 
+        taps = [
+          "steipete/tap"
+        ];
+
         casks = [
           "raycast"
           "numi"
@@ -26,7 +30,7 @@
           "cleanshot"
           "obsidian"
           "podman-desktop"
-          "steipete/tap/codexbar"
+          "codexbar"
         ];
 
         brews = [ ];
