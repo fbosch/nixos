@@ -46,7 +46,7 @@
           devices = [ "dri" ];
           filesystems = [
             "/etc/localtime:ro"
-            "/etc/timezone:ro"
+            "/etc/zoneinfo:ro"
           ];
         };
         Environment = {
