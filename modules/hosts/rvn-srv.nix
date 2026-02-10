@@ -70,17 +70,28 @@ in
         ];
 
         # Home Manager configuration for user
-        home-manager.users.${config.flake.meta.user.username}.imports = config.flake.lib.resolveHm [
-          # Server preset modules for Home Manager
-          "users"
-          "dotfiles"
-          "security"
-          "development"
-          "shell"
+        home-manager.users.${config.flake.meta.user.username} = {
+          imports = config.flake.lib.resolveHm [
+            # Server preset modules for Home Manager
+            "users"
+            "dotfiles"
+            "security"
+            "development"
+            "shell"
+            "applications/surge"
 
-          # Secrets for home-manager context
-          "secrets"
-        ];
+            # Secrets for home-manager context
+            "secrets"
+          ];
+
+          services.surge = {
+            autostart = true;
+            settings = {
+              general.default_download_dir = "/mnt/nas/Downloads";
+              connections.proxy_url = "http://192.168.1.202:3128";
+            };
+          };
+        };
 
         # Kernel tuning for server workload
         boot.kernel.sysctl = {
