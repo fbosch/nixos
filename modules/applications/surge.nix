@@ -76,7 +76,7 @@ _: {
         };
 
         settings = lib.mkOption {
-          type = jsonFormat.type;
+          inherit (jsonFormat) type;
           default = { };
           example = {
             general.default_download_dir = "/mnt/storage/Downloads";
