@@ -70,11 +70,6 @@ _: {
             Memory=512m
             PidsLimit=500
             Ulimit=nofile=2048:4096
-            HealthCmd=curl -f http://localhost:6500/ || exit 1
-            HealthInterval=30s
-            HealthTimeout=10s
-            HealthStartPeriod=60s
-            HealthRetries=3
             LogDriver=journald
             LogOpt=tag=rdtclient
 
