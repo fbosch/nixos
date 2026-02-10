@@ -59,6 +59,7 @@ in
           "services/containers/komodo"
           # "services/containers/openmemory"
           "services/containers/linkwarden"
+          "services/containers/rdtclient"
 
           # validation
           "validation/container-port-conflicts"
@@ -225,6 +226,14 @@ in
               shmSize = "256m"; # Important for PDF/screenshot generation
               # Meilisearch resource limits (was hitting OOM at 512m)
               meilisearch.memory = "1g";
+            };
+
+            rdtclient = {
+              port = 6500;
+              downloadPath = "/mnt/nas/downloads";
+              timezone = "Europe/Copenhagen";
+              userId = 1000;
+              groupId = 1000;
             };
 
             resolved = {
