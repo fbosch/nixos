@@ -4,11 +4,11 @@
     { pkgs, ... }:
     {
       environment.systemPackages = with pkgs; [
-        xorg.xrdb
-        xorg.xhost
-        xorg.xrandr
-        xorg.xprop
-        xorg.xwininfo
+        xrdb
+        xhost
+        xrandr
+        xprop
+        xwininfo
       ];
     };
 

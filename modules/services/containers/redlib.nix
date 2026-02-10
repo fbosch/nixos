@@ -179,7 +179,7 @@ _: {
             listen = [
               {
                 addr = "0.0.0.0";
-                port = cfg.nginx.port;
+                inherit (cfg.nginx) port;
               }
             ];
 

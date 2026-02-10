@@ -156,10 +156,12 @@ in
             pidsLimit = 1024;
 
             # Enable nginx caching for better performance
-            nginx.enable = true;
-            nginx.port = 8283;
-            nginx.cacheSize = "500m";
-            nginx.cacheTTL = "1h";
+            nginx = {
+              enable = true;
+              port = 8283;
+              cacheSize = "500m";
+              cacheTTL = "1h";
+            };
           };
 
           helium-services-container = {

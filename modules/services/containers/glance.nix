@@ -166,7 +166,7 @@ _: {
             listen = [
               {
                 addr = "0.0.0.0";
-                port = cfg.reverseProxy.port;
+                inherit (cfg.reverseProxy) port;
               }
             ];
 
