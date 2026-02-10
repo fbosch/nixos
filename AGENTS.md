@@ -4,6 +4,8 @@ This repository uses a dendritic-style Nix flake layout for NixOS and Home Manag
 
 Operator note: When command-line diagnostics are needed, ask whether you should run the commands instead of instructing the user to run them. Exception: if the command needs elevated permissions (sudo), instruct the user to run it.
 
+Operator note: Do not run `sops` commands directly; they break the TUI. Instruct the user to run them.
+
 ## Container Services Policy
 
 **IMPORTANT**: All container services MUST use Podman Quadlet (systemd container units), not custom build services or docker-compose.

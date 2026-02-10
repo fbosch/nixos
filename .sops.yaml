@@ -4,6 +4,7 @@ keys:
   - &rvn-pc age1f8fyxkldde3wkhlfsccmn72tscr94yhtk34yzqk56d0vmxur6cusuf0208
   - &admin 5E0FEC74518ED5FEAA5EA33E5C49A562D850322A
   - &rvn-vm age1d3cj77x9fpr3epm66l5ff2ptwyv55pf6sh9p5fw7f6ffkseuayqs427r79
+  - &fbb-user age1qvnp38vf03rypemwah5t3khtypkh8tdz2n6rv88eemuuupsv39eqaele9g
 
 creation_rules:
   - path_regex: secrets/secrets\.yaml$
@@ -15,3 +16,14 @@ creation_rules:
           - *Frederiks-Macbook-Pro
           - *rvn-pc
           - *rvn-vm
+          - *fbb-user
+  - path_regex: secrets/(common|apis|containers|development)\.yaml$
+    key_groups:
+      - pgp:
+          - *admin
+        age:
+          - *rvn-srv
+          - *Frederiks-Macbook-Pro
+          - *rvn-pc
+          - *rvn-vm
+          - *fbb-user
