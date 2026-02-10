@@ -14,7 +14,11 @@
   ];
 
   perSystem =
-    { config, lib, system, ... }:
+    { config
+    , lib
+    , system
+    , ...
+    }:
     let
       pkgs = import inputs.nixpkgs {
         inherit system;
@@ -43,12 +47,14 @@
 
       _module.args.pkgs = pkgs;
 
-      packages = lib.mkIf enableByName (lib.mkForce (
-        let
-          flatPackages = flattenPkgs config.pkgsNameSeparator [ ] config.legacyPackages;
-        in
-        lib.filterAttrs (_: pkg: lib.meta.availableOn pkgs.stdenv.hostPlatform pkg) flatPackages
-      ));
+      packages = lib.mkIf enableByName (
+        lib.mkForce (
+          let
+            flatPackages = flattenPkgs config.pkgsNameSeparator [ ] config.legacyPackages;
+          in
+          lib.filterAttrs (_: pkg: lib.meta.availableOn pkgs.stdenv.hostPlatform pkg) flatPackages
+        )
+      );
     };
 
   flake = {
@@ -57,7 +63,7 @@
       withSystem prev.stdenv.hostPlatform.system (
         { config, ... }:
         {
-          local = config.packages // { };
+          local = config.packages;
           buildNpmGlobalPackage = import "${inputs.self}/pkgs/lib/buildNpmGlobalPackage.nix" {
             pkgs = final;
           };

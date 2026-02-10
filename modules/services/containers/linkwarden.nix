@@ -30,8 +30,6 @@ _: {
     in
     {
       options.services.linkwarden-container = {
-        enable = lib.mkEnableOption "Linkwarden bookmark manager";
-
         port = lib.mkOption {
           type = lib.types.port;
           default = 3000;
@@ -156,7 +154,7 @@ _: {
         };
       };
 
-      config = lib.mkIf cfg.enable {
+      config = {
         assertions = [
           {
             assertion = cfg.envFile != null || cfg.postgresPassword != null;

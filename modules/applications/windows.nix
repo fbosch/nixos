@@ -64,16 +64,19 @@
       xdg.mimeApps.enable = true;
 
       # Create winapps configuration directory and place all Windows installers in a known location
-      home.file = installerFiles // {
-        ".config/winapps/.keep".text = "";
+      home.file = lib.mkMerge [
+        installerFiles
+        {
+          ".config/winapps/.keep".text = "";
 
-        # WinApps configuration for USB passthrough
-        ".config/winapps/winapps.conf".text = ''
-          # USB devices to pass through to Windows VM
-          # Format: RDP_USB0="0853:0317" for REALFORCE keyboard
-          RDP_USB0="0853:0317"
-        '';
-      };
+          # WinApps configuration for USB passthrough
+          ".config/winapps/winapps.conf".text = ''
+            # USB devices to pass through to Windows VM
+            # Format: RDP_USB0="0853:0317" for REALFORCE keyboard
+            RDP_USB0="0853:0317"
+          '';
+        }
+      ];
 
     };
 }
