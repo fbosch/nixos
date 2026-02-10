@@ -87,7 +87,7 @@ in
           services.surge = {
             autostart = true;
             settings = {
-              general.default_download_dir = "/mnt/nas/Downloads";
+              general.default_download_dir = "/mnt/nas/downloads";
               connections.proxy_url = "http://192.168.1.202:3128";
             };
           };

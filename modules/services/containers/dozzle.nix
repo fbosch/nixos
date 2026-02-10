@@ -115,7 +115,7 @@ _: {
               Memory=256m
               PidsLimit=200
               Ulimit=nofile=2048:4096
-              HealthCmd=/dozzle healthcheck
+              HealthCmd=wget --no-verbose --tries=1 --spider http://localhost:8080/healthcheck || exit 1
               HealthInterval=30s
               HealthTimeout=10s
               HealthStartPeriod=10s
