@@ -24,7 +24,10 @@ in
     meta.hosts = [ hostMeta ];
 
     modules.nixos."hosts/rvn-srv" =
-      { pkgs, lib, ... }:
+      { pkgs, lib, ... }@moduleArgs:
+      let
+        nixosConfig = moduleArgs.config or { };
+      in
       {
         imports = config.flake.lib.resolve [
           # Server preset (users, security, development, shell, system, vpn)
@@ -47,6 +50,7 @@ in
           "services/servarr"
           "services/tinyproxy"
           "services/wakapi"
+          "services/freshrss"
 
           # containerized services
           "virtualization/podman"
