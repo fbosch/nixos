@@ -15,7 +15,19 @@ _: {
         downloadPath = lib.mkOption {
           type = lib.types.str;
           default = "/var/lib/rdtclient/downloads";
-          description = "Host path for downloads";
+          description = "Host path for completed downloads";
+        };
+
+        tempDownloadPath = lib.mkOption {
+          type = lib.types.str;
+          default = "/var/lib/rdtclient/temp";
+          description = "Host path for temporary/in-progress downloads";
+        };
+
+        dataPath = lib.mkOption {
+          type = lib.types.str;
+          default = "/var/lib/rdtclient/data";
+          description = "Host path for database and config files";
         };
 
         userId = lib.mkOption {
@@ -51,41 +63,62 @@ _: {
           }
         ];
 
-        environment.etc = {
-          "containers/systemd/rdtclient.container".text = ''
-            [Unit]
-            Description=RDT-Client - Real-Debrid torrent client
-            After=network-online.target
-            Wants=network-online.target
+        # Create directories for rdtclient volumes
+        systemd.services.create-rdtclient-volume = {
+          description = "Create rdtclient data directories";
+          wantedBy = [ "rdtclient.service" ];
+          before = [ "rdtclient.service" ];
+          serviceConfig = {
+            Type = "oneshot";
+            RemainAfterExit = true;
+          };
+          script = ''
+            mkdir -p ${lib.escapeShellArg config.services.rdtclient.dataPath}
+            mkdir -p ${lib.escapeShellArg config.services.rdtclient.tempDownloadPath}
+            chown ${toString config.services.rdtclient.userId}:${toString config.services.rdtclient.groupId} ${lib.escapeShellArg config.services.rdtclient.dataPath}
+            chown ${toString config.services.rdtclient.userId}:${toString config.services.rdtclient.groupId} ${lib.escapeShellArg config.services.rdtclient.tempDownloadPath}
+          '';
+        };
 
-            [Container]
-            ContainerName=rdtclient
-            Image=docker.io/rogerfar/rdtclient:latest
-            PublishPort=${config.services.rdtclient.listenAddress}:${toString config.services.rdtclient.port}:6500/tcp
-            Volume=rdtclient-data.volume:/data/db
-            Volume=${lib.escapeShellArg config.services.rdtclient.downloadPath}:/data/downloads
-            Environment=PUID=${toString config.services.rdtclient.userId}
-            Environment=PGID=${toString config.services.rdtclient.groupId}
-            Environment=TZ=${lib.escapeShellArg config.services.rdtclient.timezone}
-            Memory=512m
-            PidsLimit=500
-            Ulimit=nofile=2048:4096
-            LogDriver=journald
-            LogOpt=tag=rdtclient
+        # Traditional systemd service instead of Quadlet
+        systemd.services.rdtclient = {
+          description = "RDT-Client - Real-Debrid torrent client";
+          after = [
+            "network-online.target"
+            "create-rdtclient-volume.service"
+          ];
+          wants = [ "network-online.target" ];
+          wantedBy = [ "multi-user.target" ];
 
-            [Service]
-            Restart=always
-            RestartSec=10
-            CPUQuota=100%
-            TimeoutStartSec=300
+          serviceConfig = {
+            Type = "simple";
+            Restart = "always";
+            RestartSec = "10";
+            TimeoutStartSec = "infinity";
+            TimeoutStopSec = "30";
+          };
 
-            [Install]
-            WantedBy=multi-user.target
+          script = ''
+            exec ${config.virtualisation.podman.package}/bin/podman run \
+              --name rdtclient \
+              --rm \
+              --log-driver journald \
+              --log-opt tag=rdtclient \
+              --memory 2g \
+              --pids-limit 500 \
+              --ulimit nofile=2048:4096 \
+              -v ${lib.escapeShellArg config.services.rdtclient.dataPath}:/data/db \
+              -v ${lib.escapeShellArg config.services.rdtclient.tempDownloadPath}:/data/temp \
+              -v ${lib.escapeShellArg config.services.rdtclient.downloadPath}:/data/downloads \
+              --publish ${config.services.rdtclient.listenAddress}:${toString config.services.rdtclient.port}:6500/tcp \
+              --env PGID=${toString config.services.rdtclient.groupId} \
+              --env PUID=${toString config.services.rdtclient.userId} \
+              --env TZ=${lib.escapeShellArg config.services.rdtclient.timezone} \
+              docker.io/rogerfar/rdtclient:latest
           '';
 
-          "containers/systemd/rdtclient-data.volume".text = ''
-            [Volume]
-            VolumeName=rdtclient-data
+          preStop = ''
+            ${config.virtualisation.podman.package}/bin/podman stop -t 10 rdtclient || true
           '';
         };
 

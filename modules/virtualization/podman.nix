@@ -33,12 +33,6 @@
       # Add user to podman group for rootless containers
       users.users.${config.flake.meta.user.username}.extraGroups = [ "podman" ];
 
-      # Enable user-level podman socket for rootless containers
-      systemd.user.sockets.podman = {
-        enable = true;
-        wantedBy = [ "sockets.target" ];
-      };
-
       # Ananicy rules for Podman container runtime
       services.ananicy.customRules = [
         {
@@ -62,5 +56,21 @@
         podman-compose
         podman-tui
       ];
+
+      # Enable user-level podman socket for rootless containers
+      # This properly manages the symlink to podman's systemd units
+      systemd.user.sockets.podman = {
+        Unit = {
+          Description = "Podman API Socket";
+          Documentation = "man:podman-system-service(1)";
+        };
+        Socket = {
+          ListenStream = "%t/podman/podman.sock";
+          SocketMode = "0660";
+        };
+        Install = {
+          WantedBy = [ "sockets.target" ];
+        };
+      };
     };
 }

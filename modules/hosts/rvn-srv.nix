@@ -231,6 +231,8 @@ in
             rdtclient = {
               port = 6500;
               downloadPath = "/mnt/nas/downloads";
+              tempDownloadPath = "/mnt/nas/downloads/rdtclient-temp";
+              # dataPath defaults to /var/lib/rdtclient/data (local storage for DB)
               timezone = "Europe/Copenhagen";
               userId = 1000;
               groupId = 1000;
