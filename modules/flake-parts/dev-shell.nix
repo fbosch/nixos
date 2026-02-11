@@ -1,6 +1,11 @@
-_: {
+{ inputs, ... }:
+{
+  imports = [
+    inputs.pre-commit-hooks.flakeModule
+  ];
+
   perSystem =
-    { pkgs, ... }:
+    { config, pkgs, ... }:
     let
       lintScript = pkgs.writeShellApplication {
         name = "lint";
@@ -143,9 +148,39 @@ _: {
       };
     in
     {
+      # Configure pre-commit hooks
+      pre-commit = {
+        check.enable = true;
+        settings = {
+          excludes = [
+            "^\.?/?\.agents/"
+            "^\.?/?\.opencode/skills/"
+            "^\.?/?\.github/skills/"
+          ];
+          hooks = {
+            nixpkgs-fmt.enable = true;
+            statix = {
+              enable = true;
+              settings.ignore = [
+                ".agents"
+                ".opencode/skills"
+                ".github/skills"
+              ];
+            };
+            deadnix = {
+              enable = true;
+              settings.noLambdaPatternNames = true;
+            };
+          };
+        };
+      };
+
       formatter = pkgs.nixpkgs-fmt;
 
-      checks = { };
+      checks = {
+        # Add pre-commit check to flake checks
+        pre-commit-check = config.pre-commit.check config.pre-commit.settings;
+      };
 
       apps = {
         lint = {
@@ -167,17 +202,7 @@ _: {
 
       devShells.default = pkgs.mkShell {
         shellHook = ''
-          # Install pre-commit hook wrapper (no hardcoded store paths)
-          if [ ! -f .git/hooks/pre-commit ]; then
-            mkdir -p .git/hooks
-            cat > .git/hooks/pre-commit << 'EOF'
-            #!/usr/bin/env bash
-            # Wrapper that always uses current flake environment
-            exec nix run .#pre-commit-wrapper "$@"
-            EOF
-            chmod +x .git/hooks/pre-commit
-            echo "Installed pre-commit hook"
-          fi
+          ${config.pre-commit.installationScript}
         '';
         packages = with pkgs; [
           statix
