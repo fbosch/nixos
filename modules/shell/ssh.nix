@@ -4,7 +4,10 @@ let
 in
 {
   config.flake.modules.homeManager.shell =
-    { config, currentHostId ? null, ... }:
+    { config
+    , currentHostId ? null
+    , ...
+    }:
     let
       # Read host configurations from flake.meta.hosts
       hosts = flakeConfig.flake.meta.hosts or [ ];
@@ -25,6 +28,9 @@ in
         # Use host-specific user if defined, otherwise use default user
         user = host.user or flakeConfig.flake.meta.user.username;
         identityFile = config.sops.secrets.ssh-private-key.path;
+        extraOptions = {
+          AddKeysToAgent = "yes";
+        };
       };
 
       # Generate match blocks for both short key and full hostname

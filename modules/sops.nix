@@ -105,6 +105,7 @@ in
             let
               secretsMap = {
                 CONTEXT7_API_KEY = hmConfig.sops.secrets.context7-api-key.path;
+                GITHUB_TOKEN = hmConfig.sops.secrets.github-token.path;
                 KAGI_API_TOKEN = hmConfig.sops.secrets.kagi-api-token.path;
                 OPENAI_API_KEY = hmConfig.sops.secrets.openai-api-key.path;
               };
