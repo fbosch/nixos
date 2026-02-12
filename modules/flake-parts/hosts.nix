@@ -47,6 +47,10 @@ let
           {
             _module.args = {
               inherit inputs;
+              pkgs-stable = import inputs.nixpkgs-stable {
+                system = evalSystem;
+                config.allowUnfree = true;
+              };
             };
           }
           hostModule
@@ -57,6 +61,10 @@ let
               useUserPackages = true;
               extraSpecialArgs = {
                 currentHostId = hostId;
+                pkgs-stable = import inputs.nixpkgs-stable {
+                  system = evalSystem;
+                  config.allowUnfree = true;
+                };
               };
             };
           }
