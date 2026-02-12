@@ -1,6 +1,14 @@
-_: {
+{ inputs, ... }:
+{
+  # Note: We import pre-commit-hooks.flakeModule but don't use it for the actual hook installation
+  # Instead, we use our custom wrapper with gum for nice formatting
+  # The module is kept for potential future flake checks integration
+  imports = [
+    inputs.pre-commit-hooks.flakeModule
+  ];
+
   perSystem =
-    { pkgs, ... }:
+    { config, pkgs, ... }:
     let
       lintScript = pkgs.writeShellApplication {
         name = "lint";
@@ -143,9 +151,39 @@ _: {
       };
     in
     {
+      # Configure pre-commit hooks
+      pre-commit = {
+        check.enable = true;
+        settings = {
+          excludes = [
+            "^\.?/?\.agents/"
+            "^\.?/?\.opencode/skills/"
+            "^\.?/?\.github/skills/"
+          ];
+          hooks = {
+            nixpkgs-fmt.enable = true;
+            statix = {
+              enable = true;
+              settings.ignore = [
+                ".agents"
+                ".opencode/skills"
+                ".github/skills"
+              ];
+            };
+            deadnix = {
+              enable = true;
+              settings.noLambdaPatternNames = true;
+            };
+          };
+        };
+      };
+
       formatter = pkgs.nixpkgs-fmt;
 
-      checks = { };
+      checks = {
+        # Add pre-commit check to flake checks
+        pre-commit-check = config.pre-commit.check config.pre-commit.settings;
+      };
 
       apps = {
         lint = {
@@ -167,17 +205,17 @@ _: {
 
       devShells.default = pkgs.mkShell {
         shellHook = ''
-          # Install pre-commit hook wrapper (no hardcoded store paths)
-          if [ ! -f .git/hooks/pre-commit ]; then
-            mkdir -p .git/hooks
-            cat > .git/hooks/pre-commit << 'EOF'
-            #!/usr/bin/env bash
-            # Wrapper that always uses current flake environment
-            exec nix run .#pre-commit-wrapper "$@"
-            EOF
-            chmod +x .git/hooks/pre-commit
-            echo "Installed pre-commit hook"
-          fi
+                    # Install custom pre-commit hook with nice formatting
+                    if [ ! -f .git/hooks/pre-commit ] || ! grep -q "pre-commit-wrapper" .git/hooks/pre-commit 2>/dev/null; then
+                      mkdir -p .git/hooks
+                      cat > .git/hooks/pre-commit << 'EOF'
+          #!/usr/bin/env bash
+          # Custom pre-commit hook with nice formatting
+          exec nix run .#pre-commit-wrapper "$@"
+          EOF
+                      chmod +x .git/hooks/pre-commit
+                      echo "$(${pkgs.gum}/bin/gum style --foreground 2 '[OK]') Installed pre-commit hook with nice formatting"
+                    fi
         '';
         packages = with pkgs; [
           statix

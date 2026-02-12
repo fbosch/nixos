@@ -83,6 +83,12 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # Pre-commit hooks (modules/flake-parts/dev-shell.nix)
+    pre-commit-hooks = {
+      url = "github:cachix/pre-commit-hooks.nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     # Applications
     flatpaks.url = "github:gmodena/nix-flatpak"; # modules/applications/flatpak.nix
     vicinae = {

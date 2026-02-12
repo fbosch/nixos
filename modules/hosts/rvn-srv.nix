@@ -24,7 +24,10 @@ in
     meta.hosts = [ hostMeta ];
 
     modules.nixos."hosts/rvn-srv" =
-      { pkgs, lib, ... }:
+      { pkgs, lib, ... }@moduleArgs:
+      let
+        nixosConfig = moduleArgs.config or { };
+      in
       {
         imports = config.flake.lib.resolve [
           # Server preset (users, security, development, shell, system, vpn)
@@ -47,6 +50,7 @@ in
           "services/servarr"
           "services/tinyproxy"
           "services/wakapi"
+          "services/freshrss"
 
           # containerized services
           "virtualization/podman"
@@ -231,6 +235,8 @@ in
             rdtclient = {
               port = 6500;
               downloadPath = "/mnt/nas/downloads";
+              tempDownloadPath = "/mnt/nas/downloads/rdtclient-temp";
+              # dataPath defaults to /var/lib/rdtclient/data (local storage for DB)
               timezone = "Europe/Copenhagen";
               userId = 1000;
               groupId = 1000;
