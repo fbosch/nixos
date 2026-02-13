@@ -4,7 +4,6 @@ result-*
 *.log
 
 # Secrets - encrypted files are committed, decrypted ones are not
-secrets/secrets.yaml
 secrets/*.key
 secrets/*.pem
 secrets/*.age
@@ -15,8 +14,6 @@ secrets/*.asc
 *.age
 *-age-key.txt
 *.asc
-# Allow example files
-!secrets/secrets.yaml
 # Allow public GPG key (not a secret)
 !configs/gpg/public-key.asc
 

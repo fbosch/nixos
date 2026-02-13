@@ -89,7 +89,7 @@ echo
 echo "=== Bootstrap Complete ==="
 echo
 echo "GPG key is now available in your user keyring for manual secret editing."
-echo "You can now edit secrets using: sops secrets/secrets.yaml"
+echo "You can now edit secrets files under secrets/ (for example: sops secrets/common.yaml)"
 echo
 echo "Next steps:"
 echo "1. Build the system (this will auto-generate an age key):"

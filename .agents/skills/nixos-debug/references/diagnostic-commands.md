@@ -137,13 +137,13 @@ cat /var/lib/sops-nix/key.txt | \
   nix-shell -p age --run "age-keygen -y"
 
 # Test decryption
-nix-shell -p sops --run "sops -d secrets/secrets.yaml"
+nix-shell -p sops --run "sops -d secrets/common.yaml"
 
 # Show which keys can decrypt
-sops -i --show-keys secrets/secrets.yaml
+sops -i --show-keys secrets/common.yaml
 
 # Re-encrypt with current keys
-sops updatekeys secrets/secrets.yaml
+for f in secrets/*.yaml; do sops updatekeys "$f"; done
 ```
 
 ## Lint and Check
@@ -369,6 +369,6 @@ nix eval .#nixosConfigurations.<hostname>.config.imports
 **SOPS secret issues:**
 ```bash
 ls -la /var/lib/sops-nix/key.txt
-sops -d secrets/secrets.yaml
+sops -d secrets/common.yaml
 cat .sops.yaml
 ```

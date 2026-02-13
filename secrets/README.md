@@ -63,13 +63,16 @@
 Edit secrets:
 
 ```bash
-sops secrets/secrets.yaml
+sops secrets/common.yaml
+sops secrets/apis.yaml
+sops secrets/containers.yaml
+sops secrets/development.yaml
 ```
 
 View secrets:
 
 ```bash
-sops -d secrets/secrets.yaml
+sops -d secrets/common.yaml
 ```
 
 ## How it works
@@ -83,4 +86,4 @@ sops -d secrets/secrets.yaml
 - **GPG key**: Stored in Bitwarden
   - Used for manual secret editing with `sops`
   - Disaster recovery if all machines are lost
-  - Both keys can decrypt the same secrets file
+  - Both keys can decrypt the repository secrets files

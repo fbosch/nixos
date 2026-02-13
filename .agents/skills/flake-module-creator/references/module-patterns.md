@@ -444,7 +444,7 @@ _:
 - Define secret in `sops.secrets.<name>`
 - Reference via `config.sops.secrets.<name>.path`
 - Set appropriate permissions and owner
-- Secret must exist in `secrets/secrets.yaml`
+- Secret must exist in the expected file under `secrets/*.yaml`
 
 ## Naming Conventions
 

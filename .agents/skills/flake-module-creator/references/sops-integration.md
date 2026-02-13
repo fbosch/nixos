@@ -5,7 +5,7 @@ This guide covers how to integrate SOPS secrets into dendritic flake modules.
 ## Overview
 
 SOPS (Secrets OPerationS) encrypts secrets using age or GPG keys. In the dendritic pattern, secrets are:
-- Encrypted in `secrets/secrets.yaml`
+- Encrypted in one of the files under `secrets/*.yaml`
 - Defined in modules using `sops.secrets.<name>`
 - Referenced via `config.sops.secrets.<name>.path`
 - Decrypted at runtime by the SOPS module
@@ -15,7 +15,7 @@ SOPS (Secrets OPerationS) encrypts secrets using age or GPG keys. In the dendrit
 1. SOPS module must be imported in host configuration
 2. Age key must exist for the host: `/etc/ssh/ssh_host_ed25519_key`
 3. `.sops.yaml` must include the host's public key
-4. Secrets file must exist: `secrets/secrets.yaml`
+4. Secrets files must exist under `secrets/*.yaml`
 
 ## Basic Secret Usage
 
@@ -61,11 +61,11 @@ _:
 }
 ```
 
-### 2. Add Secret to secrets.yaml
+### 2. Add Secret to the appropriate secrets file
 
 ```bash
 # Edit secrets file
-sops secrets/secrets.yaml
+sops secrets/common.yaml
 
 # Add secret:
 myapp-api-key: "secret-value-here"
@@ -105,7 +105,7 @@ sops.secrets.my-secret = {
 
 ```nix
 sops.secrets.my-secret = {
-  # Custom secret file (default: secrets/secrets.yaml)
+  # Custom secret file (set explicitly in this repo)
   sopsFile = ./custom-secrets.yaml;
   
   # Custom secret key (default: attribute name)
@@ -138,7 +138,7 @@ systemd.services.myapp = {
 };
 ```
 
-**secrets.yaml**:
+**secrets file**:
 ```yaml
 myapp-env: |
   API_KEY=secret-key
@@ -266,9 +266,9 @@ config = lib.mkIf cfg.enable {
 
 1. **Define in module** (as shown above)
 
-2. **Add to secrets.yaml**:
+2. **Add to the relevant secrets file**:
 ```bash
-sops secrets/secrets.yaml
+sops secrets/common.yaml
 # Add: myapp-token: "value"
 ```
 
@@ -284,9 +284,9 @@ ls -la /run/secrets/
 
 ### Updating a Secret
 
-1. **Edit secrets.yaml**:
+1. **Edit the relevant secrets file**:
 ```bash
-sops secrets/secrets.yaml
+sops secrets/common.yaml
 # Update the value
 ```
 
@@ -307,9 +307,9 @@ sudo systemctl restart myapp.service
 # Delete sops.secrets.myapp-token definition
 ```
 
-2. **Remove from secrets.yaml**:
+2. **Remove from the relevant secrets file**:
 ```bash
-sops secrets/secrets.yaml
+sops secrets/common.yaml
 # Delete the key
 ```
 
@@ -376,7 +376,7 @@ sops.secrets.myapp-token = {
 **Symptom**: `/run/secrets/my-secret` doesn't exist
 
 **Solutions**:
-1. Check secret is defined in `secrets/secrets.yaml`
+1. Check secret is defined in the expected file under `secrets/*.yaml`
 2. Verify `.sops.yaml` includes host's public key
 3. Ensure SOPS module is imported in host config
 4. Check for typos in secret name
@@ -410,7 +410,7 @@ sops.secrets.myapp-token = {
 ### Repository-Specific
 - See `docs/agents/sops-secrets.md` for SOPS workflow in this repo
 - See `modules/sops.nix` for SOPS module implementation
-- See `secrets/secrets.yaml` for secret storage
+- See `secrets/common.yaml`, `secrets/apis.yaml`, `secrets/containers.yaml`, and `secrets/development.yaml` for secret storage
 
 ### Example Modules with Secrets
 - `modules/services/attic-client.nix` - Token file pattern

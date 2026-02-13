@@ -150,13 +150,19 @@ echo "Updated .sops.yaml successfully!"
 echo
 
 # Re-encrypt secrets
-echo "Re-encrypting secrets/secrets.yaml with new key..."
-if [ -f secrets/secrets.yaml ]; then
-    echo "y" | sops updatekeys secrets/secrets.yaml
+echo "Re-encrypting secrets/*.yaml with new key..."
+shopt -s nullglob
+SECRET_FILES=(secrets/*.yaml)
+if [ ${#SECRET_FILES[@]} -gt 0 ]; then
+    for secret_file in "${SECRET_FILES[@]}"; do
+        echo "  Updating keys in $secret_file"
+        echo "y" | sops updatekeys "$secret_file"
+    done
     echo "Secrets re-encrypted successfully!"
 else
-    echo "Warning: secrets/secrets.yaml not found"
+    echo "Warning: no secrets YAML files found in secrets/"
 fi
+shopt -u nullglob
 echo
 
 echo "=== Bootstrap Complete ==="

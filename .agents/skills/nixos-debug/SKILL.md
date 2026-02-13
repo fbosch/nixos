@@ -112,7 +112,7 @@ ls -la /var/lib/sops-nix/key.txt
 cat .sops.yaml | grep -A5 'age'
 
 # 3. Test decryption manually
-nix-shell -p sops --run "sops -d secrets/secrets.yaml"
+nix-shell -p sops --run "sops -d secrets/common.yaml"
 ```
 
 **Most common fix**: Age key not in `.sops.yaml` yet

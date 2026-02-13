@@ -127,10 +127,10 @@ ls -la /var/lib/sops-nix/key.txt
 cat .sops.yaml | grep -A5 'age'
 
 # 3. Test manual decryption
-nix-shell -p sops --run "sops -d secrets/secrets.yaml"
+nix-shell -p sops --run "sops -d secrets/common.yaml"
 
 # 4. Check secret file encryption keys
-sops -i --show-keys secrets/secrets.yaml
+sops -i --show-keys secrets/common.yaml
 ```
 
 **Common causes and fixes**:
@@ -164,13 +164,13 @@ cat /var/lib/sops-nix/key.txt | nix-shell -p age --run "age-keygen -y"
 
 # Update .sops.yaml with correct key
 # Re-encrypt all secrets
-sops updatekeys secrets/secrets.yaml
+for f in secrets/*.yaml; do sops updatekeys "$f"; done
 ```
 
 **Secret not encrypted with current keys**:
 ```bash
 # Re-encrypt with current .sops.yaml keys
-sops updatekeys secrets/secrets.yaml
+for f in secrets/*.yaml; do sops updatekeys "$f"; done
 
 # Or re-encrypt all secrets
 find secrets -name "*.yaml" -exec sops updatekeys {} \;
