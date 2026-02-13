@@ -5,6 +5,8 @@ in
 {
   config.flake.modules.homeManager.shell =
     { config
+    , lib
+    , pkgs
     , currentHostId ? null
     , ...
     }:
@@ -51,6 +53,9 @@ in
       allAuthorizedKeys =
         flakeConfig.flake.meta.user.ssh.authorizedKeys
         ++ (lib.filter (key: key != null && key != "") (map (host: host.sshPublicKey) hosts));
+
+      privateKeyPath = config.sops.secrets.ssh-private-key.path;
+      publicKeyPath = "${config.home.homeDirectory}/.ssh/id_ed25519.pub";
     in
     {
       programs.ssh = {
@@ -75,6 +80,24 @@ in
       home.file.".ssh/authorized_keys" = {
         text = lib.concatStringsSep "\n" allAuthorizedKeys;
       };
+
+      home.activation.syncSshPublicKey = lib.hm.dag.entryAfter [ "sopsInstallSecrets" "writeBoundary" ] ''
+        if [ -r ${privateKeyPath} ]; then
+          $DRY_RUN_CMD ${lib.getExe' pkgs.coreutils "mkdir"} -p ${config.home.homeDirectory}/.ssh
+
+          generated_pub="$(${lib.getExe' pkgs.openssh "ssh-keygen"} -y -f ${privateKeyPath})"
+          current_pub=""
+
+          if [ -r ${publicKeyPath} ]; then
+            current_pub="$(${lib.getExe' pkgs.coreutils "cat"} ${publicKeyPath})"
+          fi
+
+          if [ "$generated_pub" != "$current_pub" ]; then
+            $DRY_RUN_CMD ${lib.getExe' pkgs.bash "bash"} -c 'printf "%s\n" "$1" > "$2"' _ "$generated_pub" ${publicKeyPath}
+            $DRY_RUN_CMD ${lib.getExe' pkgs.coreutils "chmod"} 644 ${publicKeyPath}
+          fi
+        fi
+      '';
 
       # Enable and start ssh-agent
       services.ssh-agent.enable = true;

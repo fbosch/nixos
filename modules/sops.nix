@@ -111,17 +111,41 @@ in
                 OPENAI_API_KEY = hmConfig.sops.secrets.openai-api-key.path;
               };
 
+              checkSecrets = lib.concatStringsSep "\n" (
+                lib.mapAttrsToList
+                  (
+                    name: path:
+                      ''
+                        for i in $(seq 1 50); do
+                          if [ -r ${path} ]; then
+                            break
+                          fi
+
+                          if [ "$i" -eq 50 ]; then
+                            echo "Error: missing or unreadable secret ${name} at ${path}" >&2
+                            exit 1
+                          fi
+
+                          sleep 0.2
+                        done
+                      ''
+                  )
+                  secretsMap
+              );
+
               readSecrets = lib.concatStringsSep "\n" (
-                lib.mapAttrsToList (name: path: ''${name}=$(cat ${path} 2>/dev/null || echo "")'') secretsMap
+                lib.mapAttrsToList (name: path: ''${name}=$(cat ${path})'') secretsMap
               );
 
               fishExports = lib.concatStringsSep "\n" (
                 lib.mapAttrsToList (name: _: "set -gx ${name} '$" + name + "'") secretsMap
               );
             in
-            lib.hm.dag.entryAfter [ "sopsInstallSecrets" "writeBoundary" ] ''
+            lib.hm.dag.entryAfter [ "sops-nix" "sopsInstallSecrets" "writeBoundary" ] ''
                             $DRY_RUN_CMD mkdir -p ${hmConfig.home.homeDirectory}/.config/fish
-                
+
+                            ${checkSecrets}
+                 
                             ${readSecrets}
                 
                             cat > ${hmConfig.home.homeDirectory}/.config/fish/private.fish << EOF

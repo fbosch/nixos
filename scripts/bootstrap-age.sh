@@ -106,15 +106,48 @@ if [ ! -f .sops.yaml ]; then
     exit 1
 fi
 
+# Detect key drift between local age key and .sops.yaml host entry
+EXISTING_HOST_KEY=$(awk -v host="$HOSTNAME" '
+  $0 ~ ("&" host "[[:space:]]+age1") {
+    for (i = 1; i <= NF; i++) {
+      if ($i ~ /^age1[0-9a-z]+$/) {
+        print $i
+        exit
+      }
+    }
+  }
+' .sops.yaml)
+
+DRIFT_DETECTED=false
+if [ -n "$EXISTING_HOST_KEY" ] && [ "$EXISTING_HOST_KEY" != "$AGE_PUBLIC_KEY" ]; then
+    DRIFT_DETECTED=true
+    echo "WARNING: age key drift detected for host '$HOSTNAME'"
+    echo "  Local age key:     $AGE_PUBLIC_KEY"
+    echo "  .sops.yaml key:    $EXISTING_HOST_KEY"
+    echo
+    echo "If this key is not updated and secrets re-encrypted, activation may fail to decrypt secrets."
+    echo
+    read -p "Continue and auto-fix now? (Y/n): " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Nn]$ ]]; then
+        echo "Aborting. No changes made."
+        exit 1
+    fi
+fi
+
 # Check if this hostname key already exists in .sops.yaml
 if grep -q "&${HOSTNAME}" .sops.yaml; then
     echo "Age key for '$HOSTNAME' already exists in .sops.yaml"
     echo
-    read -p "Do you want to update it with the current key? (y/N): " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        echo "Keeping existing .sops.yaml entry. Exiting."
-        exit 0
+    if [ "$DRIFT_DETECTED" != "true" ]; then
+        read -p "Do you want to update it with the current key? (y/N): " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            echo "Keeping existing .sops.yaml entry. Exiting."
+            exit 0
+        fi
+    else
+        echo "Proceeding with update due to detected key drift."
     fi
     # Remove old key reference (macOS compatible)
     sed "${SED_INPLACE[@]}" "/&${HOSTNAME}/d" .sops.yaml
