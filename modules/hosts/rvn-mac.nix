@@ -101,6 +101,9 @@ in
           ];
         };
 
+        # Enable biometric auth for sudo on macOS
+        security.pam.services.sudo_local.touchIdAuth = true;
+
         # System environment
         environment = {
           systemPackages = with pkgs; [
