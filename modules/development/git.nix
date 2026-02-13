@@ -70,6 +70,7 @@
         extensions = with pkgs; [
           gh-mcp
           gh-markdown-preview
+          gh-dash
         ];
       };
     };
