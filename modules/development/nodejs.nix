@@ -29,8 +29,8 @@
       home = {
         packages = with pkgs; [
           fnm
-          nodejs_24
           bun
+          nodejs_24
           nodePackages.pnpm
           nodePackages.yarn
           # Prefer Nix packages for better reproducibility
