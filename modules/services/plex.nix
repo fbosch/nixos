@@ -229,6 +229,16 @@ _: {
 
         users.users.plex.extraGroups = [ "users" ];
 
+        systemd.services.plex.serviceConfig = {
+          Nice = -10;
+          CPUWeight = 1000;
+          IOSchedulingClass = "best-effort";
+          IOSchedulingPriority = 0;
+          IOWeight = 1000;
+          OOMScoreAdjust = -900;
+          MemoryLow = "2G";
+        };
+
         fileSystems."/var/lib/plex/Plex Media Server/Cache/Transcode" = lib.mkIf cfg.transcodeInRAM {
           device = "tmpfs";
           fsType = "tmpfs";
