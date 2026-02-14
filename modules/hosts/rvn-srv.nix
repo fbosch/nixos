@@ -252,6 +252,12 @@ in
               enable = true;
               settings.Resolve.DNSStubListener = "no";
             };
+
+            openssh.settings = {
+              PasswordAuthentication = false;
+              KbdInteractiveAuthentication = false;
+              PubkeyAuthentication = true;
+            };
           }
           (lib.mkIf (config ? sops && config.sops ? templates) {
             pihole-container.webPasswordFile = config.sops.templates."pihole-webpassword".path;
