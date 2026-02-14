@@ -61,6 +61,16 @@ _: {
           description = "VPN endpoint countries to use.";
         };
 
+        ipVersion = lib.mkOption {
+          type = lib.types.enum [
+            "ipv4"
+            "ipv6"
+            "all"
+          ];
+          default = "ipv4";
+          description = "IP family used for VPN endpoint selection.";
+        };
+
         httpProxy = {
           enable = lib.mkOption {
             type = lib.types.bool;
@@ -98,13 +108,14 @@ _: {
           ContainerName=gluetun
           Image=${cfg.image}
           AddCapability=NET_ADMIN
-          Device=/dev/net/tun
+          AddDevice=/dev/net/tun
           ${publishPortBlock}
           Environment=VPN_SERVICE_PROVIDER=mullvad
           Environment=VPN_TYPE=wireguard
           Environment=HTTPPROXY=${if cfg.httpProxy.enable then "on" else "off"}
           Environment=TZ=${lib.escapeShellArg cfg.timezone}
           Environment=SERVER_COUNTRIES=${lib.escapeShellArg serverCountries}
+          Environment=IP_VERSION=${cfg.ipVersion}
           EnvironmentFile=${lib.escapeShellArg cfg.envFile}
           Memory=512m
           PidsLimit=200

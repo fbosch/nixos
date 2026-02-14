@@ -159,10 +159,9 @@ in
 
             tinyproxy = {
               port = 8888;
-              listenAddress = "0.0.0.0";
+              listenAddress = hostMeta.local;
               allowedClients = [
                 "192.168.1.0/24"
-                "100.64.0.0/10"
               ];
               anonymize = false;
             };
@@ -175,9 +174,12 @@ in
                 hostMeta.local
                 hostMeta.tailscale
               ];
-              envFile = config.sops.templates."gluetun-env".path;
+              envFile = lib.attrByPath [ "sops" "templates" "gluetun-env" "path" ] null nixosConfig;
               serverCountries = [ "Denmark" ];
             };
+
+            # Avoid interference with Gluetun by disabling host Mullvad daemon on this server.
+            mullvad-vpn.enable = lib.mkForce false;
 
             plex.nginx.port = 32402;
 
@@ -222,7 +224,7 @@ in
 
             komodo = {
               core.host = "https://komodo.corvus-corax.synology.me";
-              core.allowSignups = true;
+              core.allowSignups = false;
               # periphery.requirePasskey = false;
             };
 
@@ -266,14 +268,27 @@ in
               settings.Resolve.DNSStubListener = "no";
             };
 
+            fail2ban = {
+              enable = true;
+              maxretry = 5;
+              bantime = "1h";
+              bantime-increment.enable = true;
+              ignoreIP = [
+                "127.0.0.1/8"
+                "::1"
+                "192.168.1.0/24"
+                "100.64.0.0/10"
+              ];
+            };
+
             openssh.settings = {
               PasswordAuthentication = false;
               KbdInteractiveAuthentication = false;
               PubkeyAuthentication = true;
             };
           }
-          (lib.mkIf (config ? sops && config.sops ? templates) {
-            pihole-container.webPasswordFile = config.sops.templates."pihole-webpassword".path;
+          (lib.mkIf (nixosConfig ? sops && nixosConfig.sops ? templates) {
+            pihole-container.webPasswordFile = nixosConfig.sops.templates."pihole-webpassword".path;
           })
         ];
 
