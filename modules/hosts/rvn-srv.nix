@@ -99,6 +99,12 @@ in
         };
 
         # Kernel tuning for server workload
+        security.apparmor = {
+          enable = true;
+          killUnconfinedConfinables = false;
+          enableCache = false;
+        };
+
         boot.kernel.sysctl = {
           "vm.swappiness" = 10; # Only swap when critically low on RAM
           "vm.vfs_cache_pressure" = 50; # Keep filesystem cache longer
