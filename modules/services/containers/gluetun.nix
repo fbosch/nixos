@@ -67,7 +67,7 @@ _: {
             "ipv6"
             "all"
           ];
-          default = "ipv4";
+          default = "all";
           description = "IP family used for VPN endpoint selection.";
         };
 
