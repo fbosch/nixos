@@ -55,6 +55,7 @@ in
           # containerized services
           "virtualization/podman"
           "services/containers/dozzle"
+          "services/containers/gluetun"
           "services/containers/redlib"
           "services/containers/termix"
           "services/containers/glance"
@@ -93,7 +94,7 @@ in
             autostart = true;
             settings = {
               general.default_download_dir = "/mnt/nas/downloads";
-              connections.proxy_url = "http://192.168.1.202:3128";
+              connections.proxy_url = "http://127.0.0.1:8889";
             };
           };
         };
@@ -164,6 +165,18 @@ in
                 "100.64.0.0/10"
               ];
               anonymize = false;
+            };
+
+            gluetun-container = {
+              enable = true;
+              port = 8889;
+              listenAddresses = [
+                "127.0.0.1"
+                hostMeta.local
+                hostMeta.tailscale
+              ];
+              envFile = config.sops.templates."gluetun-env".path;
+              serverCountries = [ "Denmark" ];
             };
 
             plex.nginx.port = 32402;
