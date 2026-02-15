@@ -140,7 +140,6 @@
   "commitMessageAction": "update",
   "commitMessageTopic": "{{depName}}",
   "commitMessageExtra": "to {{newVersion}}",
-  "prTitle": "{{commitMessagePrefix}} {{commitMessageAction}} {{commitMessageTopic}} {{commitMessageExtra}}",
   "prBodyTemplate": "{{{header}}}{{{table}}}{{{notes}}}{{{changelogs}}}{{{configDescription}}}{{{footer}}}",
   "ignorePaths": [
     "**/node_modules/**",

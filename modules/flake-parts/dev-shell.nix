@@ -180,11 +180,6 @@
 
       formatter = pkgs.nixpkgs-fmt;
 
-      checks = {
-        # Add pre-commit check to flake checks
-        pre-commit-check = config.pre-commit.check config.pre-commit.settings;
-      };
-
       apps = {
         lint = {
           type = "app";
