@@ -167,8 +167,8 @@
     },
     {
       "description": "Custom pkgs/by-name packages - group by package type",
-      "matchFilePatterns": [
-        "^pkgs/by-name/.*/package\\.nix$"
+      "matchPaths": [
+        "pkgs/by-name/**/package.nix"
       ],
       "groupName": "Custom Nix packages",
       "schedule": [
@@ -180,8 +180,8 @@
     },
     {
       "description": "Separate updates for fonts vs applications in custom packages",
-      "matchFilePatterns": [
-        "^pkgs/by-name/font-.*/package\\.nix$"
+      "matchPaths": [
+        "pkgs/by-name/font-*/package.nix"
       ],
       "groupName": "Custom font packages",
       "labels": [
