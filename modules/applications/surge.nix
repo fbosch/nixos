@@ -110,7 +110,7 @@ _: {
             Service = {
               Type = "simple";
               ExecStart = "${lib.getExe cfg.package} ${serverArgs}";
-              Restart = "on-failure";
+              Restart = "always";
               RestartSec = "5s";
             };
 
@@ -153,6 +153,8 @@ _: {
                 network inet6 stream,
                 network inet dgram,
                 network inet6 dgram,
+                network unix stream,
+                network unix dgram,
 
                 # Surge binary
                 ${lib.getExe pkgs.local.surge} mr,
