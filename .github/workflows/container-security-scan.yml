@@ -1,0 +1,125 @@
+name: Container Security Scan
+
+on:
+  pull_request:
+    paths:
+      - 'modules/services/containers/**/*.nix'
+      - 'modules/hosts/**/*.nix'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+  pull-requests: write
+
+jobs:
+  extract-images:
+    name: Extract Container Images from Nix Files
+    runs-on: ubuntu-latest
+    outputs:
+      images: ${{ steps.extract.outputs.images }}
+      has-images: ${{ steps.extract.outputs.has-images }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract container images
+        id: extract
+        run: |
+          set -euo pipefail
+          
+          # Extract images from changed files
+          IMAGES=$(git diff --unified=0 origin/${{ github.base_ref }}...HEAD -- modules/services/containers/ modules/hosts/ | \
+            grep -E '^\+.*Image=' | \
+            sed 's/.*Image=//' | \
+            grep -v '\${' | \
+            sort -u || true)
+          
+          # Also extract from image option defaults
+          IMAGE_OPTIONS=$(git diff --unified=0 origin/${{ github.base_ref }}...HEAD -- modules/services/containers/ | \
+            grep -E '^\+.*default.*=.*".*:.*"' | \
+            sed -E 's/.*default.*=.*"([^"]+)".*/\1/' | \
+            grep ':' | \
+            sort -u || true)
+          
+          ALL_IMAGES=$(echo -e "${IMAGES}\n${IMAGE_OPTIONS}" | grep -v '^$' | sort -u || echo "")
+          
+          if [ -z "$ALL_IMAGES" ]; then
+            echo "No container images found in changes"
+            echo "has-images=false" >> $GITHUB_OUTPUT
+            echo "images=" >> $GITHUB_OUTPUT
+          else
+            echo "Found images to scan:"
+            echo "$ALL_IMAGES"
+            
+            # Convert to JSON array for matrix
+            IMAGES_JSON=$(echo "$ALL_IMAGES" | jq -R -s -c 'split("\n") | map(select(length > 0))')
+            echo "has-images=true" >> $GITHUB_OUTPUT
+            echo "images=$IMAGES_JSON" >> $GITHUB_OUTPUT
+          fi
+
+  scan:
+    name: Scan ${{ matrix.image }}
+    runs-on: ubuntu-latest
+    needs: extract-images
+    if: needs.extract-images.outputs.has-images == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ${{ fromJson(needs.extract-images.outputs.images) }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Pull container image
+        run: |
+          echo "Pulling ${{ matrix.image }}"
+          docker pull ${{ matrix.image }} || {
+            echo "::warning::Failed to pull ${{ matrix.image }} - may be a local image or invalid reference"
+            exit 0
+          }
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ matrix.image }}
+          format: 'sarif'
+          output: 'trivy-results-${{ matrix.image }}.sarif'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+          exit-code: '0'
+
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results-${{ matrix.image }}.sarif'
+          category: 'trivy-${{ matrix.image }}'
+
+      - name: Run Trivy for PR comment
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ matrix.image }}
+          format: 'table'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '0'
+
+  summary:
+    name: Security Scan Summary
+    runs-on: ubuntu-latest
+    needs: [extract-images, scan]
+    if: always()
+    steps:
+      - name: Post summary
+        run: |
+          if [ "${{ needs.extract-images.outputs.has-images }}" == "true" ]; then
+            echo "✅ Container security scan completed"
+            echo ""
+            echo "Scanned images:"
+            echo '${{ needs.extract-images.outputs.images }}' | jq -r '.[]' | sed 's/^/  - /'
+            echo ""
+            echo "Check the Security tab for detailed vulnerability reports."
+          else
+            echo "ℹ️ No container images to scan in this PR"
+          fi
