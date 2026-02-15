@@ -31,6 +31,11 @@ buildGo124Module rec {
     export HOME="$TMPDIR"
   '';
 
+  # Skip flaky test that fails with "database is locked" in sandboxed builds
+  checkFlags = [
+    "-skip=TestLocalDownloadService_Delete_ActiveWithoutDB_RemovesPartialFile"
+  ];
+
   meta = with lib; {
     description = "Blazing fast open-source TUI download manager";
     homepage = "https://github.com/surge-downloader/surge";

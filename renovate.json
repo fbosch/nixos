@@ -46,6 +46,40 @@
         "Image=(?<depName>[^:\\s]+):\\$\\{[^}]+\\}[\\s\\S]*?imageTag\\s*=\\s*lib\\.mkOption\\s*\\{[\\s\\S]*?default\\s*=\\s*\"(?<currentValue>[^\"]+)\""
       ],
       "datasourceTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "description": "Update GitHub release versions in pkgs/by-name packages (fetchurl pattern)",
+      "fileMatch": [
+        "^pkgs/by-name/.*/package\\.nix$"
+      ],
+      "matchStrings": [
+        "version\\s*=\\s*\"(?<currentValue>[^\"]+)\"[\\s\\S]*?url\\s*=\\s*\"https://github\\.com/(?<depName>[^/]+/[^/]+)/releases/download/"
+      ],
+      "datasourceTemplate": "github-releases"
+    },
+    {
+      "customType": "regex",
+      "description": "Update GitHub releases in pkgs/by-name packages (fetchFromGitHub pattern)",
+      "fileMatch": [
+        "^pkgs/by-name/.*/package\\.nix$"
+      ],
+      "matchStrings": [
+        "version\\s*=\\s*\"(?<currentValue>[^\"]+)\"[\\s\\S]*?fetchFromGitHub\\s*\\{[\\s\\S]*?owner\\s*=\\s*\"(?<owner>[^\"]+)\"[\\s\\S]*?repo\\s*=\\s*\"(?<repo>[^\"]+)\""
+      ],
+      "depNameTemplate": "{{{owner}}}/{{{repo}}}",
+      "datasourceTemplate": "github-releases"
+    },
+    {
+      "customType": "regex",
+      "description": "Update GitHub releases in pkgs/by-name packages (fetchzip pattern)",
+      "fileMatch": [
+        "^pkgs/by-name/.*/package\\.nix$"
+      ],
+      "matchStrings": [
+        "version\\s*=\\s*\"(?<currentValue>[^\"]+)\"[\\s\\S]*?fetchzip\\s*\\{[\\s\\S]*?url\\s*=\\s*\"https://github\\.com/(?<depName>[^/]+/[^/]+)/releases/download/"
+      ],
+      "datasourceTemplate": "github-releases"
     }
   ],
   "packageRules": [
@@ -129,6 +163,29 @@
       "labels": [
         "major-update",
         "needs-review"
+      ]
+    },
+    {
+      "description": "Custom pkgs/by-name packages - group by package type",
+      "matchFilePatterns": [
+        "^pkgs/by-name/.*/package\\.nix$"
+      ],
+      "groupName": "Custom Nix packages",
+      "schedule": [
+        "before 3am on the first day of the month"
+      ],
+      "labels": [
+        "custom-packages"
+      ]
+    },
+    {
+      "description": "Separate updates for fonts vs applications in custom packages",
+      "matchFilePatterns": [
+        "^pkgs/by-name/font-.*/package\\.nix$"
+      ],
+      "groupName": "Custom font packages",
+      "labels": [
+        "fonts"
       ]
     }
   ],
