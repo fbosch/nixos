@@ -176,6 +176,12 @@ in
               ];
               envFile = lib.attrByPath [ "sops" "templates" "gluetun-env" "path" ] null nixosConfig;
               serverCountries = [ "Denmark" ];
+
+              # Enable HTTP proxy stealth mode
+              httpProxy.stealth = true;
+
+              # Enable control server for Glance integration
+              controlServer.enable = true;
             };
 
             # Avoid interference with Gluetun by disabling host Mullvad daemon on this server.
