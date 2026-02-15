@@ -7,7 +7,13 @@ _: {
     let
       cfg = config.services.gluetun-container;
       publishPorts = map (addr: "PublishPort=${addr}:${toString cfg.port}:8888/tcp") cfg.listenAddresses;
-      publishPortBlock = lib.concatStringsSep "\n" publishPorts;
+      controlServerPorts =
+        if cfg.controlServer.enable then
+          map (addr: "PublishPort=${addr}:${toString cfg.controlServer.port}:8000/tcp") cfg.listenAddresses
+        else
+          [ ];
+      allPublishPorts = publishPorts ++ controlServerPorts;
+      publishPortBlock = lib.concatStringsSep "\n" allPublishPorts;
       serverCountries = lib.concatStringsSep "," cfg.serverCountries;
     in
     {
@@ -77,6 +83,32 @@ _: {
             default = true;
             description = "Enable Gluetun internal HTTP proxy.";
           };
+
+          stealth = lib.mkOption {
+            type = lib.types.bool;
+            default = false;
+            description = "Enable HTTP proxy stealth mode (removes proxy headers).";
+          };
+        };
+
+        controlServer = {
+          enable = lib.mkOption {
+            type = lib.types.bool;
+            default = false;
+            description = "Enable Gluetun HTTP control server for API access.";
+          };
+
+          port = lib.mkOption {
+            type = lib.types.port;
+            default = 8000;
+            description = "Port for the Gluetun control server.";
+          };
+
+          address = lib.mkOption {
+            type = lib.types.str;
+            default = ":8000";
+            description = "Address for the control server (format: 'host:port' or ':port').";
+          };
         };
       };
 
@@ -95,7 +127,7 @@ _: {
         services.containerPorts = lib.mkAfter [
           {
             service = "gluetun-container";
-            tcpPorts = [ cfg.port ];
+            tcpPorts = [ cfg.port ] ++ lib.optional cfg.controlServer.enable cfg.controlServer.port;
           }
         ];
 
@@ -113,6 +145,8 @@ _: {
           Environment=VPN_SERVICE_PROVIDER=mullvad
           Environment=VPN_TYPE=wireguard
           Environment=HTTPPROXY=${if cfg.httpProxy.enable then "on" else "off"}
+          ${lib.optionalString cfg.httpProxy.stealth "Environment=HTTPPROXY_STEALTH=on"}
+          ${lib.optionalString cfg.controlServer.enable "Environment=HTTP_CONTROL_SERVER_ADDRESS=${lib.escapeShellArg cfg.controlServer.address}"}
           Environment=TZ=${lib.escapeShellArg cfg.timezone}
           Environment=SERVER_COUNTRIES=${lib.escapeShellArg serverCountries}
           Environment=IP_VERSION=${cfg.ipVersion}
@@ -133,7 +167,9 @@ _: {
           WantedBy=multi-user.target
         '';
 
-        networking.firewall.allowedTCPPorts = lib.mkIf cfg.openFirewall [ cfg.port ];
+        networking.firewall.allowedTCPPorts = lib.mkIf cfg.openFirewall (
+          [ cfg.port ] ++ lib.optional cfg.controlServer.enable cfg.controlServer.port
+        );
       };
     };
 }

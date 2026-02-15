@@ -202,6 +202,7 @@ in
               "synology-api-password"
               "mullvad-wireguard-private-key"
               "mullvad-wireguard-addresses"
+              "gluetun-control-api-key"
               "linkwarden-postgres-password"
               "linkwarden-nextauth-secret"
               "linkwarden-meili-master-key"
@@ -261,6 +262,8 @@ in
                 PIHOLE_PASSWORD=${nixosConfig.sops.placeholder.rpi-pihole-password-token}
                 GITHUB_TOKEN=${nixosConfig.sops.placeholder.github-token}
                 TAILSCALE_API_KEY=${nixosConfig.sops.placeholder.tailscale-api-key}
+                GLUETUN_URL=https://gluetun.corvus-corax.synology.me
+                GLUETUN_API_KEY=${nixosConfig.sops.placeholder.gluetun-control-api-key}
               '';
               mode = "0400";
             };
@@ -288,6 +291,7 @@ in
               content = ''
                 WIREGUARD_PRIVATE_KEY=${nixosConfig.sops.placeholder.mullvad-wireguard-private-key}
                 WIREGUARD_ADDRESSES=${nixosConfig.sops.placeholder.mullvad-wireguard-addresses}
+                HTTP_CONTROL_SERVER_API_KEY=${nixosConfig.sops.placeholder.gluetun-control-api-key}
               '';
               mode = "0400";
             };
