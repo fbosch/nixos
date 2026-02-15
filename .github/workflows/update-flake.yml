@@ -24,7 +24,7 @@ jobs:
         uses: DeterminateSystems/nix-installer-action@v21
 
       - name: Enable Nix cache
-        uses: cachix/cachix-action@v12
+        uses: cachix/cachix-action@v16
         with:
           name: fbosch
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
