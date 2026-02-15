@@ -73,6 +73,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Sanitize image name for filename
+        id: sanitize
+        run: |
+          SAFE_NAME=$(echo "${{ matrix.image }}" | sed 's|[/:@]|-|g')
+          echo "safe-name=$SAFE_NAME" >> $GITHUB_OUTPUT
+
       - name: Pull container image
         run: |
           echo "Pulling ${{ matrix.image }}"
@@ -86,7 +92,7 @@ jobs:
         with:
           image-ref: ${{ matrix.image }}
           format: 'sarif'
-          output: 'trivy-results-${{ matrix.image }}.sarif'
+          output: 'trivy-results-${{ steps.sanitize.outputs.safe-name }}.sarif'
           severity: 'CRITICAL,HIGH,MEDIUM'
           exit-code: '0'
 
@@ -94,8 +100,8 @@ jobs:
         uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
-          sarif_file: 'trivy-results-${{ matrix.image }}.sarif'
-          category: 'trivy-${{ matrix.image }}'
+          sarif_file: 'trivy-results-${{ steps.sanitize.outputs.safe-name }}.sarif'
+          category: 'trivy-${{ steps.sanitize.outputs.safe-name }}'
 
       - name: Run Trivy for PR comment
         uses: aquasecurity/trivy-action@0.28.0
