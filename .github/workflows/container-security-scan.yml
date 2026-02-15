@@ -82,7 +82,7 @@ jobs:
           }
 
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@0.34.0
         with:
           image-ref: ${{ matrix.image }}
           format: 'sarif'
@@ -98,7 +98,7 @@ jobs:
           category: 'trivy-${{ matrix.image }}'
 
       - name: Run Trivy for PR comment
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@0.34.0
         with:
           image-ref: ${{ matrix.image }}
           format: 'table'
