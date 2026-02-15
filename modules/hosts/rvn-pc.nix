@@ -70,6 +70,7 @@ in
           config.flake.lib.resolveHm [
             # Desktop preset (includes users, dotfiles, fonts, security, desktop, applications, development, shell)
             "presets/desktop"
+            "applications/surge"
 
             # Shared modules with Home Manager components
             "secrets"
@@ -86,6 +87,15 @@ in
                 enable = true;
                 download = "/mnt/storage/Downloads";
               };
+
+              services.surge = {
+                autostart = true;
+                settings = {
+                  general.default_download_dir = "/mnt/nas/downloads";
+                  connections.proxy_url = "http://127.0.0.1:8889";
+                };
+              };
+
             }
           ];
 
