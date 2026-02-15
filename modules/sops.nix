@@ -208,6 +208,8 @@ in
               "linkwarden-meili-master-key"
               "linkwarden-access-token"
               "tailscale-api-key"
+              "nextdns-profile-id"
+              "nextdns-api-key"
             ])
 
             # Container secrets - wheel readable
@@ -264,6 +266,8 @@ in
                 TAILSCALE_API_KEY=${nixosConfig.sops.placeholder.tailscale-api-key}
                 GLUETUN_URL=https://gluetun.corvus-corax.synology.me
                 GLUETUN_API_KEY=${nixosConfig.sops.placeholder.gluetun-control-api-key}
+                NEXTDNS_PROFILE_ID=${nixosConfig.sops.placeholder.nextdns-profile-id}
+                NEXTDNS_API_KEY=${nixosConfig.sops.placeholder.nextdns-api-key}
               '';
               mode = "0400";
             };
