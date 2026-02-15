@@ -68,6 +68,7 @@ in
           # "services/containers/openmemory"
           "services/containers/linkwarden"
           "services/containers/rdtclient"
+          "services/containers/speedtest-tracker"
 
           # validation
           "validation/container-port-conflicts"
@@ -271,6 +272,14 @@ in
               timezone = "Europe/Copenhagen";
               userId = 1000;
               groupId = 1000;
+            };
+
+            speedtest-tracker = {
+              enable = true;
+              port = 8085;
+              appUrl = "https://speedtest.corvus-corax.synology.me";
+              puid = 1000;
+              pgid = 1000;
             };
 
             resolved = {

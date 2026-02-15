@@ -210,6 +210,7 @@ in
               "tailscale-api-key"
               "nextdns-profile-id"
               "nextdns-api-key"
+              "speedtest-tracker-app-key"
             ])
 
             # Container secrets - wheel readable
