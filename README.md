@@ -76,13 +76,24 @@ secrets/           sops files
 ```mermaid
 flowchart LR
   flake[flake.nix]
-  meta[flake.meta]
-  modules[flake.modules]
-  libResolvers[flake.lib.resolve*]
-  presets[presets/]
+  machines[machines/*]
+
+  subgraph flakeParts[modules/flake-parts/]
+    meta[meta.nix → flake.meta]
+    flakeModules[flake-parts.nix → flake.modules]
+    libNix[lib.nix → flake.lib.*]
+    hostsNix[hosts.nix]
+  end
+
+  subgraph flakeLib[flake.lib]
+    resolve[resolve - NixOS modules]
+    resolveHm[resolveHm - Home Manager]
+    resolveDarwin[resolveDarwin - Darwin]
+    iconOverrides[iconOverrides]
+  end
 
   subgraph pureLib[lib/]
-    iconOverrides[icon-overrides.nix]
+    iconOverridesNix[icon-overrides.nix]
   end
 
   subgraph moduleTree[modules/]
@@ -91,25 +102,27 @@ flowchart LR
     moduleset[feature modules]
   end
 
-  machines[machines/*]
+  flake --> flakeParts
+  libNix --> flakeLib
+  iconOverridesNix -.imported by.-> iconOverrides
 
-  flake --> meta
-  flake --> modules
-  flake --> libResolvers
-  flake -.imports.-> pureLib
-
-  modules --> moduleTree
+  flakeModules --> moduleTree
   moduleTree --> presetsModules
 
-  hosts --> libResolvers
+  hosts --> resolve
+  hosts --> resolveHm
+  hosts --> resolveDarwin
   hosts --> machines
-  presetsModules --> libResolvers
+  
+  presetsModules --> resolve
+  presetsModules --> resolveHm
 
-  libResolvers -.uses.-> iconOverrides
-  libResolvers --> modules
+  resolve -.resolves to.-> moduleset
+  resolveHm -.resolves to.-> moduleset
+  resolveDarwin -.resolves to.-> moduleset
 
-  libResolvers --> nixosConfigs[nixosConfigurations]
-  libResolvers --> darwinConfigs[darwinConfigurations]
+  hostsNix --> nixosConfigs[nixosConfigurations]
+  hostsNix --> darwinConfigs[darwinConfigurations]
 ```
 
 ## Presets
