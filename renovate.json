@@ -17,8 +17,8 @@
     {
       "customType": "regex",
       "description": "Update hardcoded container images in Quadlet definitions (Image=registry/image:tag)",
-      "fileMatch": [
-        "^modules/services/containers/.*\\.nix$"
+      "managerFilePatterns": [
+        "/^modules/services/containers/.*\\.nix$/"
       ],
       "matchStrings": [
         "Image=(?<depName>[^:\\s$]+):(?<currentValue>[^\\s\\n$]+)"
@@ -28,8 +28,8 @@
     {
       "customType": "regex",
       "description": "Update Nix image options with full image references (handles multi-line)",
-      "fileMatch": [
-        "^modules/services/containers/.*\\.nix$"
+      "managerFilePatterns": [
+        "/^modules/services/containers/.*\\.nix$/"
       ],
       "matchStrings": [
         "image\\s*=\\s*lib\\.mkOption\\s*\\{[\\s\\S]*?default\\s*=\\s*\"(?<depName>[^:]+):(?<currentValue>[^\"]+)\""
@@ -39,8 +39,8 @@
     {
       "customType": "regex",
       "description": "Update imageTag options used with variable interpolation (Image=name:${cfg.imageTag})",
-      "fileMatch": [
-        "^modules/services/containers/.*\\.nix$"
+      "managerFilePatterns": [
+        "/^modules/services/containers/.*\\.nix$/"
       ],
       "matchStrings": [
         "Image=(?<depName>[^:\\s]+):\\$\\{[^}]+\\}[\\s\\S]*?imageTag\\s*=\\s*lib\\.mkOption\\s*\\{[\\s\\S]*?default\\s*=\\s*\"(?<currentValue>[^\"]+)\""
@@ -50,8 +50,8 @@
     {
       "customType": "regex",
       "description": "Update GitHub release versions in pkgs/by-name packages (fetchurl pattern)",
-      "fileMatch": [
-        "^pkgs/by-name/.*/package\\.nix$"
+      "managerFilePatterns": [
+        "/^pkgs/by-name/.*/package\\.nix$/"
       ],
       "matchStrings": [
         "version\\s*=\\s*\"(?<currentValue>[^\"]+)\"[\\s\\S]*?url\\s*=\\s*\"https://github\\.com/(?<depName>[^/]+/[^/]+)/releases/download/"
@@ -61,8 +61,8 @@
     {
       "customType": "regex",
       "description": "Update GitHub releases in pkgs/by-name packages (fetchFromGitHub pattern)",
-      "fileMatch": [
-        "^pkgs/by-name/.*/package\\.nix$"
+      "managerFilePatterns": [
+        "/^pkgs/by-name/.*/package\\.nix$/"
       ],
       "matchStrings": [
         "version\\s*=\\s*\"(?<currentValue>[^\"]+)\"[\\s\\S]*?fetchFromGitHub\\s*\\{[\\s\\S]*?owner\\s*=\\s*\"(?<owner>[^\"]+)\"[\\s\\S]*?repo\\s*=\\s*\"(?<repo>[^\"]+)\""
@@ -73,8 +73,8 @@
     {
       "customType": "regex",
       "description": "Update GitHub releases in pkgs/by-name packages (fetchzip pattern)",
-      "fileMatch": [
-        "^pkgs/by-name/.*/package\\.nix$"
+      "managerFilePatterns": [
+        "/^pkgs/by-name/.*/package\\.nix$/"
       ],
       "matchStrings": [
         "version\\s*=\\s*\"(?<currentValue>[^\"]+)\"[\\s\\S]*?fetchzip\\s*\\{[\\s\\S]*?url\\s*=\\s*\"https://github\\.com/(?<depName>[^/]+/[^/]+)/releases/download/"
@@ -88,13 +88,6 @@
       "matchDatasources": [
         "docker"
       ],
-      "matchPackagePatterns": [
-        "^pihole/pihole$",
-        "^.*qmcgaw/gluetun$",
-        "^.*komodo-core$",
-        "^.*komodo-periphery$",
-        "^mongo$"
-      ],
       "groupName": "Critical Infrastructure",
       "automerge": false,
       "minimumReleaseAge": "3 days",
@@ -103,6 +96,13 @@
       ],
       "labels": [
         "critical-service"
+      ],
+      "matchPackageNames": [
+        "/^pihole/pihole$/",
+        "/^.*qmcgaw/gluetun$/",
+        "/^.*komodo-core$/",
+        "/^.*komodo-periphery$/",
+        "/^mongo$/"
       ]
     },
     {
@@ -110,16 +110,16 @@
       "matchDatasources": [
         "docker"
       ],
-      "excludePackagePatterns": [
-        "^pihole/pihole$",
-        "^.*qmcgaw/gluetun$",
-        "^.*komodo-core$",
-        "^.*komodo-periphery$",
-        "^mongo$"
-      ],
       "groupName": "Non-critical containers",
       "schedule": [
         "before 3am on the first day of the month"
+      ],
+      "matchPackageNames": [
+        "!/^pihole/pihole$/",
+        "!/^.*qmcgaw/gluetun$/",
+        "!/^.*komodo-core$/",
+        "!/^.*komodo-periphery$/",
+        "!/^mongo$/"
       ]
     },
     {
@@ -149,11 +149,11 @@
     },
     {
       "description": "Local-only images (helium, openmemory) cannot be updated via registries",
-      "matchPackagePatterns": [
-        "^helium-",
-        "^localhost/openmemory"
-      ],
-      "enabled": false
+      "enabled": false,
+      "matchPackageNames": [
+        "/^helium-/",
+        "/^localhost/openmemory/"
+      ]
     },
     {
       "description": "Major version updates require explicit approval",
@@ -167,7 +167,7 @@
     },
     {
       "description": "Custom pkgs/by-name packages - group by package type",
-      "matchPaths": [
+      "matchFileNames": [
         "pkgs/by-name/**/package.nix"
       ],
       "groupName": "Custom Nix packages",
@@ -180,7 +180,7 @@
     },
     {
       "description": "Separate updates for fonts vs applications in custom packages",
-      "matchPaths": [
+      "matchFileNames": [
         "pkgs/by-name/font-*/package.nix"
       ],
       "groupName": "Custom font packages",
