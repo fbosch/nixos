@@ -1,10 +1,9 @@
 _: {
   flake.modules.nixos."services/containers/helium" =
-    {
-      config,
-      lib,
-      pkgs,
-      ...
+    { config
+    , lib
+    , pkgs
+    , ...
     }:
     {
       options.services.helium-services-container = {

@@ -1,0 +1,150 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Automated container dependency updates with security scanning for NixOS flake",
+  "extends": [
+    "config:recommended"
+  ],
+  "timezone": "Europe/Copenhagen",
+  "schedule": [
+    "before 3am on the first day of the month"
+  ],
+  "automerge": false,
+  "platformAutomerge": false,
+  "prConcurrentLimit": 5,
+  "prHourlyLimit": 2,
+  "osvVulnerabilityAlerts": true,
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Update hardcoded container images in Quadlet definitions (Image=registry/image:tag)",
+      "fileMatch": [
+        "^modules/services/containers/.*\\.nix$"
+      ],
+      "matchStrings": [
+        "Image=(?<depName>[^:\\s$]+):(?<currentValue>[^\\s\\n$]+)"
+      ],
+      "datasourceTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "description": "Update Nix image options with full image references (handles multi-line)",
+      "fileMatch": [
+        "^modules/services/containers/.*\\.nix$"
+      ],
+      "matchStrings": [
+        "image\\s*=\\s*lib\\.mkOption\\s*\\{[\\s\\S]*?default\\s*=\\s*\"(?<depName>[^:]+):(?<currentValue>[^\"]+)\""
+      ],
+      "datasourceTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "description": "Update imageTag options used with variable interpolation (Image=name:${cfg.imageTag})",
+      "fileMatch": [
+        "^modules/services/containers/.*\\.nix$"
+      ],
+      "matchStrings": [
+        "Image=(?<depName>[^:\\s]+):\\$\\{[^}]+\\}[\\s\\S]*?imageTag\\s*=\\s*lib\\.mkOption\\s*\\{[\\s\\S]*?default\\s*=\\s*\"(?<currentValue>[^\"]+)\""
+      ],
+      "datasourceTemplate": "docker"
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "Critical infrastructure services - require manual review, wait 3 days for stability",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackagePatterns": [
+        "^pihole/pihole$",
+        "^.*qmcgaw/gluetun$",
+        "^.*komodo-core$",
+        "^.*komodo-periphery$",
+        "^mongo$"
+      ],
+      "groupName": "Critical Infrastructure",
+      "automerge": false,
+      "minimumReleaseAge": "3 days",
+      "schedule": [
+        "before 3am on the first day of the month"
+      ],
+      "labels": [
+        "critical-service"
+      ]
+    },
+    {
+      "description": "Non-critical services - group together for easier review",
+      "matchDatasources": [
+        "docker"
+      ],
+      "excludePackagePatterns": [
+        "^pihole/pihole$",
+        "^.*qmcgaw/gluetun$",
+        "^.*komodo-core$",
+        "^.*komodo-periphery$",
+        "^mongo$"
+      ],
+      "groupName": "Non-critical containers",
+      "schedule": [
+        "before 3am on the first day of the month"
+      ]
+    },
+    {
+      "description": "Security updates bypass monthly schedule - run immediately",
+      "matchUpdateTypes": [
+        "patch",
+        "pin"
+      ],
+      "matchDatasources": [
+        "docker"
+      ],
+      "labels": [
+        "security-update"
+      ],
+      "prPriority": 10,
+      "schedule": [
+        "at any time"
+      ]
+    },
+    {
+      "description": "Pin major versions for Pi-hole to avoid breaking DNS changes",
+      "matchPackageNames": [
+        "pihole/pihole"
+      ],
+      "separateMajorMinor": true,
+      "separateMinorPatch": false
+    },
+    {
+      "description": "Local-only images (helium, openmemory) cannot be updated via registries",
+      "matchPackagePatterns": [
+        "^helium-",
+        "^localhost/openmemory"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "Major version updates require explicit approval",
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "labels": [
+        "major-update",
+        "needs-review"
+      ]
+    }
+  ],
+  "labels": [
+    "dependencies",
+    "renovate"
+  ],
+  "commitMessagePrefix": "chore(deps):",
+  "commitMessageAction": "update",
+  "commitMessageTopic": "{{depName}}",
+  "commitMessageExtra": "to {{newVersion}}",
+  "prTitle": "{{commitMessagePrefix}} {{commitMessageAction}} {{commitMessageTopic}} {{commitMessageExtra}}",
+  "prBodyTemplate": "{{{header}}}{{{table}}}{{{notes}}}{{{changelogs}}}{{{configDescription}}}{{{footer}}}",
+  "ignorePaths": [
+    "**/node_modules/**",
+    "**/test/**",
+    "**/__tests__/**"
+  ]
+}

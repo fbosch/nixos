@@ -69,7 +69,7 @@ _: {
                 grouped = builtins.groupBy (item: toString item.port) portList;
 
                 # Find groups with more than one entry
-                duplicates = lib.filterAttrs (port: items: (lib.length items) > 1) grouped;
+                duplicates = lib.filterAttrs (_port: items: (lib.length items) > 1) grouped;
               in
               duplicates;
 

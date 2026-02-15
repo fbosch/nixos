@@ -113,28 +113,25 @@ in
 
               checkSecrets = lib.concatStringsSep "\n" (
                 lib.mapAttrsToList
-                  (
-                    name: path:
-                      ''
-                        for i in $(seq 1 50); do
-                          if [ -r ${path} ]; then
-                            break
-                          fi
+                  (name: path: ''
+                    for i in $(seq 1 50); do
+                      if [ -r ${path} ]; then
+                        break
+                      fi
 
-                          if [ "$i" -eq 50 ]; then
-                            echo "Error: missing or unreadable secret ${name} at ${path}" >&2
-                            exit 1
-                          fi
+                      if [ "$i" -eq 50 ]; then
+                        echo "Error: missing or unreadable secret ${name} at ${path}" >&2
+                        exit 1
+                      fi
 
-                          sleep 0.2
-                        done
-                      ''
-                  )
+                      sleep 0.2
+                    done
+                  '')
                   secretsMap
               );
 
               readSecrets = lib.concatStringsSep "\n" (
-                lib.mapAttrsToList (name: path: ''${name}=$(cat ${path})'') secretsMap
+                lib.mapAttrsToList (name: path: "${name}=$(cat ${path})") secretsMap
               );
 
               fishExports = lib.concatStringsSep "\n" (
@@ -203,6 +200,8 @@ in
               "rpi-pihole-password-token"
               "synology-api-username"
               "synology-api-password"
+              "mullvad-wireguard-private-key"
+              "mullvad-wireguard-addresses"
               "linkwarden-postgres-password"
               "linkwarden-nextauth-secret"
               "linkwarden-meili-master-key"
@@ -281,6 +280,14 @@ in
                 MEILI_MASTER_KEY=${nixosConfig.sops.placeholder.linkwarden-meili-master-key}
                 DISABLE_PRESERVATION=true
                 DISABLE_PRESERVATION=true
+              '';
+              mode = "0400";
+            };
+
+            "gluetun-env" = {
+              content = ''
+                WIREGUARD_PRIVATE_KEY=${nixosConfig.sops.placeholder.mullvad-wireguard-private-key}
+                WIREGUARD_ADDRESSES=${nixosConfig.sops.placeholder.mullvad-wireguard-addresses}
               '';
               mode = "0400";
             };

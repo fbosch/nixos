@@ -1,9 +1,8 @@
 _: {
   flake.modules.nixos."services/containers/pihole" =
-    {
-      config,
-      lib,
-      ...
+    { config
+    , lib
+    , ...
     }:
     {
       options.services.pihole-container = {
