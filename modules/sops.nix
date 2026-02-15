@@ -211,6 +211,7 @@ in
               "nextdns-profile-id"
               "nextdns-api-key"
               "speedtest-tracker-app-key"
+              "speedtest-tracker-api-token"
             ])
 
             # Container secrets - wheel readable
@@ -269,6 +270,8 @@ in
                 GLUETUN_API_KEY=${nixosConfig.sops.placeholder.gluetun-control-api-key}
                 NEXTDNS_PROFILE_ID=${nixosConfig.sops.placeholder.nextdns-profile-id}
                 NEXTDNS_API_KEY=${nixosConfig.sops.placeholder.nextdns-api-key}
+                SPEEDTEST_URL=https://speedtest-tracker.corvus-corax.synology.me
+                SPEEDTEST_TRACKER_API_TOKEN=${nixosConfig.sops.placeholder.speedtest-tracker-api-token}
               '';
               mode = "0400";
             };
