@@ -38,7 +38,7 @@ _: {
 
         image = lib.mkOption {
           type = lib.types.str;
-          default = "docker.io/qmcgaw/gluetun:v3.40.0";
+          default = "docker.io/qmcgaw/gluetun:v3.41.1";
           description = "Container image for Gluetun.";
         };
 
