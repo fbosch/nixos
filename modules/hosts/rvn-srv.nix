@@ -164,9 +164,10 @@ in
 
             tinyproxy = {
               port = 8888;
-              listenAddress = hostMeta.local;
+              listenAddress = "0.0.0.0"; # Listen on all interfaces for Tailscale access
               allowedClients = [
                 "192.168.1.0/24"
+                "100.64.0.0/10" # Tailscale CGNAT range
               ];
               anonymize = false;
             };
