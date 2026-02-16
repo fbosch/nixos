@@ -32,6 +32,9 @@ in
         identityFile = config.sops.secrets.ssh-private-key.path;
         extraOptions = {
           AddKeysToAgent = "yes";
+          ServerAliveInterval = "30";
+          ServerAliveCountMax = "3";
+          TCPKeepAlive = "yes";
         };
       };
 
@@ -71,6 +74,9 @@ in
               extraOptions = {
                 HostkeyAlgorithms = "+ssh-rsa";
                 PubkeyAcceptedKeyTypes = "ssh-rsa";
+                ServerAliveInterval = "30";
+                ServerAliveCountMax = "3";
+                TCPKeepAlive = "yes";
               };
             };
           }

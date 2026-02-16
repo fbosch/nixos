@@ -1,10 +1,9 @@
 _: {
   flake.modules.nixos."services/containers/openmemory" =
-    {
-      config,
-      lib,
-      pkgs,
-      ...
+    { config
+    , lib
+    , pkgs
+    , ...
     }:
     let
       # OpenMemory source from GitHub

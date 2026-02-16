@@ -8,7 +8,7 @@ let
     sshAlias = "pc";
     tailscale = "100.124.57.90";
     local = "192.168.1.169";
-    sshPublicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIA9bFB0RZWl7ofsEMEW4i8UJv448U/RT429+roe1gc9K";
+    sshPublicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJl/WCQsXEkE7em5A6d2Du2JAWngIPfA8sVuJP/9cuyq fbb@nixos";
     dnsServers = [
       "192.168.1.46"
       "192.168.1.2"
@@ -70,6 +70,7 @@ in
           config.flake.lib.resolveHm [
             # Desktop preset (includes users, dotfiles, fonts, security, desktop, applications, development, shell)
             "presets/desktop"
+            "applications/surge"
 
             # Shared modules with Home Manager components
             "secrets"
@@ -86,6 +87,15 @@ in
                 enable = true;
                 download = "/mnt/storage/Downloads";
               };
+
+              services.surge = {
+                autostart = true;
+                settings = {
+                  general.default_download_dir = "/mnt/storage/Downloads";
+                  connections.proxy_url = "http://192.168.1.46:8889";
+                };
+              };
+
             }
           ];
 

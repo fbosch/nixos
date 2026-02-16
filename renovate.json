@@ -1,0 +1,206 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Automated container dependency updates with security scanning for NixOS flake",
+  "extends": [
+    "config:recommended"
+  ],
+  "timezone": "Europe/Copenhagen",
+  "schedule": [
+    "before 3am on the first day of the month"
+  ],
+  "automerge": false,
+  "platformAutomerge": false,
+  "prConcurrentLimit": 5,
+  "prHourlyLimit": 2,
+  "osvVulnerabilityAlerts": true,
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Update hardcoded container images in Quadlet definitions (Image=registry/image:tag)",
+      "managerFilePatterns": [
+        "/^modules/services/containers/.*\\.nix$/"
+      ],
+      "matchStrings": [
+        "Image=(?<depName>[^:\\s$]+):(?<currentValue>[^\\s\\n$]+)"
+      ],
+      "datasourceTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "description": "Update Nix image options with full image references (handles multi-line)",
+      "managerFilePatterns": [
+        "/^modules/services/containers/.*\\.nix$/"
+      ],
+      "matchStrings": [
+        "image\\s*=\\s*lib\\.mkOption\\s*\\{[\\s\\S]*?default\\s*=\\s*\"(?<depName>[^:]+):(?<currentValue>[^\"]+)\""
+      ],
+      "datasourceTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "description": "Update imageTag options used with variable interpolation (Image=name:${cfg.imageTag})",
+      "managerFilePatterns": [
+        "/^modules/services/containers/.*\\.nix$/"
+      ],
+      "matchStrings": [
+        "Image=(?<depName>[^:\\s]+):\\$\\{[^}]+\\}[\\s\\S]*?imageTag\\s*=\\s*lib\\.mkOption\\s*\\{[\\s\\S]*?default\\s*=\\s*\"(?<currentValue>[^\"]+)\""
+      ],
+      "datasourceTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "description": "Update GitHub release versions in pkgs/by-name packages (fetchurl pattern)",
+      "managerFilePatterns": [
+        "/^pkgs/by-name/.*/package\\.nix$/"
+      ],
+      "matchStrings": [
+        "version\\s*=\\s*\"(?<currentValue>[^\"]+)\"[\\s\\S]*?url\\s*=\\s*\"https://github\\.com/(?<depName>[^/]+/[^/]+)/releases/download/"
+      ],
+      "datasourceTemplate": "github-releases"
+    },
+    {
+      "customType": "regex",
+      "description": "Update GitHub releases in pkgs/by-name packages (fetchFromGitHub pattern)",
+      "managerFilePatterns": [
+        "/^pkgs/by-name/.*/package\\.nix$/"
+      ],
+      "matchStrings": [
+        "version\\s*=\\s*\"(?<currentValue>[^\"]+)\"[\\s\\S]*?fetchFromGitHub\\s*\\{[\\s\\S]*?owner\\s*=\\s*\"(?<owner>[^\"]+)\"[\\s\\S]*?repo\\s*=\\s*\"(?<repo>[^\"]+)\""
+      ],
+      "depNameTemplate": "{{{owner}}}/{{{repo}}}",
+      "datasourceTemplate": "github-releases"
+    },
+    {
+      "customType": "regex",
+      "description": "Update GitHub releases in pkgs/by-name packages (fetchzip pattern)",
+      "managerFilePatterns": [
+        "/^pkgs/by-name/.*/package\\.nix$/"
+      ],
+      "matchStrings": [
+        "version\\s*=\\s*\"(?<currentValue>[^\"]+)\"[\\s\\S]*?fetchzip\\s*\\{[\\s\\S]*?url\\s*=\\s*\"https://github\\.com/(?<depName>[^/]+/[^/]+)/releases/download/"
+      ],
+      "datasourceTemplate": "github-releases"
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "Critical infrastructure services - require manual review, wait 3 days for stability",
+      "matchDatasources": [
+        "docker"
+      ],
+      "groupName": "Critical Infrastructure",
+      "automerge": false,
+      "minimumReleaseAge": "3 days",
+      "schedule": [
+        "before 3am on the first day of the month"
+      ],
+      "labels": [
+        "critical-service"
+      ],
+      "matchPackageNames": [
+        "/^pihole/pihole$/",
+        "/^.*qmcgaw/gluetun$/",
+        "/^.*komodo-core$/",
+        "/^.*komodo-periphery$/",
+        "/^mongo$/"
+      ]
+    },
+    {
+      "description": "Non-critical services - group together for easier review",
+      "matchDatasources": [
+        "docker"
+      ],
+      "groupName": "Non-critical containers",
+      "schedule": [
+        "before 3am on the first day of the month"
+      ],
+      "matchPackageNames": [
+        "!/^pihole/pihole$/",
+        "!/^.*qmcgaw/gluetun$/",
+        "!/^.*komodo-core$/",
+        "!/^.*komodo-periphery$/",
+        "!/^mongo$/"
+      ]
+    },
+    {
+      "description": "Security updates bypass monthly schedule - run immediately",
+      "matchUpdateTypes": [
+        "patch",
+        "pin"
+      ],
+      "matchDatasources": [
+        "docker"
+      ],
+      "labels": [
+        "security-update"
+      ],
+      "prPriority": 10,
+      "schedule": [
+        "at any time"
+      ]
+    },
+    {
+      "description": "Pin major versions for Pi-hole to avoid breaking DNS changes",
+      "matchPackageNames": [
+        "pihole/pihole"
+      ],
+      "separateMajorMinor": true,
+      "separateMinorPatch": false
+    },
+    {
+      "description": "Local-only images (helium, openmemory) cannot be updated via registries",
+      "enabled": false,
+      "matchPackageNames": [
+        "/^helium-/",
+        "/^localhost/openmemory/"
+      ]
+    },
+    {
+      "description": "Major version updates require explicit approval",
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "labels": [
+        "major-update",
+        "needs-review"
+      ]
+    },
+    {
+      "description": "Custom pkgs/by-name packages - group by package type",
+      "matchFileNames": [
+        "pkgs/by-name/**/package.nix"
+      ],
+      "groupName": "Custom Nix packages",
+      "schedule": [
+        "before 3am on the first day of the month"
+      ],
+      "labels": [
+        "custom-packages"
+      ]
+    },
+    {
+      "description": "Separate updates for fonts vs applications in custom packages",
+      "matchFileNames": [
+        "pkgs/by-name/font-*/package.nix"
+      ],
+      "groupName": "Custom font packages",
+      "labels": [
+        "fonts"
+      ]
+    }
+  ],
+  "labels": [
+    "dependencies",
+    "renovate"
+  ],
+  "commitMessagePrefix": "chore(deps):",
+  "commitMessageAction": "update",
+  "commitMessageTopic": "{{depName}}",
+  "commitMessageExtra": "to {{newVersion}}",
+  "prBodyTemplate": "{{{header}}}{{{table}}}{{{notes}}}{{{changelogs}}}{{{configDescription}}}{{{footer}}}",
+  "ignorePaths": [
+    "**/node_modules/**",
+    "**/test/**",
+    "**/__tests__/**"
+  ]
+}

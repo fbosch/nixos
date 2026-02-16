@@ -42,6 +42,9 @@ in
           # files
           "files/wakatime"
 
+          # applications
+          "applications/surge"
+
           # services
           "services/home-assistant"
           "services/atticd"
@@ -55,6 +58,7 @@ in
           # containerized services
           "virtualization/podman"
           "services/containers/dozzle"
+          "services/containers/gluetun"
           "services/containers/redlib"
           "services/containers/termix"
           "services/containers/glance"
@@ -64,6 +68,7 @@ in
           # "services/containers/openmemory"
           "services/containers/linkwarden"
           "services/containers/rdtclient"
+          "services/containers/speedtest-tracker"
 
           # validation
           "validation/container-port-conflicts"
@@ -91,14 +96,21 @@ in
 
           services.surge = {
             autostart = true;
+            enableAppArmor = true;
             settings = {
               general.default_download_dir = "/mnt/nas/downloads";
-              connections.proxy_url = "http://192.168.1.202:3128";
+              connections.proxy_url = "http://127.0.0.1:8889";
             };
           };
         };
 
         # Kernel tuning for server workload
+        security.apparmor = {
+          enable = true;
+          killUnconfinedConfinables = false;
+          enableCache = false;
+        };
+
         boot.kernel.sysctl = {
           "vm.swappiness" = 10; # Only swap when critically low on RAM
           "vm.vfs_cache_pressure" = 50; # Keep filesystem cache longer
@@ -152,13 +164,33 @@ in
 
             tinyproxy = {
               port = 8888;
-              listenAddress = "0.0.0.0";
+              listenAddress = hostMeta.local;
               allowedClients = [
                 "192.168.1.0/24"
-                "100.64.0.0/10"
               ];
               anonymize = false;
             };
+
+            gluetun-container = {
+              enable = true;
+              port = 8889;
+              listenAddresses = [
+                "127.0.0.1"
+                hostMeta.local
+                hostMeta.tailscale
+              ];
+              envFile = lib.attrByPath [ "sops" "templates" "gluetun-env" "path" ] null nixosConfig;
+              serverCountries = [ "Denmark" ];
+
+              # Enable HTTP proxy stealth mode
+              httpProxy.stealth = true;
+
+              # Enable control server for Glance integration
+              controlServer.enable = true;
+            };
+
+            # Avoid interference with Gluetun by disabling host Mullvad daemon on this server.
+            mullvad-vpn.enable = lib.mkForce false;
 
             plex.nginx.port = 32402;
 
@@ -203,7 +235,7 @@ in
 
             komodo = {
               core.host = "https://komodo.corvus-corax.synology.me";
-              core.allowSignups = true;
+              core.allowSignups = false;
               # periphery.requirePasskey = false;
             };
 
@@ -242,13 +274,40 @@ in
               groupId = 1000;
             };
 
+            speedtest-tracker = {
+              enable = true;
+              port = 8085;
+              appUrl = "https://speedtest.corvus-corax.synology.me";
+              puid = 1000;
+              pgid = 1000;
+            };
+
             resolved = {
               enable = true;
               settings.Resolve.DNSStubListener = "no";
             };
+
+            fail2ban = {
+              enable = true;
+              maxretry = 5;
+              bantime = "1h";
+              bantime-increment.enable = true;
+              ignoreIP = [
+                "127.0.0.1/8"
+                "::1"
+                "192.168.1.0/24"
+                "100.64.0.0/10"
+              ];
+            };
+
+            openssh.settings = {
+              PasswordAuthentication = false;
+              KbdInteractiveAuthentication = false;
+              PubkeyAuthentication = true;
+            };
           }
-          (lib.mkIf (config ? sops && config.sops ? templates) {
-            pihole-container.webPasswordFile = config.sops.templates."pihole-webpassword".path;
+          (lib.mkIf (nixosConfig ? sops && nixosConfig.sops ? templates) {
+            pihole-container.webPasswordFile = nixosConfig.sops.templates."pihole-webpassword".path;
           })
         ];
 

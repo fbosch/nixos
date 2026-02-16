@@ -187,7 +187,7 @@ _: {
 
             [Container]
             ContainerName=linkwarden-postgres
-            Image=docker.io/library/postgres:16-alpine
+            Image=docker.io/library/postgres:18-alpine
             Network=linkwarden.network
             ${lib.optionalString (cfg.envFile != null) "EnvironmentFile=${cfg.envFile}"}
             ${lib.optionalString (
@@ -220,7 +220,7 @@ _: {
 
             [Container]
             ContainerName=linkwarden-meilisearch
-            Image=docker.io/getmeili/meilisearch:v1.12.8
+            Image=docker.io/getmeili/meilisearch:v1.35.0
             Network=linkwarden.network
             PodmanArgs=--network-alias=meilisearch
             ${lib.optionalString (cfg.envFile != null) "EnvironmentFile=${cfg.envFile}"}

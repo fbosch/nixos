@@ -113,28 +113,25 @@ in
 
               checkSecrets = lib.concatStringsSep "\n" (
                 lib.mapAttrsToList
-                  (
-                    name: path:
-                      ''
-                        for i in $(seq 1 50); do
-                          if [ -r ${path} ]; then
-                            break
-                          fi
+                  (name: path: ''
+                    for i in $(seq 1 50); do
+                      if [ -r ${path} ]; then
+                        break
+                      fi
 
-                          if [ "$i" -eq 50 ]; then
-                            echo "Error: missing or unreadable secret ${name} at ${path}" >&2
-                            exit 1
-                          fi
+                      if [ "$i" -eq 50 ]; then
+                        echo "Error: missing or unreadable secret ${name} at ${path}" >&2
+                        exit 1
+                      fi
 
-                          sleep 0.2
-                        done
-                      ''
-                  )
+                      sleep 0.2
+                    done
+                  '')
                   secretsMap
               );
 
               readSecrets = lib.concatStringsSep "\n" (
-                lib.mapAttrsToList (name: path: ''${name}=$(cat ${path})'') secretsMap
+                lib.mapAttrsToList (name: path: "${name}=$(cat ${path})") secretsMap
               );
 
               fishExports = lib.concatStringsSep "\n" (
@@ -203,11 +200,18 @@ in
               "rpi-pihole-password-token"
               "synology-api-username"
               "synology-api-password"
+              "mullvad-wireguard-private-key"
+              "mullvad-wireguard-addresses"
+              "gluetun-control-api-key"
               "linkwarden-postgres-password"
               "linkwarden-nextauth-secret"
               "linkwarden-meili-master-key"
               "linkwarden-access-token"
               "tailscale-api-key"
+              "nextdns-profile-id"
+              "nextdns-api-key"
+              "speedtest-tracker-app-key"
+              "speedtest-tracker-api-token"
             ])
 
             # Container secrets - wheel readable
@@ -262,6 +266,12 @@ in
                 PIHOLE_PASSWORD=${nixosConfig.sops.placeholder.rpi-pihole-password-token}
                 GITHUB_TOKEN=${nixosConfig.sops.placeholder.github-token}
                 TAILSCALE_API_KEY=${nixosConfig.sops.placeholder.tailscale-api-key}
+                GLUETUN_URL=https://gluetun.corvus-corax.synology.me
+                GLUETUN_API_KEY=${nixosConfig.sops.placeholder.gluetun-control-api-key}
+                NEXTDNS_PROFILE_ID=${nixosConfig.sops.placeholder.nextdns-profile-id}
+                NEXTDNS_API_KEY=${nixosConfig.sops.placeholder.nextdns-api-key}
+                SPEEDTEST_URL=https://speedtest-tracker.corvus-corax.synology.me
+                SPEEDTEST_TRACKER_API_TOKEN=${nixosConfig.sops.placeholder.speedtest-tracker-api-token}
               '';
               mode = "0400";
             };
@@ -281,6 +291,15 @@ in
                 MEILI_MASTER_KEY=${nixosConfig.sops.placeholder.linkwarden-meili-master-key}
                 DISABLE_PRESERVATION=true
                 DISABLE_PRESERVATION=true
+              '';
+              mode = "0400";
+            };
+
+            "gluetun-env" = {
+              content = ''
+                WIREGUARD_PRIVATE_KEY=${nixosConfig.sops.placeholder.mullvad-wireguard-private-key}
+                WIREGUARD_ADDRESSES=${nixosConfig.sops.placeholder.mullvad-wireguard-addresses}
+                HTTP_CONTROL_SERVER_API_KEY=${nixosConfig.sops.placeholder.gluetun-control-api-key}
               '';
               mode = "0400";
             };

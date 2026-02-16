@@ -16,13 +16,16 @@
         "opencode-ai@latest" # AI code assistant
         "neovim@latest" # Neovim npm package
         "typescript-language-server@latest" # TS LSP server
+        "vercel@latest" # Vercel CLI
         # "dorita980" # Roomba password
       ];
 
       pinnedNpmGlobalPackages = lib.filter (pkg: !(lib.hasSuffix "@latest" pkg)) npmGlobalPackages;
       latestNpmGlobalPackages = lib.filter (pkg: lib.hasSuffix "@latest" pkg) npmGlobalPackages;
 
-      pinnedPackagesHash = builtins.hashString "sha256" (lib.concatStringsSep "," pinnedNpmGlobalPackages);
+      pinnedPackagesHash = builtins.hashString "sha256" (
+        lib.concatStringsSep "," pinnedNpmGlobalPackages
+      );
 
     in
     {
@@ -37,7 +40,6 @@
           nodePackages.typescript
           nodePackages.prettier
           nodePackages.eslint
-          nodePackages.vercel
           nodePackages.npm-check-updates
           playwright-test # Pure Nix Playwright with pre-configured browsers
         ];

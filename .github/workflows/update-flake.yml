@@ -18,19 +18,19 @@ jobs:
   update-flake:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@v12
+        uses: DeterminateSystems/nix-installer-action@v21
 
       - name: Enable Nix cache
-        uses: cachix/cachix-action@v12
+        uses: cachix/cachix-action@v16
         with:
           name: fbosch
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
       - name: Update flake.lock
-        uses: DeterminateSystems/update-flake-lock@v24
+        uses: DeterminateSystems/update-flake-lock@v28
         with:
           token: ${{ secrets.PAT_TOKEN }}
           pr-title: "Update flake inputs"
