@@ -98,13 +98,9 @@ jobs:
           name: fbosch
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
-      - name: Evaluate ${{ matrix.host }}
+      - name: Build ${{ matrix.host }}
         run: |
-          nix eval ".#nixosConfigurations.${{ matrix.host }}.config.system.build.toplevel" --json > /dev/null
-
-      - name: Dry-run build ${{ matrix.host }}
-        run: |
-          nix build ".#nixosConfigurations.${{ matrix.host }}.config.system.build.toplevel" --dry-run --print-build-logs
+          nix build ".#nixosConfigurations.${{ matrix.host }}.config.system.build.toplevel" --no-link --print-build-logs
 
   eval-darwin:
     runs-on: ubuntu-latest
