@@ -2,16 +2,9 @@
   flake.modules.nixos.applications =
     { pkgs, lib, ... }:
     {
-      environment.etc."firejail/helium.profile".text = ''
-        include ${pkgs.firejail}/etc/firejail/chromium.profile
-
-        # Allow user GTK theme + settings
-        whitelist ''${HOME}/.themes
-        whitelist ''${HOME}/.local/share/themes
-        whitelist ''${HOME}/.config/gtk-3.0
-        whitelist ''${HOME}/.config/gtk-4.0
-        whitelist ''${HOME}/.gtkrc-2.0
-      '';
+      environment.etc."firejail/helium.profile".source = pkgs.replaceVars ./helium.profile {
+        chromiumProfile = "${pkgs.firejail}/etc/firejail/chromium.profile";
+      };
 
       programs.firejail = {
         enable = true;
@@ -36,6 +29,18 @@
               executable = "${pkgs.local.helium-browser}/bin/helium-browser";
               profile = "/etc/firejail/helium.profile";
               desktop = "${pkgs.local.helium-browser}/share/applications/helium-browser.desktop";
+            };
+
+            bitwarden = {
+              executable = "${pkgs.bitwarden-desktop}/bin/bitwarden";
+              profile = "${pkgs.firejail}/etc/firejail/bitwarden-desktop.profile";
+              desktop = "${pkgs.bitwarden-desktop}/share/applications/bitwarden.desktop";
+            };
+
+            vlc = {
+              executable = "${pkgs.vlc}/bin/vlc";
+              profile = "${pkgs.firejail}/etc/firejail/vlc.profile";
+              desktop = "${pkgs.vlc}/share/applications/vlc.desktop";
             };
           };
       };
