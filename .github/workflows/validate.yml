@@ -63,7 +63,7 @@ jobs:
 
   build-nixos:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 60
     needs: [lint, discover-hosts]
     if: needs.discover-hosts.outputs.has-nixos == 'true'
     strategy:
