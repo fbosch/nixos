@@ -1,0 +1,34 @@
+name: Trivy Container Scan
+description: Run Trivy scan and upload SARIF results
+inputs:
+  image-ref:
+    description: Container image reference to scan
+    required: true
+  safe-name:
+    description: Filesystem-safe identifier for report artifacts
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@c1824fd6edce30d7ab345a9989de00bbd46ef284 # 0.34.0
+      with:
+        image-ref: ${{ inputs.image-ref }}
+        format: sarif
+        output: trivy-results-${{ inputs.safe-name }}.sarif
+        severity: CRITICAL,HIGH,MEDIUM
+        exit-code: "0"
+
+    - name: Upload Trivy results to GitHub Security
+      uses: github/codeql-action/upload-sarif@9e907b5e64f6b83e7804b09294d44122997950d6 # v4
+      with:
+        sarif_file: trivy-results-${{ inputs.safe-name }}.sarif
+        category: trivy-${{ inputs.safe-name }}
+
+    - name: Run Trivy for PR comment
+      uses: aquasecurity/trivy-action@c1824fd6edce30d7ab345a9989de00bbd46ef284 # 0.34.0
+      with:
+        image-ref: ${{ inputs.image-ref }}
+        format: table
+        severity: CRITICAL,HIGH
+        exit-code: "0"
