@@ -219,7 +219,6 @@ in
 
             glance-container = {
               configDir = "/home/${config.flake.meta.user.username}/.config/glance";
-              envFile = "/run/secrets/rendered/glance-env";
               # Resource allocation for better performance
               cpus = "2.0";
               memory = "1g";

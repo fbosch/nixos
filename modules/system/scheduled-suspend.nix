@@ -47,6 +47,13 @@ _: {
           };
           description = "Multiple suspend/wake schedules";
         };
+
+        tmpCleanupAge = lib.mkOption {
+          type = lib.types.nullOr lib.types.str;
+          default = "3d";
+          example = "1d";
+          description = "Age-based cleanup for /tmp via systemd-tmpfiles (set to null to disable).";
+        };
       };
 
       config = lib.mkIf (config.powerManagement.scheduledSuspend.schedules != { }) {
@@ -91,11 +98,12 @@ _: {
               };
             };
 
-            inherit (config.powerManagement.scheduledSuspend) schedules;
+            inherit (config.powerManagement.scheduledSuspend) schedules tmpCleanupAge;
           in
           {
             timers = lib.mkMerge (lib.mapAttrsToList mkSuspendTimer schedules);
             services = lib.mkMerge (lib.mapAttrsToList mkSuspendService schedules);
+            tmpfiles.rules = lib.optional (tmpCleanupAge != null) "d /tmp 1777 root root ${tmpCleanupAge} -";
           };
       };
     };
