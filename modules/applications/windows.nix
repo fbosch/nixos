@@ -17,7 +17,7 @@
         {
           name = "MEGAsyncSetup64.exe";
           url = "https://mega.nz/MEGAsyncSetup64.exe";
-          sha256 = "92a7ca073bdb0eca85d2af66a20fd5970843c42eab535f953ce59e83f6aa31e0";
+          sha256 = "sha256-A5KKBDR2rpxf4vTiBb+a0lFEng1iAkNQhejx7Z12VX0=";
         }
         # Add more Windows installers here as needed
         # Example:
