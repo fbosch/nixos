@@ -29,22 +29,7 @@ jobs:
 
       - name: Discover security scan targets
         id: discover
-        run: |
-          nixos_hosts=$(nix eval --json --apply 'x: builtins.attrNames x' .#nixosConfigurations)
-          darwin_hosts=$(nix eval --json --apply 'x: builtins.attrNames x' .#darwinConfigurations 2>/dev/null || echo '[]')
-
-          targets=$(jq -cn \
-            --argjson nixos "$nixos_hosts" \
-            --argjson darwin "$darwin_hosts" \
-            '($nixos | map({ host: ., flake: ("nixosConfigurations." + . + ".config.system.build.toplevel") }))
-             + ($darwin | map({ host: ., flake: ("darwinConfigurations." + . + ".config.system.build.toplevel") }))')
-
-          echo "targets=$targets" >> "$GITHUB_OUTPUT"
-          if [ "$targets" != "[]" ]; then
-            echo "has-targets=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "has-targets=false" >> "$GITHUB_OUTPUT"
-          fi
+        run: ./scripts/ci/discover-hosts.sh security
 
   scan:
     runs-on: ubuntu-latest

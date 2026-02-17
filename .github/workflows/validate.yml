@@ -59,24 +59,7 @@ jobs:
 
       - name: Discover host matrices
         id: discover
-        run: |
-          nixos_hosts=$(nix eval --json --apply 'x: builtins.attrNames x' .#nixosConfigurations)
-          darwin_hosts=$(nix eval --json --apply 'x: builtins.attrNames x' .#darwinConfigurations 2>/dev/null || echo '[]')
-
-          echo "nixos-hosts=$nixos_hosts" >> "$GITHUB_OUTPUT"
-          echo "darwin-hosts=$darwin_hosts" >> "$GITHUB_OUTPUT"
-
-          if [ "$nixos_hosts" != "[]" ]; then
-            echo "has-nixos=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "has-nixos=false" >> "$GITHUB_OUTPUT"
-          fi
-
-          if [ "$darwin_hosts" != "[]" ]; then
-            echo "has-darwin=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "has-darwin=false" >> "$GITHUB_OUTPUT"
-          fi
+        run: ./scripts/ci/discover-hosts.sh validate
 
   build-nixos:
     runs-on: ubuntu-latest
