@@ -3,12 +3,17 @@ name: Validate
 on:
   push:
     branches: [main, master]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
   pull_request:
     branches: [main, master]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
 
 permissions:
   contents: read
-  id-token: write
 
 concurrency:
   group: ci-${{ github.ref }}-validate
@@ -20,6 +25,7 @@ env:
 jobs:
   lint:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
 
@@ -37,6 +43,7 @@ jobs:
 
   build-nixos:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     needs: lint
     strategy:
       matrix:
@@ -61,6 +68,7 @@ jobs:
 
   eval-darwin:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs: lint
     strategy:
       matrix:

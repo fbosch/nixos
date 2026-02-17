@@ -10,12 +10,16 @@ on:
 permissions:
   contents: read
   security-events: write
-  pull-requests: write
+
+concurrency:
+  group: ci-${{ github.ref }}-container-security
+  cancel-in-progress: true
 
 jobs:
   extract-images:
     name: Extract Container Images from Nix Files
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       images: ${{ steps.extract.outputs.images }}
       has-images: ${{ steps.extract.outputs.has-images }}
@@ -63,6 +67,7 @@ jobs:
   scan:
     name: Scan ${{ matrix.image }}
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs: extract-images
     if: needs.extract-images.outputs.has-images == 'true'
     strategy:
@@ -114,11 +119,13 @@ jobs:
   summary:
     name: Security Scan Summary
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     needs: [extract-images, scan]
     if: always()
     steps:
       - name: Post summary
         run: |
+          {
           if [ "${{ needs.extract-images.outputs.has-images }}" == "true" ]; then
             echo "✅ Container security scan completed"
             echo ""
@@ -129,3 +136,4 @@ jobs:
           else
             echo "ℹ️ No container images to scan in this PR"
           fi
+          } | tee -a "$GITHUB_STEP_SUMMARY"
