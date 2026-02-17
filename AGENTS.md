@@ -48,6 +48,7 @@ See the detailed guides:
 - [Module authoring rules](docs/agents/module-authoring.md)
 - [Dotfiles policy](docs/agents/dotfiles-policy.md)
 - [SOPS secrets workflow](docs/agents/sops-secrets.md)
+- [Firejail profile guidance](docs/agents/firejail.md)
 - [Linting rules (Statix)](docs/agents/linting-statix.md)
 - [Tips and workflow](docs/agents/tips-and-workflow.md)
 - [Service ports](docs/agents/service-ports.md)
