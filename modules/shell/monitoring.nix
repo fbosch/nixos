@@ -7,9 +7,11 @@
         [
           htop
           btop
+          below
           glances
           dust
           dua
+          ncdu
           fastfetch
         ]
         ++ lib.optionals pkgs.stdenv.isLinux [

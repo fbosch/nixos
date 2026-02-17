@@ -1,6 +1,10 @@
 {
-  flake.modules.nixos.desktop = {
+  flake.modules.nixos.desktop = { pkgs, ... }: {
     security.rtkit.enable = true;
+
+    environment.systemPackages = with pkgs; [
+      wiremix
+    ];
 
     services.pipewire = {
       enable = true;

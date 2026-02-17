@@ -53,35 +53,12 @@ _: {
 
       # Flatpak gaming applications
       services.flatpak.packages = [
-        #  "net.lutris.Lutris" # Game launcher
         "net.davidotek.pupgui2" # ProtonUp-Qt for managing Proton versions
         "io.github.Faugus.faugus-launcher" # Game launcher
         "org.freedesktop.Platform.VulkanLayer.vkBasalt//25.08" # Vulkan post-processing
         "org.freedesktop.Platform.VulkanLayer.MangoHud//25.08" # MangoHud overlay
         "io.mgba.mGBA" # GBA emulator
       ];
-
-      services.flatpak.overrides."net.lutris.Lutris" = {
-        Context = {
-          sockets = [
-            "x11"
-            "wayland"
-            "fallback-x11"
-            "pulseaudio"
-          ];
-          shared = [
-            "network"
-            "ipc"
-          ];
-          devices = [ "all" ];
-          filesystems = [
-            "xdg-data/lutris:rw"
-            "~/Games:rw"
-            "~/.cache/lutris:ro"
-          ];
-        };
-        Session.Talk = [ "org.freedesktop.Notifications" ];
-      };
 
       home.activation = lib.mkIf osConfig.programs.steam.enable (
         let
