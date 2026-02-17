@@ -15,7 +15,9 @@
         runtimeInputs = with pkgs; [
           statix
           deadnix
+          treefmt
           nixpkgs-fmt
+          shfmt
           actionlint
           shellcheck
           gum
@@ -46,7 +48,7 @@
           fi
 
           # Format
-          if gum spin --spinner dot --title "format" -- nixpkgs-fmt --check . > /tmp/fmt-output 2>&1; then
+          if gum spin --spinner dot --title "format" -- treefmt --no-cache --fail-on-change > /tmp/fmt-output 2>&1; then
             echo "$(gum style --foreground 2 '[OK]') format"
           else
             echo "$(gum style --foreground 1 '[FAIL]') format"
@@ -90,10 +92,13 @@
 
       formatScript = pkgs.writeShellApplication {
         name = "fmt";
-        runtimeInputs = with pkgs; [ nixpkgs-fmt ];
+        runtimeInputs = with pkgs; [
+          treefmt
+          nixpkgs-fmt
+          shfmt
+        ];
         text = ''
-          # Format all Nix files except skill directories (including symlinks)
-          find . -name '*.nix' -not -path './.agents/*' -not -path './.github/skills/*' -not -path './.opencode/skills/*' -exec nixpkgs-fmt {} +
+          treefmt --no-cache
         '';
       };
 
@@ -101,7 +106,9 @@
         name = "pre-commit-wrapper";
         runtimeInputs = with pkgs; [
           git
+          treefmt
           nixpkgs-fmt
+          shfmt
           statix
           deadnix
           actionlint
@@ -115,10 +122,10 @@
           gum style --foreground 244 "Pre-commit checks..."
 
           # Format staged files (exclude skill directories and symlinks)
-          staged_files=$(git diff --cached --name-only --diff-filter=ACM | grep '\.nix$' | grep -v '^\.agents/' | grep -v '^\.github/skills/' | grep -v '^\.opencode/skills/' || true)
+          staged_files=$(git diff --cached --name-only --diff-filter=ACM | grep -v '^\.agents/' | grep -v '^\.github/skills/' | grep -v '^\.opencode/skills/' || true)
 
           if [ -n "$staged_files" ]; then
-            if gum spin --spinner dot --title "format" -- sh -c "echo '$staged_files' | xargs -r nixpkgs-fmt"; then
+            if gum spin --spinner dot --title "format" -- sh -c "printf '%s\n' \"$staged_files\" | xargs -r treefmt --no-cache"; then
               echo "$(gum style --foreground 2 '[OK]') format (auto-fixed)"
               echo "$staged_files" | xargs -r git add
             else
@@ -126,7 +133,7 @@
               exit_code=1
             fi
           else
-            echo "$(gum style --foreground 244 '[SKIP]') format (no .nix files staged)"
+            echo "$(gum style --foreground 244 '[SKIP]') format (no staged files)"
           fi
 
           # Statix - check entire repository
@@ -237,7 +244,7 @@
         };
       };
 
-      formatter = pkgs.nixpkgs-fmt;
+      formatter = formatScript;
 
       apps = {
         lint = {
@@ -248,7 +255,7 @@
         fmt = {
           type = "app";
           program = "${formatScript}/bin/fmt";
-          meta.description = "Format Nix files with nixpkgs-fmt";
+          meta.description = "Format files via treefmt";
         };
         pre-commit-wrapper = {
           type = "app";
@@ -274,7 +281,9 @@
         packages = with pkgs; [
           statix
           deadnix
+          treefmt
           nixpkgs-fmt
+          shfmt
           actionlint
           shellcheck
           gum

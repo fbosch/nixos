@@ -3,8 +3,8 @@ name: Container Security Scan
 on:
   pull_request:
     paths:
-      - 'modules/services/containers/**/*.nix'
-      - 'modules/hosts/**/*.nix'
+      - "modules/services/containers/**/*.nix"
+      - "modules/hosts/**/*.nix"
   workflow_dispatch:
 
 permissions:
@@ -33,23 +33,23 @@ jobs:
         id: extract
         run: |
           set -euo pipefail
-          
+
           # Extract images from changed files
           IMAGES=$(git diff --unified=0 origin/${{ github.base_ref }}...HEAD -- modules/services/containers/ modules/hosts/ | \
             grep -E '^\+.*Image=' | \
             sed 's/.*Image=//' | \
             grep -v '\${' | \
             sort -u || true)
-          
+
           # Also extract from image option defaults
           IMAGE_OPTIONS=$(git diff --unified=0 origin/${{ github.base_ref }}...HEAD -- modules/services/containers/ | \
             grep -E '^\+.*default.*=.*".*:.*"' | \
             sed -E 's/.*default.*=.*"([^"]+)".*/\1/' | \
             grep ':' | \
             sort -u || true)
-          
+
           ALL_IMAGES=$(echo -e "${IMAGES}\n${IMAGE_OPTIONS}" | grep -v '^$' | sort -u || echo "")
-          
+
           if [ -z "$ALL_IMAGES" ]; then
             echo "No container images found in changes"
             echo "has-images=false" >> $GITHUB_OUTPUT
@@ -96,25 +96,25 @@ jobs:
         uses: aquasecurity/trivy-action@c1824fd6edce30d7ab345a9989de00bbd46ef284 # 0.34.0
         with:
           image-ref: ${{ matrix.image }}
-          format: 'sarif'
-          output: 'trivy-results-${{ steps.sanitize.outputs.safe-name }}.sarif'
-          severity: 'CRITICAL,HIGH,MEDIUM'
-          exit-code: '0'
+          format: "sarif"
+          output: "trivy-results-${{ steps.sanitize.outputs.safe-name }}.sarif"
+          severity: "CRITICAL,HIGH,MEDIUM"
+          exit-code: "0"
 
       - name: Upload Trivy results to GitHub Security
         uses: github/codeql-action/upload-sarif@9e907b5e64f6b83e7804b09294d44122997950d6 # v4
         if: always()
         with:
-          sarif_file: 'trivy-results-${{ steps.sanitize.outputs.safe-name }}.sarif'
-          category: 'trivy-${{ steps.sanitize.outputs.safe-name }}'
+          sarif_file: "trivy-results-${{ steps.sanitize.outputs.safe-name }}.sarif"
+          category: "trivy-${{ steps.sanitize.outputs.safe-name }}"
 
       - name: Run Trivy for PR comment
         uses: aquasecurity/trivy-action@c1824fd6edce30d7ab345a9989de00bbd46ef284 # 0.34.0
         with:
           image-ref: ${{ matrix.image }}
-          format: 'table'
-          severity: 'CRITICAL,HIGH'
-          exit-code: '0'
+          format: "table"
+          severity: "CRITICAL,HIGH"
+          exit-code: "0"
 
   summary:
     name: Security Scan Summary
