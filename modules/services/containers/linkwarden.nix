@@ -187,7 +187,7 @@ _: {
 
             [Container]
             ContainerName=linkwarden-postgres
-            Image=docker.io/library/postgres:16-alpine
+            Image=docker.io/library/postgres:18-alpine
             Network=linkwarden.network
             ${lib.optionalString (cfg.envFile != null) "EnvironmentFile=${cfg.envFile}"}
             ${lib.optionalString (
