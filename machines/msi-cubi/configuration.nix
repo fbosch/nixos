@@ -15,7 +15,7 @@
   boot.loader.efi.canTouchEfiVariables = true;
 
   networking.hostName = "rvn-srv"; # Define your hostname.
-  networking.networkmanager.enable = true;
+  networking.networkmanager.enable = false;
 
   nixpkgs.config.allowUnfree = true;
 
