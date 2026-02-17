@@ -11,6 +11,15 @@ Operator note: Do not run `sops` commands directly; they break the TUI. Instruct
 - Avoid repeated top-level keys in a single attrset (Statix W20), especially `sops.*`.
 - Prefer grouping related values under one key, for example `sops = { secrets.<name> = ...; templates.<name> = ...; };`.
 
+## Library Helpers
+
+- Reusable helper functions live in `lib/`.
+- `config.flake.lib.iconOverrides`: icon theme override utilities from `lib/icon-overrides.nix`.
+- `config.flake.lib.resolve`: resolve NixOS module paths from string names.
+- `config.flake.lib.resolveHm`: resolve Home Manager module paths from string names.
+- `config.flake.lib.resolveDarwin`: resolve Darwin module paths from string names.
+- `config.flake.lib.sopsHelpers`: SOPS helper set with `rootOnly`, `wheelReadable`, `worldReadable`, `mkSecrets`, `mkSecretsWithOpts`, and `mkSecret`.
+
 ## Container Services Policy
 
 **IMPORTANT**: All container services MUST use Podman Quadlet (systemd container units), not custom build services or docker-compose.

@@ -1,4 +1,4 @@
-{ config, ... }:
+{ config, lib, ... }:
 {
   config.flake.lib = {
     # Icon override utilities (from lib/icon-overrides.nix)
@@ -23,5 +23,46 @@
     resolveDarwin = builtins.map (
       m: if builtins.isString m then config.flake.modules.darwin.${m} else m
     );
+
+    sopsHelpers =
+      let
+        rootOnly = {
+          mode = "0400";
+        };
+
+        wheelReadable = {
+          mode = "0440";
+          group = "wheel";
+        };
+
+        worldReadable = {
+          mode = "0444";
+        };
+
+        mkSecretsWithOpts =
+          sopsFile: opts: names:
+          builtins.listToAttrs (
+            builtins.map
+              (name: {
+                inherit name;
+                value = lib.recursiveUpdate { inherit sopsFile; } opts;
+              })
+              names
+          );
+
+        mkSecrets = sopsFile: mkSecretsWithOpts sopsFile { };
+
+        mkSecret = sopsFile: opts: lib.recursiveUpdate { inherit sopsFile; } opts;
+      in
+      {
+        inherit
+          rootOnly
+          wheelReadable
+          worldReadable
+          mkSecrets
+          mkSecretsWithOpts
+          mkSecret
+          ;
+      };
   };
 }
