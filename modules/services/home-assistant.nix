@@ -41,6 +41,7 @@ _: {
             "synology_dsm"
             "roomba"
             "glances"
+            "withings"
           ];
 
           # Configuration.yaml content
