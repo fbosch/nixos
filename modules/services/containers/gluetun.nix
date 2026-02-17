@@ -1,4 +1,8 @@
-_: {
+{ config, ... }:
+let
+  inherit (config.flake.lib) sopsHelpers;
+in
+{
   flake.modules.nixos."services/containers/gluetun" =
     { config
     , lib
@@ -16,18 +20,6 @@ _: {
       publishPortBlock = lib.concatStringsSep "\n" allPublishPorts;
       serverCountries = lib.concatStringsSep "," cfg.serverCountries;
       containersFile = ../../../secrets/containers.yaml;
-      rootOnly = {
-        mode = "0400";
-      };
-      mkContainerSecrets =
-        names:
-        lib.genAttrs names (
-          _:
-          {
-            sopsFile = containersFile;
-          }
-          // rootOnly
-        );
     in
     {
       options.services.gluetun-container = {
@@ -128,7 +120,7 @@ _: {
       config = lib.mkMerge [
         {
           sops = {
-            secrets = mkContainerSecrets [
+            secrets = sopsHelpers.mkSecretsWithOpts containersFile sopsHelpers.rootOnly [
               "mullvad-wireguard-private-key"
               "mullvad-wireguard-addresses"
               "gluetun-control-api-key"

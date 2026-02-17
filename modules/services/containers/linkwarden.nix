@@ -1,4 +1,8 @@
-_: {
+{ config, ... }:
+let
+  inherit (config.flake.lib) sopsHelpers;
+in
+{
   # Linkwarden - Self-hosted collaborative bookmark manager
   # https://github.com/linkwarden/linkwarden
   #
@@ -28,18 +32,6 @@ _: {
     let
       cfg = config.services.linkwarden-container;
       containersFile = ../../../secrets/containers.yaml;
-      rootOnly = {
-        mode = "0400";
-      };
-      mkContainerSecrets =
-        names:
-        lib.genAttrs names (
-          _:
-          {
-            sopsFile = containersFile;
-          }
-          // rootOnly
-        );
     in
     {
       options.services.linkwarden-container = {
@@ -169,7 +161,7 @@ _: {
 
       config = {
         sops = {
-          secrets = mkContainerSecrets [
+          secrets = sopsHelpers.mkSecretsWithOpts containersFile sopsHelpers.rootOnly [
             "linkwarden-postgres-password"
             "linkwarden-nextauth-secret"
             "linkwarden-meili-master-key"

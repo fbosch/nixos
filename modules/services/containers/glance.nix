@@ -1,4 +1,8 @@
-_: {
+{ config, ... }:
+let
+  inherit (config.flake.lib) sopsHelpers;
+in
+{
   flake.modules.nixos."services/containers/glance" =
     { config
     , lib
@@ -11,15 +15,6 @@ _: {
       # Only mount assets separately if it's not inside configDir
       assetsDirIsSubdir = lib.hasPrefix "${configDir}/" assetsDir;
       containersFile = ../../../secrets/containers.yaml;
-      rootOnly = {
-        mode = "0400";
-      };
-      wheelReadable = {
-        mode = "0440";
-        group = "wheel";
-      };
-      mkContainerSecrets =
-        opts: names: lib.genAttrs names (_: lib.recursiveUpdate { sopsFile = containersFile; } opts);
     in
     {
       options.services.glance-container = {
@@ -108,7 +103,7 @@ _: {
 
         sops = {
           secrets = lib.mkMerge [
-            (mkContainerSecrets rootOnly [
+            (sopsHelpers.mkSecretsWithOpts containersFile sopsHelpers.rootOnly [
               "rpi-pihole-password-token"
               "synology-api-username"
               "synology-api-password"
@@ -118,7 +113,7 @@ _: {
               "nextdns-api-key"
               "speedtest-tracker-api-token"
             ])
-            (mkContainerSecrets wheelReadable [
+            (sopsHelpers.mkSecretsWithOpts containersFile sopsHelpers.wheelReadable [
               "komodo-web-api-key"
               "komodo-web-api-secret"
               "portainer-api-key"
