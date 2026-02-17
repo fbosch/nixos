@@ -186,40 +186,11 @@ in
               "kagi-api-token"
               "openai-api-key"
               "wakapi-api-key"
-              "wakapi-password-salt"
             ])
 
             # API secrets - world readable
             (mkSecretsWithOpts apisFile worldReadable [
               "context7-api-key"
-            ])
-
-            # Container secrets - root only
-            (mkSecretsWithOpts containersFile rootOnly [
-              "pihole-default-password"
-              "rpi-pihole-password-token"
-              "synology-api-username"
-              "synology-api-password"
-              "mullvad-wireguard-private-key"
-              "mullvad-wireguard-addresses"
-              "gluetun-control-api-key"
-              "linkwarden-postgres-password"
-              "linkwarden-nextauth-secret"
-              "linkwarden-meili-master-key"
-              "linkwarden-access-token"
-              "tailscale-api-key"
-              "nextdns-profile-id"
-              "nextdns-api-key"
-              "speedtest-tracker-app-key"
-              "speedtest-tracker-api-token"
-            ])
-
-            # Container secrets - wheel readable
-            (mkSecretsWithOpts containersFile wheelReadable [
-              "komodo-web-api-key"
-              "komodo-web-api-secret"
-              "portainer-api-key"
-              "ha-access-token"
             ])
 
             # Development secrets - user owned
@@ -243,13 +214,6 @@ in
               owner = user;
             };
 
-            "pihole-webpassword" = {
-              content = ''
-                FTLCONF_webserver_api_password=${nixosConfig.sops.placeholder.pihole-default-password}
-              '';
-              mode = "0400";
-            };
-
             "nix-github-token" = {
               content = ''
                 access-tokens = github.com=${nixosConfig.sops.placeholder.github-token}
@@ -258,24 +222,6 @@ in
               group = "wheel";
             };
 
-            "linkwarden-env" = {
-              content = ''
-                POSTGRES_PASSWORD=${nixosConfig.sops.placeholder.linkwarden-postgres-password}
-                NEXTAUTH_SECRET=${nixosConfig.sops.placeholder.linkwarden-nextauth-secret}
-                MEILI_MASTER_KEY=${nixosConfig.sops.placeholder.linkwarden-meili-master-key}
-                DISABLE_PRESERVATION=true
-              '';
-              mode = "0400";
-            };
-
-            "gluetun-env" = {
-              content = ''
-                WIREGUARD_PRIVATE_KEY=${nixosConfig.sops.placeholder.mullvad-wireguard-private-key}
-                WIREGUARD_ADDRESSES=${nixosConfig.sops.placeholder.mullvad-wireguard-addresses}
-                HTTP_CONTROL_SERVER_API_KEY=${nixosConfig.sops.placeholder.gluetun-control-api-key}
-              '';
-              mode = "0400";
-            };
           };
         };
 

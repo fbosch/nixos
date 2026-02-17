@@ -15,6 +15,19 @@ _: {
       allPublishPorts = publishPorts ++ controlServerPorts;
       publishPortBlock = lib.concatStringsSep "\n" allPublishPorts;
       serverCountries = lib.concatStringsSep "," cfg.serverCountries;
+      containersFile = ../../../secrets/containers.yaml;
+      rootOnly = {
+        mode = "0400";
+      };
+      mkContainerSecrets =
+        names:
+        lib.genAttrs names (
+          _:
+          {
+            sopsFile = containersFile;
+          }
+          // rootOnly
+        );
     in
     {
       options.services.gluetun-container = {
@@ -112,64 +125,89 @@ _: {
         };
       };
 
-      config = lib.mkIf cfg.enable {
-        assertions = [
-          {
-            assertion = cfg.envFile != null;
-            message = "gluetun-container: envFile is required when enabling Gluetun.";
-          }
-          {
-            assertion = cfg.listenAddresses != [ ];
-            message = "gluetun-container: at least one listenAddress must be configured.";
-          }
-        ];
+      config = lib.mkMerge [
+        {
+          sops = {
+            secrets = mkContainerSecrets [
+              "mullvad-wireguard-private-key"
+              "mullvad-wireguard-addresses"
+              "gluetun-control-api-key"
+            ];
 
-        services.containerPorts = lib.mkAfter [
-          {
-            service = "gluetun-container";
-            tcpPorts = [ cfg.port ] ++ lib.optional cfg.controlServer.enable cfg.controlServer.port;
-          }
-        ];
+            templates."gluetun-env" = {
+              content = ''
+                WIREGUARD_PRIVATE_KEY=${config.sops.placeholder.mullvad-wireguard-private-key}
+                WIREGUARD_ADDRESSES=${config.sops.placeholder.mullvad-wireguard-addresses}
+                HTTP_CONTROL_SERVER_API_KEY=${config.sops.placeholder.gluetun-control-api-key}
+              '';
+              mode = "0400";
+            };
+          };
 
-        environment.etc."containers/systemd/gluetun.container".text = ''
-          [Unit]
-          After=network-online.target
-          Wants=network-online.target
+          services.gluetun-container.envFile = lib.mkDefault (
+            lib.attrByPath [ "sops" "templates" "gluetun-env" "path" ] null config
+          );
 
-          [Container]
-          ContainerName=gluetun
-          Image=${cfg.image}
-          AddCapability=NET_ADMIN
-          AddDevice=/dev/net/tun
-          ${publishPortBlock}
-          Environment=VPN_SERVICE_PROVIDER=mullvad
-          Environment=VPN_TYPE=wireguard
-          Environment=HTTPPROXY=${if cfg.httpProxy.enable then "on" else "off"}
-          ${lib.optionalString cfg.httpProxy.stealth "Environment=HTTPPROXY_STEALTH=on"}
-          ${lib.optionalString cfg.controlServer.enable "Environment=HTTP_CONTROL_SERVER_ADDRESS=${lib.escapeShellArg cfg.controlServer.address}"}
-          Environment=TZ=${lib.escapeShellArg cfg.timezone}
-          Environment=SERVER_COUNTRIES=${lib.escapeShellArg serverCountries}
-          Environment=IP_VERSION=${cfg.ipVersion}
-          EnvironmentFile=${lib.escapeShellArg cfg.envFile}
-          Memory=512m
-          PidsLimit=200
-          Ulimit=nofile=2048:4096
-          LogDriver=journald
-          LogOpt=tag=gluetun
+        }
+        (lib.mkIf cfg.enable {
+          assertions = [
+            {
+              assertion = cfg.envFile != null;
+              message = "gluetun-container: envFile is required when enabling Gluetun.";
+            }
+            {
+              assertion = cfg.listenAddresses != [ ];
+              message = "gluetun-container: at least one listenAddress must be configured.";
+            }
+          ];
 
-          [Service]
-          Restart=always
-          RestartSec=10
-          CPUQuota=100%
-          TimeoutStartSec=120
+          services.containerPorts = lib.mkAfter [
+            {
+              service = "gluetun-container";
+              tcpPorts = [ cfg.port ] ++ lib.optional cfg.controlServer.enable cfg.controlServer.port;
+            }
+          ];
 
-          [Install]
-          WantedBy=multi-user.target
-        '';
+          environment.etc."containers/systemd/gluetun.container".text = ''
+            [Unit]
+            After=network-online.target
+            Wants=network-online.target
 
-        networking.firewall.allowedTCPPorts = lib.mkIf cfg.openFirewall (
-          [ cfg.port ] ++ lib.optional cfg.controlServer.enable cfg.controlServer.port
-        );
-      };
+            [Container]
+            ContainerName=gluetun
+            Image=${cfg.image}
+            AddCapability=NET_ADMIN
+            AddDevice=/dev/net/tun
+            ${publishPortBlock}
+            Environment=VPN_SERVICE_PROVIDER=mullvad
+            Environment=VPN_TYPE=wireguard
+            Environment=HTTPPROXY=${if cfg.httpProxy.enable then "on" else "off"}
+            ${lib.optionalString cfg.httpProxy.stealth "Environment=HTTPPROXY_STEALTH=on"}
+            ${lib.optionalString cfg.controlServer.enable "Environment=HTTP_CONTROL_SERVER_ADDRESS=${lib.escapeShellArg cfg.controlServer.address}"}
+            Environment=TZ=${lib.escapeShellArg cfg.timezone}
+            Environment=SERVER_COUNTRIES=${lib.escapeShellArg serverCountries}
+            Environment=IP_VERSION=${cfg.ipVersion}
+            EnvironmentFile=${lib.escapeShellArg cfg.envFile}
+            Memory=512m
+            PidsLimit=200
+            Ulimit=nofile=2048:4096
+            LogDriver=journald
+            LogOpt=tag=gluetun
+
+            [Service]
+            Restart=always
+            RestartSec=10
+            CPUQuota=100%
+            TimeoutStartSec=120
+
+            [Install]
+            WantedBy=multi-user.target
+          '';
+
+          networking.firewall.allowedTCPPorts = lib.mkIf cfg.openFirewall (
+            [ cfg.port ] ++ lib.optional cfg.controlServer.enable cfg.controlServer.port
+          );
+        })
+      ];
     };
 }

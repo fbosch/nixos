@@ -27,6 +27,19 @@ _: {
     }:
     let
       cfg = config.services.linkwarden-container;
+      containersFile = ../../../secrets/containers.yaml;
+      rootOnly = {
+        mode = "0400";
+      };
+      mkContainerSecrets =
+        names:
+        lib.genAttrs names (
+          _:
+          {
+            sopsFile = containersFile;
+          }
+          // rootOnly
+        );
     in
     {
       options.services.linkwarden-container = {
@@ -155,6 +168,28 @@ _: {
       };
 
       config = {
+        sops = {
+          secrets = mkContainerSecrets [
+            "linkwarden-postgres-password"
+            "linkwarden-nextauth-secret"
+            "linkwarden-meili-master-key"
+          ];
+
+          templates."linkwarden-env" = {
+            content = ''
+              POSTGRES_PASSWORD=${config.sops.placeholder.linkwarden-postgres-password}
+              NEXTAUTH_SECRET=${config.sops.placeholder.linkwarden-nextauth-secret}
+              MEILI_MASTER_KEY=${config.sops.placeholder.linkwarden-meili-master-key}
+              DISABLE_PRESERVATION=true
+            '';
+            mode = "0400";
+          };
+        };
+
+        services.linkwarden-container.envFile = lib.mkDefault (
+          lib.attrByPath [ "sops" "templates" "linkwarden-env" "path" ] null config
+        );
+
         assertions = [
           {
             assertion = cfg.envFile != null || cfg.postgresPassword != null;

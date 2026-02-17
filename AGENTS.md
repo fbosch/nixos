@@ -6,6 +6,11 @@ Operator note: When command-line diagnostics are needed, ask whether you should 
 
 Operator note: Do not run `sops` commands directly; they break the TUI. Instruct the user to run them.
 
+## Nix Linting Hygiene
+
+- Avoid repeated top-level keys in a single attrset (Statix W20), especially `sops.*`.
+- Prefer grouping related values under one key, for example `sops = { secrets.<name> = ...; templates.<name> = ...; };`.
+
 ## Container Services Policy
 
 **IMPORTANT**: All container services MUST use Podman Quadlet (systemd container units), not custom build services or docker-compose.
@@ -26,12 +31,8 @@ rg "port = [0-9]+" --type nix
 rg "listen.*:[0-9]+" --type nix
 ```
 
-Common port assignments in this flake:
-- 8080: glance-container (container port)
-- 8081: atticd
-- 8082: pihole-container (web UI)
-- 8083: glance-container (nginx reverse proxy)
-- 8090: dozzle
+Port map reference:
+- [Service ports](docs/agents/service-ports.md)
 
 See the detailed guides:
 - [Dendritic core concepts](docs/agents/dendritic-core.md)
@@ -40,3 +41,4 @@ See the detailed guides:
 - [SOPS secrets workflow](docs/agents/sops-secrets.md)
 - [Linting rules (Statix)](docs/agents/linting-statix.md)
 - [Tips and workflow](docs/agents/tips-and-workflow.md)
+- [Service ports](docs/agents/service-ports.md)
