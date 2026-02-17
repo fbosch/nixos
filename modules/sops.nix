@@ -196,7 +196,6 @@ in
 
             # Container secrets - root only
             (mkSecretsWithOpts containersFile rootOnly [
-              "pihole-default-password"
               "rpi-pihole-password-token"
               "synology-api-username"
               "synology-api-password"

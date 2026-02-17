@@ -62,6 +62,11 @@ _: {
       };
 
       config = {
+        sops.secrets."pihole-default-password" = {
+          sopsFile = ../../../secrets/containers.yaml;
+          mode = "0400";
+        };
+
         services.pihole-container.webPasswordFile = lib.mkDefault (
           lib.attrByPath [ "sops" "templates" "pihole-webpassword" "path" ] null config
         );
