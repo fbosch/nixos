@@ -90,7 +90,7 @@ if [ ! -f "$BACKUP_KEY_FILE" ]; then
     echo "Creating backup at $BACKUP_KEY_FILE (gitignored)..."
     if [[ "$PLATFORM" == "NixOS" ]]; then
         sudo cp "$AGE_KEY_FILE" "$BACKUP_KEY_FILE"
-        sudo chown $USER:users "$BACKUP_KEY_FILE"
+        sudo chown "$USER":users "$BACKUP_KEY_FILE"
     else
         cp "$AGE_KEY_FILE" "$BACKUP_KEY_FILE"
     fi

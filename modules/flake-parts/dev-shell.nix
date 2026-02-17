@@ -222,7 +222,8 @@
             "^\.?/?\.github/skills/"
           ];
           hooks = {
-            treefmt.enable = true;
+            nixpkgs-fmt.enable = true;
+            shfmt.enable = true;
             statix = {
               enable = true;
               settings.ignore = [

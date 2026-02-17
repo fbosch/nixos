@@ -59,11 +59,13 @@ jobs:
       - name: Summarize security results
         if: always()
         run: |
-          echo "### 🔒 Security Scan: ${{ matrix.host }}" >> $GITHUB_STEP_SUMMARY
-          echo '#### Vulnix' >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          cat vulnix-report.txt >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
+          {
+            echo "### 🔒 Security Scan: ${{ matrix.host }}"
+            echo '#### Vulnix'
+            echo '```'
+            cat vulnix-report.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         if: always()

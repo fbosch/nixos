@@ -45,7 +45,7 @@ jobs:
           IMAGES=$(git diff --unified=0 "$diff_range" -- modules/services/containers/ modules/hosts/ | \
             grep -E '^\+.*Image=' | \
             sed 's/.*Image=//' | \
-            grep -v '\${' | \
+            grep -Fv "\${" | \
             sort -u || true)
 
           # Also extract image references from option defaults and image attrs
@@ -53,7 +53,7 @@ jobs:
             grep -E '^\+.*(default|image)\s*=\s*".*:.*"' | \
             sed -E 's/.*(default|image)\s*=\s*"([^"]+)".*/\2/' | \
             grep ':' | \
-            grep -v '\${' | \
+            grep -Fv "\${" | \
             sort -u || true)
 
           ALL_IMAGES=$(printf '%s\n%s\n' "$IMAGES" "$IMAGE_OPTIONS" | grep -v '^$' | sort -u || echo "")
@@ -90,7 +90,7 @@ jobs:
         id: sanitize
         run: |
           SAFE_NAME=$(echo "${{ matrix.image }}" | sed 's|[/:@]|-|g')
-          echo "safe-name=$SAFE_NAME" >> $GITHUB_OUTPUT
+          echo "safe-name=$SAFE_NAME" >> "$GITHUB_OUTPUT"
 
       - name: Pull container image
         run: |
@@ -120,7 +120,7 @@ jobs:
             echo "✅ Container security scan completed"
             echo ""
             echo "Scanned images:"
-            echo '${{ needs.extract-images.outputs.images }}' | jq -r '.[]' | sed 's/^/  - /'
+            echo "${{ needs.extract-images.outputs.images }}" | jq -r '.[]' | sed 's/^/  - /'
             echo ""
             echo "Check the Security tab for detailed vulnerability reports."
           else

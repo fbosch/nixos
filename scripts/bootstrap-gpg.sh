@@ -5,7 +5,6 @@
 set -e
 
 GPG_KEY_ID="fbb.privacy+gpg@protonmail.com"
-GPG_FINGERPRINT="5E0FEC74518ED5FEAA5EA33E5C49A562D850322A"
 BW_KEY_NOTE="GPG Private Key"
 BW_SERVER_URL="https://vault.corvus-corax.synology.me"
 
@@ -59,7 +58,8 @@ fi
 # Unlock vault
 echo "Unlocking Bitwarden vault..."
 if [ -z "$BW_SESSION" ]; then
-    export BW_SESSION=$(bw unlock --raw)
+    BW_SESSION=$(bw unlock --raw)
+    export BW_SESSION
 fi
 echo "Vault unlocked!"
 echo
