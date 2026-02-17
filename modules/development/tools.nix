@@ -44,6 +44,7 @@
         statix
         deadnix
         nixpkgs-fmt
+        posting
       ];
     };
 }

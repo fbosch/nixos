@@ -24,6 +24,7 @@
         eza
         lf
         yazi
+        superfile
         zoxide
         broot
         skim
