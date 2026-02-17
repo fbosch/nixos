@@ -222,8 +222,7 @@
             "^\.?/?\.github/skills/"
           ];
           hooks = {
-            nixpkgs-fmt.enable = true;
-            shfmt.enable = true;
+            treefmt.enable = true;
             statix = {
               enable = true;
               settings.ignore = [
@@ -238,7 +237,11 @@
             };
             actionlint.enable = true;
             shellcheck.enable = true;
+            check-added-large-files.enable = true;
+            check-merge-conflicts.enable = true;
+            check-symlinks.enable = true;
             end-of-file-fixer.enable = true;
+            ripsecrets.enable = true;
             trim-trailing-whitespace.enable = true;
           };
         };

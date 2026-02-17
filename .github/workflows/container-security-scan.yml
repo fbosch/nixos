@@ -34,34 +34,42 @@ jobs:
         run: |
           set -euo pipefail
 
+          base_ref="${{ github.base_ref }}"
+          if [ -z "$base_ref" ]; then
+            base_ref="${{ github.event.repository.default_branch }}"
+          fi
+
+          diff_range="origin/${base_ref}...HEAD"
+
           # Extract images from changed files
-          IMAGES=$(git diff --unified=0 origin/${{ github.base_ref }}...HEAD -- modules/services/containers/ modules/hosts/ | \
+          IMAGES=$(git diff --unified=0 "$diff_range" -- modules/services/containers/ modules/hosts/ | \
             grep -E '^\+.*Image=' | \
             sed 's/.*Image=//' | \
             grep -v '\${' | \
             sort -u || true)
 
-          # Also extract from image option defaults
-          IMAGE_OPTIONS=$(git diff --unified=0 origin/${{ github.base_ref }}...HEAD -- modules/services/containers/ | \
-            grep -E '^\+.*default.*=.*".*:.*"' | \
-            sed -E 's/.*default.*=.*"([^"]+)".*/\1/' | \
+          # Also extract image references from option defaults and image attrs
+          IMAGE_OPTIONS=$(git diff --unified=0 "$diff_range" -- modules/services/containers/ modules/hosts/ | \
+            grep -E '^\+.*(default|image)\s*=\s*".*:.*"' | \
+            sed -E 's/.*(default|image)\s*=\s*"([^"]+)".*/\2/' | \
             grep ':' | \
+            grep -v '\${' | \
             sort -u || true)
 
-          ALL_IMAGES=$(echo -e "${IMAGES}\n${IMAGE_OPTIONS}" | grep -v '^$' | sort -u || echo "")
+          ALL_IMAGES=$(printf '%s\n%s\n' "$IMAGES" "$IMAGE_OPTIONS" | grep -v '^$' | sort -u || echo "")
 
           if [ -z "$ALL_IMAGES" ]; then
             echo "No container images found in changes"
-            echo "has-images=false" >> $GITHUB_OUTPUT
-            echo "images=" >> $GITHUB_OUTPUT
+            echo "has-images=false" >> "$GITHUB_OUTPUT"
+            echo "images=[]" >> "$GITHUB_OUTPUT"
           else
             echo "Found images to scan:"
             echo "$ALL_IMAGES"
             
             # Convert to JSON array for matrix
             IMAGES_JSON=$(echo "$ALL_IMAGES" | jq -R -s -c 'split("\n") | map(select(length > 0))')
-            echo "has-images=true" >> $GITHUB_OUTPUT
-            echo "images=$IMAGES_JSON" >> $GITHUB_OUTPUT
+            echo "has-images=true" >> "$GITHUB_OUTPUT"
+            echo "images=$IMAGES_JSON" >> "$GITHUB_OUTPUT"
           fi
 
   scan:
@@ -87,7 +95,7 @@ jobs:
       - name: Pull container image
         run: |
           echo "Pulling ${{ matrix.image }}"
-          docker pull ${{ matrix.image }} || {
+          docker pull "${{ matrix.image }}" || {
             echo "::warning::Failed to pull ${{ matrix.image }} - may be a local image or invalid reference"
             exit 0
           }

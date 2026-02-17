@@ -34,8 +34,8 @@ nh os switch --update # Update and rebuild
 ### Development
 
 ```sh
-nix run .#lint        # statix + deadnix checks
-nix run .#fmt         # nixpkgs-fmt formatting
+nix run .#lint        # treefmt + statix + deadnix + actionlint + shellcheck
+nix run .#fmt         # treefmt formatting
 ```
 
 ### Dotfiles

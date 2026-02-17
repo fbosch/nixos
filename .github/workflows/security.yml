@@ -13,20 +13,48 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  discover-hosts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      targets: ${{ steps.discover.outputs.targets }}
+      has-targets: ${{ steps.discover.outputs.has-targets }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - uses: DeterminateSystems/nix-installer-action@c5a866b6ab867e88becbed4467b93592bce69f8a # v21
+      - uses: cachix/cachix-action@3ba601ff5bbb07c7220846facfa2cd81eeee15a1 # v16
+        with:
+          name: fbosch
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
+      - name: Discover security scan targets
+        id: discover
+        run: |
+          nixos_hosts=$(nix eval --json --apply 'x: builtins.attrNames x' .#nixosConfigurations)
+          darwin_hosts=$(nix eval --json --apply 'x: builtins.attrNames x' .#darwinConfigurations 2>/dev/null || echo '[]')
+
+          targets=$(jq -cn \
+            --argjson nixos "$nixos_hosts" \
+            --argjson darwin "$darwin_hosts" \
+            '($nixos | map({ host: ., flake: ("nixosConfigurations." + . + ".config.system.build.toplevel") }))
+             + ($darwin | map({ host: ., flake: ("darwinConfigurations." + . + ".config.system.build.toplevel") }))')
+
+          echo "targets=$targets" >> "$GITHUB_OUTPUT"
+          if [ "$targets" != "[]" ]; then
+            echo "has-targets=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has-targets=false" >> "$GITHUB_OUTPUT"
+          fi
+
   scan:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    needs: discover-hosts
+    if: needs.discover-hosts.outputs.has-targets == 'true'
     strategy:
       matrix:
-        include:
-          - host: rvn-vm
-            flake: nixosConfigurations.rvn-vm.config.system.build.toplevel
-          - host: rvn-pc
-            flake: nixosConfigurations.rvn-pc.config.system.build.toplevel
-          - host: rvn-srv
-            flake: nixosConfigurations.rvn-srv.config.system.build.toplevel
-          - host: rvn-mac
-            flake: darwinConfigurations.rvn-mac.config.system.build.toplevel
+        include: ${{ fromJson(needs.discover-hosts.outputs.targets) }}
       fail-fast: false
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
