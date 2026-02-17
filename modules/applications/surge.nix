@@ -87,9 +87,9 @@ _: {
           };
 
           enableAppArmor = lib.mkOption {
-            type = lib.types.bool;
-            default = false;
-            description = "Enable AppArmor confinement for Surge (requires NixOS with AppArmor enabled).";
+            type = lib.types.nullOr lib.types.bool;
+            default = null;
+            description = "Enable AppArmor confinement for Surge. Null follows NixOS AppArmor enablement; set true/false to override per host.";
           };
         };
 
@@ -133,12 +133,16 @@ _: {
         hmUsers = config.home-manager.users or { };
         user = config.flake.meta.user.username or null;
         surgeCfg = if user != null && hmUsers ? ${user} then hmUsers.${user}.services.surge or { } else { };
-        enableAppArmor = surgeCfg.enableAppArmor or false;
+        appArmorEnabled = config.security.apparmor.enable or false;
+        enableAppArmor =
+          if surgeCfg ? enableAppArmor && surgeCfg.enableAppArmor != null then
+            surgeCfg.enableAppArmor
+          else
+            appArmorEnabled;
       in
       {
         config = lib.mkIf enableAppArmor {
           security.apparmor.policies."surge" = {
-            enable = true;
             profile = ''
               abi <abi/4.0>,
               include <tunables/global>

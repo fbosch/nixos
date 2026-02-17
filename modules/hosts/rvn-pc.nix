@@ -102,6 +102,12 @@ in
         # Enable SSH for remote access
         services.openssh.enable = true;
 
+        security.apparmor = {
+          enable = true;
+          killUnconfinedConfinables = false;
+          enableCache = false;
+        };
+
         networking.nameservers = hostMeta.dnsServers;
 
         systemd.services.ethernet-watchdog = {

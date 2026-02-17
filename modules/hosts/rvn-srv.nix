@@ -96,7 +96,6 @@ in
 
           services.surge = {
             autostart = true;
-            enableAppArmor = true;
             settings = {
               general.default_download_dir = "/mnt/nas/downloads";
               connections.proxy_url = "http://127.0.0.1:8889";
