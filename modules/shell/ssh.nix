@@ -7,14 +7,14 @@ in
     { config
     , lib
     , pkgs
-    , currentHostId ? null
+    , osConfig ? null
     , ...
     }:
     let
       # Read host configurations from flake.meta.hosts
       hosts = flakeConfig.flake.meta.hosts or [ ];
       # Determine current host to choose Tailnet vs local addresses
-      currentHostName = currentHostId;
+      currentHostName = if osConfig != null then osConfig.networking.hostName or null else null;
       currentHost = lib.findFirst (host: host.name == currentHostName) null hosts;
       clientUseTailnet = currentHost != null && (currentHost.useTailnet or false);
       # Helper function to get the appropriate address for a specific host

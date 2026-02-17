@@ -1,9 +1,16 @@
+{ inputs, ... }:
 {
   flake.modules.homeManager.desktop =
-    { pkgs, pkgs-stable, ... }:
+    { pkgs, ... }:
+    let
+      pkgsStable = import inputs.nixpkgs-stable {
+        inherit (pkgs.stdenv.hostPlatform) system;
+        config.allowUnfree = true;
+      };
+    in
     {
       home.packages = [
-        pkgs-stable.wezterm
+        pkgsStable.wezterm
         pkgs.kitty
         pkgs.ghostty
       ];
