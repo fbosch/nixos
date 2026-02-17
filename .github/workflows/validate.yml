@@ -27,6 +27,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
       - uses: ./.github/actions/setup-nix
         with:
           cachix-name: fbosch
@@ -48,6 +50,8 @@ jobs:
       has-nixos: ${{ steps.discover.outputs.has-nixos }}
       has-darwin: ${{ steps.discover.outputs.has-darwin }}
     steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
       - uses: ./.github/actions/setup-nix
         with:
           cachix-name: fbosch
@@ -84,6 +88,8 @@ jobs:
         host: ${{ fromJson(needs.discover-hosts.outputs.nixos-hosts) }}
       fail-fast: false
     steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
       - uses: ./.github/actions/setup-nix
         with:
           cachix-name: fbosch
@@ -103,6 +109,8 @@ jobs:
         host: ${{ fromJson(needs.discover-hosts.outputs.darwin-hosts) }}
       fail-fast: false
     steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
       - uses: ./.github/actions/setup-nix
         with:
           cachix-name: fbosch
