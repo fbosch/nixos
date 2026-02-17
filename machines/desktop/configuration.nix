@@ -3,7 +3,6 @@
 # and in the NixOS manual (accessible by running 'nixos-help').
 
 { pkgs
-, inputs
 , options
 , ...
 }:
@@ -75,7 +74,7 @@
     plymouth = {
       enable = true;
       theme = "monoarch-refined";
-      themePackages = [ inputs.self.packages.${pkgs.stdenv.hostPlatform.system}.monoarch-plymouth ];
+      themePackages = [ pkgs.local.monoarch-plymouth ];
     };
   };
 

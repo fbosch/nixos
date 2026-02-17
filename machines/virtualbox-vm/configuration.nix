@@ -1,5 +1,4 @@
 { pkgs
-, inputs
 , options
 , lib
 , ...
@@ -43,7 +42,7 @@
     plymouth = {
       enable = true;
       theme = "monoarch-refined";
-      themePackages = [ inputs.self.packages.${pkgs.stdenv.hostPlatform.system}.monoarch-plymouth ];
+      themePackages = [ pkgs.local.monoarch-plymouth ];
     };
   };
 
