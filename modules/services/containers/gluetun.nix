@@ -15,6 +15,19 @@ _: {
       allPublishPorts = publishPorts ++ controlServerPorts;
       publishPortBlock = lib.concatStringsSep "\n" allPublishPorts;
       serverCountries = lib.concatStringsSep "," cfg.serverCountries;
+      containersFile = ../../../secrets/containers.yaml;
+      rootOnly = {
+        mode = "0400";
+      };
+      mkContainerSecrets =
+        names:
+        lib.genAttrs names (
+          _:
+          {
+            sopsFile = containersFile;
+          }
+          // rootOnly
+        );
     in
     {
       options.services.gluetun-container = {
@@ -115,17 +128,11 @@ _: {
       config = lib.mkMerge [
         {
           sops = {
-            secrets = {
-              "mullvad-wireguard-private-key" = {
-                sopsFile = ../../../secrets/containers.yaml;
-                mode = "0400";
-              };
-
-              "mullvad-wireguard-addresses" = {
-                sopsFile = ../../../secrets/containers.yaml;
-                mode = "0400";
-              };
-            };
+            secrets = mkContainerSecrets [
+              "mullvad-wireguard-private-key"
+              "mullvad-wireguard-addresses"
+              "gluetun-control-api-key"
+            ];
 
             templates."gluetun-env" = {
               content = ''

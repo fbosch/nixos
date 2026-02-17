@@ -27,6 +27,19 @@ _: {
     }:
     let
       cfg = config.services.linkwarden-container;
+      containersFile = ../../../secrets/containers.yaml;
+      rootOnly = {
+        mode = "0400";
+      };
+      mkContainerSecrets =
+        names:
+        lib.genAttrs names (
+          _:
+          {
+            sopsFile = containersFile;
+          }
+          // rootOnly
+        );
     in
     {
       options.services.linkwarden-container = {
@@ -156,22 +169,11 @@ _: {
 
       config = {
         sops = {
-          secrets = {
-            "linkwarden-postgres-password" = {
-              sopsFile = ../../../secrets/containers.yaml;
-              mode = "0400";
-            };
-
-            "linkwarden-nextauth-secret" = {
-              sopsFile = ../../../secrets/containers.yaml;
-              mode = "0400";
-            };
-
-            "linkwarden-meili-master-key" = {
-              sopsFile = ../../../secrets/containers.yaml;
-              mode = "0400";
-            };
-          };
+          secrets = mkContainerSecrets [
+            "linkwarden-postgres-password"
+            "linkwarden-nextauth-secret"
+            "linkwarden-meili-master-key"
+          ];
 
           templates."linkwarden-env" = {
             content = ''

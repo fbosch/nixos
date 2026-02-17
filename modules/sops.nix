@@ -186,34 +186,11 @@ in
               "kagi-api-token"
               "openai-api-key"
               "wakapi-api-key"
-              "wakapi-password-salt"
             ])
 
             # API secrets - world readable
             (mkSecretsWithOpts apisFile worldReadable [
               "context7-api-key"
-            ])
-
-            # Container secrets - root only
-            (mkSecretsWithOpts containersFile rootOnly [
-              "rpi-pihole-password-token"
-              "synology-api-username"
-              "synology-api-password"
-              "gluetun-control-api-key"
-              "linkwarden-access-token"
-              "tailscale-api-key"
-              "nextdns-profile-id"
-              "nextdns-api-key"
-              "speedtest-tracker-app-key"
-              "speedtest-tracker-api-token"
-            ])
-
-            # Container secrets - wheel readable
-            (mkSecretsWithOpts containersFile wheelReadable [
-              "komodo-web-api-key"
-              "komodo-web-api-secret"
-              "portainer-api-key"
-              "ha-access-token"
             ])
 
             # Development secrets - user owned
