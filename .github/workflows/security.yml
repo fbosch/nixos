@@ -20,13 +20,10 @@ jobs:
       targets: ${{ steps.discover.outputs.targets }}
       has-targets: ${{ steps.discover.outputs.has-targets }}
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-
-      - uses: DeterminateSystems/nix-installer-action@c5a866b6ab867e88becbed4467b93592bce69f8a # v21
-      - uses: cachix/cachix-action@3ba601ff5bbb07c7220846facfa2cd81eeee15a1 # v16
+      - uses: ./.github/actions/setup-nix
         with:
-          name: fbosch
-          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          cachix-name: fbosch
+          cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
       - name: Discover security scan targets
         id: discover
@@ -57,13 +54,10 @@ jobs:
         include: ${{ fromJson(needs.discover-hosts.outputs.targets) }}
       fail-fast: false
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-
-      - uses: DeterminateSystems/nix-installer-action@c5a866b6ab867e88becbed4467b93592bce69f8a # v21
-      - uses: cachix/cachix-action@3ba601ff5bbb07c7220846facfa2cd81eeee15a1 # v16
+      - uses: ./.github/actions/setup-nix
         with:
-          name: fbosch
-          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          cachix-name: fbosch
+          cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
       - name: Resolve system derivation
         id: resolve

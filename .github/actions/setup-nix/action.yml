@@ -1,0 +1,20 @@
+name: Setup Nix
+description: Checkout repository, install Nix, and configure Cachix
+inputs:
+  cachix-name:
+    description: Cachix cache name
+    required: true
+  cachix-auth-token:
+    description: Cachix auth token
+    required: true
+runs:
+  using: composite
+  steps:
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+    - uses: DeterminateSystems/nix-installer-action@c5a866b6ab867e88becbed4467b93592bce69f8a # v21
+
+    - uses: cachix/cachix-action@3ba601ff5bbb07c7220846facfa2cd81eeee15a1 # v16
+      with:
+        name: ${{ inputs.cachix-name }}
+        authToken: ${{ inputs.cachix-auth-token }}
