@@ -24,10 +24,7 @@ in
     meta.hosts = [ hostMeta ];
 
     modules.nixos."hosts/rvn-srv" =
-      { pkgs, lib, ... }@moduleArgs:
-      let
-        nixosConfig = moduleArgs.config or { };
-      in
+      { pkgs, lib, ... }:
       {
         imports = config.flake.lib.resolve [
           # Server preset (users, security, development, shell, system, vpn)
@@ -179,7 +176,6 @@ in
                 hostMeta.local
                 hostMeta.tailscale
               ];
-              envFile = lib.attrByPath [ "sops" "templates" "gluetun-env" "path" ] null nixosConfig;
               serverCountries = [ "Denmark" ];
 
               # Enable HTTP proxy stealth mode
@@ -252,7 +248,6 @@ in
             linkwarden-container = {
               port = 3100;
               nextauthUrl = "https://linkwarden.corvus-corax.synology.me";
-              envFile = "/run/secrets/rendered/linkwarden-env";
               disableRegistration = true; # Set to true after first user registration
               # Performance tuning
               cpus = "2.0";
@@ -305,9 +300,6 @@ in
               PubkeyAuthentication = true;
             };
           }
-          (lib.mkIf (nixosConfig ? sops && nixosConfig.sops ? templates) {
-            pihole-container.webPasswordFile = nixosConfig.sops.templates."pihole-webpassword".path;
-          })
         ];
 
         # Networking configuration

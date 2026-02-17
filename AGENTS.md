@@ -26,12 +26,8 @@ rg "port = [0-9]+" --type nix
 rg "listen.*:[0-9]+" --type nix
 ```
 
-Common port assignments in this flake:
-- 8080: glance-container (container port)
-- 8081: atticd
-- 8082: pihole-container (web UI)
-- 8083: glance-container (nginx reverse proxy)
-- 8090: dozzle
+Port map reference:
+- [Service ports](docs/agents/service-ports.md)
 
 See the detailed guides:
 - [Dendritic core concepts](docs/agents/dendritic-core.md)
@@ -40,3 +36,4 @@ See the detailed guides:
 - [SOPS secrets workflow](docs/agents/sops-secrets.md)
 - [Linting rules (Statix)](docs/agents/linting-statix.md)
 - [Tips and workflow](docs/agents/tips-and-workflow.md)
+- [Service ports](docs/agents/service-ports.md)

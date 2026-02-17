@@ -155,6 +155,20 @@ _: {
       };
 
       config = {
+        services.linkwarden-container.envFile = lib.mkDefault (
+          lib.attrByPath [ "sops" "templates" "linkwarden-env" "path" ] null config
+        );
+
+        sops.templates."linkwarden-env" = {
+          content = ''
+            POSTGRES_PASSWORD=${config.sops.placeholder.linkwarden-postgres-password}
+            NEXTAUTH_SECRET=${config.sops.placeholder.linkwarden-nextauth-secret}
+            MEILI_MASTER_KEY=${config.sops.placeholder.linkwarden-meili-master-key}
+            DISABLE_PRESERVATION=true
+          '';
+          mode = "0400";
+        };
+
         assertions = [
           {
             assertion = cfg.envFile != null || cfg.postgresPassword != null;
