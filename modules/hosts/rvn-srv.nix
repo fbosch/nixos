@@ -148,6 +148,8 @@ in
           {
             ananicy.enable = true;
 
+            tailscale.extraSetFlags = [ "--relay-server-port=40000" ];
+
             # OpenMemory
             # openmemory-container = {
             #   buildImages = true;
@@ -306,6 +308,7 @@ in
         networking = {
           # Open port for uptime-kuma
           firewall.allowedTCPPorts = [ 3001 ];
+          firewall.allowedUDPPorts = [ 40000 ];
 
           # Enable systemd-networkd for bonding support
           useNetworkd = true;
