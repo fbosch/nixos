@@ -1,4 +1,8 @@
-_: {
+{ config, ... }:
+let
+  inherit (config.flake.lib) sopsHelpers;
+in
+{
   flake.modules.nixos."services/freshrss" =
     { config
     , lib
@@ -55,11 +59,10 @@ _: {
       config = lib.mkMerge [
         # SOPS secret configuration (only if sops is available)
         (lib.mkIf (config ? sops) {
-          sops.secrets.freshrss-admin-password = {
+          sops.secrets.freshrss-admin-password = sopsHelpers.mkSecret ../../secrets/containers.yaml {
             mode = "0440";
             owner = "freshrss";
             group = "freshrss";
-            sopsFile = ../../secrets/containers.yaml;
           };
         })
 

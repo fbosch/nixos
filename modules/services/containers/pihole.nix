@@ -1,4 +1,8 @@
-_: {
+{ config, ... }:
+let
+  inherit (config.flake.lib) sopsHelpers;
+in
+{
   flake.modules.nixos."services/containers/pihole" =
     { config
     , lib
@@ -62,10 +66,8 @@ _: {
       };
 
       config = {
-        sops.secrets."pihole-default-password" = {
-          sopsFile = ../../../secrets/containers.yaml;
-          mode = "0400";
-        };
+        sops.secrets."pihole-default-password" =
+          sopsHelpers.mkSecret ../../../secrets/containers.yaml sopsHelpers.rootOnly;
 
         services.pihole-container.webPasswordFile = lib.mkDefault (
           lib.attrByPath [ "sops" "templates" "pihole-webpassword" "path" ] null config

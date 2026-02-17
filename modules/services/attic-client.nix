@@ -1,4 +1,8 @@
-_: {
+{ config, ... }:
+let
+  inherit (config.flake.lib) sopsHelpers;
+in
+{
   flake.modules.nixos."services/attic-client" =
     { config
     , lib
@@ -53,10 +57,9 @@ _: {
           trusted-public-keys = [ cfg.publicKey ];
         };
 
-        sops.secrets.attic-admin-token = lib.mkIf cfg.watchStore.enable {
-          mode = "0400";
-          sopsFile = ../../secrets/development.yaml;
-        };
+        sops.secrets.attic-admin-token = lib.mkIf cfg.watchStore.enable (
+          sopsHelpers.mkSecret ../../secrets/development.yaml sopsHelpers.rootOnly
+        );
 
         systemd.services.attic-watch-store = lib.mkIf cfg.watchStore.enable {
           description = "Attic watch-store push";
