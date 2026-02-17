@@ -44,11 +44,6 @@ let
       value = platformDefaults.builder {
         system = evalSystem;
         modules = [
-          {
-            _module.args = {
-              inherit inputs;
-            };
-          }
           hostModule
           platformDefaults.homeManagerModule
           {

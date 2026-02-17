@@ -9,7 +9,6 @@
   ];
 
   imports = [
-    inputs.pkgs-by-name-for-flake-parts.flakeModule
     ./overlays/chromium-webapps-hardening.nix
   ];
 
@@ -31,6 +30,28 @@
         ];
       };
       enableByName = pkgs.stdenv.isLinux;
+      inputsScope = lib.makeScope pkgs.newScope (_self: {
+        inherit inputs;
+      });
+      scopeFromDirectory =
+        directory:
+        lib.filesystem.packagesFromDirectoryRecursive {
+          inherit directory;
+          inherit (inputsScope) newScope callPackage;
+        };
+      scope = scopeFromDirectory ../../pkgs/by-name;
+      extractPackages =
+        currentScope:
+        let
+          shouldRecurse =
+            lib.isAttrs currentScope
+            && !(lib.isDerivation currentScope)
+            && currentScope ? packages
+            && lib.isFunction currentScope.packages;
+          mappedSet = lib.mapAttrs (_: extractPackages) (currentScope.packages currentScope);
+        in
+        if shouldRecurse then mappedSet else currentScope;
+      byNameLegacyPackages = extractPackages scope;
       flattenPkgs =
         separator: path: value:
         if lib.isDerivation value then
@@ -43,14 +64,12 @@
           { };
     in
     {
-      pkgsDirectory = if enableByName then ../../pkgs/by-name else null;
-
-      _module.args.pkgs = pkgs;
+      legacyPackages = lib.mkIf enableByName (lib.mkForce byNameLegacyPackages);
 
       packages = lib.mkIf enableByName (
         lib.mkForce (
           let
-            flatPackages = flattenPkgs config.pkgsNameSeparator [ ] config.legacyPackages;
+            flatPackages = flattenPkgs "/" [ ] byNameLegacyPackages;
           in
           lib.filterAttrs (_: pkg: lib.meta.availableOn pkgs.stdenv.hostPlatform pkg) flatPackages
         )
