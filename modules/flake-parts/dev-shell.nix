@@ -16,6 +16,8 @@
           statix
           deadnix
           nixpkgs-fmt
+          actionlint
+          shellcheck
           gum
         ];
         text = ''
@@ -53,6 +55,29 @@
             exit_code=1
           fi
 
+          # actionlint
+          if gum spin --spinner dot --title "actionlint" -- actionlint -shellcheck= > /tmp/actionlint-output 2>&1; then
+            echo "$(gum style --foreground 2 '[OK]') actionlint"
+          else
+            echo "$(gum style --foreground 1 '[FAIL]') actionlint"
+            cat /tmp/actionlint-output
+            exit_code=1
+          fi
+
+          # Shell script lint
+          shell_files=$(find scripts configs -type f -name '*.sh' 2>/dev/null || true)
+          if [ -n "$shell_files" ]; then
+            if gum spin --spinner dot --title "shellcheck" -- sh -c "printf '%s\n' \"$shell_files\" | xargs -r shellcheck -S error" > /tmp/shellcheck-output 2>&1; then
+              echo "$(gum style --foreground 2 '[OK]') shellcheck"
+            else
+              echo "$(gum style --foreground 1 '[FAIL]') shellcheck"
+              cat /tmp/shellcheck-output
+              exit_code=1
+            fi
+          else
+            echo "$(gum style --foreground 244 '[SKIP]') shellcheck (no shell files found)"
+          fi
+
           if [ $exit_code -ne 0 ]; then
             echo "$(gum style --foreground 1 '[ERROR]') Lint failed"
           else
@@ -79,6 +104,8 @@
           nixpkgs-fmt
           statix
           deadnix
+          actionlint
+          shellcheck
           gum
         ];
         text = ''
@@ -140,6 +167,34 @@
             exit_code=1
           fi
 
+          # actionlint - check staged workflow changes
+          staged_workflows=$(git diff --cached --name-only --diff-filter=ACM | grep -E '^\.github/workflows/.*\.(yml|yaml)$' || true)
+          if [ -n "$staged_workflows" ]; then
+            if gum spin --spinner dot --title "actionlint" -- actionlint -shellcheck= > /tmp/actionlint-output 2>&1; then
+              echo "$(gum style --foreground 2 '[OK]') actionlint"
+            else
+              echo "$(gum style --foreground 1 '[FAIL]') actionlint"
+              cat /tmp/actionlint-output
+              exit_code=1
+            fi
+          else
+            echo "$(gum style --foreground 244 '[SKIP]') actionlint (no workflows staged)"
+          fi
+
+          # Shell script lint - check staged shell script changes
+          staged_shell=$(git diff --cached --name-only --diff-filter=ACM | grep '\.sh$' || true)
+          if [ -n "$staged_shell" ]; then
+            if gum spin --spinner dot --title "shellcheck" -- sh -c "printf '%s\n' \"$staged_shell\" | xargs -r shellcheck -S error" > /tmp/shellcheck-output 2>&1; then
+              echo "$(gum style --foreground 2 '[OK]') shellcheck"
+            else
+              echo "$(gum style --foreground 1 '[FAIL]') shellcheck"
+              cat /tmp/shellcheck-output
+              exit_code=1
+            fi
+          else
+            echo "$(gum style --foreground 244 '[SKIP]') shellcheck (no shell scripts staged)"
+          fi
+
           if [ $exit_code -ne 0 ]; then
             echo "$(gum style --foreground 1 '[ERROR]') Pre-commit checks failed"
           else
@@ -174,6 +229,10 @@
               enable = true;
               settings.noLambdaPatternNames = true;
             };
+            actionlint.enable = true;
+            shellcheck.enable = true;
+            end-of-file-fixer.enable = true;
+            trim-trailing-whitespace.enable = true;
           };
         };
       };
@@ -216,6 +275,8 @@
           statix
           deadnix
           nixpkgs-fmt
+          actionlint
+          shellcheck
           gum
           lintScript
           formatScript
