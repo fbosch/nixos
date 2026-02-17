@@ -93,13 +93,13 @@ _: {
           default = 8888;
           description = "Port to listen on for proxy connections.";
         };
-        
+
         listenAddress = lib.mkOption {
           type = lib.types.str;
           default = "0.0.0.0";
           description = "Address to bind the proxy server to.";
         };
-        
+
         allowedClients = lib.mkOption {
           type = lib.types.listOf lib.types.str;
           default = [ "192.168.1.0/24" ];
@@ -117,9 +117,9 @@ _: {
             Allow = cfg.allowedClients;
           };
         };
-        
+
         networking.firewall.allowedTCPPorts = [ cfg.port ];
-        
+
         # Add related configuration (users, systemd services, etc.)
         users.users.tinyproxy.extraGroups = [ "users" ];
       };
@@ -134,7 +134,7 @@ _: {
     "services/tinyproxy"  # Enabled with defaults!
     "services/plex"       # Enabled with defaults!
   ];
-  
+
   # Only override what's different from defaults
   services.tinyproxy.port = 9999;
   services.plex.nginx.port = 32402;
@@ -149,4 +149,3 @@ _: {
 4. **Easy overrides** - Use `lib.mkDefault` so hosts can override
 5. **Dendritic compliance** - Follows "import to enable" pattern
 6. **Future-proof** - If nixpkgs adds the service, easy to migrate
-

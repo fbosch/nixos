@@ -11,13 +11,13 @@
           if [ -n "$PROFILE_DIR" ] && [ -d "$PROFILE_DIR" ]; then
             CACHE_DIR="$PROFILE_DIR/cache2"
             RAM_CACHE="/run/user/$(${pkgs.coreutils}/bin/id -u)/zen-cache"
-            
+
             ${pkgs.coreutils}/bin/mkdir -p "$RAM_CACHE"
-            
+
             if [ -d "$CACHE_DIR" ] && [ ! -L "$CACHE_DIR" ]; then
               ${pkgs.coreutils}/bin/rm -rf "$CACHE_DIR"
             fi
-            
+
             if [ ! -L "$CACHE_DIR" ]; then
               ${pkgs.coreutils}/bin/ln -sf "$RAM_CACHE" "$CACHE_DIR"
               echo "Zen browser cache symlinked to RAM at $RAM_CACHE"

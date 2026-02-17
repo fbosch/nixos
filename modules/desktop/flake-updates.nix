@@ -3,7 +3,7 @@ _: {
     let
       flakeCheckScript = pkgs.writeShellScriptBin "flake-check-updates" ''
         set -euo pipefail
-        
+
         CACHE_FILE="''${XDG_CACHE_HOME:-$HOME/.cache}/flake-updates.json"
         FLATPAK_CACHE_FILE="''${XDG_CACHE_HOME:-$HOME/.cache}/flatpak-updates.json"
         LOG_FILE="''${XDG_CACHE_HOME:-$HOME/.cache}/flake-updates.log"
@@ -92,15 +92,15 @@ _: {
               # Check if the lock file changed by comparing the revision
               UPDATED_FLAKE_DATA=$(${pkgs.jq}/bin/jq '.' flake.lock 2>/dev/null)
               UPDATED_NODE_DATA=$(echo "$UPDATED_FLAKE_DATA" | ${pkgs.jq}/bin/jq ".nodes.\"$NODE_NAME\"" 2>/dev/null)
-              
+
               if [ -n "$UPDATED_NODE_DATA" ] && [ "$UPDATED_NODE_DATA" != "null" ]; then
                 NEW_REV=$(echo "$UPDATED_NODE_DATA" | ${pkgs.jq}/bin/jq -r '.locked.rev // empty' 2>/dev/null)
-                
+
                 if [ -n "$NEW_REV" ] && [ "$NEW_REV" != "null" ] && [ "$NEW_REV" != "$CURRENT_REV" ]; then
                   # Get short versions for display
                   CURRENT_SHORT=$(echo "$CURRENT_REV" | ${pkgs.coreutils}/bin/cut -c1-7)
                   NEW_SHORT=$(echo "$NEW_REV" | ${pkgs.coreutils}/bin/cut -c1-7)
-                  
+
                   # Add update info to JSON array
                   UPDATE_OBJ=$(${pkgs.jq}/bin/jq -n \
                     --arg name "$INPUT" \
@@ -109,7 +109,7 @@ _: {
                     --arg newRev "$NEW_REV" \
                     --arg newShort "$NEW_SHORT" \
                     '{name: $name, currentRev: $currentRev, currentShort: $currentShort, newRev: $newRev, newShort: $newShort}')
-                  
+
                   UPDATES_JSON=$(echo "$UPDATES_JSON" | ${pkgs.jq}/bin/jq --argjson item "$UPDATE_OBJ" '. += [$item]')
                 fi
               fi
@@ -128,7 +128,7 @@ _: {
               --arg timestamp "$TIMESTAMP" \
               --arg flakeHash "$CURRENT_HASH" \
               '{count: $count, updates: $updates, timestamp: $timestamp, flakeHash: $flakeHash}')
-            
+
             echo "$RESULT" > "$CACHE_FILE"
             echo "[$(${pkgs.coreutils}/bin/date -Iseconds)] Flake check complete - found $UPDATE_COUNT updates" >> "$LOG_FILE"
           fi
@@ -138,27 +138,27 @@ _: {
         if command -v ${pkgs.flatpak}/bin/flatpak >/dev/null 2>&1; then
           echo "[$(${pkgs.coreutils}/bin/date -Iseconds)] Checking for Flatpak updates..." >> "$LOG_FILE"
           FLATPAK_UPDATES=$(${pkgs.flatpak}/bin/flatpak remote-ls --app --updates --columns=application,version,branch 2>/dev/null)
-          
+
           if [ -n "$FLATPAK_UPDATES" ]; then
             FLATPAK_JSON="[]"
-            
+
             while IFS=$'\t' read -r app version branch; do
               # Skip empty lines
               [ -z "$app" ] && continue
-              
+
               # Get current installed version
               CURRENT_VERSION=$(${pkgs.flatpak}/bin/flatpak list --app --columns=application,version 2>/dev/null | ${pkgs.gnugrep}/bin/grep "^$app" | ${pkgs.coreutils}/bin/cut -f2)
-              
+
               UPDATE_OBJ=$(${pkgs.jq}/bin/jq -n \
                 --arg app "$app" \
                 --arg currentVersion "$CURRENT_VERSION" \
                 --arg newVersion "$version" \
                 --arg branch "$branch" \
                 '{app: $app, currentVersion: $currentVersion, newVersion: $newVersion, branch: $branch}')
-              
+
               FLATPAK_JSON=$(echo "$FLATPAK_JSON" | ${pkgs.jq}/bin/jq --argjson item "$UPDATE_OBJ" '. += [$item]')
             done <<< "$FLATPAK_UPDATES"
-            
+
             FLATPAK_COUNT=$(echo "$FLATPAK_JSON" | ${pkgs.jq}/bin/jq 'length')
             FLATPAK_TIMESTAMP=$(${pkgs.coreutils}/bin/date -Iseconds)
             FLATPAK_RESULT=$(${pkgs.jq}/bin/jq -n \
@@ -166,7 +166,7 @@ _: {
               --argjson updates "$FLATPAK_JSON" \
               --arg timestamp "$FLATPAK_TIMESTAMP" \
               '{count: $count, updates: $updates, timestamp: $timestamp}')
-            
+
             echo "$FLATPAK_RESULT" > "$FLATPAK_CACHE_FILE"
             echo "[$(${pkgs.coreutils}/bin/date -Iseconds)] Flatpak check complete - found $FLATPAK_COUNT updates" >> "$LOG_FILE"
           else
@@ -179,7 +179,7 @@ _: {
           echo '{"count": 0, "updates": [], "error": "Flatpak not installed"}' > "$FLATPAK_CACHE_FILE"
           echo "[$(${pkgs.coreutils}/bin/date -Iseconds)] Flatpak not installed" >> "$LOG_FILE"
         fi
-        
+
         echo "[$(${pkgs.coreutils}/bin/date -Iseconds)] Update check completed successfully" >> "$LOG_FILE"
       '';
     in

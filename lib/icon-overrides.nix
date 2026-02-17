@@ -2,7 +2,7 @@
 
 {
   # Apply icon overrides to an icon theme package
-  # 
+  #
   # Parameters:
   #   basePackage: The icon theme package to apply overrides to
   #   overrides: List of override specifications
@@ -13,7 +13,7 @@
   #   name = "icon-name";              # Icon filename to replace (without .svg)
   #   sizes = [ "16" "22" "scalable" ];# Size directories to apply override to
   #   context = "apps";                # Icon context (apps, places, actions, etc.)
-  #   
+  #
   #   # One of the following three options:
   #   useBuiltin = "other-icon";       # Use icon from same context/size
   #   useBuiltinFrom = "path/to/icon"; # Use icon from different path (relative to theme dir)
@@ -82,13 +82,13 @@
                               symbolic) target_size="16" ;;  # Symbolic icons are typically 16px
                               *) target_size="16" ;;
                             esac
-                              
+
                             # Copy and resize SVG by modifying width/height attributes
                             # This preserves all colors, gradients, and vector quality
                             # Remove existing file/symlink first to ensure clean override
                             rm -f "$size_dir/${override.name}.svg"
                             cp "$source_icon" "$size_dir/${override.name}.svg"
-                              
+
                             # Update width and height attributes if not scalable
                             if [ "${size}" != "scalable" ]; then
                               ${pkgs.xmlstarlet}/bin/xmlstarlet ed -L \
@@ -118,12 +118,12 @@
                               symbolic) target_size="16" ;;
                               *) target_size="16" ;;
                             esac
-                              
+
                             # Copy and resize custom SVG by modifying width/height attributes
                             # Remove existing file/symlink first to ensure clean override
                             rm -f "$size_dir/${override.name}.svg"
                             cp "${override.source}" "$size_dir/${override.name}.svg"
-                              
+
                             if [ "${size}" != "scalable" ]; then
                               ${pkgs.xmlstarlet}/bin/xmlstarlet ed -L \
                                 -u "//*[local-name()='svg']/@width" -v "$target_size" \

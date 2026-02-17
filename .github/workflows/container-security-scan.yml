@@ -65,7 +65,7 @@ jobs:
           else
             echo "Found images to scan:"
             echo "$ALL_IMAGES"
-            
+
             # Convert to JSON array for matrix
             IMAGES_JSON=$(echo "$ALL_IMAGES" | jq -R -s -c 'split("\n") | map(select(length > 0))')
             echo "has-images=true" >> "$GITHUB_OUTPUT"

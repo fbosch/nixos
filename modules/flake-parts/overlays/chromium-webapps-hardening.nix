@@ -149,11 +149,11 @@ _:
                       # Extract domain from URL to build the actual class name
                       domain=$(echo "${args.url}" | ${final.gnused}/bin/sed -E 's|^https?://([^/]+).*|\1|')
                       chromium_class="chrome-''${domain}__-${args.profile}"
-                      
+
                       # Convert SVG to PNG for better GTK/Waybar compatibility
                       # Always use PNG for the final icon to ensure consistent rendering
                       icon_path="$out/share/icons/hicolor/512x512/apps/$chromium_class.png"
-                      
+
                       if [[ "$original_icon" == *.svg ]]; then
                         # Convert SVG to PNG at 512x512
                         ${final.librsvg}/bin/rsvg-convert -w 512 -h 512 "$original_icon" -o "$icon_path"
@@ -161,19 +161,19 @@ _:
                         # Copy PNG directly
                         ${final.coreutils}/bin/cp "$original_icon" "$icon_path"
                       fi
-                      
+
                       # Also create a friendly-named symlink for manual use
                       ln -sf "$chromium_class.png" "$out/share/icons/hicolor/512x512/apps/${args.class}.png"
-                      
+
                       # Use absolute path in desktop file for reliable icon lookup
                       # GTK supports absolute paths and Waybar's IconLoader will find them directly
                       ${final.gnused}/bin/sed -i "s|Icon=.*|Icon=$icon_path|" "$desktop_file"
-                      
+
                       # Update StartupWMClass to match Chromium's actual behavior
                       ${final.gnused}/bin/sed -i '/^StartupWMClass=/d' "$desktop_file"
                       echo "StartupWMClass=$chromium_class" >> "$desktop_file"
                     fi
-                    
+
                     # Add metadata
                     echo "Keywords=${args.desktopName or args.appName};webapp;chromium;" >> "$desktop_file"
                     echo "X-GNOME-UsesNotifications=true" >> "$desktop_file"
