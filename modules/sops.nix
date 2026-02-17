@@ -11,7 +11,6 @@ let
   # Secret file paths
   commonFile = ../secrets/common.yaml;
   apisFile = ../secrets/apis.yaml;
-  developmentFile = ../secrets/development.yaml;
 
   # Permission presets
   inherit (sopsHelpers)
@@ -21,10 +20,6 @@ let
     ;
   userOwned = {
     mode = "0600";
-    owner = user;
-  };
-  userReadOnly = {
-    mode = "0400";
     owner = user;
   };
 
@@ -117,17 +112,11 @@ in
             (mkSecretsWithOpts apisFile wheelReadable [
               "kagi-api-token"
               "openai-api-key"
-              "wakapi-api-key"
             ])
 
             # API secrets - world readable
             (mkSecretsWithOpts apisFile worldReadable [
               "context7-api-key"
-            ])
-
-            # Development secrets - user owned
-            (mkSecretsWithOpts developmentFile userReadOnly [
-              "npm-personal-access-token"
             ])
 
             # Special cases
@@ -185,18 +174,12 @@ in
             (mkSecretsWithOpts apisFile wheelReadable [
               "kagi-api-token"
               "openai-api-key"
-              "wakapi-api-key"
               "wakapi-password-salt"
             ])
 
             # API secrets - world readable
             (mkSecretsWithOpts apisFile worldReadable [
               "context7-api-key"
-            ])
-
-            # Development secrets - user owned
-            (mkSecretsWithOpts developmentFile userReadOnly [
-              "npm-personal-access-token"
             ])
 
             # Special cases

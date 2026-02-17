@@ -1,6 +1,7 @@
 { config, ... }:
 let
   flakeConfig = config;
+  inherit (flakeConfig.flake.lib) sopsHelpers;
   mkNpmrc =
     config:
     let
@@ -9,10 +10,15 @@ let
     in
     {
       inherit username;
-      hasToken = config.sops.secrets ? npm-personal-access-token;
+      hasToken = config ? sops;
       npmrcPath = "${homeDir}/.npmrc";
       templatePath = config.sops.templates."npmrc".path;
       baseConfig = {
+        sops.secrets.npm-personal-access-token = sopsHelpers.mkSecret ../../secrets/development.yaml {
+          mode = "0400";
+          owner = username;
+        };
+
         # Create SOPS template with actual secret
         sops.templates."npmrc" = {
           content = ''
