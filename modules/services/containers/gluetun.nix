@@ -114,18 +114,33 @@ _: {
 
       config = lib.mkMerge [
         {
+          sops = {
+            secrets = {
+              "mullvad-wireguard-private-key" = {
+                sopsFile = ../../../secrets/containers.yaml;
+                mode = "0400";
+              };
+
+              "mullvad-wireguard-addresses" = {
+                sopsFile = ../../../secrets/containers.yaml;
+                mode = "0400";
+              };
+            };
+
+            templates."gluetun-env" = {
+              content = ''
+                WIREGUARD_PRIVATE_KEY=${config.sops.placeholder.mullvad-wireguard-private-key}
+                WIREGUARD_ADDRESSES=${config.sops.placeholder.mullvad-wireguard-addresses}
+                HTTP_CONTROL_SERVER_API_KEY=${config.sops.placeholder.gluetun-control-api-key}
+              '';
+              mode = "0400";
+            };
+          };
+
           services.gluetun-container.envFile = lib.mkDefault (
             lib.attrByPath [ "sops" "templates" "gluetun-env" "path" ] null config
           );
 
-          sops.templates."gluetun-env" = {
-            content = ''
-              WIREGUARD_PRIVATE_KEY=${config.sops.placeholder.mullvad-wireguard-private-key}
-              WIREGUARD_ADDRESSES=${config.sops.placeholder.mullvad-wireguard-addresses}
-              HTTP_CONTROL_SERVER_API_KEY=${config.sops.placeholder.gluetun-control-api-key}
-            '';
-            mode = "0400";
-          };
         }
         (lib.mkIf cfg.enable {
           assertions = [

@@ -6,6 +6,11 @@ Operator note: When command-line diagnostics are needed, ask whether you should 
 
 Operator note: Do not run `sops` commands directly; they break the TUI. Instruct the user to run them.
 
+## Nix Linting Hygiene
+
+- Avoid repeated top-level keys in a single attrset (Statix W20), especially `sops.*`.
+- Prefer grouping related values under one key, for example `sops = { secrets.<name> = ...; templates.<name> = ...; };`.
+
 ## Container Services Policy
 
 **IMPORTANT**: All container services MUST use Podman Quadlet (systemd container units), not custom build services or docker-compose.
