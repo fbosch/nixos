@@ -41,13 +41,53 @@ jobs:
       - name: Flake checks
         run: nix flake check --print-build-logs --keep-going
 
+  discover-hosts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: lint
+    outputs:
+      nixos-hosts: ${{ steps.discover.outputs.nixos-hosts }}
+      darwin-hosts: ${{ steps.discover.outputs.darwin-hosts }}
+      has-nixos: ${{ steps.discover.outputs.has-nixos }}
+      has-darwin: ${{ steps.discover.outputs.has-darwin }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - uses: DeterminateSystems/nix-installer-action@c5a866b6ab867e88becbed4467b93592bce69f8a # v21
+      - uses: cachix/cachix-action@3ba601ff5bbb07c7220846facfa2cd81eeee15a1 # v16
+        with:
+          name: fbosch
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
+      - name: Discover host matrices
+        id: discover
+        run: |
+          nixos_hosts=$(nix eval --json --apply 'x: builtins.attrNames x' .#nixosConfigurations)
+          darwin_hosts=$(nix eval --json --apply 'x: builtins.attrNames x' .#darwinConfigurations 2>/dev/null || echo '[]')
+
+          echo "nixos-hosts=$nixos_hosts" >> "$GITHUB_OUTPUT"
+          echo "darwin-hosts=$darwin_hosts" >> "$GITHUB_OUTPUT"
+
+          if [ "$nixos_hosts" != "[]" ]; then
+            echo "has-nixos=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has-nixos=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          if [ "$darwin_hosts" != "[]" ]; then
+            echo "has-darwin=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has-darwin=false" >> "$GITHUB_OUTPUT"
+          fi
+
   build-nixos:
     runs-on: ubuntu-latest
     timeout-minutes: 25
-    needs: lint
+    needs: [lint, discover-hosts]
+    if: needs.discover-hosts.outputs.has-nixos == 'true'
     strategy:
       matrix:
-        host: [rvn-vm, rvn-pc, rvn-srv]
+        host: ${{ fromJson(needs.discover-hosts.outputs.nixos-hosts) }}
       fail-fast: false
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -69,10 +109,11 @@ jobs:
   eval-darwin:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: lint
+    needs: [lint, discover-hosts]
+    if: needs.discover-hosts.outputs.has-darwin == 'true'
     strategy:
       matrix:
-        host: [rvn-mac]
+        host: ${{ fromJson(needs.discover-hosts.outputs.darwin-hosts) }}
       fail-fast: false
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
