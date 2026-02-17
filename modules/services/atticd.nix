@@ -1,4 +1,8 @@
-_: {
+{ config, ... }:
+let
+  inherit (config.flake.lib) sopsHelpers;
+in
+{
   flake.modules.nixos."services/atticd" =
     { config
     , lib
@@ -62,10 +66,7 @@ _: {
             "d /mnt/nas/web/attic 0775 ${ownerUser} users -"
           ];
 
-          sops.secrets.atticd-jwt = {
-            mode = "0400";
-            sopsFile = ../../secrets/development.yaml;
-          };
+          sops.secrets.atticd-jwt = sopsHelpers.mkSecret ../../secrets/development.yaml sopsHelpers.rootOnly;
         })
       ];
     };

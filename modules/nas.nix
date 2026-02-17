@@ -1,6 +1,7 @@
 { config, ... }:
 let
   flakeConfig = config;
+  inherit (flakeConfig.flake.lib) sopsHelpers;
 in
 {
   flake.modules.nixos.nas =
@@ -63,6 +64,22 @@ in
       };
     in
     {
+      sops = {
+        secrets = sopsHelpers.mkSecretsWithOpts ../secrets/common.yaml sopsHelpers.rootOnly [
+          "smb-username"
+          "smb-password"
+        ];
+
+        templates."smbcredentials" = {
+          content = ''
+            username=${nixosConfig.sops.placeholder.smb-username}
+            password=${nixosConfig.sops.placeholder.smb-password}
+          '';
+          mode = "0600";
+          owner = flakeConfig.flake.meta.user.username;
+        };
+      };
+
       # Add NAS hostname to /etc/hosts for reliable name resolution
       networking.hosts = {
         "${nasIpAddress}" = [ nasHostname ];

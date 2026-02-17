@@ -1,4 +1,8 @@
-_: {
+{ config, ... }:
+let
+  inherit (config.flake.lib) sopsHelpers;
+in
+{
   flake.modules.nixos."services/wakapi" =
     { config
     , lib
@@ -25,10 +29,9 @@ _: {
           };
         }
         (lib.mkIf (config ? sops) {
-          sops.secrets.wakapi-password-salt = {
-            mode = lib.mkDefault "0440";
-            group = lib.mkDefault "wheel";
-            sopsFile = ../../secrets/apis.yaml;
+          sops.secrets.wakapi-password-salt = sopsHelpers.mkSecret ../../secrets/apis.yaml {
+            mode = lib.mkDefault sopsHelpers.wheelReadable.mode;
+            group = lib.mkDefault sopsHelpers.wheelReadable.group;
           };
 
           sops.templates."wakapi-env" = {

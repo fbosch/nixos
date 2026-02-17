@@ -1,6 +1,7 @@
 { config, ... }:
 let
   flakeConfig = config;
+  inherit (flakeConfig.flake.lib) sopsHelpers;
   mkWakatime =
     config:
     let
@@ -9,10 +10,15 @@ let
     in
     {
       inherit username;
-      hasApiKey = config.sops.secrets ? wakapi-api-key;
+      hasApiKey = config ? sops;
       wakatimePath = "${homeDir}/.wakatime.cfg";
       templatePath = config.sops.templates."wakatime.cfg".path;
       baseConfig = {
+        sops.secrets.wakapi-api-key = sopsHelpers.mkSecret ../../secrets/apis.yaml {
+          mode = "0440";
+          group = "wheel";
+        };
+
         # Create SOPS template with actual secret
         sops.templates."wakatime.cfg" = {
           content = ''

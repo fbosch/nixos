@@ -1,4 +1,8 @@
-_: {
+{ config, ... }:
+let
+  inherit (config.flake.lib) sopsHelpers;
+in
+{
   flake.modules.nixos."services/containers/speedtest-tracker" =
     { config
     , lib
@@ -97,10 +101,7 @@ _: {
         networking.firewall.allowedTCPPorts = [ cfg.port ];
 
         # Wire APP_KEY through sops
-        sops.secrets.speedtest-tracker-app-key = {
-          mode = "0400";
-          sopsFile = ../../../secrets/containers.yaml;
-        };
+        sops.secrets.speedtest-tracker-app-key = sopsHelpers.mkSecret ../../../secrets/containers.yaml sopsHelpers.rootOnly;
 
         sops.templates."speedtest-tracker-env" = {
           content = ''
