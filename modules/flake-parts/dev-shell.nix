@@ -224,6 +224,7 @@
           ];
           hooks = {
             nixpkgs-fmt.enable = true;
+            shfmt.enable = true;
             statix = {
               enable = true;
               settings.ignore = [
@@ -250,7 +251,7 @@
         lint = {
           type = "app";
           program = "${lintScript}/bin/lint";
-          meta.description = "Run statix/deadnix/fmt checks";
+          meta.description = "Run treefmt, statix, deadnix, actionlint, and shellcheck";
         };
         fmt = {
           type = "app";
@@ -260,7 +261,7 @@
         pre-commit-wrapper = {
           type = "app";
           program = "${precommitWrapper}/bin/pre-commit-wrapper";
-          meta.description = "Run pre-commit checks with formatting";
+          meta.description = "Run staged pre-commit checks with treefmt and linters";
         };
       };
 
