@@ -242,7 +242,10 @@
             check-symlinks.enable = true;
             end-of-file-fixer.enable = true;
             ripsecrets.enable = true;
-            trim-trailing-whitespace.enable = true;
+            trim-trailing-whitespace = {
+              enable = true;
+              excludes = [ "\\.md$" ];
+            };
           };
         };
       };
