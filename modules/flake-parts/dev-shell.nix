@@ -1,8 +1,7 @@
 { inputs, ... }:
 {
-  # Note: We import pre-commit-hooks.flakeModule but don't use it for the actual hook installation
-  # Instead, we use our custom wrapper with gum for nice formatting
-  # The module is kept for potential future flake checks integration
+  # We keep pre-commit-hooks integration for flake checks.
+  # Local git hook installation is handled by a custom gum-based wrapper.
   imports = [
     inputs.pre-commit-hooks.flakeModule
   ];
@@ -121,7 +120,7 @@
 
           gum style --foreground 244 "Pre-commit checks..."
 
-          # Format staged files (exclude skill directories and symlinks)
+          # Format staged files (excluding skill directories)
           staged_files=$(git diff --cached --name-only --diff-filter=ACM | grep -v '^\.agents/' | grep -v '^\.github/skills/' | grep -v '^\.opencode/skills/' || true)
 
           if [ -n "$staged_files" ]; then
@@ -136,7 +135,7 @@
             echo "$(gum style --foreground 244 '[SKIP]') format (no staged files)"
           fi
 
-          # Statix - check entire repository
+          # Statix
           # First try to auto-fix issues
           if [ -n "$staged_files" ]; then
             if gum spin --spinner dot --title "statix (fixing)" -- sh -c "printf '%s\n' \"$staged_files\" | xargs -r -n 1 statix fix" > /tmp/statix-fix-output 2>&1; then
@@ -165,7 +164,7 @@
             fi
           fi
 
-          # Deadnix - check entire repository
+          # Deadnix
           if gum spin --spinner dot --title "deadnix" -- deadnix --fail --no-lambda-pattern-names --exclude '.agents' '.opencode/skills' '.github/skills' . > /tmp/deadnix-output 2>&1; then
             echo "$(gum style --foreground 2 '[OK]') deadnix"
           else
