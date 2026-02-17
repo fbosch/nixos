@@ -250,32 +250,6 @@ in
               mode = "0400";
             };
 
-            "glance-env" = {
-              content = ''
-                KOMODO_URL=https://komodo.corvus-corax.synology.me
-                KOMODO_API_KEY=${nixosConfig.sops.placeholder.komodo-web-api-key}
-                KOMODO_API_SECRET=${nixosConfig.sops.placeholder.komodo-web-api-secret}
-                PORTAINER_URL=https://portainer.corvus-corax.synology.me
-                PORTAINER_API_KEY=${nixosConfig.sops.placeholder.portainer-api-key}
-                SYNOLOGY_URL=https://corvus-corax.synology.me
-                SYNOLOGY_USERNAME=${nixosConfig.sops.placeholder.synology-api-username}
-                SYNOLOGY_PASSWORD=${nixosConfig.sops.placeholder.synology-api-password}
-                HASS_URL=https://ha.corvus-corax.synology.me
-                HASS_API_KEY=${nixosConfig.sops.placeholder.ha-access-token}
-                LINKWARDEN_TOKEN=${nixosConfig.sops.placeholder.linkwarden-access-token}
-                PIHOLE_PASSWORD=${nixosConfig.sops.placeholder.rpi-pihole-password-token}
-                GITHUB_TOKEN=${nixosConfig.sops.placeholder.github-token}
-                TAILSCALE_API_KEY=${nixosConfig.sops.placeholder.tailscale-api-key}
-                GLUETUN_URL=https://gluetun.corvus-corax.synology.me
-                GLUETUN_API_KEY=${nixosConfig.sops.placeholder.gluetun-control-api-key}
-                NEXTDNS_PROFILE_ID=${nixosConfig.sops.placeholder.nextdns-profile-id}
-                NEXTDNS_API_KEY=${nixosConfig.sops.placeholder.nextdns-api-key}
-                SPEEDTEST_URL=https://speedtest-tracker.corvus-corax.synology.me
-                SPEEDTEST_TRACKER_API_TOKEN=${nixosConfig.sops.placeholder.speedtest-tracker-api-token}
-              '';
-              mode = "0400";
-            };
-
             "nix-github-token" = {
               content = ''
                 access-tokens = github.com=${nixosConfig.sops.placeholder.github-token}

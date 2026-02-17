@@ -92,6 +92,36 @@ _: {
       };
 
       config = {
+        services.glance-container.envFile = lib.mkDefault (
+          lib.attrByPath [ "sops" "templates" "glance-env" "path" ] null config
+        );
+
+        sops.templates."glance-env" = {
+          content = ''
+            KOMODO_URL=https://komodo.corvus-corax.synology.me
+            KOMODO_API_KEY=${config.sops.placeholder.komodo-web-api-key}
+            KOMODO_API_SECRET=${config.sops.placeholder.komodo-web-api-secret}
+            PORTAINER_URL=https://portainer.corvus-corax.synology.me
+            PORTAINER_API_KEY=${config.sops.placeholder.portainer-api-key}
+            SYNOLOGY_URL=https://corvus-corax.synology.me
+            SYNOLOGY_USERNAME=${config.sops.placeholder.synology-api-username}
+            SYNOLOGY_PASSWORD=${config.sops.placeholder.synology-api-password}
+            HASS_URL=https://ha.corvus-corax.synology.me
+            HASS_API_KEY=${config.sops.placeholder.ha-access-token}
+            LINKWARDEN_TOKEN=${config.sops.placeholder.linkwarden-access-token}
+            PIHOLE_PASSWORD=${config.sops.placeholder.rpi-pihole-password-token}
+            GITHUB_TOKEN=${config.sops.placeholder.github-token}
+            TAILSCALE_API_KEY=${config.sops.placeholder.tailscale-api-key}
+            GLUETUN_URL=https://gluetun.corvus-corax.synology.me
+            GLUETUN_API_KEY=${config.sops.placeholder.gluetun-control-api-key}
+            NEXTDNS_PROFILE_ID=${config.sops.placeholder.nextdns-profile-id}
+            NEXTDNS_API_KEY=${config.sops.placeholder.nextdns-api-key}
+            SPEEDTEST_URL=https://speedtest-tracker.corvus-corax.synology.me
+            SPEEDTEST_TRACKER_API_TOKEN=${config.sops.placeholder.speedtest-tracker-api-token}
+          '';
+          mode = "0400";
+        };
+
         services.containerPorts = lib.mkAfter [
           {
             service = "glance-container";
