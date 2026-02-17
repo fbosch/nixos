@@ -31,12 +31,6 @@
               desktop = "${pkgs.local.helium-browser}/share/applications/helium-browser.desktop";
             };
 
-            bitwarden = {
-              executable = "${pkgs.bitwarden-desktop}/bin/bitwarden";
-              profile = "${pkgs.firejail}/etc/firejail/bitwarden-desktop.profile";
-              desktop = "${pkgs.bitwarden-desktop}/share/applications/bitwarden.desktop";
-            };
-
             vlc = {
               executable = "${pkgs.vlc}/bin/vlc";
               profile = "${pkgs.firejail}/etc/firejail/vlc.profile";
