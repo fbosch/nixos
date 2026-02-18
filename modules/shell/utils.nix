@@ -43,6 +43,7 @@
         fd
         hyperfine
         html2text
+        croc
       ];
     };
 }
