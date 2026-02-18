@@ -7,7 +7,6 @@
         [
           htop
           btop
-          below
           glances
           dust
           dua
@@ -15,7 +14,9 @@
           fastfetch
         ]
         ++ lib.optionals pkgs.stdenv.isLinux [
-          microfetch # Not available on Darwin
+          # Not available on Darwin
+          microfetch
+          below
         ];
     };
 }
