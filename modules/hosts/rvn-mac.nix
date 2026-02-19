@@ -22,6 +22,9 @@ in
       { pkgs, ... }:
       {
         imports = config.flake.lib.resolveDarwin [
+          # Darwin core system configuration (Cachix, nix settings, home-manager)
+          "system"
+
           # Darwin-specific modules
           "security"
           "secrets"
@@ -86,20 +89,8 @@ in
           };
         };
 
-        # Allow unfree packages
-        nixpkgs.config.allowUnfree = true;
-
-        # Nix daemon configuration
-        nix.settings = {
-          experimental-features = [
-            "nix-command"
-            "flakes"
-          ];
-          trusted-users = [
-            "@admin"
-            config.flake.meta.user.username
-          ];
-        };
+        # Add user to trusted users (core already adds @admin)
+        nix.settings.trusted-users = [ config.flake.meta.user.username ];
 
         # Enable biometric auth for sudo on macOS
         security.pam.services.sudo_local.touchIdAuth = true;
