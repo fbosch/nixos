@@ -69,7 +69,7 @@
         };
 
         Service = {
-          ExecStart = "${pkgs.wl-clip-persist}/bin/wl-clip-persist --clipboard both";
+          ExecStart = "${pkgs.wl-clip-persist}/bin/wl-clip-persist --clipboard regular";
           Restart = "on-failure";
         };
 

@@ -121,9 +121,10 @@
               border: 1px solid rgba(0, 120, 212, 0.8);
             }
 
-            /* Fix text selection in address bar */
+            /* Address bar — less transparent than window body */
             .nemo-window .primary-toolbar entry,
             .nemo-window toolbar entry {
+              background-color: rgba(37, 37, 37, 0.90);
               -gtk-secondary-caret-color: transparent;
             }
           '';
