@@ -26,6 +26,7 @@ in
           "system"
 
           # Darwin-specific modules
+          "fonts"
           "security"
           "secrets"
           "homebrew"
@@ -42,6 +43,7 @@ in
             # Home Manager preset modules
             "users"
             "dotfiles"
+            "fonts"
             "security"
             "development"
             "shell"

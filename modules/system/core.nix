@@ -90,6 +90,14 @@ in
   };
 
   flake.modules.darwin.system = {
+    # Centralize nixpkgs overlays for Darwin hosts
+    nixpkgs.overlays = [
+      inputs.self.overlays.default
+      inputs.nix-webapps.overlays.lib
+      inputs.nix-webapps.overlays.default
+      inputs.self.overlays.chromium-webapps-hardening
+    ];
+
     # Allow unfree packages (using simple allowUnfree for Darwin)
     nixpkgs.config.allowUnfree = true;
 
