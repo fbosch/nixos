@@ -4,7 +4,9 @@
     {
       environment.systemPackages = with pkgs; [
         selectdefaultapplication
-        nemo-with-extensions
+        (nemo-with-extensions.override {
+          extensions = [ local.nemo-image-converter ];
+        })
 
         # Archive format support
         zip
@@ -16,6 +18,7 @@
         libjpeg
         libavif # AVIF image format
         libheif # HEIC/HEIF image format
+        webp-pixbuf-loader # WebP gdk-pixbuf loader + thumbnailer
 
         # Thumbnail generation
         gnome-desktop # Required for Nemo thumbnail generation
@@ -65,7 +68,11 @@
       ];
 
       home.sessionVariables = {
-        XDG_DATA_DIRS = "$XDG_DATA_DIRS:${config.home.homeDirectory}/Desktop";
+        # Nemo ships its GSettings schema under a versioned gsettings-schemas/
+        # subdirectory that NixOS does not merge into the system profile.
+        # Adding the store path to XDG_DATA_DIRS lets GLib find it so dconf
+        # keys like thumbnail-limit are respected instead of using the 1 MB default.
+        XDG_DATA_DIRS = "$XDG_DATA_DIRS:${config.home.homeDirectory}/Desktop:${pkgs.nemo-with-extensions}/share/gsettings-schemas";
       };
 
       xdg = {
