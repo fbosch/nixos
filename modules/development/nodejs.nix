@@ -17,6 +17,7 @@
         "neovim@latest" # Neovim npm package
         "typescript-language-server@latest" # TS LSP server
         "vercel@latest" # Vercel CLI
+        "agent-browser@latest" # headless browser for AI Agents
         # "dorita980" # Roomba password
       ];
 
