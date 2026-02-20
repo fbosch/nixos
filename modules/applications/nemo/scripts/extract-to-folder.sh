@@ -28,7 +28,7 @@ else
   name=$(basename "$file")
   for ext in .tar.gz .tar.bz2 .tar.xz .tar.zst .tar.lz4; do
     orig="$name"
-    name="${name%$ext}"
+    name="${name%"$ext"}"
     [[ "$name" != "$orig" ]] && break
   done
   name="${name%.*}"
