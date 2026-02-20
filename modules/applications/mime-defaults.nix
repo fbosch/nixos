@@ -14,7 +14,7 @@
     }:
     let
       defaultFileExplorer = "nemo.desktop";
-      defaultImageViewer = "loupe.desktop";
+      defaultImageViewer = "org.gnome.Loupe.desktop";
     in
     {
       home.packages = with pkgs; [
