@@ -30,7 +30,7 @@
         Comment=Convert image to ${label} format
         Exec=${convertScript}/bin/nemo-convert-image ${ext} %F
         Icon-Name=image-x-generic
-        Selection=any
+        Selection=single
         Mimetypes=${mimes};
         Terminal=false
       '';
