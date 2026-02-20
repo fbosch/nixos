@@ -1,17 +1,16 @@
 {
   flake.modules.nixos.applications =
-    { pkgs, ... }:
+    { pkgs, lib, ... }:
     {
       environment.systemPackages = with pkgs; [
-        selectdefaultapplication
         (nemo-with-extensions.override {
           extensions = [ local.nemo-image-converter ];
         })
 
-        # Archive format support
+        # Archive tools (used by the extract-to-folder action)
         zip
-        p7zip # 7z, tar, and more formats
-        unrar # RAR archive support
+        p7zip
+        unrar
 
         # Image format libraries for thumbnails
         libwebp
@@ -43,6 +42,17 @@
           '';
         })
       ];
+
+      # Force Nemo's thumbnail size limit to 10 MB via a system-level dconf
+      # override. Nemo's GSettings schema lives in a versioned subdirectory not
+      # merged into the system profile, so the user dconf value is ignored and
+      # Nemo falls back to its compiled-in 1 MB default. A system profile
+      # override bypasses schema lookup and is always read.
+      programs.dconf.profiles.user.databases = [
+        {
+          settings."org/nemo/preferences".thumbnail-limit = lib.gvariant.mkUint64 10485760;
+        }
+      ];
     };
 
   flake.modules.homeManager.applications =
@@ -51,70 +61,18 @@
     , lib
     , ...
     }:
-    let
-      defaultFileExplorer = "nemo.desktop";
-      defaultImageViewer = "loupe.desktop";
-    in
     {
-      home.packages = with pkgs; [
-        xdg-utils
-      ];
-
-      # Flatpak file management applications
-      services.flatpak.packages = [
-        "org.gnome.FileRoller" # Archive manager
-        "org.gnome.baobab" # Disk usage analyzer
-        "org.gnome.TextEditor" # Text editor
-      ];
-
       home.sessionVariables = {
         # Nemo ships its GSettings schema under a versioned gsettings-schemas/
         # subdirectory that NixOS does not merge into the system profile.
         # Adding the store path to XDG_DATA_DIRS lets GLib find it so dconf
         # keys like thumbnail-limit are respected instead of using the 1 MB default.
+        # Also includes ~/Desktop so files there appear in XDG data lookups.
         XDG_DATA_DIRS = "$XDG_DATA_DIRS:${config.home.homeDirectory}/Desktop:${pkgs.nemo-with-extensions}/share/gsettings-schemas";
       };
 
       xdg = {
-        mimeApps = {
-          # Explicitly add Loupe to associations so it wins over flatpak
-          # mimeinfo.cache entries (e.g. Gradia) which appear earlier in
-          # XDG_DATA_DIRS than the nix per-user profile.
-          associations.added = {
-            "image/png" = [ defaultImageViewer ];
-            "image/jpeg" = [ defaultImageViewer ];
-            "image/webp" = [ defaultImageViewer ];
-          };
-          defaultApplications = {
-            "inode/directory" = [ defaultFileExplorer ];
-            "application/x-gnome-saved-search" = [ defaultFileExplorer ];
-            "application/x-directory" = [ defaultFileExplorer ];
-
-            # Image formats
-            "image/png" = [ defaultImageViewer ];
-            "image/jpeg" = [ defaultImageViewer ];
-            "image/jpg" = [ defaultImageViewer ];
-            "image/gif" = [ defaultImageViewer ];
-            "image/webp" = [ defaultImageViewer ];
-            "image/svg+xml" = [ defaultImageViewer ];
-            "image/bmp" = [ defaultImageViewer ];
-            "image/tiff" = [ defaultImageViewer ];
-            "image/x-icon" = [ defaultImageViewer ];
-            "image/avif" = [ defaultImageViewer ]; # AVIF support
-            "image/heic" = [ defaultImageViewer ]; # HEIC support
-            "image/heif" = [ defaultImageViewer ]; # HEIF support
-
-            # Archive formats
-            "application/zip" = [ "org.gnome.FileRoller.desktop" ];
-            "application/x-7z-compressed" = [ "org.gnome.FileRoller.desktop" ];
-            "application/x-rar" = [ "org.gnome.FileRoller.desktop" ];
-            "application/x-tar" = [ "org.gnome.FileRoller.desktop" ];
-            "application/gzip" = [ "org.gnome.FileRoller.desktop" ];
-          };
-        };
-
         # Make Nemo window transparent so Hyprland can apply blur
-        # Create a separate CSS file that can be imported alongside existing GTK styles
         configFile = {
           "gtk-3.0/nemo-transparency.css".text = ''
             /* Nemo transparency for compositor blur */
@@ -163,9 +121,36 @@
             @import 'nemo-transparency.css';
           '';
         };
+
+        dataFile."nemo/actions/extract-to-folder.nemo_action".text =
+          let
+            extractScript = pkgs.writeShellScript "nemo-extract-to-folder" ''
+              set -euo pipefail
+              file="$1"
+              name=$(basename "$file")
+              # Strip compound extensions first, then single extension
+              for ext in .tar.gz .tar.bz2 .tar.xz .tar.zst .tar.lz4; do
+                name="''${name%$ext}"
+                [[ "$name" != "$(basename "$file")" ]] && break
+              done
+              name="''${name%.*}"
+              outdir="$(dirname "$file")/$name"
+              ${pkgs.p7zip}/bin/7z x -y "$file" -o"$outdir"
+            '';
+          in
+          ''
+            [Nemo Action]
+            Active=true
+            Name=Extract Here (to folder)
+            Comment=Extract archive into a folder named after the file
+            Exec=${extractScript} %F
+            Icon-Name=package-x-generic
+            Selection=single
+            Extensions=zip;7z;rar;tar;gz;bz2;xz;zst;cab;iso;tgz;tbz2;txz;
+            Terminal=false
+          '';
       };
 
-      # Persist Nemo favorite directories (bookmarks) across rebuilds
       dconf.settings = {
         "org/nemo/sidebar-panels/tree" = {
           sync-bookmarks = true;
@@ -180,11 +165,13 @@
           mouse-use-extra-buttons = false;
 
           # Thumbnail settings
-          show-image-thumbnails = "always"; # Enable image thumbnails
-          thumbnail-limit = 10485760; # 10MB limit for thumbnailing (in bytes)
+          show-image-thumbnails = "always";
+          # thumbnail-limit is set via programs.dconf.profiles.user in the
+          # NixOS module — the schema isn't on the search path so the HM
+          # dconf value is silently ignored by Nemo.
 
           # View preferences
-          default-folder-viewer = "list-view"; # or "icon-view"
+          default-folder-viewer = "list-view";
           show-hidden-files = true;
 
           # Performance
