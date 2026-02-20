@@ -24,10 +24,15 @@
         poppler-utils # PDF thumbnail support
       ];
 
-      xdg.mime.defaultApplications = {
-        "inode/directory" = "nemo.desktop";
-        "application/x-directory" = "nemo.desktop";
-      };
+      # Register heif-thumbnailer for HEIC/HEIF previews in Nemo.
+      # libheif ships heif-thumbnailer but no gdk-pixbuf loader, so the
+      # generic gdk-pixbuf-thumbnailer.thumbnailer does not cover these types.
+      environment.etc."share/thumbnailers/heif.thumbnailer".text = ''
+        [Thumbnailer Entry]
+        TryExec=${pkgs.libheif}/bin/heif-thumbnailer
+        Exec=${pkgs.libheif}/bin/heif-thumbnailer -s %s %i %o
+        MimeType=image/heic;image/heif;image/heic-sequence;image/heif-sequence;
+      '';
     };
 
   flake.modules.homeManager.applications =
