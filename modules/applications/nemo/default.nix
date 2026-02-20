@@ -4,7 +4,10 @@
     {
       environment.systemPackages = with pkgs; [
         (nemo-with-extensions.override {
-          extensions = [ local.nemo-image-converter ];
+          extensions = [
+            local.nemo-image-converter
+            pkgs.nemo-preview
+          ];
         })
 
         zip
