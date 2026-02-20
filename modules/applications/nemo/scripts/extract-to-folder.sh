@@ -12,25 +12,25 @@ parent="$(dirname "$file")"
 
 # Count unique top-level entries using -slt (machine-readable output).
 # Skip the first Path line which is the archive file itself.
-top_entries=$(7z l -slt "$file" \
-  | grep "^Path = " \
-  | tail -n +2 \
-  | sed 's|^Path = ||' \
-  | cut -d'/' -f1 \
-  | sort -u)
+top_entries=$(7z l -slt "$file" |
+	grep "^Path = " |
+	tail -n +2 |
+	sed 's|^Path = ||' |
+	cut -d'/' -f1 |
+	sort -u)
 top_count=$(echo "$top_entries" | grep -c .)
 
-if [[ "$top_count" -eq 1 ]]; then
-  # Single root entry: extract directly to parent (no double-wrapping).
-  7z x -y "$file" -o"$parent"
+if [[ $top_count -eq 1 ]]; then
+	# Single root entry: extract directly to parent (no double-wrapping).
+	7z x -y "$file" -o"$parent"
 else
-  # Multiple root entries: wrap in a folder named after the archive.
-  name=$(basename "$file")
-  for ext in .tar.gz .tar.bz2 .tar.xz .tar.zst .tar.lz4; do
-    orig="$name"
-    name="${name%"$ext"}"
-    [[ "$name" != "$orig" ]] && break
-  done
-  name="${name%.*}"
-  7z x -y "$file" -o"$parent/$name"
+	# Multiple root entries: wrap in a folder named after the archive.
+	name=$(basename "$file")
+	for ext in .tar.gz .tar.bz2 .tar.xz .tar.zst .tar.lz4; do
+		orig="$name"
+		name="${name%"$ext"}"
+		[[ $name != "$orig" ]] && break
+	done
+	name="${name%.*}"
+	7z x -y "$file" -o"$parent/$name"
 fi
