@@ -22,17 +22,24 @@
         gdk-pixbuf # Image loading library for thumbnails
         ffmpegthumbnailer # Video thumbnail support
         poppler-utils # PDF thumbnail support
-      ];
 
-      # Register heif-thumbnailer for HEIC/HEIF previews in Nemo.
-      # libheif ships heif-thumbnailer but no gdk-pixbuf loader, so the
-      # generic gdk-pixbuf-thumbnailer.thumbnailer does not cover these types.
-      environment.etc."share/thumbnailers/heif.thumbnailer".text = ''
-        [Thumbnailer Entry]
-        TryExec=${pkgs.libheif}/bin/heif-thumbnailer
-        Exec=${pkgs.libheif}/bin/heif-thumbnailer -s %s %i %o
-        MimeType=image/heic;image/heif;image/heic-sequence;image/heif-sequence;
-      '';
+        # Register heif-thumbnailer for HEIC/HEIF previews in Nemo.
+        # libheif ships heif-thumbnailer but no gdk-pixbuf loader, so the
+        # generic gdk-pixbuf-thumbnailer.thumbnailer does not cover these types.
+        # Must be in systemPackages so the file lands under
+        # /run/current-system/sw/share/thumbnailers/ (on XDG_DATA_DIRS);
+        # environment.etc puts it in /etc/share/ which is not searched.
+        (writeTextFile {
+          name = "heif-thumbnailer-entry";
+          destination = "/share/thumbnailers/heif.thumbnailer";
+          text = ''
+            [Thumbnailer Entry]
+            TryExec=${libheif}/bin/heif-thumbnailer
+            Exec=${libheif}/bin/heif-thumbnailer -s %s %i %o
+            MimeType=image/heic;image/heif;image/heic-sequence;image/heif-sequence;
+          '';
+        })
+      ];
     };
 
   flake.modules.homeManager.applications =
@@ -62,31 +69,41 @@
       };
 
       xdg = {
-        mimeApps.defaultApplications = {
-          "inode/directory" = [ defaultFileExplorer ];
-          "application/x-gnome-saved-search" = [ defaultFileExplorer ];
-          "application/x-directory" = [ defaultFileExplorer ];
+        mimeApps = {
+          # Explicitly add Loupe to associations so it wins over flatpak
+          # mimeinfo.cache entries (e.g. Gradia) which appear earlier in
+          # XDG_DATA_DIRS than the nix per-user profile.
+          associations.added = {
+            "image/png" = [ defaultImageViewer ];
+            "image/jpeg" = [ defaultImageViewer ];
+            "image/webp" = [ defaultImageViewer ];
+          };
+          defaultApplications = {
+            "inode/directory" = [ defaultFileExplorer ];
+            "application/x-gnome-saved-search" = [ defaultFileExplorer ];
+            "application/x-directory" = [ defaultFileExplorer ];
 
-          # Image formats
-          "image/png" = [ defaultImageViewer ];
-          "image/jpeg" = [ defaultImageViewer ];
-          "image/jpg" = [ defaultImageViewer ];
-          "image/gif" = [ defaultImageViewer ];
-          "image/webp" = [ defaultImageViewer ];
-          "image/svg+xml" = [ defaultImageViewer ];
-          "image/bmp" = [ defaultImageViewer ];
-          "image/tiff" = [ defaultImageViewer ];
-          "image/x-icon" = [ defaultImageViewer ];
-          "image/avif" = [ defaultImageViewer ]; # AVIF support
-          "image/heic" = [ defaultImageViewer ]; # HEIC support
-          "image/heif" = [ defaultImageViewer ]; # HEIF support
+            # Image formats
+            "image/png" = [ defaultImageViewer ];
+            "image/jpeg" = [ defaultImageViewer ];
+            "image/jpg" = [ defaultImageViewer ];
+            "image/gif" = [ defaultImageViewer ];
+            "image/webp" = [ defaultImageViewer ];
+            "image/svg+xml" = [ defaultImageViewer ];
+            "image/bmp" = [ defaultImageViewer ];
+            "image/tiff" = [ defaultImageViewer ];
+            "image/x-icon" = [ defaultImageViewer ];
+            "image/avif" = [ defaultImageViewer ]; # AVIF support
+            "image/heic" = [ defaultImageViewer ]; # HEIC support
+            "image/heif" = [ defaultImageViewer ]; # HEIF support
 
-          # Archive formats
-          "application/zip" = [ "org.gnome.FileRoller.desktop" ];
-          "application/x-7z-compressed" = [ "org.gnome.FileRoller.desktop" ];
-          "application/x-rar" = [ "org.gnome.FileRoller.desktop" ];
-          "application/x-tar" = [ "org.gnome.FileRoller.desktop" ];
-          "application/gzip" = [ "org.gnome.FileRoller.desktop" ];
+            # Archive formats
+            "application/zip" = [ "org.gnome.FileRoller.desktop" ];
+            "application/x-7z-compressed" = [ "org.gnome.FileRoller.desktop" ];
+            "application/x-rar" = [ "org.gnome.FileRoller.desktop" ];
+            "application/x-tar" = [ "org.gnome.FileRoller.desktop" ];
+            "application/gzip" = [ "org.gnome.FileRoller.desktop" ];
+          };
         };
 
         # Make Nemo window transparent so Hyprland can apply blur
