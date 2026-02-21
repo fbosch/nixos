@@ -68,6 +68,7 @@
         dash
         starship
         zoxide
+        atuin
       ];
 
       home.activation.generateFishSecrets = lib.mkIf hasRequiredSecrets (
