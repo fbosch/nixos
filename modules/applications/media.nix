@@ -17,7 +17,6 @@
 
         # Image viewers
         loupe # GNOME image viewer
-        swayimg # Wayland image viewer
 
         # Audio control
         pavucontrol # PulseAudio volume control
