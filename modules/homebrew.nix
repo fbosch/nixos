@@ -17,7 +17,6 @@
         casks = [
           "raycast"
           "numi"
-          "font-noto-sans-runic"
           "floorp"
           "firefox"
           "arc"
@@ -29,8 +28,8 @@
           "figma"
           "cleanshot"
           "obsidian"
-          "podman-desktop"
           "codexbar"
+          "mas"
         ];
 
         brews = [ ];
