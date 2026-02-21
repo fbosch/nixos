@@ -69,6 +69,8 @@
         starship
         zoxide
         atuin
+        navi
+        tealdeer
       ];
 
       home.activation.generateFishSecrets = lib.mkIf hasRequiredSecrets (

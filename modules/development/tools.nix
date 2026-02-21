@@ -45,6 +45,7 @@
         deadnix
         nixpkgs-fmt
         posting
+        pastel
       ];
     };
 }
