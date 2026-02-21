@@ -9,8 +9,8 @@ let
     dnsServers = [
       "127.0.0.1"
       "192.168.1.202"
-      "45.90.28.240"
-      "45.90.30.240"
+      "9.9.9.9"
+      "149.112.112.112"
     ];
   };
 in
@@ -43,6 +43,7 @@ in
           "applications/surge"
 
           # services
+          "services/atuin"
           "services/home-assistant"
           "services/atticd"
           "services/attic-client"

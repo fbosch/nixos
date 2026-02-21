@@ -6,6 +6,7 @@ Current service port assignments used by the `rvn-srv` host.
 
 | Service | Port(s) | Notes |
 | --- | --- | --- |
+| atuin | `8086/tcp` | Shell history sync server |
 | atticd | `8081/tcp` | Default atticd API port |
 | glance-container | `8080/tcp` | Container web UI |
 | glance-container (nginx) | `8083/tcp` | Reverse proxy port |
