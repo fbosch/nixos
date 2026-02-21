@@ -33,7 +33,7 @@
         gum
         peco
         tree
-        tldr
+
         grc
         cloc
         xh
