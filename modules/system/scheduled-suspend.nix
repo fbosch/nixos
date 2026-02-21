@@ -35,13 +35,13 @@ _: {
           default = { };
           example = {
             weekday = {
-              suspendTime = "23:00";
-              wakeTime = "06:30";
+              suspendTime = "23:30";
+              wakeTime = "06:00";
               days = "Mon,Tue,Wed,Thu,Fri";
             };
             weekend = {
-              suspendTime = "01:00";
-              wakeTime = "09:00";
+              suspendTime = "02:00";
+              wakeTime = "08:00";
               days = "Sat,Sun";
             };
           };
@@ -50,7 +50,7 @@ _: {
 
         tmpCleanupAge = lib.mkOption {
           type = lib.types.nullOr lib.types.str;
-          default = "3d";
+          default = "1d";
           example = "1d";
           description = "Age-based cleanup for /tmp via systemd-tmpfiles (set to null to disable).";
         };
