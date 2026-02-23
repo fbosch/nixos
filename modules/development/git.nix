@@ -8,12 +8,12 @@
           if pkgs.stdenv.hostPlatform.isAarch64 then
             {
               name = "darwin-arm64";
-              hash = "sha256-mtnWK1/RDT+/BRWoXS6mVWH0i6cs5gkhvyPDiSuf07s=";
+              hash = "sha256-bxXppEIErs95MQq0vMmda8g7qUQ577LrcrVGif5pxBI=";
             }
           else if pkgs.stdenv.hostPlatform.isx86_64 then
             {
               name = "darwin-amd64";
-              hash = "sha256-YFLD1YzuIVITXz6+5/kgdFzyTgHvogsFfTFll7dLirA=";
+              hash = "sha256-iqVWCOFq83JspKteqTq1NJA+g7SBe4OO07rOQ9YTKo4=";
             }
           else
             throw "gh-mcp: unsupported Darwin architecture ${pkgs.stdenv.hostPlatform.system}"
@@ -21,12 +21,12 @@
           if pkgs.stdenv.hostPlatform.isAarch64 then
             {
               name = "linux-arm64";
-              hash = "sha256-yoDYniCKYfwqMWFPCv8iEDcqBmCu5tKxKjCQcmW4G90=";
+              hash = "sha256-l8xiBBzOvCncRWMf93TOuL4gpY4SKqRSjb9E9IpnlR4=";
             }
           else if pkgs.stdenv.hostPlatform.isx86_64 then
             {
               name = "linux-amd64";
-              hash = "sha256-51h6H990TFZlv5G22JPLwAS7mPObPdQqMbM83cZVOhg=";
+              hash = "sha256-HG0t2r6K7TVSXZpsjxlHgEIRi1fXBjX6eTNXqlkpg+M=";
             }
           else
             throw "gh-mcp: unsupported Linux architecture ${pkgs.stdenv.hostPlatform.system}"
@@ -35,7 +35,7 @@
 
       gh-mcp = pkgs.stdenvNoCC.mkDerivation {
         pname = "gh-mcp";
-        version = "1.16.0";
+        version = "2.0.1";
         src = pkgs.fetchurl {
           url = "https://github.com/shuymn/gh-mcp/releases/download/v${gh-mcp.version}/${gh-mcp-asset.name}";
           inherit (gh-mcp-asset) hash;

@@ -20,6 +20,7 @@
         "github-token"
         "kagi-api-token"
         "openai-api-key"
+        "exa-api-key"
       ];
       hasRequiredSecrets = lib.all
         (
@@ -32,6 +33,7 @@
         COPILOT_TOKEN = config.sops.secrets.github-token.path;
         KAGI_API_TOKEN = config.sops.secrets.kagi-api-token.path;
         OPENAI_API_KEY = config.sops.secrets.openai-api-key.path;
+        EXA_API_KEY = config.sops.secrets.exa-api-key;
       };
 
       checkSecrets = lib.concatStringsSep "\n" (
