@@ -102,6 +102,11 @@ in
         # Enable SSH for remote access
         services.openssh.enable = true;
 
+        # Act as a peer relay so tailnet devices (e.g. MacBook) use this node
+        # instead of Tailscale's DERP servers when direct connections fail
+        services.tailscale.extraSetFlags = [ "--relay-server-port=40000" ];
+        networking.firewall.allowedUDPPorts = [ 40000 ];
+
         security.apparmor = {
           enable = true;
           killUnconfinedConfinables = false;
