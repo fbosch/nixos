@@ -78,7 +78,7 @@
       ];
 
       home.activation.generateFishSecrets = lib.mkIf hasRequiredSecrets (
-        lib.hm.dag.entryAfter [ "sops-nix" "sopsInstallSecrets" "writeBoundary" ] ''
+        lib.hm.dag.entryAfter [ "sops-nix" "setupLaunchAgents" "writeBoundary" ] ''
           $DRY_RUN_CMD mkdir -p ${config.home.homeDirectory}/.config/fish
 
           ${checkSecrets}
