@@ -38,6 +38,21 @@ in
         AUTH="${cfg.opencodeAuthFile}"
         CODEX_AUTH="${cfg.codexAuthFile}"
         OUT="${cfg.runtimeEnvFile}"
+        now_ms="$(${pkgs.coreutils}/bin/date +%s)000"
+
+        is_expired() {
+          local expires="$1"
+
+          if [ -z "$expires" ] || [ "$expires" = "0" ]; then
+            return 1
+          fi
+
+          case "$expires" in
+            *[!0-9]*) return 1 ;;
+          esac
+
+          [ "$expires" -le "$now_ms" ]
+        }
 
         anthropic=""
         copilot=""
@@ -48,6 +63,21 @@ in
           anthropic=$(${pkgs.jq}/bin/jq -r '.anthropic.access // ""' "$AUTH")
           copilot=$(${pkgs.jq}/bin/jq -r '.["github-copilot"].access // ""' "$AUTH")
           openai=$(${pkgs.jq}/bin/jq -r '.openai.access // ""' "$AUTH")
+
+          if is_expired "$(${pkgs.jq}/bin/jq -r '.anthropic.expires // 0' "$AUTH")"; then
+            anthropic=""
+            echo "onwatch-extract-tokens: anthropic token is expired in $AUTH, skipping" >&2
+          fi
+
+          if is_expired "$(${pkgs.jq}/bin/jq -r '.openai.expires // 0' "$AUTH")"; then
+            openai=""
+            echo "onwatch-extract-tokens: openai token is expired in $AUTH, skipping" >&2
+          fi
+
+          if is_expired "$(${pkgs.jq}/bin/jq -r '.["github-copilot"].expires // 0' "$AUTH")"; then
+            copilot=""
+            echo "onwatch-extract-tokens: copilot token is expired in $AUTH, skipping" >&2
+          fi
         else
           echo "onwatch-extract-tokens: $AUTH not found, skipping opencode token extraction" >&2
         fi

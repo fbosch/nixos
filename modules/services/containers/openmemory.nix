@@ -22,7 +22,7 @@ in
 
       # Script to build images using podman build (wraps existing Dockerfiles)
       mkBuildImagesScript =
-        dashboardApiUrl:
+        dashboardApiUrl: dashboardApiKeyPath:
         pkgs.writeShellScriptBin "build-openmemory-images" ''
           set -euo pipefail
 
@@ -60,7 +60,9 @@ in
           WORKDIR /app
 
           ARG NEXT_PUBLIC_API_URL
+          ARG NEXT_PUBLIC_API_KEY
           ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+          ENV NEXT_PUBLIC_API_KEY=$NEXT_PUBLIC_API_KEY
 
           # Install dependencies
           COPY package*.json ./
@@ -70,7 +72,8 @@ in
           COPY . .
 
           # Ensure the API URL is baked into the build
-          RUN echo "NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL" > .env.production
+          RUN echo "NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL" > .env.production \
+           && echo "NEXT_PUBLIC_API_KEY=$NEXT_PUBLIC_API_KEY" >> .env.production
 
           # Build the Next.js application
           RUN npm run build
@@ -88,7 +91,9 @@ in
           RUN npm install --no-save typescript
 
           ARG NEXT_PUBLIC_API_URL
+          ARG NEXT_PUBLIC_API_KEY
           ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+          ENV NEXT_PUBLIC_API_KEY=$NEXT_PUBLIC_API_KEY
 
           # Copy built assets from builder
           COPY --from=builder /app/.next ./.next
@@ -124,11 +129,13 @@ in
           echo ""
           echo "==> Building dashboard image..."
           DASHBOARD_API_URL=${lib.escapeShellArg dashboardApiUrl}
+          DASHBOARD_API_KEY=$(cat ${lib.escapeShellArg dashboardApiKeyPath})
 
           ${pkgs.podman}/bin/podman build --format docker \
             -t localhost/openmemory-dashboard:latest \
             -t localhost/openmemory-dashboard:$OPENMEMORY_TAG \
             --build-arg NEXT_PUBLIC_API_URL="$DASHBOARD_API_URL" \
+            --build-arg NEXT_PUBLIC_API_KEY="$DASHBOARD_API_KEY" \
             -f dashboard/Dockerfile \
             dashboard/
 
@@ -325,7 +332,7 @@ in
       config =
         let
           cfg = config.services.openmemory-container;
-          buildImagesScript = mkBuildImagesScript cfg.dashboardApiUrl;
+          buildImagesScript = mkBuildImagesScript cfg.dashboardApiUrl config.sops.secrets.openmemory-api-key.path;
           hostUser =
             if cfg.runAsUser == null then
               null
