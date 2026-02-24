@@ -22,6 +22,7 @@ Current service port assignments used by the `rvn-srv` host.
 | speedtest-tracker | `8085/tcp` | Web UI |
 | termix-container | `7310/tcp` | Container web port |
 | plex (nginx) | `32402/tcp` | Reverse proxy port |
+| onwatch-container | `9211/tcp` | API quota tracker dashboard |
 
 ## Update workflow
 

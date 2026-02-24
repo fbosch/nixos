@@ -67,6 +67,7 @@ in
           "services/containers/linkwarden"
           "services/containers/rdtclient"
           "services/containers/speedtest-tracker"
+          "services/containers/onwatch"
 
           # validation
           "validation/container-port-conflicts"
@@ -277,6 +278,10 @@ in
               appUrl = "https://speedtest.corvus-corax.synology.me";
               puid = 1000;
               pgid = 1000;
+            };
+
+            onwatch-container = {
+              port = 9211;
             };
 
             resolved = {
