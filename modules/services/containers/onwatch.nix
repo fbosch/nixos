@@ -30,28 +30,42 @@ in
       cfg = config.services.onwatch-container;
       containersFile = ../../../secrets/containers.yaml;
 
-      # Script that reads opencode's auth.json and writes provider tokens into
+      # Script that reads local auth state files and writes provider tokens into
       # a runtime env file that the container picks up via EnvironmentFile.
       # Runs as ExecStartPre so tokens are fresh on every (re)start.
       extractTokensScript = pkgs.writeShellScript "onwatch-extract-tokens" ''
         set -euo pipefail
         AUTH="${cfg.opencodeAuthFile}"
+        CODEX_AUTH="${cfg.codexAuthFile}"
         OUT="${cfg.runtimeEnvFile}"
 
-        if [ ! -f "$AUTH" ]; then
-          echo "onwatch-extract-tokens: $AUTH not found, skipping provider tokens" >&2
-          : > "$OUT"
-          exit 0
+        anthropic=""
+        copilot=""
+        openai=""
+        codex=""
+
+        if [ -f "$AUTH" ]; then
+          anthropic=$(${pkgs.jq}/bin/jq -r '.anthropic.access // ""' "$AUTH")
+          copilot=$(${pkgs.jq}/bin/jq -r '.["github-copilot"].access // ""' "$AUTH")
+          openai=$(${pkgs.jq}/bin/jq -r '.openai.access // ""' "$AUTH")
+        else
+          echo "onwatch-extract-tokens: $AUTH not found, skipping opencode token extraction" >&2
         fi
 
-        anthropic=$(${pkgs.jq}/bin/jq -r '.anthropic.access // ""' "$AUTH")
-        copilot=$(${pkgs.jq}/bin/jq -r '.["github-copilot"].access // ""' "$AUTH")
-        openai=$(${pkgs.jq}/bin/jq -r '.openai.access // ""' "$AUTH")
+        if [ -f "$CODEX_AUTH" ]; then
+          codex=$(${pkgs.jq}/bin/jq -r '.tokens.access_token // ""' "$CODEX_AUTH")
+        fi
+
+        # Backward-compatible fallback for existing setups that rely on
+        # opencode OAuth state for Codex token injection.
+        if [ -z "$codex" ]; then
+          codex="$openai"
+        fi
 
         {
           [ -n "$anthropic" ] && echo "ANTHROPIC_TOKEN=$anthropic"
           [ -n "$copilot"   ] && echo "COPILOT_TOKEN=$copilot"
-          [ -n "$openai"    ] && echo "CODEX_TOKEN=$openai"
+          [ -n "$codex"     ] && echo "CODEX_TOKEN=$codex"
         } > "$OUT"
 
         ${pkgs.coreutils}/bin/chmod 400 "$OUT"
@@ -88,6 +102,11 @@ in
           description = "Host path to opencode auth.json; tokens are extracted at container start";
         };
 
+        codexAuthFile = lib.mkOption {
+          type = lib.types.str;
+          description = "Host path to Codex auth.json; CODEX_TOKEN is extracted from tokens.access_token";
+        };
+
         runtimeEnvFile = lib.mkOption {
           type = lib.types.str;
           default = "/run/onwatch-tokens.env";
@@ -119,7 +138,17 @@ in
       };
 
       config = lib.mkIf cfg.enable {
-        services.onwatch-container.opencodeAuthFile = lib.mkDefault "/home/${username}/.local/share/opencode/auth.json";
+        services = {
+          onwatch-container.opencodeAuthFile = lib.mkDefault "/home/${username}/.local/share/opencode/auth.json";
+          onwatch-container.codexAuthFile = lib.mkDefault "/home/${username}/.codex/auth.json";
+
+          containerPorts = lib.mkAfter [
+            {
+              service = "onwatch-container";
+              tcpPorts = [ cfg.port ];
+            }
+          ];
+        };
 
         sops = {
           secrets = sopsHelpers.mkSecretsWithOpts containersFile sopsHelpers.rootOnly [
@@ -139,13 +168,6 @@ in
             mode = "0400";
           };
         };
-
-        services.containerPorts = lib.mkAfter [
-          {
-            service = "onwatch-container";
-            tcpPorts = [ cfg.port ];
-          }
-        ];
 
         systemd.tmpfiles.rules = [
           "d ${cfg.dataDir} 0755 65532 65532 -"
