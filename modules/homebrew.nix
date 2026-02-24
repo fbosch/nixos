@@ -29,10 +29,11 @@
           "cleanshot"
           "obsidian"
           "codexbar"
-          "mas"
         ];
 
-        brews = [ ];
+        brews = [
+          "mas"
+        ];
       };
     };
 }
