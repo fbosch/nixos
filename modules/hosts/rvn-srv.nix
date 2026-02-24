@@ -63,7 +63,7 @@ in
           "services/containers/pihole"
           "services/containers/helium"
           "services/containers/komodo"
-          # "services/containers/openmemory"
+          "services/containers/openmemory"
           "services/containers/linkwarden"
           "services/containers/rdtclient"
           "services/containers/speedtest-tracker"
@@ -153,14 +153,10 @@ in
             tailscale.extraSetFlags = [ "--relay-server-port=40000" ];
 
             # OpenMemory
-            # openmemory-container = {
-            #   buildImages = true;
-            #   dashboardApiUrl = "https://memory.corvus-corax.synology.me";
-            #   openaiApiKey = lib.attrByPath [ "sops" "placeholder" "openai-api-key" ] "" config;
-            #   embeddings = "openai";
-            #   embeddingFallback = "synthetic";
-            #   tier = "deep";
-            # };
+            openmemory-container = {
+              buildImages = true;
+              dashboardApiUrl = "https://memory.corvus-corax.synology.me";
+            };
 
             tinyproxy = {
               port = 8888;

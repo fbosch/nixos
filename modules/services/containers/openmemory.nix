@@ -1,4 +1,8 @@
-_: {
+{ config, ... }:
+let
+  inherit (config.flake.lib) sopsHelpers;
+in
+{
   flake.modules.nixos."services/containers/openmemory" =
     { config
     , lib
@@ -8,6 +12,7 @@ _: {
     let
       # OpenMemory source from GitHub
       openmemoryRev = "v1.2.3";
+      openmemorySecretsFile = ../../../secrets/containers.yaml;
       openmemorySource = pkgs.fetchFromGitHub {
         owner = "CaviraOSS";
         repo = "OpenMemory";
@@ -381,13 +386,19 @@ _: {
             "d ${cfg.dataDir} 0755 root root -"
           ];
 
+          sops = {
+            secrets.openmemory-api-key = sopsHelpers.mkSecret openmemorySecretsFile sopsHelpers.rootOnly;
+            templates."openmemory-api-key-env" = {
+              content = ''
+                OM_API_KEY=${config.sops.placeholder.openmemory-api-key}
+                NEXT_PUBLIC_API_KEY=${config.sops.placeholder.openmemory-api-key}
+              '';
+              mode = "0400";
+            };
+          };
+
           environment.etc = lib.mkMerge [
             {
-              "containers/systemd/openmemory.network".text = ''
-                [Network]
-                NetworkName=openmemory
-              '';
-
               "containers/systemd/openmemory.container".text = ''
                 [Unit]
                 Description=OpenMemory API Server
@@ -398,7 +409,6 @@ _: {
                 ContainerName=openmemory
                 Image=localhost/openmemory:${cfg.imageTag}
                 Pull=never
-                Network=openmemory.network
                 ${lib.optionalString (useHostStorageEffective && hostUid != null) "User=${toString hostUid}"}
                 ${lib.optionalString (useHostStorageEffective && hostGid != null) "Group=${toString hostGid}"}
                 PublishPort=${toString cfg.port}:8080
@@ -414,6 +424,7 @@ _: {
                 Environment=OM_MODE=${lib.escapeShellArg cfg.mode}
                 Environment=OM_TIER=${lib.escapeShellArg cfg.tier}
                 Environment=OM_DB_PATH=/data/openmemory.sqlite
+                EnvironmentFile=${config.sops.templates."openmemory-api-key-env".path}
 
                 # Rate Limiting
                 Environment=OM_RATE_LIMIT_ENABLED=${if cfg.rateLimitEnabled then "true" else "false"}
@@ -489,9 +500,9 @@ _: {
                 ContainerName=openmemory-dashboard
                 Image=localhost/openmemory-dashboard:${cfg.imageTag}
                 Pull=never
-                Network=openmemory.network
                 PublishPort=${toString cfg.dashboardPort}:3000
                 Environment=NEXT_PUBLIC_API_URL=${lib.escapeShellArg cfg.dashboardApiUrl}
+                EnvironmentFile=${config.sops.templates."openmemory-api-key-env".path}
 
                 Memory=512m
                 PidsLimit=300

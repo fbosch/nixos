@@ -111,6 +111,7 @@ _: {
               PublishPort=${toString cfg.port}:8080
               Volume=/run/podman/podman.sock:/var/run/docker.sock:ro
               Volume=/var/lib/docker/engine-id:/var/lib/docker/engine-id:ro
+              HealthCmd=none
               ${envVars}
               Memory=256m
               PidsLimit=200

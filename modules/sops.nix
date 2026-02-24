@@ -11,6 +11,7 @@ let
   # Secret file paths
   commonFile = ../secrets/common.yaml;
   apisFile = ../secrets/apis.yaml;
+  containersFile = ../secrets/containers.yaml;
 
   # Permission presets
   inherit (sopsHelpers)
@@ -72,6 +73,12 @@ in
                 "context7-api-key"
                 "kagi-api-token"
                 "openai-api-key"
+                "exa-api-key"
+              ])
+
+              # Container-backed API secrets used by local tools
+              (mkSecrets containersFile [
+                "openmemory-api-key"
               ])
 
               # Special cases with custom options
