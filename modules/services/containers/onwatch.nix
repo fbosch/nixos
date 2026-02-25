@@ -64,11 +64,6 @@ in
           copilot=$(${pkgs.jq}/bin/jq -r '.["github-copilot"].access // ""' "$AUTH")
           openai=$(${pkgs.jq}/bin/jq -r '.openai.access // ""' "$AUTH")
 
-          if is_expired "$(${pkgs.jq}/bin/jq -r '.anthropic.expires // 0' "$AUTH")"; then
-            anthropic=""
-            echo "onwatch-extract-tokens: anthropic token is expired in $AUTH, skipping" >&2
-          fi
-
           if is_expired "$(${pkgs.jq}/bin/jq -r '.openai.expires // 0' "$AUTH")"; then
             openai=""
             echo "onwatch-extract-tokens: openai token is expired in $AUTH, skipping" >&2
