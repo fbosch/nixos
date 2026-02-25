@@ -66,6 +66,7 @@ in
           "services/containers/openmemory"
           "services/containers/linkwarden"
           "services/containers/rdtclient"
+          "services/containers/flaresolverr"
           "services/containers/speedtest-tracker"
           "services/containers/onwatch"
           "services/containers/rsshub"
@@ -150,6 +151,12 @@ in
         services = lib.mkMerge [
           {
             ananicy.enable = true;
+
+            # Use Prowlarr as the single indexer manager for *arr services.
+            prowlarr = {
+              enable = true;
+              openFirewall = true;
+            };
 
             tailscale.extraSetFlags = [ "--relay-server-port=40000" ];
 
