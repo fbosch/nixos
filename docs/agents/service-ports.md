@@ -23,6 +23,7 @@ Current service port assignments used by the `rvn-srv` host.
 | termix-container | `7310/tcp` | Container web port |
 | plex (nginx) | `32402/tcp` | Reverse proxy port |
 | onwatch-container | `9211/tcp` | API quota tracker dashboard |
+| rsshub-container | `1200/tcp` | RSS feed aggregation service |
 
 ## Update workflow
 

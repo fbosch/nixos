@@ -68,6 +68,7 @@ in
           "services/containers/rdtclient"
           "services/containers/speedtest-tracker"
           "services/containers/onwatch"
+          "services/containers/rsshub"
 
           # validation
           "validation/container-port-conflicts"
@@ -278,6 +279,10 @@ in
 
             onwatch-container = {
               port = 9211;
+            };
+
+            rsshub-container = {
+              enable = true;
             };
 
             resolved = {
