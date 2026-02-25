@@ -19,6 +19,7 @@ Current service port assignments used by the `rvn-srv` host.
 | helium-services-container | `8100/tcp` | Helium service HTTP port |
 | linkwarden-container | `3100/tcp` | Web UI |
 | rdtclient | `6500/tcp` | Web UI/API |
+| flaresolverr-container | `8191/tcp` | FlareSolverr API |
 | speedtest-tracker | `8085/tcp` | Web UI |
 | termix-container | `7310/tcp` | Container web port |
 | plex (nginx) | `32402/tcp` | Reverse proxy port |
