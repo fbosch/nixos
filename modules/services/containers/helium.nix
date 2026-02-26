@@ -237,6 +237,24 @@ _: {
               };
 
               script = ''
+                build_with_retry() {
+                  local imageTag="$1"
+                  shift
+
+                  local attempt
+                  for attempt in 1 2 3; do
+                    if ${pkgs.podman}/bin/podman build --network=host -t "$imageTag" "$@"; then
+                      return 0
+                    fi
+
+                    if [ "$attempt" -eq 3 ]; then
+                      return 1
+                    fi
+
+                    sleep 5
+                  done
+                }
+
                 ${pkgs.coreutils}/bin/rm -rf "${buildDir}"
                 ${pkgs.coreutils}/bin/cp -R ${repoSrc} "${buildDir}"
                 cd "${buildDir}"
@@ -244,19 +262,16 @@ _: {
                 ${pkgs.coreutils}/bin/install -m 0644 ${nginxConf} "${buildDir}/svc/nginx/nginx.conf.j2"
                 ${pkgs.coreutils}/bin/install -m 0755 ${nginxEntrypoint} "${buildDir}/svc/nginx/entrypoint.sh"
 
-                ${pkgs.podman}/bin/podman build \
-                  -t helium-nginx:latest \
+                build_with_retry helium-nginx:latest \
                   -f ./svc/nginx/Dockerfile \
                   --build-arg SERVICES_HOSTNAME=${lib.escapeShellArg cfg.hostname} \
                   ./svc
 
-                ${pkgs.podman}/bin/podman build \
-                  -t helium-ubo-proxy:latest \
+                build_with_retry helium-ubo-proxy:latest \
                   -f ./svc/ubo/Dockerfile \
                   ./svc/ubo
 
-                ${pkgs.podman}/bin/podman build \
-                  -t helium-ext-proxy:latest \
+                build_with_retry helium-ext-proxy:latest \
                   -f ./svc/extension-proxy/Dockerfile \
                   ./svc/extension-proxy
               '';
