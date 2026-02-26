@@ -27,6 +27,11 @@
 
   flake.modules.homeManager.development =
     { pkgs, ... }:
+    let
+      azureCli = (pkgs.azure-cli.override { withImmutableConfig = false; }).overrideAttrs (_: {
+        doInstallCheck = false;
+      });
+    in
     {
       home.packages = with pkgs; [
         stylua
@@ -36,7 +41,7 @@
         docker
         docker-buildx
         bacon
-        azure-cli
+        azureCli
         units
         ast-grep
         keychain
