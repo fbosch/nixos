@@ -53,6 +53,19 @@ _: {
           default = "0.0.0.0";
           description = "Address to bind RDT-Client port on";
         };
+
+        cpus = lib.mkOption {
+          type = lib.types.nullOr lib.types.str;
+          default = null;
+          example = "1.0";
+          description = "Optional CPU limit passed to podman --cpus";
+        };
+
+        memory = lib.mkOption {
+          type = lib.types.str;
+          default = "2g";
+          description = "Memory limit passed to podman --memory";
+        };
       };
 
       config = {
@@ -98,24 +111,32 @@ _: {
             TimeoutStopSec = "30";
           };
 
-          script = ''
-            exec ${config.virtualisation.podman.package}/bin/podman run \
-              --name rdtclient \
-              --rm \
-              --log-driver journald \
-              --log-opt tag=rdtclient \
-              --memory 2g \
-              --pids-limit 500 \
-              --ulimit nofile=2048:4096 \
-              -v ${lib.escapeShellArg config.services.rdtclient.dataPath}:/data/db \
-              -v ${lib.escapeShellArg config.services.rdtclient.tempDownloadPath}:/data/temp \
-              -v ${lib.escapeShellArg config.services.rdtclient.downloadPath}:/data/downloads \
-              --publish ${config.services.rdtclient.listenAddress}:${toString config.services.rdtclient.port}:6500/tcp \
-              --env PGID=${toString config.services.rdtclient.groupId} \
-              --env PUID=${toString config.services.rdtclient.userId} \
-              --env TZ=${lib.escapeShellArg config.services.rdtclient.timezone} \
-              docker.io/rogerfar/rdtclient:latest
-          '';
+          script =
+            let
+              cfg = config.services.rdtclient;
+              cpuArg = lib.optionalString (cfg.cpus != null) ''
+                --cpus=${cfg.cpus} \
+              '';
+            in
+            ''
+              exec ${config.virtualisation.podman.package}/bin/podman run \
+                --name rdtclient \
+                --rm \
+                --log-driver journald \
+                --log-opt tag=rdtclient \
+                --memory ${lib.escapeShellArg cfg.memory} \
+                ${cpuArg}
+                --pids-limit 500 \
+                --ulimit nofile=2048:4096 \
+                -v ${lib.escapeShellArg cfg.dataPath}:/data/db \
+                -v ${lib.escapeShellArg cfg.tempDownloadPath}:/data/temp \
+                -v ${lib.escapeShellArg cfg.downloadPath}:/data/downloads \
+                --publish ${cfg.listenAddress}:${toString cfg.port}:6500/tcp \
+                --env PGID=${toString cfg.groupId} \
+                --env PUID=${toString cfg.userId} \
+                --env TZ=${lib.escapeShellArg cfg.timezone} \
+                docker.io/rogerfar/rdtclient:latest
+            '';
 
           preStop = ''
             ${config.virtualisation.podman.package}/bin/podman stop -t 10 rdtclient || true
