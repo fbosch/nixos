@@ -57,7 +57,8 @@
           Comment=Securely delete file(s) beyond recovery
           Exec=${shredScript}/bin/nemo-shred-files %F
           Icon-Name=edit-delete
-          Selection=any
+          Selection=notnone
+          Quote=double
           Mimetypes=any;
           Terminal=false
         '';
