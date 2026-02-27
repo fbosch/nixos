@@ -4,8 +4,21 @@
     let
       extractScript = pkgs.writeShellApplication {
         name = "nemo-extract-to-folder";
-        runtimeInputs = [ pkgs.p7zip ];
+        runtimeInputs = [
+          pkgs.p7zip
+          pkgs.unrar
+        ];
         text = builtins.readFile ./scripts/extract-to-folder.sh;
+      };
+
+      extractWithPasswordScript = pkgs.writeShellApplication {
+        name = "nemo-extract-to-folder-with-password";
+        runtimeInputs = [
+          pkgs.p7zip
+          pkgs.unrar
+          pkgs.zenity
+        ];
+        text = builtins.readFile ./scripts/extract-to-folder-with-password.sh;
       };
 
       shredScript = pkgs.writeShellApplication {
@@ -46,6 +59,20 @@
           Exec=${extractScript}/bin/nemo-extract-to-folder %F
           Icon-Name=package-x-generic
           Selection=single
+          Quote=double
+          Extensions=zip;7z;rar;tar;gz;bz2;xz;zst;cab;iso;tgz;tbz2;txz;
+          Terminal=false
+        '';
+
+        "nemo/actions/extract-to-folder-with-password.nemo_action".text = ''
+          [Nemo Action]
+          Active=true
+          Name=Extract Here (with password)
+          Comment=Extract password-protected archive into a folder named after the file
+          Exec=${extractWithPasswordScript}/bin/nemo-extract-to-folder-with-password %F
+          Icon-Name=dialog-password
+          Selection=single
+          Quote=double
           Extensions=zip;7z;rar;tar;gz;bz2;xz;zst;cab;iso;tgz;tbz2;txz;
           Terminal=false
         '';
