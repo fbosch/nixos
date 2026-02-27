@@ -112,6 +112,11 @@ in
               "nextdns-profile-id"
               "nextdns-api-key"
               "speedtest-tracker-api-token"
+              "prowlarr-api-key"
+              "sonarr-api-key"
+              "radarr-api-key"
+              "lidarr-api-key"
+              "rd-api-key"
             ])
             (sopsHelpers.mkSecretsWithOpts containersFile sopsHelpers.wheelReadable [
               "komodo-web-api-key"
@@ -143,6 +148,11 @@ in
               NEXTDNS_API_KEY=${config.sops.placeholder.nextdns-api-key}
               SPEEDTEST_URL=https://speedtest-tracker.corvus-corax.synology.me
               SPEEDTEST_TRACKER_API_TOKEN=${config.sops.placeholder.speedtest-tracker-api-token}
+              PROWLARR_API_KEY=${config.sops.placeholder.prowlarr-api-key}
+              SONARR_API_KEY=${config.sops.placeholder.sonarr-api-key}
+              RADARR_API_KEY=${config.sops.placeholder.radarr-api-key}
+              LIDARR_API_KEY=${config.sops.placeholder.lidarr-api-key}
+              RD_API_KEY=${config.sops.placeholder.rd-api-key}
             '';
             mode = "0400";
           };
