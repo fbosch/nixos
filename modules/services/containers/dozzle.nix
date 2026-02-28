@@ -60,6 +60,13 @@ _: {
       };
 
       config = {
+        services.containerPorts = lib.mkAfter [
+          {
+            service = "dozzle";
+            tcpPorts = [ cfg.port ];
+          }
+        ];
+
         # Ensure Podman socket is available
         virtualisation.podman = {
           enable = true;

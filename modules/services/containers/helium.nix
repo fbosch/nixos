@@ -203,6 +203,56 @@ _: {
 
             nginx
           '';
+          buildImagesScript = pkgs.writeShellScriptBin "build-helium-images" ''
+            set -euo pipefail
+
+            if [ "$(id -u)" -ne 0 ]; then
+              echo "This command must run as root so systemd can use the images."
+              echo "Run: sudo build-helium-images"
+              exit 1
+            fi
+
+            build_with_retry() {
+              local imageTag="$1"
+              shift
+
+              local attempt
+              for attempt in 1 2 3; do
+                if ${pkgs.podman}/bin/podman build --network=host -t "$imageTag" "$@"; then
+                  return 0
+                fi
+
+                if [ "$attempt" -eq 3 ]; then
+                  return 1
+                fi
+
+                sleep 5
+              done
+            }
+
+            ${pkgs.coreutils}/bin/rm -rf "${buildDir}"
+            ${pkgs.coreutils}/bin/cp -R ${repoSrc} "${buildDir}"
+            cd "${buildDir}"
+
+            ${pkgs.coreutils}/bin/install -m 0644 ${nginxConf} "${buildDir}/svc/nginx/nginx.conf.j2"
+            ${pkgs.coreutils}/bin/install -m 0755 ${nginxEntrypoint} "${buildDir}/svc/nginx/entrypoint.sh"
+
+            build_with_retry helium-nginx:latest \
+              -f ./svc/nginx/Dockerfile \
+              --build-arg SERVICES_HOSTNAME=${lib.escapeShellArg cfg.hostname} \
+              ./svc
+
+            build_with_retry helium-ubo-proxy:latest \
+              -f ./svc/ubo/Dockerfile \
+              ./svc/ubo
+
+            build_with_retry helium-ext-proxy:latest \
+              -f ./svc/extension-proxy/Dockerfile \
+              ./svc/extension-proxy
+
+            echo ""
+            echo "Images built successfully. Rebuild the system to start the containers."
+          '';
         in
         {
           services.containerPorts = lib.mkAfter [
@@ -212,70 +262,13 @@ _: {
             }
           ];
 
+          environment.systemPackages = [ buildImagesScript ];
+
           systemd = {
             tmpfiles.rules = [
               "d ${cfg.dataDir} 0755 root root -"
               "d ${buildDir} 0755 root root -"
             ];
-
-            services.helium-services-build = {
-              description = "Build helium-services container images";
-              wantedBy = [ "multi-user.target" ];
-              after = [
-                "network-online.target"
-                "podman.service"
-              ];
-              wants = [ "network-online.target" ];
-              requires = [
-                "podman.service"
-              ];
-
-              serviceConfig = {
-                Type = "oneshot";
-                RemainAfterExit = true;
-                TimeoutStartSec = "600";
-              };
-
-              script = ''
-                build_with_retry() {
-                  local imageTag="$1"
-                  shift
-
-                  local attempt
-                  for attempt in 1 2 3; do
-                    if ${pkgs.podman}/bin/podman build --network=host -t "$imageTag" "$@"; then
-                      return 0
-                    fi
-
-                    if [ "$attempt" -eq 3 ]; then
-                      return 1
-                    fi
-
-                    sleep 5
-                  done
-                }
-
-                ${pkgs.coreutils}/bin/rm -rf "${buildDir}"
-                ${pkgs.coreutils}/bin/cp -R ${repoSrc} "${buildDir}"
-                cd "${buildDir}"
-
-                ${pkgs.coreutils}/bin/install -m 0644 ${nginxConf} "${buildDir}/svc/nginx/nginx.conf.j2"
-                ${pkgs.coreutils}/bin/install -m 0755 ${nginxEntrypoint} "${buildDir}/svc/nginx/entrypoint.sh"
-
-                build_with_retry helium-nginx:latest \
-                  -f ./svc/nginx/Dockerfile \
-                  --build-arg SERVICES_HOSTNAME=${lib.escapeShellArg cfg.hostname} \
-                  ./svc
-
-                build_with_retry helium-ubo-proxy:latest \
-                  -f ./svc/ubo/Dockerfile \
-                  ./svc/ubo
-
-                build_with_retry helium-ext-proxy:latest \
-                  -f ./svc/extension-proxy/Dockerfile \
-                  ./svc/extension-proxy
-              '';
-            };
 
             services.helium-services-env = {
               description = "Write helium-services environment file";
@@ -319,13 +312,14 @@ _: {
           environment.etc = {
             "containers/systemd/helium-ubo-proxy.container".text = ''
               [Unit]
-              After=network-online.target helium-services-build.service helium-services-env.service
+              After=network-online.target helium-services-env.service
               Wants=network-online.target
-              Requires=helium-services-build.service helium-services-env.service
+              Requires=helium-services-env.service
 
               [Container]
               ContainerName=ubo_proxy
               Image=helium-ubo-proxy:latest
+              Pull=never
               ReadOnly=true
               Network=helium.network
               EnvironmentFile=${envFile}
@@ -346,13 +340,14 @@ _: {
 
             "containers/systemd/helium-ext-proxy.container".text = ''
               [Unit]
-              After=network-online.target helium-services-build.service helium-services-env.service
+              After=network-online.target helium-services-env.service
               Wants=network-online.target
-              Requires=helium-services-build.service helium-services-env.service
+              Requires=helium-services-env.service
 
               [Container]
               ContainerName=ext_proxy
               Image=helium-ext-proxy:latest
+              Pull=never
               ReadOnly=true
               Network=helium.network
               EnvironmentFile=${envFile}
@@ -373,13 +368,14 @@ _: {
 
             "containers/systemd/helium-ext-proxy-backup.container".text = ''
               [Unit]
-              After=network-online.target helium-services-build.service helium-services-env.service
+              After=network-online.target helium-services-env.service
               Wants=network-online.target
-              Requires=helium-services-build.service helium-services-env.service
+              Requires=helium-services-env.service
 
               [Container]
               ContainerName=ext_proxy_backup
               Image=helium-ext-proxy:latest
+              Pull=never
               ReadOnly=true
               Network=helium.network
               EnvironmentFile=${envFile}
@@ -405,13 +401,14 @@ _: {
 
             "containers/systemd/helium-nginx.container".text = ''
               [Unit]
-              After=network-online.target helium-services-build.service helium-services-env.service
+              After=network-online.target helium-services-env.service
               Wants=network-online.target
-              Requires=helium-services-build.service helium-services-env.service
+              Requires=helium-services-env.service
 
               [Container]
               ContainerName=nginx
               Image=helium-nginx:latest
+              Pull=never
               ReadOnly=true
               RunInit=true
               Network=helium.network

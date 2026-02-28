@@ -8,6 +8,9 @@ in
     , lib
     , ...
     }:
+    let
+      cfg = config.services.pihole-container;
+    in
     {
       options.services.pihole-container = {
         webPort = lib.mkOption {
@@ -84,10 +87,10 @@ in
           {
             service = "pihole-container";
             tcpPorts = [
-              config.services.pihole-container.webPort
-              config.services.pihole-container.dnsPort
+              cfg.webPort
+              cfg.dnsPort
             ];
-            udpPorts = [ config.services.pihole-container.dnsPort ];
+            udpPorts = [ cfg.dnsPort ];
           }
         ];
 
@@ -100,24 +103,24 @@ in
             [Container]
             ContainerName=pihole
             Image=pihole/pihole:latest
-            PublishPort=${config.services.pihole-container.listenAddress}:${toString config.services.pihole-container.dnsPort}:53/tcp
-            PublishPort=${config.services.pihole-container.listenAddress}:${toString config.services.pihole-container.dnsPort}:53/udp
-            PublishPort=${config.services.pihole-container.listenAddress}:${toString config.services.pihole-container.webPort}:80/tcp
+            PublishPort=${cfg.listenAddress}:${toString cfg.dnsPort}:53/tcp
+            PublishPort=${cfg.listenAddress}:${toString cfg.dnsPort}:53/udp
+            PublishPort=${cfg.listenAddress}:${toString cfg.webPort}:80/tcp
             Volume=pihole-data.volume:/etc/pihole
             Volume=pihole-dnsmasq.volume:/etc/dnsmasq.d
-            Environment=TZ=${lib.escapeShellArg config.services.pihole-container.timezone}
-            Environment=FTLCONF_dns_listeningMode=${lib.escapeShellArg config.services.pihole-container.dnsListeningMode}
-            ${lib.optionalString (config.services.pihole-container.dnsUpstreams != [ ]) ''
-              Environment=FTLCONF_dns_upstreams=${lib.escapeShellArg (lib.concatStringsSep ";" config.services.pihole-container.dnsUpstreams)}
+            Environment=TZ=${lib.escapeShellArg cfg.timezone}
+            Environment=FTLCONF_dns_listeningMode=${lib.escapeShellArg cfg.dnsListeningMode}
+            ${lib.optionalString (cfg.dnsUpstreams != [ ]) ''
+              Environment=FTLCONF_dns_upstreams=${lib.escapeShellArg (lib.concatStringsSep ";" cfg.dnsUpstreams)}
             ''}
-            ${lib.optionalString (config.services.pihole-container.dnsForwardMax != null) ''
-              Environment=FTL_CMD=${lib.escapeShellArg "no-daemon -- --dns-forward-max ${toString config.services.pihole-container.dnsForwardMax}"}
+            ${lib.optionalString (cfg.dnsForwardMax != null) ''
+              Environment=FTL_CMD=${lib.escapeShellArg "no-daemon -- --dns-forward-max ${toString cfg.dnsForwardMax}"}
             ''}
-            ${lib.optionalString (config.services.pihole-container.webPasswordFile != null) ''
-              EnvironmentFile=${lib.escapeShellArg config.services.pihole-container.webPasswordFile}
+            ${lib.optionalString (cfg.webPasswordFile != null) ''
+              EnvironmentFile=${lib.escapeShellArg cfg.webPasswordFile}
             ''}
-            ${lib.optionalString (config.services.pihole-container.webPasswordFile == null) ''
-              Environment=FTLCONF_webserver_api_password=${lib.escapeShellArg config.services.pihole-container.webPassword}
+            ${lib.optionalString (cfg.webPasswordFile == null) ''
+              Environment=FTLCONF_webserver_api_password=${lib.escapeShellArg cfg.webPassword}
             ''}
             Memory=512m
             PidsLimit=500
@@ -152,10 +155,10 @@ in
         };
 
         networking.firewall.allowedTCPPorts = [
-          config.services.pihole-container.webPort
-          config.services.pihole-container.dnsPort
+          cfg.webPort
+          cfg.dnsPort
         ];
-        networking.firewall.allowedUDPPorts = [ config.services.pihole-container.dnsPort ];
+        networking.firewall.allowedUDPPorts = [ cfg.dnsPort ];
       };
     };
 }
