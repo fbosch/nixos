@@ -55,10 +55,10 @@ _: {
         };
 
         cpus = lib.mkOption {
-          type = lib.types.nullOr lib.types.str;
-          default = null;
+          type = lib.types.str;
+          default = "1.0";
           example = "1.0";
-          description = "Optional CPU limit passed to podman --cpus";
+          description = "CPU limit passed to podman --cpus";
         };
 
         memory = lib.mkOption {
@@ -114,9 +114,6 @@ _: {
           script =
             let
               cfg = config.services.rdtclient;
-              cpuArg = lib.optionalString (cfg.cpus != null) ''
-                --cpus=${cfg.cpus} \
-              '';
             in
             ''
               exec ${config.virtualisation.podman.package}/bin/podman run \
@@ -125,7 +122,7 @@ _: {
                 --log-driver journald \
                 --log-opt tag=rdtclient \
                 --memory ${lib.escapeShellArg cfg.memory} \
-                ${cpuArg}
+                --cpus=${cfg.cpus} \
                 --pids-limit 500 \
                 --ulimit nofile=2048:4096 \
                 -v ${lib.escapeShellArg cfg.dataPath}:/data/db \
