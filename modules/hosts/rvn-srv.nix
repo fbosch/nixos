@@ -274,6 +274,8 @@ in
               timezone = "Europe/Copenhagen";
               userId = 1000;
               groupId = 1000;
+              cpus = "0.25";
+              memory = "4g";
             };
 
             speedtest-tracker = {
