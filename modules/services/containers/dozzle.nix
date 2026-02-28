@@ -107,7 +107,7 @@ _: {
 
               [Container]
               ContainerName=dozzle
-              Image=docker.io/amir20/dozzle:latest
+              Image=docker.io/amir20/dozzle:v10.0.6
               PublishPort=${toString cfg.port}:8080
               Volume=/run/podman/podman.sock:/var/run/docker.sock:ro
               Volume=/var/lib/docker/engine-id:/var/lib/docker/engine-id:ro
