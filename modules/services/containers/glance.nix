@@ -118,6 +118,7 @@ in
               "lidarr-api-key"
               "rd-api-key"
               "plex-token"
+              "mdb-list-api-key"
             ])
             (sopsHelpers.mkSecretsWithOpts containersFile sopsHelpers.wheelReadable [
               "komodo-web-api-key"
@@ -149,6 +150,7 @@ in
               LIDARR_API_KEY=${config.sops.placeholder.lidarr-api-key}
               RD_API_KEY=${config.sops.placeholder.rd-api-key}
               PLEX_TOKEN=${config.sops.placeholder.plex-token}
+              MDB_LIST_API_KEY=${config.sops.placeholder.mdb-list-api-key}
             '';
             mode = "0400";
           };
