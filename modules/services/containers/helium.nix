@@ -274,9 +274,9 @@ _: {
               description = "Write helium-services environment file";
               wantedBy = [ "multi-user.target" ];
               before = [
-                "container-helium-ubo-proxy.service"
-                "container-helium-ext-proxy.service"
-                "container-helium-ext-proxy-backup.service"
+                "helium-ubo-proxy.service"
+                "helium-ext-proxy.service"
+                "helium-ext-proxy-backup.service"
               ];
 
               serviceConfig = {

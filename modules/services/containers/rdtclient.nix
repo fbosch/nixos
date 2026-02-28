@@ -81,22 +81,22 @@ _: {
 
         systemd.tmpfiles.rules = [
           "d ${cfg.dataPath} 0755 ${toString cfg.userId} ${toString cfg.groupId} -"
-          "d ${cfg.tempDownloadPath} 0755 ${toString cfg.userId} ${toString cfg.groupId} -"
-          "d ${cfg.downloadPath} 0755 ${toString cfg.userId} ${toString cfg.groupId} -"
         ];
 
         environment.etc."containers/systemd/rdtclient.container".text = ''
           [Unit]
           After=network-online.target
           Wants=network-online.target
+          WantsMountsFor=${cfg.downloadPath}
+          WantsMountsFor=${cfg.tempDownloadPath}
 
           [Container]
           ContainerName=rdtclient
           Image=docker.io/rogerfar/rdtclient:latest
           PublishPort=${cfg.listenAddress}:${toString cfg.port}:6500/tcp
           Volume=${cfg.dataPath}:/data/db
-          Volume=${cfg.tempDownloadPath}:/data/temp
-          Volume=${cfg.downloadPath}:/data/downloads
+          PodmanArgs=--mount type=bind,src=${cfg.tempDownloadPath},dst=/data/temp
+          PodmanArgs=--mount type=bind,src=${cfg.downloadPath},dst=/data/downloads
           Environment=PGID=${toString cfg.groupId}
           Environment=PUID=${toString cfg.userId}
           Environment=TZ=${cfg.timezone}
