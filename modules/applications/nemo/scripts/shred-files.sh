@@ -29,7 +29,7 @@ zenity --question \
 invalid_files=()
 
 for file in "${files[@]}"; do
-	if [[ -f "$file" ]]; then
+	if [[ -f $file ]]; then
 		shred -u "$file"
 		continue
 	fi
