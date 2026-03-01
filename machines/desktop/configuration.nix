@@ -40,7 +40,7 @@
     # Optimize tmpfs usage for 32GB RAM system
     tmp = {
       useTmpfs = true;
-      tmpfsSize = "8G"; # ~25% of RAM for temporary files
+      tmpfsSize = "16G"; # ~50% of RAM for temporary files
     };
 
     loader = {

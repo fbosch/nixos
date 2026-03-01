@@ -95,6 +95,12 @@ in
             }
           ];
 
+        # Limit Nix build parallelism to leave cores free for desktop use
+        nix.settings = {
+          cores = 8;
+          max-jobs = 8;
+        };
+
         # Enable SSH for remote access
         services.openssh.enable = true;
 
@@ -118,12 +124,10 @@ in
         # NVIDIA-specific environment variables
         environment.sessionVariables = {
           LIBVA_DRIVER_NAME = "nvidia";
-          NVD_BACKEND = "direct";
           TERMINAL = "wezterm";
           GBM_BACKEND = "nvidia_drm";
           __GLX_VENDOR_LIBRARY_NAME = "nvidia";
           ELECTRON_OZONE_PLATFORM_HINT = "auto";
-          GTK_USE_PORTAL = "0";
         };
       };
   };
