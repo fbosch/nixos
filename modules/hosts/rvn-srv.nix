@@ -117,12 +117,21 @@ in
           "vm.dirty_background_ratio" = 10; # Background writes at 10%
 
           # TCP optimizations for nginx/web serving (conservative values)
+          "net.core.default_qdisc" = "fq"; # Fair Queuing — required for BBR pacing
+          "net.ipv4.tcp_congestion_control" = "bbr"; # BBR: bandwidth-based congestion control
           "net.core.somaxconn" = 4096; # Increase max connection backlog
+          "net.ipv4.tcp_max_syn_backlog" = 4096; # Match somaxconn to avoid SYN backlog bottleneck
           "net.ipv4.tcp_fastopen" = 3; # Enable TCP Fast Open (client + server)
           "net.ipv4.tcp_keepalive_time" = 600; # Keep connections alive longer
           "net.ipv4.tcp_keepalive_intvl" = 60;
           "net.ipv4.tcp_keepalive_probes" = 3;
           "net.core.netdev_max_backlog" = 5000; # Increase network device backlog
+
+          # Socket buffer tuning for NAS (CIFS) throughput
+          "net.core.rmem_max" = 16777216;
+          "net.core.wmem_max" = 16777216;
+          "net.ipv4.tcp_rmem" = "4096 87380 16777216";
+          "net.ipv4.tcp_wmem" = "4096 65536 16777216";
         };
 
         # Scheduled suspend/wake for power savings
