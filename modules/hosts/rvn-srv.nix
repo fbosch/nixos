@@ -108,7 +108,6 @@ in
         security.apparmor = {
           enable = true;
           killUnconfinedConfinables = false;
-          enableCache = false;
         };
 
         boot.kernel.sysctl = {

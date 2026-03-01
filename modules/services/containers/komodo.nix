@@ -88,7 +88,7 @@ _: {
 
           imageTag = lib.mkOption {
             type = lib.types.str;
-            default = "v1.19.5";
+            default = "latest";
             description = "Komodo Core Docker image tag";
           };
         };
@@ -147,7 +147,7 @@ _: {
 
               [Container]
               ContainerName=komodo-mongo
-              Image=mongo:8.0.19
+              Image=mongo:8.2.5
               Exec=--quiet --wiredTigerCacheSizeGB 0.25
               Network=komodo.network
               EnvironmentFile=${composeEnvPath}
@@ -179,7 +179,7 @@ _: {
 
               [Container]
               ContainerName=komodo-core
-              Image=ghcr.io/moghtech/komodo-core:${cfg.core.imageTag}
+              Image=docker.io/moghtech/komodo-core:${cfg.core.imageTag}
               Network=komodo.network
               PublishPort=${toString cfg.core.port}:9120
               EnvironmentFile=${composeEnvPath}
@@ -213,7 +213,7 @@ _: {
 
               [Container]
               ContainerName=komodo-periphery
-              Image=ghcr.io/moghtech/komodo-periphery:v1.19.5
+              Image=docker.io/moghtech/komodo-periphery:${cfg.core.imageTag}
               Network=komodo.network
               PublishPort=8120:8120
               GroupAdd=991
