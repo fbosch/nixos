@@ -286,6 +286,7 @@
                     fi
         '';
         packages = with pkgs; [
+          just
           statix
           deadnix
           treefmt
