@@ -22,6 +22,7 @@
         "openai-api-key"
         "exa-api-key"
         "openmemory-api-key"
+        "morph-api-key"
       ];
       hasRequiredSecrets = lib.all
         (
@@ -34,6 +35,7 @@
         COPILOT_TOKEN = config.sops.secrets.github-token.path;
         KAGI_API_TOKEN = config.sops.secrets.kagi-api-token.path;
         OPENAI_API_KEY = config.sops.secrets.openai-api-key.path;
+        MORPH_API_KEY = config.sops.secrets.morph-api-key;
         EXA_API_KEY = config.sops.secrets.exa-api-key.path;
         OPENMEMORY_API_KEY = config.sops.secrets.openmemory-api-key.path;
       };
