@@ -12,10 +12,6 @@ let
     dnsServers = [
       "192.168.1.46"
       "192.168.1.2"
-      "45.90.28.240"
-      "45.90.30.240"
-      "1.1.1.1"
-      "1.0.0.1"
     ];
   };
 in
@@ -110,47 +106,9 @@ in
         security.apparmor = {
           enable = true;
           killUnconfinedConfinables = false;
-          enableCache = false;
         };
 
         networking.nameservers = hostMeta.dnsServers;
-
-        systemd.services.ethernet-watchdog = {
-          description = "Ensure ethernet stays up";
-          after = [ "NetworkManager.service" ];
-          wants = [ "NetworkManager.service" ];
-          serviceConfig = {
-            Type = "oneshot";
-          };
-          script = ''
-            set -euo pipefail
-            iface="enp0s31f6"
-            ${pkgs.networkmanager}/bin/nmcli -g GENERAL.STATE dev show "$iface" >/tmp/ethernet-watchdog.state 2>&1 || {
-              echo "nmcli failed; unable to read state"
-              exit 0
-            }
-            state=$(cat /tmp/ethernet-watchdog.state)
-            if [ "$state" != "100" ]; then
-              echo "state=$state; reconnecting $iface"
-              ${pkgs.networkmanager}/bin/nmcli dev disconnect "$iface" || true
-              ${pkgs.networkmanager}/bin/nmcli dev connect "$iface" || {
-                echo "reconnect failed for $iface"
-                exit 0
-              }
-              echo "reconnected $iface"
-            fi
-          '';
-        };
-
-        systemd.timers.ethernet-watchdog = {
-          description = "Check ethernet link regularly";
-          wantedBy = [ "timers.target" ];
-          timerConfig = {
-            OnBootSec = "1min";
-            OnUnitActiveSec = "2min";
-            RandomizedDelaySec = "20s";
-          };
-        };
 
         # Desktop-specific packages
         environment.systemPackages = [
