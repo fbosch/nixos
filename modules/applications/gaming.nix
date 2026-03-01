@@ -33,6 +33,9 @@ _: {
           extraCompatPackages = with pkgs; [
             proton-ge-bin
           ];
+          package = pkgs.steam.override {
+            extraEnv = { }; # global environment variables for all games
+          };
         };
 
         # Required for gaming performance
