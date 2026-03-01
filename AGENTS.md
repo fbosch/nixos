@@ -28,9 +28,11 @@ Do not run `sops` commands directly; they break the TUI. Instruct the user to ru
 
 - Use `environment.etc."containers/systemd/*.container"` for container definitions
 - Reference pre-built images from registries (Docker Hub, ghcr.io, etc.) when they exist
-- Follow the patterns in `modules/services/containers/komodo.nix` and `modules/services/containers/pihole.nix`
-- Do NOT create custom systemd build services
-- If upstream does not publish images, it is acceptable to ship a Nix-provided build helper command (not a systemd unit) that builds images from the upstream Dockerfiles
+- Do NOT create custom systemd build services; if upstream has no images, ship a build helper command instead
+- Declare ports in `services.containerPorts` AND open them with `networking.firewall.*` in the same module — keep firewall rules colocated with the service that needs them
+- Use native Quadlet fields for resource limits (`Memory=`, `PidsLimit=`, `CPUQuota=`), not `PodmanArgs=`
+
+See the full authoring guide: [Container module authoring](docs/agents/container-modules.md)
 
 ## Port Allocation
 

@@ -177,7 +177,6 @@ in
             };
 
             gluetun-container = {
-              enable = true;
               port = 8889;
               listenAddresses = [
                 "127.0.0.1"
@@ -279,7 +278,6 @@ in
             };
 
             speedtest-tracker = {
-              enable = true;
               port = 8085;
               appUrl = "https://speedtest.corvus-corax.synology.me";
               puid = 1000;
@@ -288,10 +286,6 @@ in
 
             onwatch-container = {
               port = 9211;
-            };
-
-            rsshub-container = {
-              enable = true;
             };
 
             resolved = {

@@ -13,12 +13,6 @@ in
     in
     {
       options.services.speedtest-tracker = {
-        enable = lib.mkOption {
-          type = lib.types.bool;
-          default = false;
-          description = "Whether to enable Speedtest Tracker container";
-        };
-
         port = lib.mkOption {
           type = lib.types.port;
           default = 8085;
@@ -50,7 +44,14 @@ in
         };
       };
 
-      config = lib.mkIf cfg.enable {
+      config = {
+        services.containerPorts = lib.mkAfter [
+          {
+            service = "speedtest-tracker";
+            tcpPorts = [ cfg.port ];
+          }
+        ];
+
         environment.etc = {
           "containers/systemd/speedtest-tracker.container".text = ''
             [Unit]
@@ -101,13 +102,15 @@ in
         networking.firewall.allowedTCPPorts = [ cfg.port ];
 
         # Wire APP_KEY through sops
-        sops.secrets.speedtest-tracker-app-key = sopsHelpers.mkSecret ../../../secrets/containers.yaml sopsHelpers.rootOnly;
+        sops = {
+          secrets.speedtest-tracker-app-key = sopsHelpers.mkSecret ../../../secrets/containers.yaml sopsHelpers.rootOnly;
 
-        sops.templates."speedtest-tracker-env" = {
-          content = ''
-            APP_KEY=${config.sops.placeholder.speedtest-tracker-app-key}
-          '';
-          mode = "0400";
+          templates."speedtest-tracker-env" = {
+            content = ''
+              APP_KEY=${config.sops.placeholder.speedtest-tracker-app-key}
+            '';
+            mode = "0400";
+          };
         };
       };
     };

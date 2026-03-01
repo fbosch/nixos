@@ -9,12 +9,6 @@ _: {
     in
     {
       options.services.rsshub-container = {
-        enable = lib.mkOption {
-          type = lib.types.bool;
-          default = false;
-          description = "Whether to enable RSSHub container service";
-        };
-
         port = lib.mkOption {
           type = lib.types.port;
           default = 1200;
@@ -43,7 +37,7 @@ _: {
         };
       };
 
-      config = lib.mkIf cfg.enable {
+      config = {
         services.containerPorts = lib.mkAfter [
           {
             service = "rsshub-container";
@@ -110,6 +104,7 @@ _: {
 
           "containers/systemd/rsshub.network".text = ''
             [Network]
+            NetworkName=rsshub
           '';
         };
 

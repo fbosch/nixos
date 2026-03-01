@@ -185,11 +185,11 @@ in
           ${lib.optionalString cfg.enableDockerSocket "Environment=DOCKER_HOST=unix:///run/podman/podman.sock"}
           ${lib.optionalString (cfg.envFile != null) "EnvironmentFile=${lib.escapeShellArg cfg.envFile}"}
           ${lib.optionalString (cfg.cpus != null) "PodmanArgs=--cpus=${cfg.cpus}"}
-          ${lib.optionalString (cfg.memory != null) "PodmanArgs=--memory=${cfg.memory}"}
+          ${lib.optionalString (cfg.memory != null) "Memory=${cfg.memory}"}
           ${lib.optionalString (
             cfg.memoryReservation != null
           ) "PodmanArgs=--memory-reservation=${cfg.memoryReservation}"}
-          ${lib.optionalString (cfg.shmSize != null) "PodmanArgs=--shm-size=${cfg.shmSize}"}
+          ${lib.optionalString (cfg.shmSize != null) "ShmSize=${cfg.shmSize}"}
           LogDriver=journald
           LogOpt=tag=glance
 

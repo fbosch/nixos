@@ -107,6 +107,18 @@ _: {
         # We use Podman with docker-compat instead (from virtualization/podman.nix)
         virtualisation.docker.enable = lib.mkForce false;
 
+        services.containerPorts = lib.mkIf cfg.core.enable (
+          lib.mkAfter [
+            {
+              service = "komodo";
+              tcpPorts = [
+                cfg.core.port
+                8120
+              ];
+            }
+          ]
+        );
+
         # Komodo Core via Quadlet
         environment.etc = {
           # Link the SOPS-rendered env file to /etc/komodo/compose.env

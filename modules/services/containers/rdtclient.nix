@@ -4,6 +4,9 @@ _: {
     , lib
     , ...
     }:
+    let
+      cfg = config.services.rdtclient;
+    in
     {
       options.services.rdtclient = {
         port = lib.mkOption {
@@ -58,13 +61,13 @@ _: {
           type = lib.types.str;
           default = "1.0";
           example = "1.0";
-          description = "CPU limit passed to podman --cpus";
+          description = "CPU limit as a fractional number of CPUs (passed via PodmanArgs --cpus)";
         };
 
         memory = lib.mkOption {
           type = lib.types.str;
           default = "2g";
-          description = "Memory limit passed to podman --memory";
+          description = "Memory limit for the container";
         };
       };
 
@@ -72,75 +75,49 @@ _: {
         services.containerPorts = lib.mkAfter [
           {
             service = "rdtclient";
-            tcpPorts = [ config.services.rdtclient.port ];
+            tcpPorts = [ cfg.port ];
           }
         ];
 
-        # Create directories for rdtclient volumes
-        systemd.services.create-rdtclient-volume = {
-          description = "Create rdtclient data directories";
-          wantedBy = [ "rdtclient.service" ];
-          before = [ "rdtclient.service" ];
-          serviceConfig = {
-            Type = "oneshot";
-            RemainAfterExit = true;
-          };
-          script = ''
-            mkdir -p ${lib.escapeShellArg config.services.rdtclient.dataPath}
-            mkdir -p ${lib.escapeShellArg config.services.rdtclient.tempDownloadPath}
-            chown ${toString config.services.rdtclient.userId}:${toString config.services.rdtclient.groupId} ${lib.escapeShellArg config.services.rdtclient.dataPath}
-            chown ${toString config.services.rdtclient.userId}:${toString config.services.rdtclient.groupId} ${lib.escapeShellArg config.services.rdtclient.tempDownloadPath}
-          '';
-        };
+        systemd.tmpfiles.rules = [
+          "d ${cfg.dataPath} 0755 ${toString cfg.userId} ${toString cfg.groupId} -"
+        ];
 
-        # Traditional systemd service instead of Quadlet
-        systemd.services.rdtclient = {
-          description = "RDT-Client - Real-Debrid torrent client";
-          after = [
-            "network-online.target"
-            "create-rdtclient-volume.service"
-          ];
-          wants = [ "network-online.target" ];
-          wantedBy = [ "multi-user.target" ];
+        environment.etc."containers/systemd/rdtclient.container".text = ''
+          [Unit]
+          After=network-online.target
+          Wants=network-online.target
+          WantsMountsFor=${cfg.downloadPath}
+          WantsMountsFor=${cfg.tempDownloadPath}
 
-          serviceConfig = {
-            Type = "simple";
-            Restart = "always";
-            RestartSec = "10";
-            TimeoutStartSec = "infinity";
-            TimeoutStopSec = "30";
-          };
+          [Container]
+          ContainerName=rdtclient
+          Image=docker.io/rogerfar/rdtclient:latest
+          PublishPort=${cfg.listenAddress}:${toString cfg.port}:6500/tcp
+          Volume=${cfg.dataPath}:/data/db
+          PodmanArgs=--mount type=bind,src=${cfg.tempDownloadPath},dst=/data/temp
+          PodmanArgs=--mount type=bind,src=${cfg.downloadPath},dst=/data/downloads
+          Environment=PGID=${toString cfg.groupId}
+          Environment=PUID=${toString cfg.userId}
+          Environment=TZ=${cfg.timezone}
+          Memory=${cfg.memory}
+          PidsLimit=500
+          Ulimit=nofile=2048:4096
+          PodmanArgs=--cpus=${cfg.cpus}
+          LogDriver=journald
+          LogOpt=tag=rdtclient
 
-          script =
-            let
-              cfg = config.services.rdtclient;
-            in
-            ''
-              exec ${config.virtualisation.podman.package}/bin/podman run \
-                --name rdtclient \
-                --rm \
-                --log-driver journald \
-                --log-opt tag=rdtclient \
-                --memory ${lib.escapeShellArg cfg.memory} \
-                --cpus=${cfg.cpus} \
-                --pids-limit 500 \
-                --ulimit nofile=2048:4096 \
-                -v ${lib.escapeShellArg cfg.dataPath}:/data/db \
-                -v ${lib.escapeShellArg cfg.tempDownloadPath}:/data/temp \
-                -v ${lib.escapeShellArg cfg.downloadPath}:/data/downloads \
-                --publish ${cfg.listenAddress}:${toString cfg.port}:6500/tcp \
-                --env PGID=${toString cfg.groupId} \
-                --env PUID=${toString cfg.userId} \
-                --env TZ=${lib.escapeShellArg cfg.timezone} \
-                docker.io/rogerfar/rdtclient:latest
-            '';
+          [Service]
+          Restart=always
+          RestartSec=10
+          TimeoutStartSec=infinity
+          TimeoutStopSec=30
 
-          preStop = ''
-            ${config.virtualisation.podman.package}/bin/podman stop -t 10 rdtclient || true
-          '';
-        };
+          [Install]
+          WantedBy=multi-user.target
+        '';
 
-        networking.firewall.allowedTCPPorts = [ config.services.rdtclient.port ];
+        networking.firewall.allowedTCPPorts = [ cfg.port ];
       };
     };
 }

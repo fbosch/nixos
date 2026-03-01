@@ -224,7 +224,7 @@ in
             Environment=POSTGRES_USER=postgres
             Volume=${cfg.dataDir}/pgdata:/var/lib/postgresql/data
             ${lib.optionalString (cfg.postgres.cpus != null) "PodmanArgs=--cpus=${cfg.postgres.cpus}"}
-            ${lib.optionalString (cfg.postgres.memory != null) "PodmanArgs=--memory=${cfg.postgres.memory}"}
+            ${lib.optionalString (cfg.postgres.memory != null) "Memory=${cfg.postgres.memory}"}
             LogDriver=journald
             LogOpt=tag=linkwarden-postgres
 
@@ -256,9 +256,7 @@ in
             ) "Environment=MEILI_MASTER_KEY=${cfg.meiliMasterKey}"}
             Volume=${cfg.dataDir}/meili_data:/meili_data
             ${lib.optionalString (cfg.meilisearch.cpus != null) "PodmanArgs=--cpus=${cfg.meilisearch.cpus}"}
-            ${lib.optionalString (
-              cfg.meilisearch.memory != null
-            ) "PodmanArgs=--memory=${cfg.meilisearch.memory}"}
+            ${lib.optionalString (cfg.meilisearch.memory != null) "Memory=${cfg.meilisearch.memory}"}
             LogDriver=journald
             LogOpt=tag=linkwarden-meilisearch
 
@@ -301,11 +299,11 @@ in
             Environment=STORAGE_FOLDER=/data/data
             Environment=NODE_OPTIONS=--max-old-space-size=3072
             ${lib.optionalString (cfg.cpus != null) "PodmanArgs=--cpus=${cfg.cpus}"}
-            ${lib.optionalString (cfg.memory != null) "PodmanArgs=--memory=${cfg.memory}"}
+            ${lib.optionalString (cfg.memory != null) "Memory=${cfg.memory}"}
             ${lib.optionalString (
               cfg.memoryReservation != null
             ) "PodmanArgs=--memory-reservation=${cfg.memoryReservation}"}
-            ${lib.optionalString (cfg.shmSize != null) "PodmanArgs=--shm-size=${cfg.shmSize}"}
+            ${lib.optionalString (cfg.shmSize != null) "ShmSize=${cfg.shmSize}"}
             LogDriver=journald
             LogOpt=tag=linkwarden
 
@@ -321,6 +319,7 @@ in
           # Podman network definition
           "containers/systemd/linkwarden.network".text = ''
             [Network]
+            NetworkName=linkwarden
           '';
         };
 

@@ -98,12 +98,6 @@ in
     in
     {
       options.services.onwatch-container = {
-        enable = lib.mkOption {
-          type = lib.types.bool;
-          default = true;
-          description = "Enable onWatch API quota tracker container";
-        };
-
         port = lib.mkOption {
           type = lib.types.port;
           default = 9211;
@@ -162,7 +156,7 @@ in
         };
       };
 
-      config = lib.mkIf cfg.enable {
+      config = {
         services = {
           onwatch-container.opencodeAuthFile = lib.mkDefault "/home/${username}/.local/share/opencode/auth.json";
           onwatch-container.codexAuthFile = lib.mkDefault "/home/${username}/.codex/auth.json";
