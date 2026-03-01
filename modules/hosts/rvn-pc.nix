@@ -55,7 +55,7 @@ in
           "windows"
 
           # virtualization
-          "virtualization/docker"
+          "virtualization/podman"
           "virtualization/libvirt"
 
           # hardware configuration

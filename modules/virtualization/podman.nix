@@ -34,7 +34,7 @@
       users.users.${config.flake.meta.user.username}.extraGroups = [ "podman" ];
 
       # Ananicy rules for Podman container runtime
-      services.ananicy.customRules = [
+      services.ananicy.extraRules = [
         {
           name = ".podman-wrapped";
           type = "Service";
