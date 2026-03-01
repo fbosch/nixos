@@ -31,6 +31,8 @@
       "nvidia.NVreg_EnableGpuFirmware=0" # Improve compatibility
       # NVIDIA suspend support
       "nvidia.NVreg_PreserveVideoMemoryAllocations=1" # Preserve video memory allocations for suspend
+      "nvidia.NVreg_UsePageAttributeTable=1" # Improve GPU memory performance
+      "nvidia.NVreg_EnableStreamMemOPs=1" # Enable stream memory operations
       # Use deep suspend mode for better NVIDIA compatibility
       "mem_sleep_default=deep" # More reliable suspend with NVIDIA GPUs
       # Fix framebuffer console artifacts
@@ -96,6 +98,7 @@
     upower.enable = true;
     dbus.enable = true;
     timesyncd.enable = true;
+    fstrim.enable = true;
     ananicy = {
       enable = true;
       package = pkgs.ananicy-cpp;
@@ -115,6 +118,11 @@
   };
 
   zramSwap.enable = true;
+
+  boot.kernel.sysctl = {
+    "vm.swappiness" = 10;
+    "vm.vfs_cache_pressure" = 50;
+  };
   security.polkit.enable = true;
 
   # List packages installed in system profile. To search, run:
