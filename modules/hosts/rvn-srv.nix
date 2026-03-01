@@ -337,8 +337,8 @@ in
               Name = "bond0";
             };
             bondConfig = {
-              Mode = "balance-rr"; # Round-robin (no switch config needed)
-              TransmitHashPolicy = "layer3+4"; # Hash by IP+port
+              Mode = "balance-xor"; # Per-flow XOR hash, no packet reordering
+              TransmitHashPolicy = "layer3+4"; # Hash by IP+port (used by balance-xor)
               MIIMonitorSec = "100ms"; # Link monitoring
             };
           };
