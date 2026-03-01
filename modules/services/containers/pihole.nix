@@ -96,51 +96,51 @@ in
 
         environment.etc = {
           "containers/systemd/pihole.container".text = ''
-            [Unit]
-            After=network-online.target
-            Wants=network-online.target
+              [Unit]
+              After=network-online.target
+              Wants=network-online.target
 
             [Container]
             ContainerName=pihole
-            Image=pihole/pihole:latest
-            PublishPort=${cfg.listenAddress}:${toString cfg.dnsPort}:53/tcp
-            PublishPort=${cfg.listenAddress}:${toString cfg.dnsPort}:53/udp
-            PublishPort=${cfg.listenAddress}:${toString cfg.webPort}:80/tcp
-            Volume=pihole-data.volume:/etc/pihole
-            Volume=pihole-dnsmasq.volume:/etc/dnsmasq.d
-            Environment=TZ=${lib.escapeShellArg cfg.timezone}
-            Environment=FTLCONF_dns_listeningMode=${lib.escapeShellArg cfg.dnsListeningMode}
-            ${lib.optionalString (cfg.dnsUpstreams != [ ]) ''
-              Environment=FTLCONF_dns_upstreams=${lib.escapeShellArg (lib.concatStringsSep ";" cfg.dnsUpstreams)}
-            ''}
-            ${lib.optionalString (cfg.dnsForwardMax != null) ''
-              Environment=FTL_CMD=${lib.escapeShellArg "no-daemon -- --dns-forward-max ${toString cfg.dnsForwardMax}"}
-            ''}
-            ${lib.optionalString (cfg.webPasswordFile != null) ''
-              EnvironmentFile=${lib.escapeShellArg cfg.webPasswordFile}
-            ''}
-            ${lib.optionalString (cfg.webPasswordFile == null) ''
-              Environment=FTLCONF_webserver_api_password=${lib.escapeShellArg cfg.webPassword}
-            ''}
-            Memory=512m
-            PidsLimit=500
-            Ulimit=nofile=2048:4096
-            HealthCmd=curl -fsS http://localhost/admin/ || exit 1
-            HealthInterval=30s
-            HealthTimeout=10s
-            HealthStartPeriod=60s
-            HealthRetries=3
-            LogDriver=journald
-            LogOpt=tag=pihole
+            Image=pihole/pihole:2026.02.0
+              PublishPort=${cfg.listenAddress}:${toString cfg.dnsPort}:53/tcp
+              PublishPort=${cfg.listenAddress}:${toString cfg.dnsPort}:53/udp
+              PublishPort=${cfg.listenAddress}:${toString cfg.webPort}:80/tcp
+              Volume=pihole-data.volume:/etc/pihole
+              Volume=pihole-dnsmasq.volume:/etc/dnsmasq.d
+              Environment=TZ=${lib.escapeShellArg cfg.timezone}
+              Environment=FTLCONF_dns_listeningMode=${lib.escapeShellArg cfg.dnsListeningMode}
+              ${lib.optionalString (cfg.dnsUpstreams != [ ]) ''
+                Environment=FTLCONF_dns_upstreams=${lib.escapeShellArg (lib.concatStringsSep ";" cfg.dnsUpstreams)}
+              ''}
+              ${lib.optionalString (cfg.dnsForwardMax != null) ''
+                Environment=FTL_CMD=${lib.escapeShellArg "no-daemon -- --dns-forward-max ${toString cfg.dnsForwardMax}"}
+              ''}
+              ${lib.optionalString (cfg.webPasswordFile != null) ''
+                EnvironmentFile=${lib.escapeShellArg cfg.webPasswordFile}
+              ''}
+              ${lib.optionalString (cfg.webPasswordFile == null) ''
+                Environment=FTLCONF_webserver_api_password=${lib.escapeShellArg cfg.webPassword}
+              ''}
+              Memory=512m
+              PidsLimit=500
+              Ulimit=nofile=2048:4096
+              HealthCmd=curl -fsS http://localhost/admin/ || exit 1
+              HealthInterval=30s
+              HealthTimeout=10s
+              HealthStartPeriod=60s
+              HealthRetries=3
+              LogDriver=journald
+              LogOpt=tag=pihole
 
-            [Service]
-            Restart=always
-            RestartSec=10
-            CPUQuota=100%
-            TimeoutStartSec=300
+              [Service]
+              Restart=always
+              RestartSec=10
+              CPUQuota=100%
+              TimeoutStartSec=300
 
-            [Install]
-            WantedBy=multi-user.target
+              [Install]
+              WantedBy=multi-user.target
           '';
 
           "containers/systemd/pihole-data.volume".text = ''

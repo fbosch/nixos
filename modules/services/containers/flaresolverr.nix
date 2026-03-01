@@ -34,7 +34,7 @@ _: {
 
         imageTag = lib.mkOption {
           type = lib.types.str;
-          default = "latest";
+          default = "v3.4.6";
           description = "FlareSolverr Docker image tag";
         };
       };

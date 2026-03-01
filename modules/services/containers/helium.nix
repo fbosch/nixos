@@ -81,6 +81,12 @@ _: {
           description = "Git revision (commit) to fetch";
         };
 
+        imageTag = lib.mkOption {
+          type = lib.types.str;
+          default = "6839e30dc01fe144bfef2730c165ab3e0265d68b";
+          description = "Image tag used for locally built helium services";
+        };
+
         gitSha256 = lib.mkOption {
           type = lib.types.str;
           default = "sha256-i785PDqPQee0El9h6zLX8cP+w4Hh/JVBRiiT3byiZ6k=";
@@ -237,16 +243,16 @@ _: {
             ${pkgs.coreutils}/bin/install -m 0644 ${nginxConf} "${buildDir}/svc/nginx/nginx.conf.j2"
             ${pkgs.coreutils}/bin/install -m 0755 ${nginxEntrypoint} "${buildDir}/svc/nginx/entrypoint.sh"
 
-            build_with_retry helium-nginx:latest \
+            build_with_retry helium-nginx:${cfg.imageTag} \
               -f ./svc/nginx/Dockerfile \
               --build-arg SERVICES_HOSTNAME=${lib.escapeShellArg cfg.hostname} \
               ./svc
 
-            build_with_retry helium-ubo-proxy:latest \
+            build_with_retry helium-ubo-proxy:${cfg.imageTag} \
               -f ./svc/ubo/Dockerfile \
               ./svc/ubo
 
-            build_with_retry helium-ext-proxy:latest \
+            build_with_retry helium-ext-proxy:${cfg.imageTag} \
               -f ./svc/extension-proxy/Dockerfile \
               ./svc/extension-proxy
 
@@ -318,7 +324,7 @@ _: {
 
               [Container]
               ContainerName=ubo_proxy
-              Image=helium-ubo-proxy:latest
+              Image=helium-ubo-proxy:${cfg.imageTag}
               Pull=never
               ReadOnly=true
               Network=helium.network
@@ -346,7 +352,7 @@ _: {
 
               [Container]
               ContainerName=ext_proxy
-              Image=helium-ext-proxy:latest
+              Image=helium-ext-proxy:${cfg.imageTag}
               Pull=never
               ReadOnly=true
               Network=helium.network
@@ -374,7 +380,7 @@ _: {
 
               [Container]
               ContainerName=ext_proxy_backup
-              Image=helium-ext-proxy:latest
+              Image=helium-ext-proxy:${cfg.imageTag}
               Pull=never
               ReadOnly=true
               Network=helium.network
@@ -407,7 +413,7 @@ _: {
 
               [Container]
               ContainerName=nginx
-              Image=helium-nginx:latest
+              Image=helium-nginx:${cfg.imageTag}
               Pull=never
               ReadOnly=true
               RunInit=true

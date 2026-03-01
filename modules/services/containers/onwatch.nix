@@ -106,7 +106,7 @@ in
 
         imageTag = lib.mkOption {
           type = lib.types.str;
-          default = "latest";
+          default = "2.11.2";
           description = "onWatch container image tag";
         };
 

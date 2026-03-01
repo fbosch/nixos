@@ -17,13 +17,13 @@ _: {
 
         imageTag = lib.mkOption {
           type = lib.types.str;
-          default = "latest";
+          default = "chromium-bundled";
           description = "RSSHub container image tag";
         };
 
         redisImageTag = lib.mkOption {
           type = lib.types.str;
-          default = "7-alpine";
+          default = "7.4.2-alpine";
           description = "Redis container image tag used for RSSHub cache";
         };
 

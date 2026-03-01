@@ -4,7 +4,7 @@ All containers run as Podman Quadlet units (systemd `.container` files). This do
 
 ## Image Sources
 
-**Pre-built registry images are always preferred.** Reference them directly in the Quadlet file with a pinnable `imageTag` option.
+**Pre-built registry images are always preferred.** Reference them directly in the Quadlet file with an `imageTag` option pinned to a specific version (never `latest`).
 
 If the upstream does not publish images (source-only project), ship a **build helper command** — not a systemd service:
 - Use `pkgs.writeShellScriptBin "build-<name>-images"` for the script
@@ -122,6 +122,10 @@ Use native Quadlet/systemd fields. Only use `PodmanArgs=` for things with no nat
 
 Do **not** use `PodmanArgs=--memory=` or `PodmanArgs=--pids-limit=` — use the native fields above.
 
+### Renovate compatibility
+
+Use option names that end in `imageTag` or `ImageTag` so Renovate can detect updates for interpolated image references. Examples: `imageTag`, `redisImageTag`, `core.imageTag`.
+
 ### Health checks
 
 Add health checks for services with a stable health endpoint:
@@ -218,7 +222,7 @@ Requires=myapp-db.service
 
 ## Checklist for New Modules
 
-- [ ] Registry image with an `imageTag` option (default `"latest"` or a pinned version)
+- [ ] Registry image with an `imageTag` option pinned to a specific version (never `"latest"`)
 - [ ] No `enable` option — use assertions for credential requirements
 - [ ] `cfg = config.services.<name>-container` alias in `let`
 - [ ] Quadlet file under `environment.etc."containers/systemd/<name>.container"`
