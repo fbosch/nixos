@@ -92,7 +92,7 @@ _: {
 
           [Container]
           ContainerName=rdtclient
-          Image=docker.io/rogerfar/rdtclient:latest
+          Image=docker.io/rogerfar/rdtclient:2.0.124
           PublishPort=${cfg.listenAddress}:${toString cfg.port}:6500/tcp
           Volume=${cfg.dataPath}:/data/db
           PodmanArgs=--mount type=bind,src=${cfg.tempDownloadPath},dst=/data/temp

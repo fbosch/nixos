@@ -21,7 +21,7 @@
         "/^modules/services/containers/.*\\.nix$/"
       ],
       "matchStrings": [
-        "Image=(?<depName>[^:\\s$]+):(?<currentValue>[^\\s\\n$]+)"
+        "Image\\s*=\\s*(?<depName>[^:\\s$]+):(?<currentValue>[^\\s\\n$]+)"
       ],
       "datasourceTemplate": "docker"
     },
@@ -43,7 +43,7 @@
         "/^modules/services/containers/.*\\.nix$/"
       ],
       "matchStrings": [
-        "Image=(?<depName>[^:\\s]+):\\$\\{[^}]+\\}[\\s\\S]*?imageTag\\s*=\\s*lib\\.mkOption\\s*\\{[\\s\\S]*?default\\s*=\\s*\"(?<currentValue>[^\"]+)\""
+        "Image=(?<depName>[^:\\s]+):\\$\\{[^}]+\\}[\\s\\S]*?\\w*[iI]mageTag\\s*=\\s*lib\\.mkOption\\s*\\{[\\s\\S]*?default\\s*=\\s*\"(?<currentValue>[^\"]+)\""
       ],
       "datasourceTemplate": "docker"
     },

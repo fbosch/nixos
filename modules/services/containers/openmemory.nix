@@ -22,7 +22,7 @@ in
 
       # Script to build images using podman build (wraps existing Dockerfiles)
       mkBuildImagesScript =
-        dashboardApiUrl: dashboardApiKeyPath:
+        dashboardApiUrl: dashboardApiKeyPath: imageTag:
         pkgs.writeShellScriptBin "build-openmemory-images" ''
           set -euo pipefail
 
@@ -32,7 +32,7 @@ in
             exit 1
           fi
 
-          OPENMEMORY_TAG="${openmemoryRev}"
+          OPENMEMORY_TAG="${imageTag}"
 
           TEMP_DIR=$(mktemp -d)
           trap "rm -rf $TEMP_DIR" EXIT
@@ -121,7 +121,6 @@ in
 
           echo "==> Building API server image..."
           ${pkgs.podman}/bin/podman build --format docker \
-            -t localhost/openmemory:latest \
             -t localhost/openmemory:$OPENMEMORY_TAG \
             -f backend/Dockerfile \
             backend/
@@ -132,7 +131,6 @@ in
           DASHBOARD_API_KEY=$(cat ${lib.escapeShellArg dashboardApiKeyPath})
 
           ${pkgs.podman}/bin/podman build --format docker \
-            -t localhost/openmemory-dashboard:latest \
             -t localhost/openmemory-dashboard:$OPENMEMORY_TAG \
             --build-arg NEXT_PUBLIC_API_URL="$DASHBOARD_API_URL" \
             --build-arg NEXT_PUBLIC_API_KEY="$DASHBOARD_API_KEY" \
@@ -141,9 +139,9 @@ in
 
           echo ""
           echo "✓ Images built and loaded successfully!"
-          echo "  localhost/openmemory:latest"
+            echo "  localhost/openmemory:$OPENMEMORY_TAG"
           echo "  localhost/openmemory:$OPENMEMORY_TAG"
-          echo "  localhost/openmemory-dashboard:latest"
+            echo "  localhost/openmemory-dashboard:$OPENMEMORY_TAG"
           echo "  localhost/openmemory-dashboard:$OPENMEMORY_TAG"
           echo ""
           echo "You can now rebuild your system to start the containers."
@@ -166,11 +164,11 @@ in
 
         imageTag = lib.mkOption {
           type = lib.types.str;
-          default = "latest";
+          default = openmemoryRev;
           description = ''
             OpenMemory image tag.
 
-            Images are built declaratively using Nix dockerTools.
+            Images are built locally from the pinned OpenMemory revision.
             Run 'build-openmemory-images' once before first activation.
           '';
         };
@@ -332,7 +330,9 @@ in
       config =
         let
           cfg = config.services.openmemory-container;
-          buildImagesScript = mkBuildImagesScript cfg.dashboardApiUrl config.sops.secrets.openmemory-api-key.path;
+          buildImagesScript =
+            mkBuildImagesScript cfg.dashboardApiUrl config.sops.secrets.openmemory-api-key.path
+              cfg.imageTag;
           hostUser =
             if cfg.runAsUser == null then
               null
