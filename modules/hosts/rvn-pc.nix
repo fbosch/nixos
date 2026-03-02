@@ -114,6 +114,8 @@ in
 
         networking.nameservers = hostMeta.dnsServers;
 
+        time.hardwareClockInLocalTime = true;
+
         environment.sessionVariables = {
           TERMINAL = "wezterm";
           ELECTRON_OZONE_PLATFORM_HINT = "auto";

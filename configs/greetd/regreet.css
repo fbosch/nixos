@@ -1,0 +1,90 @@
+window.background {
+  background-color: transparent;
+}
+
+frame.background {
+  background-color: rgba(45, 45, 45, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+}
+
+frame.background > label {
+  font-family: "SF Pro Rounded", sans-serif;
+  font-size: 32px;
+  font-weight: bold;
+  color: rgba(255, 255, 255, 0.90);
+  padding: 12px 24px;
+}
+
+label {
+  color: #cccccc;
+  font-family: "SF Pro Display", sans-serif;
+}
+
+entry,
+passwordentry,
+comboboxtext {
+  background-color: #373737;
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  min-height: 36px;
+  font-family: "SF Pro Display", sans-serif;
+}
+
+entry:focus,
+passwordentry:focus,
+comboboxtext:focus {
+  border-color: #0067c0;
+}
+
+entry:hover,
+passwordentry:hover,
+comboboxtext:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+button.suggested-action {
+  background-color: #0067c0;
+  color: #ffffff;
+  border-radius: 6px;
+  font-family: "SF Pro Rounded", sans-serif;
+  font-weight: 500;
+  min-height: 36px;
+  padding: 0 16px;
+}
+
+button.suggested-action:hover {
+  background-color: #106ebe;
+}
+
+button.suggested-action:active {
+  background-color: #1a7fd4;
+}
+
+button.destructive-action {
+  background-color: #e35245;
+  color: #ffffff;
+  border-radius: 6px;
+  font-family: "SF Pro Rounded", sans-serif;
+  font-weight: 500;
+  min-height: 36px;
+  padding: 0 16px;
+}
+
+button.destructive-action:hover {
+  background-color: #ff6b5a;
+}
+
+togglebutton {
+  background-color: #373737;
+  color: #cccccc;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+}
+
+infobar {
+  background-color: rgba(227, 82, 69, 0.15);
+  border: 1px solid #e35245;
+  border-radius: 6px;
+}
