@@ -162,6 +162,8 @@ in
         # Service-specific configuration (only overrides from defaults)
         services = lib.mkMerge [
           {
+            fstrim.enable = true;
+
             ananicy.enable = true;
 
             # Use Prowlarr as the single indexer manager for *arr services.
