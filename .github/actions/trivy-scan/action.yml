@@ -10,7 +10,7 @@ inputs:
   trivy-version:
     description: Trivy binary version to install (without leading v)
     required: false
-    default: "0.68.1"
+    default: "0.69.2"
 runs:
   using: composite
   steps:
