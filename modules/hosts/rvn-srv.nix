@@ -105,10 +105,14 @@ in
         };
 
         # Kernel tuning for server workload
+        powerManagement.cpuFreqGovernor = "performance";
+
         security.apparmor = {
           enable = true;
           killUnconfinedConfinables = false;
         };
+
+        boot.kernelParams = [ "transparent_hugepage=madvise" ];
 
         boot.kernel.sysctl = {
           "vm.swappiness" = 10; # Only swap when critically low on RAM
