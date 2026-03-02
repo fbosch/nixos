@@ -8,12 +8,19 @@ inputs:
     description: Filesystem-safe identifier for report artifacts
     required: true
   trivy-version:
-    description: Trivy binary version to install
+    description: Trivy binary version to install (without leading v)
     required: false
-    default: v0.68.1
+    default: "0.68.1"
 runs:
   using: composite
   steps:
+    - name: Install Trivy
+      shell: bash
+      run: |
+        curl -fsSL "https://github.com/aquasecurity/trivy/releases/download/v${{ inputs.trivy-version }}/trivy_${{ inputs.trivy-version }}_Linux-64bit.deb" \
+          -o /tmp/trivy.deb
+        sudo dpkg -i /tmp/trivy.deb
+
     - name: Run Trivy vulnerability scanner
       uses: aquasecurity/trivy-action@e368e328979b113139d6f9068e03accaed98a518 # 0.34.1
       with:
@@ -22,7 +29,7 @@ runs:
         output: trivy-results-${{ inputs.safe-name }}.sarif
         severity: CRITICAL,HIGH,MEDIUM
         exit-code: "0"
-        version: ${{ inputs.trivy-version }}
+        skip-setup-trivy: true
 
     - name: Upload Trivy results to GitHub Security
       uses: github/codeql-action/upload-sarif@89a39a4e59826350b863aa6b6252a07ad50cf83e # v4
@@ -37,4 +44,4 @@ runs:
         format: table
         severity: CRITICAL,HIGH
         exit-code: "0"
-        version: ${{ inputs.trivy-version }}
+        skip-setup-trivy: true
