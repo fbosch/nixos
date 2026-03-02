@@ -8,6 +8,8 @@ _: {
     let
       nixosConfig = config;
 
+      # TUIGreet configuration
+      tuigreetTheme = builtins.readFile ../../configs/greetd/theme.txt;
       nixosVersion = "${nixosConfig.system.nixos.release} ${nixosConfig.system.nixos.codeName}";
       issueText = builtins.readFile ../../configs/greetd/issue.txt;
 
@@ -28,52 +30,15 @@ _: {
         };
       };
 
-      services.greetd.enable = true;
-
-      programs.regreet = {
+      # Greetd with TUIGreet
+      services.greetd = {
         enable = true;
-        cageArgs = [
-          "-s"
-          "-d"
-          "-m"
-          "last"
-        ];
-        font = {
-          name = "SF Pro Display";
-          size = 14;
-        };
-        theme = {
-          name = "MonoThemeDark";
-          package = pkgs.emptyDirectory;
-        };
-        iconTheme = {
-          name = "Win11";
-          package = pkgs.emptyDirectory;
-        };
-        cursorTheme = {
-          name = "WinSur-white-cursors";
-          package = pkgs.emptyDirectory;
-        };
-        extraCss = builtins.readFile ../../configs/greetd/regreet.css;
         settings = {
-          background = {
-            path = ../../assets/wallpapers/cube_mono.png;
-            fit = "Cover";
-          };
-          GTK.application_prefer_dark_theme = true;
-          greeting_msg = "";
-          time_format = "%H:%M";
-          commands.reboot = [
-            "systemctl"
-            "reboot"
-          ];
-          commands.poweroff = [
-            "systemctl"
-            "poweroff"
-          ];
           default_session = {
-            command = "/etc/greetd/session-hyprland";
-            name = "Hyprland";
+            command = ''
+              ${pkgs.tuigreet}/bin/tuigreet --time --remember --asterisks --issue --greet-align center --theme ${lib.escapeShellArg (lib.removeSuffix "\n" tuigreetTheme)} --sessions "" --cmd /etc/greetd/session-hyprland
+            '';
+            user = "greeter";
           };
         };
       };
