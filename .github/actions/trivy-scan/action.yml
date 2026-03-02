@@ -7,6 +7,10 @@ inputs:
   safe-name:
     description: Filesystem-safe identifier for report artifacts
     required: true
+  trivy-version:
+    description: Trivy binary version to install
+    required: false
+    default: v0.68.1
 runs:
   using: composite
   steps:
@@ -18,6 +22,7 @@ runs:
         output: trivy-results-${{ inputs.safe-name }}.sarif
         severity: CRITICAL,HIGH,MEDIUM
         exit-code: "0"
+        version: ${{ inputs.trivy-version }}
 
     - name: Upload Trivy results to GitHub Security
       uses: github/codeql-action/upload-sarif@89a39a4e59826350b863aa6b6252a07ad50cf83e # v4
@@ -32,3 +37,4 @@ runs:
         format: table
         severity: CRITICAL,HIGH
         exit-code: "0"
+        version: ${{ inputs.trivy-version }}
