@@ -95,11 +95,9 @@ in
             }
           ];
 
-        # Limit Nix build parallelism to leave cores free for desktop use
-        nix.settings = {
-          cores = 8;
-          max-jobs = 8;
-        };
+        # Limit concurrent Nix builds to leave headroom for desktop use;
+        # system76-scheduler handles per-process CPU priority dynamically
+        nix.settings.max-jobs = 4;
 
         # Enable SSH for remote access
         services.openssh.enable = true;
@@ -116,17 +114,8 @@ in
 
         networking.nameservers = hostMeta.dnsServers;
 
-        # Desktop-specific packages
-        environment.systemPackages = [
-          pkgs.wlr-randr
-        ];
-
-        # NVIDIA-specific environment variables
         environment.sessionVariables = {
-          LIBVA_DRIVER_NAME = "nvidia";
           TERMINAL = "wezterm";
-          GBM_BACKEND = "nvidia_drm";
-          __GLX_VENDOR_LIBRARY_NAME = "nvidia";
           ELECTRON_OZONE_PLATFORM_HINT = "auto";
         };
       };
