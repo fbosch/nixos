@@ -121,6 +121,7 @@ fi
 gum style --foreground 244 ""
 gum style --foreground 244 "Authenticating GitHub CLI (device flow)."
 gum style --foreground 244 "Use the printed code on another device (phone/laptop)."
+gum style --foreground 244 "Open: https://github.com/login/device?skip_account_picker=true"
 
 if gh auth status >/dev/null 2>&1; then
   gum style --foreground 2 "GitHub CLI already authenticated."
