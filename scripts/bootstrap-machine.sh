@@ -292,7 +292,7 @@ fi
 if [ "$gpg_key_present" = "true" ] && [ "$age_status" = "skipped" ] && [ -f "./scripts/bootstrap-age.sh" ]; then
   gum style --foreground 244 ""
   if gum confirm "Run age bootstrap now?"; then
-    nix-shell -p sops age gnupg pinentry --run "export GPG_TTY=/dev/tty; bash ./scripts/bootstrap-age.sh </dev/tty >/dev/tty"
+    nix-shell -p sops age gnupg pinentry-curses --run "export GPG_TTY=/dev/tty; bash ./scripts/bootstrap-age.sh </dev/tty >/dev/tty"
     age_status="completed"
   fi
 elif [ "$gpg_key_present" = "false" ]; then
@@ -312,7 +312,7 @@ if [ "$rebuild_status" = "completed" ]; then
   if [ "$gpg_key_present" = "true" ] && [ "$age_status" = "skipped" ] && [ -f "./scripts/bootstrap-age.sh" ]; then
     gum style --foreground 244 ""
     if gum confirm "Run age bootstrap now?"; then
-      nix-shell -p sops age gnupg pinentry --run "export GPG_TTY=/dev/tty; bash ./scripts/bootstrap-age.sh </dev/tty >/dev/tty"
+      nix-shell -p sops age gnupg pinentry-curses --run "export GPG_TTY=/dev/tty; bash ./scripts/bootstrap-age.sh </dev/tty >/dev/tty"
       age_status="completed"
     fi
   fi
