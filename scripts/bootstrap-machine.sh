@@ -31,8 +31,10 @@ render_host_module() {
 
   case "$preset" in
     minimal)
-      nixos_imports=""
-      hm_imports=""
+      nixos_imports="
+          \"presets/minimal\""
+      hm_imports="
+          \"presets/minimal\""
       ;;
     desktop|server)
       nixos_imports="
