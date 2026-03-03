@@ -77,13 +77,17 @@ if [ "$download_ok" = "false" ]; then
 fi
 
 printf "Decrypting and importing GPG key...\n"
-if gpg --decrypt "$tmp_encrypted" | gpg --import 2>&1; then
+read -r -s -p "Enter passphrase for encrypted GPG backup: " gpg_backup_passphrase
+printf "\n"
+
+if printf "%s" "$gpg_backup_passphrase" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 --decrypt "$tmp_encrypted" | gpg --import 2>&1; then
   printf "GPG key imported successfully.\n"
 else
   printf "Error: Failed to decrypt or import GPG key from gist.\n"
   printf "Check passphrase and gist content.\n"
   exit 1
 fi
+unset gpg_backup_passphrase
 
 printf "\nSetting ultimate trust for GPG key...\n"
 if printf "trust\n5\ny\nquit\n" | gpg --command-fd 0 --edit-key "$gpg_key_id" >/dev/null 2>&1; then
