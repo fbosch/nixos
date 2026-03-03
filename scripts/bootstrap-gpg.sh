@@ -5,7 +5,7 @@
 set -euo pipefail
 
 gpg_key_id="fbb.privacy+gpg@protonmail.com"
-default_gist_id="68308e969e326a4c4fa2529fbf211006"
+default_gist_id="00ef63c17464ffaea9ed1ba6715e6a4b"
 gist_id="${1:-${GPG_KEY_GIST_ID:-$default_gist_id}}"
 
 printf "=== NixOS GPG Bootstrap ===\n\n"
