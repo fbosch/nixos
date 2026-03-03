@@ -2,19 +2,20 @@
 {
   flake.modules.nixos.users =
     { pkgs
+    , lib
     , ...
     }:
     {
       users.users.${config.flake.meta.user.username} = {
-        isNormalUser = true;
-        description = config.flake.meta.user.fullName;
-        openssh.authorizedKeys.keys = config.flake.meta.user.ssh.authorizedKeys;
-        extraGroups = [
+        isNormalUser = lib.mkForce true;
+        description = lib.mkForce config.flake.meta.user.fullName;
+        openssh.authorizedKeys.keys = lib.mkForce config.flake.meta.user.ssh.authorizedKeys;
+        extraGroups = lib.mkForce [
           "networkmanager"
           "wheel"
         ];
-        shell = pkgs.fish;
-        ignoreShellProgramCheck = true;
+        shell = lib.mkForce pkgs.fish;
+        ignoreShellProgramCheck = lib.mkForce true;
       };
 
     };
