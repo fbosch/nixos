@@ -252,8 +252,6 @@ gum style --foreground 244 "Staging generated host and machine files in git inde
 git add "$host_file" "$machine_dir/configuration.nix" "$machine_dir/hardware-configuration.nix"
 
 gpg_status="skipped"
-age_status="skipped"
-second_rebuild_status="skipped"
 gpg_key_id="fbb.privacy+gpg@protonmail.com"
 gpg_key_present="false"
 
@@ -279,30 +277,12 @@ if [ "$gpg_key_present" = "true" ] && [ -f "./scripts/bootstrap-gpg.sh" ]; then
   fi
 fi
 
-if [ -f ".sops.yaml" ] && grep -Eq "&${host_name}[[:space:]]+age1" ".sops.yaml"; then
-  age_status="completed"
-  gum style --foreground 244 ""
-  gum style --foreground 244 "Age key for ${host_name} already present in .sops.yaml; skipping age bootstrap prompt."
-fi
-
-gum style --foreground 244 ""
 if [ "$gpg_status" = "skipped" ] && [ -f "./scripts/bootstrap-gpg.sh" ]; then
   if gum confirm "Run GPG bootstrap now?"; then
     nix-shell -p gh gnupg --run "bash ./scripts/bootstrap-gpg.sh </dev/tty >/dev/tty"
     gpg_status="completed"
     gpg_key_present="true"
   fi
-fi
-
-if [ "$gpg_key_present" = "true" ] && [ "$age_status" = "skipped" ] && [ -f "./scripts/bootstrap-age.sh" ]; then
-  gum style --foreground 244 ""
-  if gum confirm "Run age bootstrap now?"; then
-    nix-shell -p sops age gnupg pinentry-curses --run "export GPG_TTY=/dev/tty; bash ./scripts/bootstrap-age.sh </dev/tty >/dev/tty"
-    age_status="completed"
-  fi
-elif [ "$gpg_key_present" = "false" ]; then
-  gum style --foreground 244 ""
-  gum style --foreground 244 "Skipping age bootstrap because no GPG key is available yet."
 fi
 
 gum style --foreground 244 ""
@@ -313,28 +293,8 @@ else
   rebuild_status="skipped"
 fi
 
-if [ "$rebuild_status" = "completed" ]; then
-  if [ "$gpg_key_present" = "true" ] && [ "$age_status" = "skipped" ] && [ -f "./scripts/bootstrap-age.sh" ]; then
-    gum style --foreground 244 ""
-    if gum confirm "Run age bootstrap now?"; then
-      nix-shell -p sops age gnupg pinentry-curses --run "export GPG_TTY=/dev/tty; bash ./scripts/bootstrap-age.sh </dev/tty >/dev/tty"
-      age_status="completed"
-    fi
-  fi
-
-  if [ "$age_status" = "completed" ]; then
-    gum style --foreground 244 ""
-    if gum confirm "Run second rebuild now?"; then
-      sudo nixos-rebuild switch --flake ".#$host_name"
-      second_rebuild_status="completed"
-    fi
-  fi
-fi
-
 final_rebuild_completed="false"
-if [ "$second_rebuild_status" = "completed" ]; then
-  final_rebuild_completed="true"
-elif [ "$rebuild_status" = "completed" ]; then
+if [ "$rebuild_status" = "completed" ]; then
   final_rebuild_completed="true"
 fi
 
