@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-bootstrap_url="https://raw.githubusercontent.com/fbosch/nixos/main/scripts/bootstrap-machine.sh"
+bootstrap_url="https://github.com/fbosch/nixos/raw/refs/heads/master/scripts/bootstrap-machine.sh"
 tmp_script="$(mktemp)"
 
 cleanup() {
