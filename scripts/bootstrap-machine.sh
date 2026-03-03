@@ -130,7 +130,40 @@ fi
 
 gum style --foreground 244 ""
 gum style --foreground 244 "Cloning $repo into $target_dir"
-gh repo clone "$repo" "$target_dir"
+mkdir -p "$HOME/.ssh"
+chmod 700 "$HOME/.ssh"
+
+if [ -f "$HOME/.ssh/known_hosts" ] && grep -q '^github.com ' "$HOME/.ssh/known_hosts"; then
+  :
+else
+  cat >>"$HOME/.ssh/known_hosts" <<'EOF'
+github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl
+github.com ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBEmKSENjQEezOmxkZMy7opKgwFB9nkt5YRrYMjNuG5N87uRgg6CLrbo5wAdT/y6v0mKV0U2w0WZ2YB/++Tpockg=
+github.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCj7ndNxQowgcQnjshcLrqPEiiphnt+VTTvDP6mHBL9j1aNUkY4Ue1gvwnGLVlOhGeYrnZaMgRK6+PKCUXaDbC7qtbW8gIkhL7aGCsOr/C56SJMy/BCZfxd1nWzAOxSDPgVsmerOBYfNqltV9/hWCqBywINIR+5dIg6JTJ72pcEpEjcYgXkE2YEFXV1JHnsKgbLWNlhScqb2UmyRkQyytRLtL+38TGxkxCflmO+5Z8CSSNY7GidjMIZ7Q4zMjA2n1nGrlTDkzwDCsw+wqFPGQA179cnfGWOWRVruj16z6XyvxvjJwbz0wQZ75XK5tKSb7FNyeIEs4TT4jk+S4dhPeAUC5y+bDYirYgM4GC7uEnztnZyaVWQ7B381AK4Qdrwt51ZqExKbQpTUNn+EjqoTwvqNj4kqx5QUCI0ThS/YkOxJCXmPUWZbhjpCg56i+2aB6CmK2JGhn57K5mj0MNdBXA4/WnwH6XoPWJzK5Nyu2zB3nAZp+S5hpQs+p1vN1/wsjk=
+EOF
+  chmod 600 "$HOME/.ssh/known_hosts"
+fi
+
+ssh_key_path="$HOME/.ssh/id_ed25519"
+ssh_pub_path="${ssh_key_path}.pub"
+
+if [ -f "$ssh_key_path" ] && [ -f "$ssh_pub_path" ]; then
+  :
+else
+  gum style --foreground 244 "No SSH key found at $ssh_key_path; generating one."
+  ssh-keygen -t ed25519 -N "" -f "$ssh_key_path"
+fi
+
+local_pubkey="$(tr -d '\n' <"$ssh_pub_path")"
+
+if gh api user/keys --jq '.[].key' | grep -Fqx "$local_pubkey"; then
+  :
+else
+  gum style --foreground 244 "Adding SSH public key to GitHub account."
+  gh ssh-key add "$ssh_pub_path" --title "$host_name-bootstrap"
+fi
+
+git clone "git@github.com:$repo.git" "$target_dir"
 
 machine_dir="$target_dir/machines/$machine_name"
 host_file="$target_dir/modules/hosts/$host_name.nix"
