@@ -216,6 +216,7 @@
         runtimeInputs = with pkgs; [
           gh
           git
+          gum
         ];
         text = builtins.readFile ../../scripts/bootstrap-machine.sh;
       };

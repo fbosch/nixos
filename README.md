@@ -16,7 +16,11 @@
 
 Personal NixOS configuration using a dendritic module layout with flake-parts.
 
-Fresh installation? See [docs/INSTALLATION.md](docs/INSTALLATION.md).
+Fresh install:
+
+```sh
+nix run --experimental-features 'nix-command flakes' github:fbosch/nixos#install
+```
 
 ## Common Tasks
 
