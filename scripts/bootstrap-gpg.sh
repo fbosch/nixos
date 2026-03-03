@@ -1,104 +1,80 @@
 #!/usr/bin/env bash
-# Bootstrap GPG key from Bitwarden for SOPS secrets decryption
-# Usage: ./scripts/bootstrap-gpg.sh
+# Bootstrap GPG key from an encrypted secret gist
+# Usage: ./scripts/bootstrap-gpg.sh [gist-id]
 
-set -e
+set -euo pipefail
 
-GPG_KEY_ID="fbb.privacy+gpg@protonmail.com"
-BW_KEY_NOTE="GPG Private Key"
-BW_SERVER_URL="https://vault.corvus-corax.synology.me"
+gpg_key_id="fbb.privacy+gpg@protonmail.com"
+default_gist_id="68308e969e326a4c4fa2529fbf211006"
+gist_id="${1:-${GPG_KEY_GIST_ID:-$default_gist_id}}"
 
-# Ensure Bitwarden CLI uses a writable data directory
-export BITWARDENCLI_APPDATA_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/Bitwarden CLI"
-mkdir -p "$BITWARDENCLI_APPDATA_DIR"
+printf "=== NixOS GPG Bootstrap ===\n\n"
 
-# Remove Home Manager managed symlink if it exists (it points to read-only nix store)
-if [ -L "$BITWARDENCLI_APPDATA_DIR/data.json" ]; then
-	echo "Removing Home Manager managed Bitwarden CLI data.json symlink..."
-	rm "$BITWARDENCLI_APPDATA_DIR/data.json"
+if ! command -v gh >/dev/null 2>&1; then
+  printf "Error: GitHub CLI not found. Install it first:\n"
+  printf "  nix-shell -p gh gnupg\n"
+  exit 1
 fi
 
-# Initialize data.json with server URL if it doesn't exist or is empty
-if [ ! -f "$BITWARDENCLI_APPDATA_DIR/data.json" ] || [ ! -s "$BITWARDENCLI_APPDATA_DIR/data.json" ]; then
-	echo "Initializing Bitwarden CLI with server URL: $BW_SERVER_URL"
-	echo "{\"serverUrl\":\"$BW_SERVER_URL\"}" >"$BITWARDENCLI_APPDATA_DIR/data.json"
+if ! command -v gpg >/dev/null 2>&1; then
+  printf "Error: gpg not found. Install it first:\n"
+  printf "  nix-shell -p gh gnupg\n"
+  exit 1
 fi
 
-echo "=== NixOS GPG Bootstrap ==="
-echo
-
-# Check if GPG key already exists
-if gpg --list-secret-keys "$GPG_KEY_ID" &>/dev/null; then
-	echo "GPG key already exists on this system!"
-	echo
-	gpg --list-secret-keys --keyid-format=long "$GPG_KEY_ID"
-	echo
-	read -p "Do you want to re-import it anyway? (y/N): " -n 1 -r
-	echo
-	if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-		echo "Skipping GPG import. Exiting."
-		exit 0
-	fi
+if gpg --list-secret-keys "$gpg_key_id" >/dev/null 2>&1; then
+  printf "GPG key already exists on this system.\n\n"
+  gpg --list-secret-keys --keyid-format=long "$gpg_key_id"
+  printf "\n"
+  read -r -p "Do you want to re-import it anyway? (y/N): " reply
+  if [[ "$reply" =~ ^[Yy]$ ]]; then
+    :
+  else
+    printf "Skipping GPG import. Exiting.\n"
+    exit 0
+  fi
 fi
 
-# Check if Bitwarden CLI is installed
-if ! command -v bw &>/dev/null; then
-	echo "Error: Bitwarden CLI not found. Install it first:"
-	echo "  nix-shell -p bitwarden-cli"
-	exit 1
-fi
-
-# Check if already logged in
-if ! bw login --check &>/dev/null; then
-	echo "Logging in to Bitwarden..."
-	bw login
-	echo
-fi
-
-# Unlock vault
-echo "Unlocking Bitwarden vault..."
-if [ -z "$BW_SESSION" ]; then
-	BW_SESSION=$(bw unlock --raw)
-	export BW_SESSION
-fi
-echo "Vault unlocked!"
-echo
-
-# Import GPG key
-echo "Importing GPG key from Bitwarden..."
-if bw get notes "$BW_KEY_NOTE" | gpg --import 2>&1; then
-	echo "GPG key imported successfully!"
+if gh auth status >/dev/null 2>&1; then
+  printf "GitHub CLI already authenticated.\n"
 else
-	echo "Error: Failed to import GPG key from Bitwarden."
-	echo "Make sure you have a secure note named '$BW_KEY_NOTE' in your vault."
-	exit 1
+  printf "Authenticating GitHub CLI (device flow).\n"
+  printf "Open: https://github.com/login/device?skip_account_picker=true\n"
+  gh auth login --web --scopes gist
 fi
-echo
 
-# Set trust level
-echo "Setting ultimate trust for GPG key..."
-if echo -e "trust\n5\ny\nquit" | gpg --command-fd 0 --edit-key "$GPG_KEY_ID" &>/dev/null; then
-	echo "GPG key configured with ultimate trust!"
+if gh api "gists/$gist_id" >/dev/null 2>&1; then
+  :
 else
-	echo "Warning: Failed to set trust level. You may need to trust the key manually:"
-	echo "  gpg --edit-key $GPG_KEY_ID"
-	echo "  (then type: trust, 5, quit)"
+  printf "Refreshing GitHub auth scopes for gist access.\n"
+  gh auth refresh -h github.com -s gist
 fi
-echo
 
-echo "=== Bootstrap Complete ==="
-echo
-echo "GPG key is now available in your user keyring for manual secret editing."
-echo "You can now edit secrets files under secrets/ (for example: sops secrets/common.yaml)"
-echo
-echo "Next steps:"
-echo "1. Build the system (this will auto-generate an age key):"
-# shellcheck disable=SC2016
-echo '   sudo nixos-rebuild switch --flake .#$(hostname)'
-echo
-echo "2. Add the age key to .sops.yaml and re-encrypt secrets:"
-echo "   ./scripts/bootstrap-age.sh"
-echo
-echo "3. Rebuild to activate secrets:"
-# shellcheck disable=SC2016
-echo '   sudo nixos-rebuild switch --flake .#$(hostname)'
+tmp_encrypted="$(mktemp)"
+cleanup() {
+  rm -f "$tmp_encrypted"
+}
+trap cleanup EXIT
+
+printf "Downloading encrypted key from gist %s...\n" "$gist_id"
+gh gist view "$gist_id" --raw >"$tmp_encrypted"
+
+printf "Decrypting and importing GPG key...\n"
+if gpg --decrypt "$tmp_encrypted" | gpg --import 2>&1; then
+  printf "GPG key imported successfully.\n"
+else
+  printf "Error: Failed to decrypt or import GPG key from gist.\n"
+  printf "Check passphrase and gist content.\n"
+  exit 1
+fi
+
+printf "\nSetting ultimate trust for GPG key...\n"
+if printf "trust\n5\ny\nquit\n" | gpg --command-fd 0 --edit-key "$gpg_key_id" >/dev/null 2>&1; then
+  printf "GPG key configured with ultimate trust.\n"
+else
+  printf "Warning: Failed to set trust level automatically.\n"
+  printf "Run manually: gpg --edit-key %s\n" "$gpg_key_id"
+fi
+
+printf "\n=== Bootstrap Complete ===\n\n"
+printf "GPG key is now available for manual secret editing.\n"
