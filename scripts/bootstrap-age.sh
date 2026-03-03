@@ -72,9 +72,26 @@ if [ -f "$AGE_KEY_FILE" ] && [ -s "$AGE_KEY_FILE" ]; then
 	fi
 else
 	echo "No age key found at $AGE_KEY_FILE"
-	echo "The system will auto-generate one on first build."
-	echo "Run '$REBUILD_CMD' first, then run this script again."
-	exit 1
+	echo
+	read -p "Generate a new age key now? (Y/n): " -n 1 -r
+	echo
+	if [[ $REPLY =~ ^[Nn]$ ]]; then
+		echo "Skipping age key bootstrap."
+		exit 1
+	fi
+
+	if [[ $PLATFORM == "NixOS" ]]; then
+		sudo mkdir -p "$(dirname "$AGE_KEY_FILE")"
+		sudo age-keygen -o "$AGE_KEY_FILE"
+		sudo chmod 600 "$AGE_KEY_FILE"
+		sudo chown root:root "$AGE_KEY_FILE"
+	else
+		mkdir -p "$(dirname "$AGE_KEY_FILE")"
+		age-keygen -o "$AGE_KEY_FILE"
+		chmod 600 "$AGE_KEY_FILE"
+	fi
+	echo "Generated age key at $AGE_KEY_FILE"
+	echo
 fi
 
 # Extract public key
