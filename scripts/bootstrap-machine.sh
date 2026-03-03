@@ -234,8 +234,20 @@ render_host_module "$preset" "$host_name" "$machine_name" "$host_file"
 
 cd "$target_dir"
 
+gum style --foreground 244 "Staging generated host and machine files in git index..."
+git add "$host_file" "$machine_dir/configuration.nix" "$machine_dir/hardware-configuration.nix"
+
+gum style --foreground 244 "Validating generated host in flake outputs..."
+if nix --extra-experimental-features 'nix-command flakes' eval --no-write-lock-file ".#nixosConfigurations.${host_name}.config.system.stateVersion" >/dev/null 2>&1; then
+  host_available="true"
+else
+  host_available="false"
+  gum style --foreground 1 "Generated host '$host_name' is not available in flake.nixosConfigurations yet."
+  gum style --foreground 244 "Review $host_file and retry after fixing template/inputs."
+fi
+
 gum style --foreground 244 ""
-if gum confirm "Run first rebuild now? (sudo nixos-rebuild switch --flake .#$host_name)"; then
+if [ "$host_available" = "true" ] && gum confirm "Run first rebuild now? (sudo nixos-rebuild switch --flake .#$host_name)"; then
   sudo nixos-rebuild switch --flake ".#$host_name"
   rebuild_status="completed"
 else
