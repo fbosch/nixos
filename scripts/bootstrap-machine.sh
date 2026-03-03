@@ -256,6 +256,7 @@ gpg_status="skipped"
 age_status="skipped"
 second_rebuild_status="skipped"
 gpg_key_id="fbb.privacy+gpg@protonmail.com"
+gpg_declined="false"
 
 if command -v gpg >/dev/null 2>&1; then
   if gpg --list-secret-keys "$gpg_key_id" >/dev/null 2>&1; then
@@ -272,17 +273,24 @@ if [ -f ".sops.yaml" ] && grep -Eq "&${host_name}[[:space:]]+age1" ".sops.yaml";
 fi
 
 gum style --foreground 244 ""
-if [ "$gpg_status" = "skipped" ] && [ -f "./scripts/bootstrap-gpg.sh" ] && gum confirm "Run GPG bootstrap now?"; then
-  nix-shell -p gh gnupg --run "bash ./scripts/bootstrap-gpg.sh </dev/tty >/dev/tty"
-  gpg_status="completed"
+if [ "$gpg_status" = "skipped" ] && [ -f "./scripts/bootstrap-gpg.sh" ]; then
+  if gum confirm "Run GPG bootstrap now?"; then
+    nix-shell -p gh gnupg --run "bash ./scripts/bootstrap-gpg.sh </dev/tty >/dev/tty"
+    gpg_status="completed"
+  else
+    gpg_declined="true"
+  fi
 fi
 
-if [ "$age_status" = "skipped" ] && [ -f "./scripts/bootstrap-age.sh" ]; then
+if [ "$gpg_declined" = "false" ] && [ "$age_status" = "skipped" ] && [ -f "./scripts/bootstrap-age.sh" ]; then
   gum style --foreground 244 ""
   if gum confirm "Run age bootstrap now?"; then
-    nix-shell -p sops age gnupg --run "bash ./scripts/bootstrap-age.sh </dev/tty >/dev/tty"
+    nix-shell -p sops age gnupg pinentry --run "export GPG_TTY=/dev/tty; bash ./scripts/bootstrap-age.sh </dev/tty >/dev/tty"
     age_status="completed"
   fi
+elif [ "$gpg_declined" = "true" ]; then
+  gum style --foreground 244 ""
+  gum style --foreground 244 "Skipping age bootstrap because GPG bootstrap was skipped."
 fi
 
 gum style --foreground 244 ""
@@ -294,10 +302,10 @@ else
 fi
 
 if [ "$rebuild_status" = "completed" ]; then
-  if [ "$age_status" = "skipped" ] && [ -f "./scripts/bootstrap-age.sh" ]; then
+  if [ "$gpg_declined" = "false" ] && [ "$age_status" = "skipped" ] && [ -f "./scripts/bootstrap-age.sh" ]; then
     gum style --foreground 244 ""
     if gum confirm "Run age bootstrap now?"; then
-      nix-shell -p sops age gnupg --run "bash ./scripts/bootstrap-age.sh </dev/tty >/dev/tty"
+      nix-shell -p sops age gnupg pinentry --run "export GPG_TTY=/dev/tty; bash ./scripts/bootstrap-age.sh </dev/tty >/dev/tty"
       age_status="completed"
     fi
   fi
