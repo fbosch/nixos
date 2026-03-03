@@ -172,7 +172,7 @@ if gh api user/keys --jq '.[].key' | grep -Fqx "$local_pubkey"; then
   :
 else
   gum style --foreground 244 "Adding SSH public key to GitHub account."
-  gh ssh-key add "$ssh_pub_path" --title "$host_name-bootstrap"
+  gh ssh-key add "$ssh_pub_path" --title "${host_name}-${machine_name}-nixos"
   key_added="true"
 fi
 
