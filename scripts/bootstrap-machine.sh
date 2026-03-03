@@ -256,13 +256,27 @@ gpg_status="skipped"
 age_status="skipped"
 second_rebuild_status="skipped"
 gpg_key_id="fbb.privacy+gpg@protonmail.com"
-gpg_declined="false"
+gpg_key_present="false"
 
 if command -v gpg >/dev/null 2>&1; then
   if gpg --list-secret-keys "$gpg_key_id" >/dev/null 2>&1; then
     gpg_status="completed"
-    gum style --foreground 244 ""
-    gum style --foreground 244 "GPG key already present; skipping GPG bootstrap prompt."
+    gpg_key_present="true"
+  fi
+fi
+
+if [ "$gpg_key_present" = "false" ]; then
+  if nix-shell -p gnupg --run "gpg --list-secret-keys '$gpg_key_id' >/dev/null 2>&1"; then
+    gpg_status="completed"
+    gpg_key_present="true"
+  fi
+fi
+
+if [ "$gpg_key_present" = "true" ] && [ -f "./scripts/bootstrap-gpg.sh" ]; then
+  gum style --foreground 244 ""
+  gpg_reimport_choice="$(gum choose --header "GPG key already exists. Re-import it?" "No" "Yes")"
+  if [ "$gpg_reimport_choice" = "Yes" ]; then
+    nix-shell -p gh gnupg --run "bash ./scripts/bootstrap-gpg.sh </dev/tty >/dev/tty"
   fi
 fi
 
@@ -277,20 +291,19 @@ if [ "$gpg_status" = "skipped" ] && [ -f "./scripts/bootstrap-gpg.sh" ]; then
   if gum confirm "Run GPG bootstrap now?"; then
     nix-shell -p gh gnupg --run "bash ./scripts/bootstrap-gpg.sh </dev/tty >/dev/tty"
     gpg_status="completed"
-  else
-    gpg_declined="true"
+    gpg_key_present="true"
   fi
 fi
 
-if [ "$gpg_declined" = "false" ] && [ "$age_status" = "skipped" ] && [ -f "./scripts/bootstrap-age.sh" ]; then
+if [ "$gpg_key_present" = "true" ] && [ "$age_status" = "skipped" ] && [ -f "./scripts/bootstrap-age.sh" ]; then
   gum style --foreground 244 ""
   if gum confirm "Run age bootstrap now?"; then
     nix-shell -p sops age gnupg pinentry --run "export GPG_TTY=/dev/tty; bash ./scripts/bootstrap-age.sh </dev/tty >/dev/tty"
     age_status="completed"
   fi
-elif [ "$gpg_declined" = "true" ]; then
+elif [ "$gpg_key_present" = "false" ]; then
   gum style --foreground 244 ""
-  gum style --foreground 244 "Skipping age bootstrap because GPG bootstrap was skipped."
+  gum style --foreground 244 "Skipping age bootstrap because no GPG key is available yet."
 fi
 
 gum style --foreground 244 ""
@@ -302,7 +315,7 @@ else
 fi
 
 if [ "$rebuild_status" = "completed" ]; then
-  if [ "$gpg_declined" = "false" ] && [ "$age_status" = "skipped" ] && [ -f "./scripts/bootstrap-age.sh" ]; then
+  if [ "$gpg_key_present" = "true" ] && [ "$age_status" = "skipped" ] && [ -f "./scripts/bootstrap-age.sh" ]; then
     gum style --foreground 244 ""
     if gum confirm "Run age bootstrap now?"; then
       nix-shell -p sops age gnupg pinentry --run "export GPG_TTY=/dev/tty; bash ./scripts/bootstrap-age.sh </dev/tty >/dev/tty"
