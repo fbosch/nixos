@@ -77,8 +77,17 @@ if [ "$download_ok" = "false" ]; then
 fi
 
 printf "Decrypting and importing GPG key...\n"
-read -r -s -p "Enter passphrase for encrypted GPG backup: " gpg_backup_passphrase
-printf "\n"
+if [ -r /dev/tty ]; then
+  if IFS= read -r -s -p "Enter passphrase for encrypted GPG backup: " gpg_backup_passphrase </dev/tty; then
+    printf "\n" >/dev/tty
+  else
+    printf "\nError: Failed to read passphrase from TTY.\n"
+    exit 1
+  fi
+else
+  printf "Error: No TTY available for passphrase prompt.\n"
+  exit 1
+fi
 
 if printf "%s" "$gpg_backup_passphrase" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 --decrypt "$tmp_encrypted" | gpg --import 2>&1; then
   printf "GPG key imported successfully.\n"
