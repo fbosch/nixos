@@ -12,6 +12,7 @@
   flake.modules.homeManager."presets/minimal" = {
     imports = config.flake.lib.resolveHm [
       "users"
+      "dotfiles"
       "shell"
     ];
   };
