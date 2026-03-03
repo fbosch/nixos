@@ -165,15 +165,41 @@ else
 fi
 
 local_pubkey="$(tr -d '\n' <"$ssh_pub_path")"
+key_added="false"
 
 if gh api user/keys --jq '.[].key' | grep -Fqx "$local_pubkey"; then
   :
 else
   gum style --foreground 244 "Adding SSH public key to GitHub account."
   gh ssh-key add "$ssh_pub_path" --title "$host_name-bootstrap"
+  key_added="true"
 fi
 
-git clone "git@github.com:$repo.git" "$target_dir"
+if [ "$key_added" = "true" ]; then
+  gum style --foreground 244 "Waiting for GitHub to propagate the new SSH key..."
+fi
+
+clone_attempts=8
+clone_sleep_seconds=4
+clone_ok="false"
+
+for attempt in $(seq 1 "$clone_attempts"); do
+  if git clone "git@github.com:$repo.git" "$target_dir"; then
+    clone_ok="true"
+    break
+  fi
+
+  if [ "$attempt" -lt "$clone_attempts" ]; then
+    gum style --foreground 3 "SSH clone failed (attempt $attempt/$clone_attempts); retrying in ${clone_sleep_seconds}s..."
+    sleep "$clone_sleep_seconds"
+  fi
+done
+
+if [ "$clone_ok" = "false" ]; then
+  gum style --foreground 1 "SSH clone failed after $clone_attempts attempts."
+  gum style --foreground 244 "GitHub key propagation can lag briefly; rerun install in a few seconds."
+  exit 1
+fi
 
 machine_dir="$target_dir/machines/$machine_name"
 host_file="$target_dir/modules/hosts/$host_name.nix"
