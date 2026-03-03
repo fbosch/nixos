@@ -24,23 +24,17 @@
 - Log in with the user account created during installation
 - Open a terminal to begin configuring your system
 
-## 5. Setup GitHub CLI
+## 5. Bootstrap Repository and Machine Config
 
-- Run `nix-shell -p gh` to enter a temporary shell with GitHub CLI
-- Run `gh auth login`
-- Choose SSH protocol
-- Choose "Login with a web browser" (device authentication method)
-- Follow the prompts to authenticate from another device
-
-## 6. Clone and Setup Configuration
-
-- Run `gh repo clone fbosch/nixos` to clone your configuration repository
-- Copy `/etc/nixos/*` to `~/nixos/machines/<name>/`
+- Run `nix run --experimental-features 'nix-command flakes' github:fbosch/nixos#install`
+- Follow the GitHub CLI device flow shown in TTY (enter the code on another device)
+- The script clones `fbosch/nixos` into `~/nixos`
+- The script copies `/etc/nixos/configuration.nix` and `/etc/nixos/hardware-configuration.nix` into `~/nixos/machines/<hostname>/`
 
 ## 7. Add Host Configuration
 
 - Create a new host file in `modules/hosts/<name>.nix` following the pattern of existing hosts
-- Ensure the host file references the machine configuration from `machines/<name>/`
+- Ensure the host file references the machine configuration from `machines/<hostname>/`
 - Configure the host with appropriate settings for your machine
 - Add the `secrets` module in the host `modules = [ ... ]` list
 - Navigate to the `~/nixos` directory

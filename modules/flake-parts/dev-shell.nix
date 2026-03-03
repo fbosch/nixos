@@ -210,6 +210,15 @@
           exit $exit_code
         '';
       };
+
+      installScript = pkgs.writeShellApplication {
+        name = "bootstrap-machine";
+        runtimeInputs = with pkgs; [
+          gh
+          git
+        ];
+        text = builtins.readFile ../../scripts/bootstrap-machine.sh;
+      };
     in
     {
       # Configure pre-commit hooks
@@ -268,6 +277,11 @@
           type = "app";
           program = "${precommitWrapper}/bin/pre-commit-wrapper";
           meta.description = "Run staged pre-commit checks with treefmt and linters";
+        };
+        install = {
+          type = "app";
+          program = "${installScript}/bin/bootstrap-machine";
+          meta.description = "Bootstrap a fresh NixOS host and copy /etc/nixos config";
         };
       };
 
