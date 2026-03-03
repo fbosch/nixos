@@ -78,7 +78,7 @@ fi
 
 printf "Decrypting and importing GPG key...\n"
 if [ -r /dev/tty ]; then
-  if IFS= read -r -s -p "Enter passphrase for encrypted GPG backup: " gpg_backup_passphrase </dev/tty; then
+  if IFS= read -r -p "Enter passphrase for encrypted GPG backup: " gpg_backup_passphrase </dev/tty; then
     printf "\n" >/dev/tty
   else
     printf "\nError: Failed to read passphrase from TTY.\n"
