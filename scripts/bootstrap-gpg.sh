@@ -10,15 +10,8 @@ gist_id="${1:-${GPG_KEY_GIST_ID:-$default_gist_id}}"
 
 printf "=== NixOS GPG Bootstrap ===\n\n"
 
-if ! command -v gh >/dev/null 2>&1; then
-  printf "Error: GitHub CLI not found. Install it first:\n"
-  printf "  nix-shell -p gh gnupg\n"
-  exit 1
-fi
-
-if ! command -v gpg >/dev/null 2>&1; then
-  printf "Error: gpg not found. Install it first:\n"
-  printf "  nix-shell -p gh gnupg\n"
+if ! command -v gh >/dev/null 2>&1 || ! command -v gpg >/dev/null 2>&1; then
+  printf "Error: gh and gpg must be available.\n"
   exit 1
 fi
 
