@@ -246,7 +246,7 @@ age_key_file="/var/lib/sops-nix/key.txt"
 
 gum style --foreground 244 ""
 if [ -f "./scripts/bootstrap-gpg.sh" ] && gum confirm "Run GPG bootstrap now?"; then
-  nix-shell -p gh gnupg --run "./scripts/bootstrap-gpg.sh"
+  nix-shell -p gh gnupg --run "bash ./scripts/bootstrap-gpg.sh"
   gpg_status="completed"
 fi
 
@@ -254,7 +254,7 @@ if [ -f "./scripts/bootstrap-age.sh" ]; then
   if [ -r "$age_key_file" ]; then
     gum style --foreground 244 ""
     if gum confirm "Run age bootstrap now?"; then
-      nix-shell -p sops age gnupg --run "./scripts/bootstrap-age.sh"
+      nix-shell -p sops age gnupg --run "bash ./scripts/bootstrap-age.sh"
       age_status="completed"
     fi
   else
@@ -276,7 +276,7 @@ if [ "$rebuild_status" = "completed" ]; then
   if [ "$age_status" = "skipped" ] && [ -f "./scripts/bootstrap-age.sh" ]; then
     gum style --foreground 244 ""
     if gum confirm "Run age bootstrap now?"; then
-      nix-shell -p sops age gnupg --run "./scripts/bootstrap-age.sh"
+      nix-shell -p sops age gnupg --run "bash ./scripts/bootstrap-age.sh"
       age_status="completed"
     fi
   fi
