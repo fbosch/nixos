@@ -14,6 +14,7 @@
       "users"
       "dotfiles"
       "shell"
+      "development"
     ];
   };
 }

@@ -5,8 +5,8 @@
       home.packages =
         (with pkgs; [
           codex
-          cursor-cli
-          aichat
+          # cursor-cli
+          # aichat
           tesseract
           claude-code
         ])
