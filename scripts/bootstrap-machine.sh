@@ -239,21 +239,38 @@ cd "$target_dir"
 gum style --foreground 244 "Staging generated host and machine files in git index..."
 git add "$host_file" "$machine_dir/configuration.nix" "$machine_dir/hardware-configuration.nix"
 
-gum style --foreground 244 "Validating generated host in flake outputs..."
-if nix --extra-experimental-features 'nix-command flakes' eval --no-write-lock-file ".#nixosConfigurations.${host_name}.config.system.stateVersion" >/dev/null 2>&1; then
-  host_available="true"
-else
-  host_available="false"
-  gum style --foreground 1 "Generated host '$host_name' is not available in flake.nixosConfigurations yet."
-  gum style --foreground 244 "Review $host_file and retry after fixing template/inputs."
-fi
-
 gum style --foreground 244 ""
-if [ "$host_available" = "true" ] && gum confirm "Run first rebuild now? (sudo nixos-rebuild switch --flake .#$host_name)"; then
+if gum confirm "Run first rebuild now?"; then
   sudo nixos-rebuild switch --flake ".#$host_name"
   rebuild_status="completed"
 else
   rebuild_status="skipped"
+fi
+
+age_status="skipped"
+gpg_status="skipped"
+second_rebuild_status="skipped"
+
+if [ "$rebuild_status" = "completed" ]; then
+  gum style --foreground 244 ""
+  if [ -f "./scripts/bootstrap-gpg.sh" ] && gum confirm "Run GPG bootstrap now?"; then
+    bash "./scripts/bootstrap-gpg.sh"
+    gpg_status="completed"
+  fi
+
+  gum style --foreground 244 ""
+  if [ -f "./scripts/bootstrap-age.sh" ] && gum confirm "Run age bootstrap now?"; then
+    bash "./scripts/bootstrap-age.sh"
+    age_status="completed"
+  fi
+
+  if [ "$age_status" = "completed" ] || [ "$gpg_status" = "completed" ]; then
+    gum style --foreground 244 ""
+    if gum confirm "Run second rebuild now?"; then
+      sudo nixos-rebuild switch --flake ".#$host_name"
+      second_rebuild_status="completed"
+    fi
+  fi
 fi
 
 gum style --foreground 2 ""
@@ -264,11 +281,17 @@ gum style --foreground 244 "Next steps:"
 gum style --foreground 244 "  1. Review and customize $host_file"
 if [ "$rebuild_status" = "skipped" ]; then
   gum style --foreground 244 "  2. sudo nixos-rebuild switch --flake .#$host_name"
-  gum style --foreground 244 "  3. ./scripts/bootstrap-age.sh"
-  gum style --foreground 244 "  4. ./scripts/bootstrap-gpg.sh"
+  gum style --foreground 244 "  3. ./scripts/bootstrap-gpg.sh"
+  gum style --foreground 244 "  4. ./scripts/bootstrap-age.sh"
   gum style --foreground 244 "  5. sudo nixos-rebuild switch --flake .#$host_name"
 else
-  gum style --foreground 244 "  2. ./scripts/bootstrap-age.sh"
-  gum style --foreground 244 "  3. ./scripts/bootstrap-gpg.sh"
-  gum style --foreground 244 "  4. sudo nixos-rebuild switch --flake .#$host_name"
+  if [ "$gpg_status" = "skipped" ]; then
+    gum style --foreground 244 "  2. ./scripts/bootstrap-gpg.sh"
+  fi
+  if [ "$age_status" = "skipped" ]; then
+    gum style --foreground 244 "  3. ./scripts/bootstrap-age.sh"
+  fi
+  if [ "$second_rebuild_status" = "skipped" ]; then
+    gum style --foreground 244 "  4. sudo nixos-rebuild switch --flake .#$host_name"
+  fi
 fi
