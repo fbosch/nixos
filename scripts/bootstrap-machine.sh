@@ -125,7 +125,16 @@ gum style --foreground 244 "Use the printed code on another device (phone/laptop
 if gh auth status >/dev/null 2>&1; then
   gum style --foreground 2 "GitHub CLI already authenticated."
 else
-  gh auth login --git-protocol ssh --web
+  gh auth login --git-protocol ssh --web --scopes admin:public_key
+fi
+
+if gh auth token >/dev/null 2>&1; then
+  if gh api user/keys --jq '.[0].id' >/dev/null 2>&1; then
+    :
+  else
+    gum style --foreground 244 "Refreshing GitHub auth scopes for SSH key management."
+    gh auth refresh -h github.com -s admin:public_key
+  fi
 fi
 
 gum style --foreground 244 ""
