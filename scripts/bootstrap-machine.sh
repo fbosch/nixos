@@ -30,13 +30,7 @@ render_host_module() {
   local hm_imports=""
 
   case "$preset" in
-    minimal)
-      nixos_imports="
-          \"presets/minimal\""
-      hm_imports="
-          \"presets/minimal\""
-      ;;
-    desktop|server)
+    minimal|desktop|server)
       nixos_imports="
           \"presets/${preset}\""
       hm_imports="
@@ -307,7 +301,7 @@ elif [ "$gpg_key_present" = "false" ]; then
 fi
 
 gum style --foreground 244 ""
-if gum confirm "Run first rebuild now?"; then
+if gum confirm "Run rebuild now?"; then
   sudo nixos-rebuild switch --flake ".#$host_name"
   rebuild_status="completed"
 else
@@ -332,29 +326,19 @@ if [ "$rebuild_status" = "completed" ]; then
   fi
 fi
 
+final_rebuild_completed="false"
+if [ "$second_rebuild_status" = "completed" ]; then
+  final_rebuild_completed="true"
+elif [ "$rebuild_status" = "completed" ]; then
+  final_rebuild_completed="true"
+fi
+
 gum style --foreground 2 ""
 gum style --foreground 2 "Bootstrap complete"
 
-gum style --foreground 244 ""
-gum style --foreground 244 "Next steps:"
-gum style --foreground 244 "  1. Review and customize $host_file"
-if [ "$rebuild_status" = "skipped" ]; then
-  if [ "$gpg_status" = "skipped" ]; then
-    gum style --foreground 244 "  2. ./scripts/bootstrap-gpg.sh"
-    gum style --foreground 244 "  3. sudo nixos-rebuild switch --flake .#$host_name"
-    gum style --foreground 244 "  4. ./scripts/bootstrap-age.sh"
-    gum style --foreground 244 "  5. sudo nixos-rebuild switch --flake .#$host_name"
-  else
-    gum style --foreground 244 "  2. sudo nixos-rebuild switch --flake .#$host_name"
-    gum style --foreground 244 "  3. ./scripts/bootstrap-age.sh"
-    gum style --foreground 244 "  4. sudo nixos-rebuild switch --flake .#$host_name"
-  fi
-else
-  if [ "$age_status" = "skipped" ]; then
-    gum style --foreground 244 "  2. ./scripts/bootstrap-age.sh"
-    gum style --foreground 244 "  3. sudo nixos-rebuild switch --flake .#$host_name"
-  fi
-  if [ "$age_status" = "completed" ] && [ "$second_rebuild_status" = "skipped" ]; then
-    gum style --foreground 244 "  4. sudo nixos-rebuild switch --flake .#$host_name"
+if [ "$final_rebuild_completed" = "true" ]; then
+  gum style --foreground 244 ""
+  if gum confirm "Reboot now?"; then
+    sudo reboot
   fi
 fi
