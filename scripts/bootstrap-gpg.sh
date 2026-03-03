@@ -37,9 +37,11 @@ else
 fi
 
 tmp_encrypted="$(mktemp)"
+tmp_decrypted="$(mktemp)"
 tmp_error="$(mktemp)"
 cleanup() {
   rm -f "$tmp_encrypted"
+  rm -f "$tmp_decrypted"
   rm -f "$tmp_error"
 }
 trap cleanup EXIT
@@ -89,7 +91,15 @@ else
   exit 1
 fi
 
-if printf "%s" "$gpg_backup_passphrase" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 --decrypt "$tmp_encrypted" | gpg --import 2>&1; then
+if printf "%s" "$gpg_backup_passphrase" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 --decrypt --output "$tmp_decrypted" "$tmp_encrypted"; then
+  :
+else
+  printf "Error: Failed to decrypt key backup from gist.\n"
+  printf "Check passphrase and gist content.\n"
+  exit 1
+fi
+
+if gpg --batch --yes --pinentry-mode loopback --passphrase "$gpg_backup_passphrase" --import "$tmp_decrypted" 2>&1; then
   printf "GPG key imported successfully.\n"
 else
   printf "Error: Failed to decrypt or import GPG key from gist.\n"
