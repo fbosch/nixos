@@ -19,7 +19,7 @@ Personal NixOS configuration using a dendritic module layout with flake-parts.
 Fresh install (TTY):
 
 ```sh
-bash <(curl -fsSL https://nix.fbb.sh/install)
+curl -fsSL https://nix.fbb.sh/install | bash
 ```
 
 ## Common Tasks
