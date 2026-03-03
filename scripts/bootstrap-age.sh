@@ -18,6 +18,11 @@
 
 set -e
 
+if [ -r /dev/tty ]; then
+	export GPG_TTY=/dev/tty
+fi
+export SOPS_GPG_EXEC="$(command -v gpg || true)"
+
 echo "=== Age Key Bootstrap ==="
 echo
 
@@ -205,12 +210,26 @@ echo
 echo "Re-encrypting secrets/*.yaml with new key..."
 shopt -s nullglob
 SECRET_FILES=(secrets/*.yaml)
+failed_updates=0
 if [ ${#SECRET_FILES[@]} -gt 0 ]; then
 	for secret_file in "${SECRET_FILES[@]}"; do
 		echo "  Updating keys in $secret_file"
-		echo "y" | sops updatekeys "$secret_file"
+		if sops updatekeys --yes "$secret_file"; then
+			:
+		else
+			failed_updates=1
+			echo "  Failed to update keys in $secret_file"
+		fi
 	done
-	echo "Secrets re-encrypted successfully!"
+	if [ "$failed_updates" -eq 0 ]; then
+		echo "Secrets re-encrypted successfully!"
+	else
+		echo
+		echo "One or more secrets could not be re-encrypted."
+		echo "This usually means the current machine still has no key that can decrypt the existing file recipients."
+		echo "Use a machine that can already decrypt current secrets, add this host key there, run updatekeys, then sync changes."
+		exit 1
+	fi
 else
 	echo "Warning: no secrets YAML files found in secrets/"
 fi
