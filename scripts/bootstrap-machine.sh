@@ -124,7 +124,12 @@ fi
 if [ "$reuse_existing_repo" = "true" ]; then
   gum style --foreground 244 ""
   if gum confirm "Pull latest changes in $target_dir now?"; then
-    git -C "$target_dir" pull --ff-only || true
+    if git -C "$target_dir" pull --ff-only; then
+      :
+    else
+      gum style --foreground 1 "Failed to pull latest changes in $target_dir"
+      gum style --foreground 244 "Continuing with existing local scripts."
+    fi
   fi
 else
   gum style --foreground 244 ""
