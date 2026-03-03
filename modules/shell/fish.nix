@@ -29,13 +29,13 @@
           name: lib.hasAttrByPath [ "sops" "secrets" name "path" ] config
         )
         requiredSecrets;
-      secretsMap = {
+      secretsMap = lib.optionalAttrs hasRequiredSecrets {
         CONTEXT7_API_KEY = config.sops.secrets.context7-api-key.path;
         GITHUB_TOKEN = config.sops.secrets.github-token.path;
         COPILOT_TOKEN = config.sops.secrets.github-token.path;
         KAGI_API_TOKEN = config.sops.secrets.kagi-api-token.path;
         OPENAI_API_KEY = config.sops.secrets.openai-api-key.path;
-        MORPH_API_KEY = config.sops.secrets.morph-api-key;
+        MORPH_API_KEY = config.sops.secrets.morph-api-key.path;
         EXA_API_KEY = config.sops.secrets.exa-api-key.path;
         OPENMEMORY_API_KEY = config.sops.secrets.openmemory-api-key.path;
       };
