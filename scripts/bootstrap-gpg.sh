@@ -36,21 +36,45 @@ else
   gh auth login --web --scopes gist
 fi
 
-if gh api "gists/$gist_id" >/dev/null 2>&1; then
-  :
-else
-  printf "Refreshing GitHub auth scopes for gist access.\n"
-  gh auth refresh -h github.com -s gist
-fi
-
 tmp_encrypted="$(mktemp)"
+tmp_error="$(mktemp)"
 cleanup() {
   rm -f "$tmp_encrypted"
+  rm -f "$tmp_error"
 }
 trap cleanup EXIT
 
 printf "Downloading encrypted key from gist %s...\n" "$gist_id"
-gh gist view "$gist_id" --raw >"$tmp_encrypted"
+download_ok="false"
+scope_refreshed="false"
+download_attempts=6
+download_sleep_seconds=3
+
+for attempt in $(seq 1 "$download_attempts"); do
+  if gh gist view "$gist_id" --raw >"$tmp_encrypted" 2>"$tmp_error"; then
+    download_ok="true"
+    break
+  fi
+
+  if grep -Eiq "scope|forbidden|401|403" "$tmp_error" && [ "$scope_refreshed" = "false" ]; then
+    printf "Refreshing GitHub auth scopes for gist access.\n"
+    gh auth refresh -h github.com -s gist
+    scope_refreshed="true"
+    continue
+  fi
+
+  if [ "$attempt" -lt "$download_attempts" ]; then
+    printf "Download failed (attempt %s/%s). Retrying in %ss...\n" "$attempt" "$download_attempts" "$download_sleep_seconds"
+    sleep "$download_sleep_seconds"
+  fi
+done
+
+if [ "$download_ok" = "false" ]; then
+  printf "Error: Failed to download gist after %s attempts.\n" "$download_attempts"
+  printf "Last error:\n"
+  cat "$tmp_error"
+  exit 1
+fi
 
 printf "Decrypting and importing GPG key...\n"
 if gpg --decrypt "$tmp_encrypted" | gpg --import 2>&1; then
