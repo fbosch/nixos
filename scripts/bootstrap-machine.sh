@@ -36,11 +36,9 @@ render_host_module() {
       ;;
     desktop|server)
       nixos_imports="
-          \"presets/${preset}\"
-          \"secrets\""
+          \"presets/${preset}\""
       hm_imports="
-          \"presets/${preset}\"
-          \"secrets\""
+          \"presets/${preset}\""
       ;;
     *)
       gum style --foreground 1 "Unsupported preset: $preset"
@@ -49,7 +47,10 @@ render_host_module() {
   esac
 
   cat >"$host_file" <<EOF
-{ config, ... }:
+{ inputs
+, config
+, ...
+}:
 let
   hostMeta = {
     name = "${host_name}";
@@ -60,10 +61,11 @@ let
   };
 in
 {
-  flake = {
-    meta.hosts = [ hostMeta ];
+  flake.meta.hosts = [ hostMeta ];
 
-    modules.nixos."hosts/${host_name}" = {
+  flake.modules.nixos."hosts/${host_name}" =
+    { ... }:
+    {
       imports = config.flake.lib.resolve [${nixos_imports}
         ../../machines/${machine_name}/configuration.nix
         ../../machines/${machine_name}/hardware-configuration.nix
@@ -73,7 +75,6 @@ in
         config.flake.lib.resolveHm [${hm_imports}
       ];
     };
-  };
 }
 EOF
 }
