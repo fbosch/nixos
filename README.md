@@ -21,9 +21,7 @@ Personal NixOS configuration using a dendritic module layout with flake-parts.
 curl -fsSL nix.fbb.sh/install | bash
 ```
 
-## Common Tasks
-
-### Build & Deploy
+### Build
 
 ```sh
 nh os switch          # Build and switch
@@ -32,11 +30,16 @@ nh os rollback        # Rollback to previous build
 nh os switch --update # Update and rebuild
 ```
 
-### Development
+### Tasks
 
 ```sh
-nix run .#lint        # treefmt + statix + deadnix + actionlint + shellcheck
-nix run .#fmt         # treefmt formatting
+just                  # List all available recipes
+# featured
+just lint             # Run linter suite
+just fmt              # Format files
+just build-images     # Build all custom container images
+just update-sops-keys # Re-encrypt secrets with current recipients
+just update-avatar    # Update GitHub avatar hash in flake metadata
 ```
 
 ### Dotfiles

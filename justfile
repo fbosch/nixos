@@ -1,19 +1,17 @@
 # NixOS flake task runner
 # Usage: just <recipe>
 
-hostname := `hostname`
-
 # List available recipes
 default:
     @just --list
 
 # Build and switch to the current host configuration
 switch:
-    sudo nixos-rebuild switch --flake .
+    nh os switch
 
 # Build without switching (dry run)
 build:
-    nixos-rebuild build --flake .
+    nh os test
 
 # Build custom container images for helium
 build-helium:
@@ -33,3 +31,11 @@ lint:
 # Format all files
 fmt:
     nix run .#fmt
+
+# Re-encrypt all secrets with current .sops.yaml recipients
+update-sops-keys:
+    bash ./scripts/update-sops-keys.sh
+
+# Update GitHub avatar hash in flake metadata
+update-avatar:
+    bash ./scripts/update-avatar.sh
