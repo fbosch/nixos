@@ -16,15 +16,12 @@
 
 Personal NixOS configuration using a dendritic module layout with flake-parts.
 
-After fresh install:
-
 ```sh
+# bootstrapping after fresh install
 curl -fsSL nix.fbb.sh/install | bash
 ```
 
 ## Common Tasks
-
-> **Note:** This configuration uses [`nh`](https://github.com/nix-community/nh) (Nix Helper) for simplified system management.
 
 ### Build & Deploy
 
@@ -44,7 +41,7 @@ nix run .#fmt         # treefmt formatting
 
 ### Dotfiles
 
-My dotfiles are managed via Home Manager + GNU Stow.
+Dotfiles are managed via Home Manager + GNU Stow.
 **→ [https://github.com/fbosch/dotfiles](https://github.com/fbosch/dotfiles)**
 
 ## Credits
