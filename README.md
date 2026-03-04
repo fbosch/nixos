@@ -21,6 +21,8 @@ Personal NixOS configuration using a dendritic module layout with flake-parts.
 curl -fsSL nix.fbb.sh/install | bash
 ```
 
+---
+
 ### Build
 
 ```sh
