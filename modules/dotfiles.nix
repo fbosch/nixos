@@ -19,6 +19,9 @@ in
       # Clones the dotfiles repo (pinned to a flake input revision) on first activation,
       # then symlinks everything into $HOME with stow on every activation.
     {
+      home.packages = with pkgs; [
+        stow
+      ];
       home.activation = {
         # Phase 1: ensure the dotfiles repo is present and uses SSH.
         # Runs after writeBoundary so the home directory structure exists.
@@ -53,10 +56,5 @@ in
           $DRY_RUN_CMD ${pkgs.stow}/bin/stow --restow --verbose -t "$HOME" .
         '';
       };
-
-      home.packages = with pkgs; [
-        stow
-        readline
-      ];
     };
 }
