@@ -46,7 +46,7 @@ just update-avatar    # Update GitHub avatar hash in flake metadata
 
 ### Dotfiles
 
-Dotfiles are managed via Home Manager + GNU Stow.
+Dotfiles are managed via [Home Manager + GNU Stow](https://github.com/fbosch/nixos/blob/master/modules/dotfiles.nix).
 **→ [https://github.com/fbosch/dotfiles](https://github.com/fbosch/dotfiles)**
 
 ## Credits
