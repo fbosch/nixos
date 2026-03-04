@@ -10,8 +10,11 @@
     "nixos": {
       "type": "local",
       "command": [
-        "uvx",
-        "mcp-nixos"
+        "podman",
+        "run",
+        "--rm",
+        "-i",
+        "ghcr.io/utensils/mcp-nixos"
       ]
     }
   },
