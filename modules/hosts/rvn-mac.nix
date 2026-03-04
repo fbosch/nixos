@@ -54,6 +54,9 @@ in
           ];
         };
 
+        # Set hostname so SSH config can identify this host and use Tailnet addresses
+        networking.hostName = hostMeta.name;
+
         # macOS system configuration
         system = {
           stateVersion = 5;
