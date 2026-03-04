@@ -5,7 +5,7 @@ bootstrap_url="https://github.com/fbosch/nixos/raw/refs/heads/master/scripts/boo
 tmp_script="$(mktemp)"
 
 cleanup() {
-  rm -f "$tmp_script"
+	rm -f "$tmp_script"
 }
 trap cleanup EXIT
 

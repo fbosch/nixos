@@ -21,7 +21,8 @@ set -e
 if [ -r /dev/tty ]; then
 	export GPG_TTY=/dev/tty
 fi
-export SOPS_GPG_EXEC="$(command -v gpg || true)"
+SOPS_GPG_EXEC="$(command -v gpg || true)"
+export SOPS_GPG_EXEC
 
 echo "=== Age Key Bootstrap ==="
 echo
