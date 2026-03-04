@@ -15,8 +15,13 @@ in
       DOTFILES_REV = inputs.dotfiles.rev or "master";
       DOTFILES_URL = flakeConfig.flake.meta.dotfiles.url;
     in
+    # Manages dotfiles via git clone + GNU Stow.
+      # Clones the dotfiles repo (pinned to a flake input revision) on first activation,
+      # then symlinks everything into $HOME with stow on every activation.
     {
       home.activation = {
+        # Phase 1: ensure the dotfiles repo is present and uses SSH.
+        # Runs after writeBoundary so the home directory structure exists.
         setupDotfiles = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
           set -euo pipefail
 
@@ -37,6 +42,9 @@ in
           fi
         '';
 
+        # Phase 2: symlink dotfiles into $HOME.
+        # Waits for both setupDotfiles (repo ready) and linkGeneration (HM links written)
+        # so stow doesn't conflict with Home Manager's own symlinks.
         stowDotFiles = lib.hm.dag.entryAfter [ "setupDotfiles" "linkGeneration" ] ''
           set -euo pipefail
           cd ${REPO}
