@@ -4,11 +4,7 @@
 
   perSystem = _: {
     nix-unit = {
-      inputs = {
-        inherit (inputs) nixpkgs;
-        inherit (inputs) flake-parts;
-        inherit (inputs) nix-unit;
-      };
+      inherit inputs;
 
       tests = import ../../tests/nix-unit/sops-helpers.nix {
         inherit (config.flake.lib) sopsHelpers;
