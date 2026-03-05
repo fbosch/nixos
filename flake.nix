@@ -90,6 +90,13 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # Nix expression tests (modules/flake-parts/nix-unit.nix)
+    nix-unit = {
+      url = "github:nix-community/nix-unit";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.flake-parts.follows = "flake-parts";
+    };
+
     # Applications
     flatpaks.url = "github:gmodena/nix-flatpak"; # modules/applications/flatpak.nix
     vicinae = {
