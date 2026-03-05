@@ -24,7 +24,7 @@
         eza
         lf
         yazi
-        superfile
+        scooter
         zoxide
         broot
         skim
@@ -33,6 +33,7 @@
         gum
         peco
         tree
+        just
 
         grc
         cloc
