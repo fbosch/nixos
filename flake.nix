@@ -14,7 +14,11 @@
     # Core infrastructure
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
     nixpkgs-stable.url = "github:nixos/nixpkgs/nixos-24.11";
-    flake-parts.url = "github:hercules-ci/flake-parts";
+    flake-parts = {
+      url = "github:hercules-ci/flake-parts";
+      inputs.nixpkgs-lib.follows = "nixpkgs-lib";
+    };
+    nixpkgs-lib.url = "github:nix-community/nixpkgs.lib";
     import-tree.url = "github:vic/import-tree";
     home-manager = {
       url = "github:nix-community/home-manager";
