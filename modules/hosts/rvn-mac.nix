@@ -46,6 +46,7 @@ in
             "fonts"
             "security"
             "development"
+            "worktrunk"
             "shell"
             "virtualization/podman"
 

@@ -98,6 +98,11 @@
     };
 
     # Applications
+    worktrunk = {
+      url = "github:max-sixty/worktrunk";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.flake-utils.follows = "dedupe_flake-utils";
+    };
     flatpaks.url = "github:gmodena/nix-flatpak"; # modules/applications/flatpak.nix
     vicinae = {
       # modules/applications/vicinae.nix
