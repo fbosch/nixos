@@ -2,7 +2,7 @@
 
 pkgs.stdenvNoCC.mkDerivation {
   pname = "font-zenbones";
-  version = "2.400";
+  version = "2.500";
 
   src = pkgs.fetchzip {
     url = "https://github.com/zenbones-theme/zenbones-mono/releases/download/v2.400/Zenbones-Brainy-TTF.zip";
