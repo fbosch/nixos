@@ -1,10 +1,10 @@
-_:
+{ inputs, ... }:
 
 {
   flake.overlays.chromium-webapps-hardening =
     final: prev:
     let
-      inherit (prev) lib;
+      inherit (inputs.nixpkgs) lib;
       hasChromiumLib = lib.hasAttrByPath [ "nix-webapps-lib" "mkChromiumApp" ] prev;
     in
     if !hasChromiumLib then

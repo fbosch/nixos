@@ -79,15 +79,27 @@
   flake = {
     overlays.default =
       final: prev:
-      withSystem prev.stdenv.hostPlatform.system (
-        { config, ... }:
-        {
-          local = config.packages;
-          buildNpmGlobalPackage = import "${inputs.self}/pkgs/lib/buildNpmGlobalPackage.nix" {
-            pkgs = final;
-          };
-        }
-      );
+      let
+        overlaySystem =
+          if prev ? stdenv then
+            prev.stdenv.hostPlatform.system
+          else if final ? stdenv then
+            final.stdenv.hostPlatform.system
+          else
+            null;
+      in
+      if overlaySystem == null then
+        { }
+      else
+        withSystem overlaySystem (
+          { config, ... }:
+          {
+            local = config.packages;
+            buildNpmGlobalPackage = import "${inputs.self}/pkgs/lib/buildNpmGlobalPackage.nix" {
+              pkgs = final;
+            };
+          }
+        );
 
   };
 }
