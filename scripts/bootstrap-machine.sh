@@ -104,15 +104,9 @@ gum style --border rounded --padding "1 2" \
 	"and generate a host module template."
 
 host_name="$(gum input --prompt "Host name: " --value "$default_host_name")"
-machine_name="$(gum input --prompt "Machine name: " --value "$default_host_name" --placeholder "directory under machines/")"
-preset="$(gum choose --header "Select host preset" "minimal" "desktop" "server")"
-
 validate_name "$host_name" "Host name"
-validate_name "$machine_name" "Machine name"
 
 gum style --foreground 244 "Host name: $host_name"
-gum style --foreground 244 "Machine name: $machine_name"
-gum style --foreground 244 "Preset: $preset"
 
 if gum confirm "Proceed with bootstrap?"; then
 	:
@@ -184,7 +178,7 @@ EOF
 		:
 	else
 		gum style --foreground 244 "Adding SSH public key to GitHub account."
-		gh ssh-key add "$ssh_pub_path" --title "${host_name}-${machine_name}-nixos"
+		gh ssh-key add "$ssh_pub_path" --title "${host_name}-nixos"
 		key_added="true"
 	fi
 
@@ -215,19 +209,27 @@ EOF
 	fi
 fi
 
-machine_dir="$target_dir/machines/$machine_name"
 host_file="$target_dir/modules/hosts/$host_name.nix"
+use_existing_host="false"
+machine_name=""
+preset=""
+machine_dir=""
 
 if [ -e "$host_file" ]; then
-	if gum confirm "Host file $host_file exists. Overwrite?"; then
-		:
-	else
-		gum style --foreground 3 "Aborted."
-		exit 0
-	fi
+	use_existing_host="true"
+	gum style --foreground 244 "Host file $host_file exists; using existing host and skipping file generation."
+else
+	machine_name="$(gum input --prompt "Machine name: " --value "$default_host_name" --placeholder "directory under machines/")"
+	preset="$(gum choose --header "Select host preset" "minimal" "desktop" "server")"
+
+	validate_name "$machine_name" "Machine name"
+
+	gum style --foreground 244 "Machine name: $machine_name"
+	gum style --foreground 244 "Preset: $preset"
+	machine_dir="$target_dir/machines/$machine_name"
 fi
 
-if [ -e "$machine_dir/configuration.nix" ] || [ -e "$machine_dir/hardware-configuration.nix" ]; then
+if [ "$use_existing_host" = "false" ] && { [ -e "$machine_dir/configuration.nix" ] || [ -e "$machine_dir/hardware-configuration.nix" ]; }; then
 	if gum confirm "Machine files in $machine_dir already exist. Overwrite?"; then
 		:
 	else
@@ -236,19 +238,23 @@ if [ -e "$machine_dir/configuration.nix" ] || [ -e "$machine_dir/hardware-config
 	fi
 fi
 
-gum style --foreground 244 ""
-gum style --foreground 244 "Copying machine config into $machine_dir"
-mkdir -p "$machine_dir"
-cp -f /etc/nixos/configuration.nix "$machine_dir/"
-cp -f /etc/nixos/hardware-configuration.nix "$machine_dir/"
+if [ "$use_existing_host" = "false" ]; then
+	gum style --foreground 244 ""
+	gum style --foreground 244 "Copying machine config into $machine_dir"
+	mkdir -p "$machine_dir"
+	cp -f /etc/nixos/configuration.nix "$machine_dir/"
+	cp -f /etc/nixos/hardware-configuration.nix "$machine_dir/"
 
-gum style --foreground 244 "Generating host module at $host_file"
-render_host_module "$preset" "$host_name" "$machine_name" "$host_file"
+	gum style --foreground 244 "Generating host module at $host_file"
+	render_host_module "$preset" "$host_name" "$machine_name" "$host_file"
+fi
 
 cd "$target_dir"
 
-gum style --foreground 244 "Staging generated host and machine files in git index..."
-git add "$host_file" "$machine_dir/configuration.nix" "$machine_dir/hardware-configuration.nix"
+if [ "$use_existing_host" = "false" ]; then
+	gum style --foreground 244 "Staging generated host and machine files in git index..."
+	git add "$host_file" "$machine_dir/configuration.nix" "$machine_dir/hardware-configuration.nix"
+fi
 
 gpg_status="skipped"
 gpg_key_id="fbb.privacy+gpg@protonmail.com"
