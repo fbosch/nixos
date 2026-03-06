@@ -96,9 +96,8 @@ in
             }
           ];
 
-        # Limit concurrent Nix builds to leave headroom for desktop use;
-        # system76-scheduler handles per-process CPU priority dynamically
-        nix.settings.max-jobs = 4;
+        # limit how many cores nix build can use
+        nix.settings.cores = 8;
 
         # Enable SSH for remote access
         services.openssh.enable = true;

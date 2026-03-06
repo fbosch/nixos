@@ -98,6 +98,9 @@ in
         # Add user to trusted users (core already adds @admin)
         nix.settings.trusted-users = [ config.flake.meta.user.username ];
 
+        # limit how many cores nix build can use
+        nix.settings.cores = 6;
+
         # Enable biometric auth for sudo on macOS
         security.pam.services.sudo_local.touchIdAuth = true;
 
