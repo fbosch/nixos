@@ -138,13 +138,10 @@
       inputs.flake-utils.follows = "dedupe_flake-utils";
     };
 
-  };
-
-  # Inputs used only for deduplication via .follows
-  # These are targets of at least one <input>.inputs.<input>.follows above.
-  # If all .follows targeting these are removed, these inputs should be removed too.
-  # Prefixed with dedupe_ for easy identification.
-  inputs = {
+    # Inputs used only for deduplication via .follows
+    # These are targets of at least one <input>.inputs.<input>.follows above.
+    # If all .follows targeting these are removed, these inputs should be removed too.
+    # Prefixed with dedupe_ for easy identification.
     dedupe_systems.url = "github:nix-systems/default";
 
     dedupe_flake-utils = {

@@ -24,12 +24,20 @@ let
       "nix-command"
       "flakes"
     ];
-  } // sharedCachixConfig;
+  };
+
+  sharedNixSettingsMerged = lib.mkMerge [
+    sharedNixSettings
+    sharedCachixConfig
+  ];
 
   # NixOS-specific nix settings
-  nixosNixSettings = sharedNixSettings // {
-    auto-optimise-store = true;
-  };
+  nixosNixSettings = lib.mkMerge [
+    sharedNixSettingsMerged
+    {
+      auto-optimise-store = true;
+    }
+  ];
 
   # Shared home-manager config
   sharedHomeManagerConfig = {
@@ -73,12 +81,15 @@ in
     };
 
     nix = {
-      settings = nixosNixSettings // {
-        trusted-users = [
-          "root"
-          "@wheel"
-        ];
-      };
+      settings = lib.mkMerge [
+        nixosNixSettings
+        {
+          trusted-users = [
+            "root"
+            "@wheel"
+          ];
+        }
+      ];
 
       # Garbage collection is handled by nh
       gc.automatic = false;
@@ -102,12 +113,15 @@ in
     nixpkgs.config.allowUnfree = true;
 
     nix = {
-      settings = sharedNixSettings // {
-        trusted-users = [
-          "root"
-          "@admin"
-        ];
-      };
+      settings = lib.mkMerge [
+        sharedNixSettingsMerged
+        {
+          trusted-users = [
+            "root"
+            "@admin"
+          ];
+        }
+      ];
 
       # Garbage collection is handled by nh
       gc.automatic = false;

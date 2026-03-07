@@ -34,20 +34,22 @@ in
       # Generate match blocks from host configurations
       mkMatchBlock =
         host:
-        {
-          hostname = getAddress host;
-          # Use host-specific user if defined, otherwise use default user
-          user = host.user or flakeConfig.flake.meta.user.username;
-          extraOptions = {
-            AddKeysToAgent = "yes";
-            ServerAliveInterval = "30";
-            ServerAliveCountMax = "3";
-            TCPKeepAlive = "yes";
-          };
-        }
-        // lib.optionalAttrs hasSopsPrivateKey {
-          identityFile = privateKeyPath;
-        };
+        lib.mkMerge [
+          {
+            hostname = getAddress host;
+            # Use host-specific user if defined, otherwise use default user
+            user = host.user or flakeConfig.flake.meta.user.username;
+            extraOptions = {
+              AddKeysToAgent = "yes";
+              ServerAliveInterval = "30";
+              ServerAliveCountMax = "3";
+              TCPKeepAlive = "yes";
+            };
+          }
+          (lib.optionalAttrs hasSopsPrivateKey {
+            identityFile = privateKeyPath;
+          })
+        ];
 
       # Generate match blocks for both short key and full hostname
       mkMatchBlocks =
