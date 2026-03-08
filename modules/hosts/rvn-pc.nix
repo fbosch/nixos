@@ -48,7 +48,6 @@ in
 
           # desktop features
           "gaming"
-          "windows"
 
           # virtualization
           "virtualization/podman"
