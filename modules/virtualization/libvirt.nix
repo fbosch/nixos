@@ -1,7 +1,17 @@
 { config, ... }:
 {
   flake.modules.nixos."virtualization/libvirt" =
-    { pkgs, ... }:
+    { lib, pkgs, ... }:
+    let
+      initEncryptionSecretScript = pkgs.writeShellApplication {
+        name = "virt-secret-init-encryption";
+        runtimeInputs = [
+          pkgs.coreutils
+          pkgs.systemd
+        ];
+        text = builtins.readFile ./scripts/virt-secret-init-encryption.sh;
+      };
+    in
     {
       # Libvirt/QEMU
       virtualisation.libvirtd = {
@@ -31,5 +41,10 @@
       ];
 
       networking.firewall.trustedInterfaces = [ "virbr0" ];
+
+      systemd.services.virt-secret-init-encryption.serviceConfig.ExecStart = lib.mkForce [
+        ""
+        "${initEncryptionSecretScript}/bin/virt-secret-init-encryption"
+      ];
     };
 }
