@@ -10,7 +10,6 @@
       # Format: "package[@version]" - pin versions for reproducibility
       npmGlobalPackages = [
         "pokemonshow@latest" # Pokemon Showdown - not in nixpkgs
-        "swpm@latest" # Switch package manager - not in nixpkgs
         "corepack@latest" # Node.js package manager manager
         "@fsouza/prettierd@latest" # Faster prettier daemon
         "opencode-ai@latest" # AI code assistant
@@ -29,6 +28,43 @@
         lib.concatStringsSep "," pinnedNpmGlobalPackages
       );
 
+      updateNodePackages = pkgs.writeShellApplication {
+        name = "pnpm-global-update";
+        runtimeInputs = [
+          pkgs.nodePackages.pnpm
+          pkgs.nodejs_24
+          pkgs.bun
+        ];
+        text = ''
+          export PNPM_HOME="$HOME/.local/share/pnpm"
+          export PNPM_STORE_DIR="$HOME/.local/share/pnpm/store"
+          state_dir="$HOME/.local/state/pnpm-globals"
+
+          mkdir -p "$PNPM_HOME" "$PNPM_STORE_DIR" "$state_dir"
+
+          ${lib.optionalString (pinnedNpmGlobalPackages != [ ]) ''
+            pinned_hash_file="$state_dir/pinned-packages.hash"
+            current_pinned_hash="${pinnedPackagesHash}"
+            if [ -f "$pinned_hash_file" ] && [ "$(cat "$pinned_hash_file")" = "$current_pinned_hash" ]; then
+              echo "Pinned packages unchanged, skipping"
+            else
+              echo "Updating pinned packages..."
+              pnpm add -g ${lib.concatStringsSep " " (map lib.escapeShellArg pinnedNpmGlobalPackages)}
+              echo "$current_pinned_hash" > "$pinned_hash_file"
+            fi
+          ''}
+
+          ${lib.optionalString (latestNpmGlobalPackages != [ ]) ''
+            echo "Updating @latest packages..."
+            pnpm add -g ${lib.concatStringsSep " " (map lib.escapeShellArg latestNpmGlobalPackages)}
+          ''}
+
+          echo ""
+          echo "Global npm packages updated:"
+          pnpm ls -g --depth=0
+        '';
+      };
+
     in
     {
       home = {
@@ -44,6 +80,7 @@
           nodePackages.eslint
           nodePackages.npm-check-updates
           playwright-test # Pure Nix Playwright with pre-configured browsers
+          updateNodePackages
         ];
 
         sessionVariables = {
