@@ -31,8 +31,8 @@
         "org.gnome.Decibels" # Audio player
         "com.plexamp.Plexamp" # Music player
         "tv.plex.PlexDesktop" # Media center
-        "com.obsproject.Studio" # Video recording/streaming
-        "com.obsproject.Studio.Plugin.OBSVkCapture" # OBS plugin
+        # "com.obsproject.Studio" # Video recording/streaming
+        # "com.obsproject.Studio.Plugin.OBSVkCapture" # OBS plugin
         "be.alexandervanhee.gradia" # image editor
       ];
     };
