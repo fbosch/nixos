@@ -10,7 +10,6 @@
       # Format: "package[@version]" - pin versions for reproducibility
       npmGlobalPackages = [
         "pokemonshow@latest" # Pokemon Showdown - not in nixpkgs
-        "swpm@latest" # Switch package manager - not in nixpkgs
         "corepack@latest" # Node.js package manager manager
         "@fsouza/prettierd@latest" # Faster prettier daemon
         "opencode-ai@latest" # AI code assistant
@@ -40,12 +39,12 @@
           export PNPM_HOME="$HOME/.local/share/pnpm"
           export PNPM_STORE_DIR="$HOME/.local/share/pnpm/store"
           state_dir="$HOME/.local/state/pnpm-globals"
-          pinned_hash_file="$state_dir/pinned-packages.hash"
-          current_pinned_hash="${pinnedPackagesHash}"
 
           mkdir -p "$PNPM_HOME" "$PNPM_STORE_DIR" "$state_dir"
 
           ${lib.optionalString (pinnedNpmGlobalPackages != [ ]) ''
+            pinned_hash_file="$state_dir/pinned-packages.hash"
+            current_pinned_hash="${pinnedPackagesHash}"
             if [ -f "$pinned_hash_file" ] && [ "$(cat "$pinned_hash_file")" = "$current_pinned_hash" ]; then
               echo "Pinned packages unchanged, skipping"
             else
