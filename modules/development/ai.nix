@@ -12,6 +12,7 @@
         ])
         ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
           pkgs.local.codexbar
+          pkgs.local.rtk
         ];
     };
 }
