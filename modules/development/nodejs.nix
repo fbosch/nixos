@@ -123,7 +123,7 @@
 
           if [ "${if latestNpmGlobalPackages != [ ] then "true" else "false"}" = "true" ]; then
             echo "Installing/updating @latest npm global packages..."
-            if ! ${pkgs.nodePackages.pnpm}/bin/pnpm add -g --prefer-offline ${lib.concatStringsSep " " (map lib.escapeShellArg latestNpmGlobalPackages)} 2>&1; then
+            if ! ${pkgs.nodePackages.pnpm}/bin/pnpm add -g ${lib.concatStringsSep " " (map lib.escapeShellArg latestNpmGlobalPackages)} 2>&1; then
               install_failed=1
             fi
           fi
