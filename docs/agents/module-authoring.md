@@ -18,6 +18,9 @@
 8. **Keep comments minimal**
    - Only add comments that explain "why", not "what"; remove obvious restatements.
    - Avoid section headers unless the file is complex enough to warrant them; brief inline comments for non-obvious values are acceptable.
+9. **Shell scripts in modules**
+   - Short scripts (~20 lines or fewer) can be inlined directly in Nix strings.
+   - Longer scripts should be placed in a sibling `scripts/` directory and loaded with `builtins.readFile` or `pkgs.writeShellApplication` to preserve shellcheck/linting and editor support.
 
 ## Self-Contained Service Modules
 
