@@ -1,4 +1,4 @@
-{ config, ... }:
+{ config, lib, ... }:
 {
   flake.modules.nixos."virtualization/podman" =
     { pkgs, ... }:
@@ -49,7 +49,13 @@
     };
 
   flake.modules.homeManager."virtualization/podman" =
-    { pkgs, ... }:
+    { config
+    , pkgs
+    , ...
+    }:
+    let
+      inherit (pkgs.stdenv.hostPlatform) isDarwin;
+    in
     {
       home.packages = with pkgs; [
         podman
@@ -57,9 +63,11 @@
         podman-tui
       ];
 
-      # Enable user-level podman socket for rootless containers
-      # This properly manages the symlink to podman's systemd units
-      systemd.user.sockets.podman = {
+      launchd.enable = lib.mkIf isDarwin true;
+
+      # Enable user-level podman socket for rootless containers on Linux.
+      # On macOS, Podman runs inside a VM and must be started via launchd.
+      systemd.user.sockets.podman = lib.mkIf (!isDarwin) {
         Unit = {
           Description = "Podman API Socket";
           Documentation = "man:podman-system-service(1)";
@@ -71,6 +79,26 @@
         Install = {
           WantedBy = [ "sockets.target" ];
         };
+      };
+
+      launchd.agents.podman-machine = lib.mkIf isDarwin {
+        enable = true;
+        config = {
+          ProgramArguments = [
+            "${pkgs.podman}/bin/podman"
+            "machine"
+            "start"
+          ];
+          RunAtLoad = true;
+          KeepAlive = false;
+          StandardOutPath = "/tmp/podman-machine.out.log";
+          StandardErrorPath = "/tmp/podman-machine.err.log";
+          EnvironmentVariables.PATH = lib.makeBinPath [ pkgs.podman ] + ":/usr/bin:/bin:/usr/sbin:/sbin";
+        };
+      };
+
+      home.sessionVariables = lib.mkIf isDarwin {
+        DOCKER_HOST = "unix://${config.home.homeDirectory}/.local/share/containers/podman/machine/podman.sock";
       };
     };
 }
