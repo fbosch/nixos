@@ -1,12 +1,17 @@
 #!/usr/bin/env bash
 # Bootstrap GPG key from an encrypted secret gist
 # Usage: ./scripts/bootstrap-gpg.sh [gist-id]
+# If no gist ID is provided, resolves it by searching your gists for the
+# expected filename (requires gh auth).
 
 set -euo pipefail
 
 gpg_key_id="fbb.privacy+gpg@protonmail.com"
-default_gist_id="00ef63c17464ffaea9ed1ba6715e6a4b"
-gist_id="${1:-${GPG_KEY_GIST_ID:-$default_gist_id}}"
+gpg_gist_filename="gpg-private.asc.gpg"
+
+resolve_gist_id() {
+	gh gist list --limit 100 2>/dev/null | awk -F'\t' -v name="$gpg_gist_filename" '$3 ~ name || $2 ~ name { print $1; exit }'
+}
 
 printf "=== NixOS GPG Bootstrap ===\n\n"
 
@@ -34,6 +39,21 @@ else
 	printf "Authenticating GitHub CLI (device flow).\n"
 	printf "Open: https://github.com/login/device?skip_account_picker=true\n"
 	gh auth login --web --scopes gist
+fi
+
+if [ -n "${1:-}" ]; then
+	gist_id="$1"
+elif [ -n "${GPG_KEY_GIST_ID:-}" ]; then
+	gist_id="$GPG_KEY_GIST_ID"
+else
+	printf "Resolving gist ID by filename (%s)...\n" "$gpg_gist_filename"
+	gist_id="$(resolve_gist_id)"
+	if [ -z "$gist_id" ]; then
+		printf "Error: Could not find a gist containing '%s'.\n" "$gpg_gist_filename"
+		printf "Pass the gist ID explicitly: %s <gist-id>\n" "$0"
+		exit 1
+	fi
+	printf "Found gist: %s\n" "$gist_id"
 fi
 
 tmp_encrypted="$(mktemp)"
