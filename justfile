@@ -39,3 +39,11 @@ update-sops-keys:
 # Update GitHub avatar hash in flake metadata
 update-avatar:
     bash ./scripts/update-avatar.sh
+
+# Rotate the encrypted GPG backup gist from the current local key
+rotate-gpg-gist:
+    nix run .#rotate-gpg-gist
+
+# Show the GPG gist rotation actions without writing to GitHub
+rotate-gpg-gist-dry:
+    nix run .#rotate-gpg-gist -- --dry-run

@@ -9,8 +9,8 @@ set -euo pipefail
 gpg_key_id="fbb.privacy+gpg@protonmail.com"
 gpg_gist_filename="gpg-private.asc.gpg"
 
-resolve_gist_id() {
-	gh gist list --limit 100 2>/dev/null | awk -F'\t' -v name="$gpg_gist_filename" '$3 ~ name || $2 ~ name { print $1; exit }'
+resolve_gist_ids() {
+	gh gist list --limit 100 2>/dev/null | awk -F'\t' -v name="$gpg_gist_filename" 'index($3, name) || index($2, name) { print $1 }'
 }
 
 printf "=== NixOS GPG Bootstrap ===\n\n"
@@ -47,12 +47,18 @@ elif [ -n "${GPG_KEY_GIST_ID:-}" ]; then
 	gist_id="$GPG_KEY_GIST_ID"
 else
 	printf "Resolving gist ID by filename (%s)...\n" "$gpg_gist_filename"
-	gist_id="$(resolve_gist_id)"
-	if [ -z "$gist_id" ]; then
+	mapfile -t gist_ids < <(resolve_gist_ids)
+	if [ "${#gist_ids[@]}" -eq 0 ]; then
 		printf "Error: Could not find a gist containing '%s'.\n" "$gpg_gist_filename"
 		printf "Pass the gist ID explicitly: %s <gist-id>\n" "$0"
 		exit 1
 	fi
+	if [ "${#gist_ids[@]}" -gt 1 ]; then
+		printf "Error: Found multiple gists containing '%s'.\n" "$gpg_gist_filename"
+		printf "Pass the desired gist ID explicitly: %s <gist-id>\n" "$0"
+		exit 1
+	fi
+	gist_id="${gist_ids[0]}"
 	printf "Found gist: %s\n" "$gist_id"
 fi
 
