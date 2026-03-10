@@ -108,7 +108,7 @@ _: {
 
           [Container]
           ContainerName=redlib
-          Image=quay.io/redlib/redlib:latest
+          Image=quay.io/redlib/redlib:v0.36.0
           PublishPort=${toString config.services.redlib-container.port}:8080
           Environment=REDLIB_DEFAULT_THEME=${config.services.redlib-container.theme}
           Environment=REDLIB_DEFAULT_USE_HLS=${

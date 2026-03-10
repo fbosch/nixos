@@ -8,7 +8,8 @@ Audit this repo's self-managed dependencies with `renovate.json` as the primary 
 
 Args:
 - `$1`: output mode. One of `report`, `compact`, `json`, `parity`, `updates`, `target`.
-- `$2+`: optional filter text when mode is `target`; otherwise treat all trailing args as an optional scope filter.
+- `$2`: optional primary filter token.
+- `$ARGUMENTS`: full trailing raw argument string.
 - Default mode: `report`.
 
 Behavior:
@@ -20,7 +21,7 @@ Behavior:
 Mode handling:
 - If `$1` is empty, use `report`.
 - If `$1` is not one of `report`, `compact`, `json`, `parity`, `updates`, `target`, respond only with: `Usage: /deps-audit [report|compact|json|parity|updates|target <filter>] [filter]`
-- In `target` mode, if no filter is provided, respond only with: `Usage: /deps-audit target <filter>`
+- In `target` mode, derive the filter from `$ARGUMENTS` with the leading `target` token removed. If that derived filter is empty, respond only with: `Usage: /deps-audit target <filter>`
 
 Primary reference:
 @renovate.json
@@ -109,10 +110,12 @@ Output rules by mode:
 
 `target`
 - Only report entries matching the provided filter text across name, path, depName, or image.
+- Derive the filter from `$ARGUMENTS` rather than assuming only one token.
 
 Important repo-specific expectations:
 - Treat Chromium app packages under `pkgs/by-name/chromium-*` as wrappers unless the file clearly pins a real upstream artifact.
 - Treat `modules/services/containers/helium.nix` and `modules/services/containers/openmemory.nix` as local-build flows aligned with Renovate's disabled local-image rule.
 - Treat modules like `linkwarden`, `komodo`, and `rsshub` as potentially multi-target because they may pin sidecars separately.
+- Treat `pkgs/by-name/font-zenbones/package.nix` and `pkgs/by-name/nemo-image-converter/package.nix` as likely `ambiguous` unless you can prove a clean Renovate match.
 - Call out mismatches between declared `version` and embedded release URL or rev when found.
 - Prefer exact file references in findings.

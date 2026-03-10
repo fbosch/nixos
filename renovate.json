@@ -38,12 +38,13 @@
     },
     {
       "customType": "regex",
-      "description": "Update imageTag options used with variable interpolation (Image=name:${cfg.imageTag})",
+      "description": "Update imageTag options used with variable interpolation, regardless of whether the option or Image line appears first",
       "managerFilePatterns": [
         "/^modules/services/containers/.*\\.nix$/"
       ],
       "matchStrings": [
-        "Image=(?<depName>[^:\\s]+):\\$\\{[^}]+\\}[\\s\\S]*?\\w*[iI]mageTag\\s*=\\s*lib\\.mkOption\\s*\\{[\\s\\S]*?default\\s*=\\s*\"(?<currentValue>[^\"]+)\""
+        "Image\\s*=\\s*(?<depName>[^:\\s]+):\\$\\{[^}]+\\}[\\s\\S]*?\\w*[iI]mageTag\\s*=\\s*lib\\.mkOption\\s*\\{[\\s\\S]*?default\\s*=\\s*\"(?<currentValue>[^\"]+)\"",
+        "\\w*[iI]mageTag\\s*=\\s*lib\\.mkOption\\s*\\{[\\s\\S]*?default\\s*=\\s*\"(?<currentValue>[^\"]+)\"[\\s\\S]*?Image\\s*=\\s*(?<depName>[^:\\s]+):\\$\\{[^}]+\\}"
       ],
       "datasourceTemplate": "docker"
     },
