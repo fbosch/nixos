@@ -25,7 +25,7 @@ in
     meta.hosts = [ hostMeta ];
 
     modules.nixos."hosts/rvn-pc" =
-      { pkgs, ... }:
+      { pkgs, lib, ... }:
       {
         imports = config.flake.lib.resolve [
           # Desktop preset (users, security, development, shell, system, desktop environment)
@@ -95,15 +95,24 @@ in
             }
           ];
 
-        # limit how many cores nix build can use
-        nix.settings.cores = 8;
+        # Keep rebuilds fast while reserving CPU headroom for desktop responsiveness.
+        nix.settings = {
+          max-jobs = 6;
+          cores = 2;
+        };
 
-        # Enable SSH for remote access
-        services.openssh.enable = true;
+        services = {
+          # Avoid running two process-priority daemons with overlapping policies.
+          ananicy.enable = lib.mkForce false;
 
-        # Act as a peer relay so tailnet devices (e.g. MacBook) use this node
-        # instead of Tailscale's DERP servers when direct connections fail
-        services.tailscale.extraSetFlags = [ "--relay-server-port=40000" ];
+          # Enable SSH for remote access
+          openssh.enable = true;
+
+          # Act as a peer relay so tailnet devices (e.g. MacBook) use this node
+          # instead of Tailscale's DERP servers when direct connections fail
+          tailscale.extraSetFlags = [ "--relay-server-port=40000" ];
+        };
+
         networking.firewall.allowedUDPPorts = [ 40000 ];
 
         security.apparmor = {

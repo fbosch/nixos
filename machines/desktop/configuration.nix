@@ -37,6 +37,8 @@
       "mem_sleep_default=deep" # More reliable suspend with NVIDIA GPUs
       # Fix framebuffer console artifacts
       "fbcon=nodefer" # Prevent deferred framebuffer console takeover
+      # Keep transparent huge pages available without forcing always-on compaction
+      "transparent_hugepage=madvise"
     ];
 
     # Optimize tmpfs usage for 32GB RAM system
