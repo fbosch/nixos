@@ -72,7 +72,7 @@ while [ "$#" -gt 0 ]; do
 			exit 1
 			;;
 	esac
-	done
+done
 
 printf "=== Rotate GPG Backup Gist ===\n\n"
 
