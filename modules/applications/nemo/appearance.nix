@@ -8,17 +8,17 @@
           /* Nemo transparency for compositor blur */
           .nemo-window,
           .nemo-window .background {
-            background-color: rgba(37, 37, 37, 0.75);
+            background-color: rgba(37, 37, 37, 0.82);
           }
 
           .nemo-window .view,
           .nemo-window treeview,
           .nemo-window scrolledwindow {
-            background-color: rgba(37, 37, 37, 0.75);
+            background-color: rgba(37, 37, 37, 0.82);
           }
 
           .nemo-window .sidebar {
-            background-color: rgba(37, 37, 37, 0.75);
+            background-color: rgba(37, 37, 37, 0.82);
           }
 
           /* Windows 11-style blue selection color */
