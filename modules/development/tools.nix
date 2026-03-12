@@ -52,6 +52,7 @@
         nixpkgs-fmt
         posting
         pastel
+        ripsecrets
       ];
     };
 }
