@@ -17,7 +17,6 @@ let
   inherit (sopsHelpers)
     rootOnly
     wheelReadable
-    worldReadable
     ;
   userOwned = {
     mode = "0600";
@@ -121,8 +120,8 @@ in
               "openai-api-key"
             ])
 
-            # API secrets - world readable
-            (mkSecretsWithOpts apisFile worldReadable [
+            # API secrets - wheel readable
+            (mkSecretsWithOpts apisFile wheelReadable [
               "context7-api-key"
             ])
 
@@ -184,8 +183,8 @@ in
               "wakapi-password-salt"
             ])
 
-            # API secrets - world readable
-            (mkSecretsWithOpts apisFile worldReadable [
+            # API secrets - wheel readable
+            (mkSecretsWithOpts apisFile wheelReadable [
               "context7-api-key"
             ])
 
