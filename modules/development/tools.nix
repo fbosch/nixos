@@ -23,6 +23,7 @@
         statix
         deadnix
         nixpkgs-fmt
+        shellcheck
       ];
     };
 
@@ -53,6 +54,7 @@
         posting
         pastel
         ripsecrets
+        shellcheck
       ];
     };
 }
