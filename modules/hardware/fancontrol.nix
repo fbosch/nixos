@@ -2,7 +2,7 @@
   flake.modules.nixos."hardware/fancontrol" =
     { pkgs, ... }:
     {
-      programs.coolercontrol.enable = true;
+      # programs.coolercontrol.enable = true;
 
       environment.systemPackages = with pkgs; [
         liquidctl
