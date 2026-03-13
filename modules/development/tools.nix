@@ -33,6 +33,14 @@
       azureCli = (pkgs.azure-cli.override { withImmutableConfig = false; }).overrideAttrs (_: {
         doInstallCheck = false;
       });
+      astGrep =
+        if pkgs.stdenv.hostPlatform.isDarwin then
+          pkgs.ast-grep.overrideAttrs
+            (_: {
+              doCheck = false;
+            })
+        else
+          pkgs.ast-grep;
     in
     {
       home.packages = with pkgs; [
@@ -45,7 +53,7 @@
         bacon
         azureCli
         units
-        ast-grep
+        astGrep
         keychain
         openssl
         statix
