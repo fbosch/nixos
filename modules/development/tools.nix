@@ -24,6 +24,7 @@
         deadnix
         nixpkgs-fmt
         shellcheck
+        luajitPackages.luacheck
       ];
     };
 
@@ -63,6 +64,7 @@
         pastel
         ripsecrets
         shellcheck
+        luajitPackages.luacheck
       ];
     };
 }
