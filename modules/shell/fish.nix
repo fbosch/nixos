@@ -28,35 +28,25 @@
         )
         requiredSecrets;
       secretsMap = lib.optionalAttrs hasRequiredSecrets {
-        GITHUB_TOKEN = config.sops.secrets.github-token.path;
-        COPILOT_TOKEN = config.sops.secrets.github-token.path;
-        KAGI_API_TOKEN = config.sops.secrets.kagi-api-token.path;
-        OPENAI_API_KEY = config.sops.secrets.openai-api-key.path;
-        EXA_API_KEY = config.sops.secrets.exa-api-key.path;
-        OPENMEMORY_API_KEY = config.sops.secrets.openmemory-api-key.path;
-      };
-
-      checkSecrets = lib.concatStringsSep "\n" (
-        lib.mapAttrsToList
-          (name: path: ''
-            for i in $(seq 1 50); do
-              if [ -r ${path} ]; then
-                break
-              fi
-
-              if [ "$i" -eq 50 ]; then
-                echo "Error: missing or unreadable secret ${name} at ${path}" >&2
-                exit 1
-              fi
-
-              sleep 0.2
-            done
-          '')
-          secretsMap
-      );
+          GITHUB_TOKEN = config.sops.secrets.github-token.path;
+          COPILOT_TOKEN = config.sops.secrets.github-token.path;
+          KAGI_API_TOKEN = config.sops.secrets.kagi-api-token.path;
+          OPENAI_API_KEY = config.sops.secrets.openai-api-key.path;
+          EXA_API_KEY = config.sops.secrets.exa-api-key.path;
+          OPENMEMORY_API_KEY = config.sops.secrets.openmemory-api-key.path;
+        };
 
       readSecrets = lib.concatStringsSep "\n" (
-        lib.mapAttrsToList (name: path: "${name}=$(cat ${path})") secretsMap
+        lib.mapAttrsToList
+          (name: path: ''
+            if [ -r ${path} ]; then
+              ${name}=$(cat ${path})
+            else
+              echo "Warning: skipping unreadable secret ${name} at ${path}" >&2
+              ${name}=""
+            fi
+          '')
+          secretsMap
       );
 
       fishExports = lib.concatStringsSep "\n" (
@@ -78,8 +68,6 @@
       home.activation.generateFishSecrets = lib.mkIf hasRequiredSecrets (
         lib.hm.dag.entryAfter [ "sops-nix" "setupLaunchAgents" "writeBoundary" ] ''
           $DRY_RUN_CMD mkdir -p ${config.home.homeDirectory}/.config/fish
-
-          ${checkSecrets}
 
           ${readSecrets}
 

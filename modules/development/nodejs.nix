@@ -98,6 +98,7 @@
           state_dir="$HOME/.local/state/pnpm-globals"
           pinned_hash_file="$state_dir/pinned-packages.hash"
           current_pinned_hash="${pinnedPackagesHash}"
+          npm_registry_host="registry.npmjs.org"
 
           mkdir -p "$pnpm_home" "$pnpm_store_dir" "$state_dir"
 
@@ -105,6 +106,28 @@
           export PNPM_HOME="$pnpm_home"
           export PNPM_STORE_DIR="$pnpm_store_dir"
           export PATH="$pnpm_home:${pkgs.nodejs_24}/bin:${pkgs.nodePackages.pnpm}/bin:${pkgs.bun}/bin:$PATH"
+
+          # Do not block boot/login path. Boot-time Home Manager activation runs
+          # without a user systemd daemon; defer npm global updates.
+          if ! ${pkgs.systemd}/bin/systemctl --user show-environment >/dev/null 2>&1; then
+            echo "User systemd daemon not running, skipping npm global update during boot activation"
+            exit 0
+          fi
+
+          # Wait for DNS/network before trying npm registry operations.
+          network_ready=0
+          for _ in $(seq 1 30); do
+            if ${pkgs.glibc.bin}/bin/getent hosts "$npm_registry_host" >/dev/null 2>&1; then
+              network_ready=1
+              break
+            fi
+            sleep 1
+          done
+
+          if [ "$network_ready" -ne 1 ]; then
+            echo "WARNING: network not ready for $npm_registry_host, skipping npm global update" >&2
+            exit 0
+          fi
 
           install_failed=0
 
@@ -123,7 +146,7 @@
 
           if [ "${if latestNpmGlobalPackages != [ ] then "true" else "false"}" = "true" ]; then
             echo "Installing/updating @latest npm global packages..."
-            if ! ${pkgs.nodePackages.pnpm}/bin/pnpm add -g ${lib.concatStringsSep " " (map lib.escapeShellArg latestNpmGlobalPackages)} 2>&1; then
+            if ! ${pkgs.nodePackages.pnpm}/bin/pnpm add -g --prefer-offline ${lib.concatStringsSep " " (map lib.escapeShellArg latestNpmGlobalPackages)} 2>&1; then
               install_failed=1
             fi
           fi
@@ -136,7 +159,6 @@
             echo ""
             echo "WARNING: Failed to install/update npm global packages." >&2
             echo "Run 'home-manager switch' again to retry." >&2
-            exit 1
           fi
         '';
       };

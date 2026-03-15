@@ -69,7 +69,6 @@ in
 
               # API secrets
               (mkSecrets apisFile [
-                "context7-api-key"
                 "kagi-api-token"
                 "openai-api-key"
                 "exa-api-key"
@@ -118,11 +117,6 @@ in
             (mkSecretsWithOpts apisFile wheelReadable [
               "kagi-api-token"
               "openai-api-key"
-            ])
-
-            # API secrets - wheel readable
-            (mkSecretsWithOpts apisFile wheelReadable [
-              "context7-api-key"
             ])
 
             # Special cases
@@ -181,11 +175,6 @@ in
               "kagi-api-token"
               "openai-api-key"
               "wakapi-password-salt"
-            ])
-
-            # API secrets - wheel readable
-            (mkSecretsWithOpts apisFile wheelReadable [
-              "context7-api-key"
             ])
 
             # Special cases
