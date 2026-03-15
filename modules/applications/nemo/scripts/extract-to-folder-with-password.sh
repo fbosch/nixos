@@ -59,6 +59,42 @@ extract_archive() {
 	7z x -y -p"$pass" "$file" -o"$output_dir"
 }
 
+extract_with_progress() {
+	local output_dir="$1"
+	local pass="$2"
+	local errfile="$3"
+	local status_file
+	local cmd_pid
+	local status
+	local title="Extracting archive"
+	local text="Extracting: $(basename "$file")"
+
+	status_file="$(mktemp)"
+	(
+		set +e
+		extract_archive "$output_dir" "$pass" 2>"$errfile"
+		printf '%s\n' "$?" >"$status_file"
+	) &
+	cmd_pid=$!
+
+	(
+		while kill -0 "$cmd_pid" 2>/dev/null; do
+			printf '# %s\n' "$text"
+			sleep 0.2
+		done
+	) | zenity --progress \
+		--title="$title" \
+		--text="$text" \
+		--pulsate \
+		--auto-close \
+		--no-cancel >/dev/null 2>&1 || true
+
+	wait "$cmd_pid" || true
+	read -r status <"$status_file" || status=1
+	rm -f "$status_file"
+	return "$status"
+}
+
 attempt=1
 max_attempts=3
 archive_base_name="$(basename "$file")"
@@ -86,13 +122,13 @@ while [[ $attempt -le $max_attempts ]]; do
 	fi
 
 	errfile="$(mktemp)"
-	if extract_archive "$output_dir" "$password" 2>"$errfile"; then
+	if extract_with_progress "$output_dir" "$password" "$errfile"; then
 		rm -f "$errfile"
 		unset password
 		exit 0
 	fi
 
-	err_text="$(cat "$errfile")"
+	err_text="$(<"$errfile")"
 	rm -f "$errfile"
 
 	if [[ $err_text == *"Wrong password"* ]] || [[ $err_text == *"Can not open encrypted archive"* ]] || [[ $err_text == *"Incorrect password"* ]]; then

@@ -7,6 +7,7 @@
         runtimeInputs = [
           pkgs.p7zip
           pkgs.unrar
+          pkgs.zenity
         ];
         text = builtins.readFile ./scripts/extract-to-folder.sh;
       };
