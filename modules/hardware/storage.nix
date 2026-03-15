@@ -16,6 +16,8 @@
         "fmask=022" # File permissions (755) - allows execution
         "big_writes" # Better write performance
         "noatime" # Don't update access times (better performance)
+        "nofail" # Do not block boot if the disk is unavailable
+        "x-systemd.automount" # Mount on first access instead of during boot
       ];
     };
 

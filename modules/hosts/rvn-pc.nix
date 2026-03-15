@@ -115,6 +115,12 @@ in
 
         networking.firewall.allowedUDPPorts = [ 40000 ];
 
+        # Keep these available for manual start/socket activation, but do not auto-start at boot.
+        systemd.services = {
+          tailscaled.wantedBy = lib.mkForce [ ];
+          libvirtd.wantedBy = lib.mkForce [ ];
+        };
+
         security.apparmor = {
           enable = true;
           killUnconfinedConfinables = false;
