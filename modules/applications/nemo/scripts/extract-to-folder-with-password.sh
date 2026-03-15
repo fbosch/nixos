@@ -67,7 +67,10 @@ extract_with_progress() {
 	local cmd_pid
 	local status
 	local title="Extracting archive"
-	local text="Extracting: $(basename "$file")"
+	local file_name
+	local text
+	file_name="$(basename "$file")"
+	text="Extracting: $file_name"
 
 	status_file="$(mktemp)"
 	(
