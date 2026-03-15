@@ -14,6 +14,16 @@ in
       endpoint = lib.removeSuffix "/" cfg.endpoint;
       cacheUrl = "${endpoint}/${cfg.cacheName}";
       tokenFile = config.sops.secrets.attic-admin-token.path;
+      postBuildHookScript = pkgs.writeShellScript "attic-post-build-hook" (
+        builtins.readFile (
+          pkgs.replaceVars ../../scripts/attic/post-build-hook.sh {
+            atticClient = pkgs.attic-client;
+            inherit tokenFile;
+            inherit (cfg) cacheName;
+            inherit endpoint;
+          }
+        )
+      );
       synologyDomain = lib.attrByPath [
         "flake"
         "meta"
@@ -46,42 +56,25 @@ in
           enable = lib.mkOption {
             type = lib.types.bool;
             default = true;
-            description = "Whether to run attic watch-store to push builds.";
+            description = "Whether to push new build outputs to Attic via Nix post-build hook.";
           };
         };
       };
 
       config = {
-        nix.settings = {
-          substituters = lib.mkBefore [ cacheUrl ];
-          trusted-public-keys = [ cfg.publicKey ];
-        };
+        nix.settings = lib.mkMerge [
+          {
+            substituters = lib.mkBefore [ cacheUrl ];
+            trusted-public-keys = [ cfg.publicKey ];
+          }
+          (lib.mkIf cfg.watchStore.enable {
+            post-build-hook = postBuildHookScript;
+          })
+        ];
 
         sops.secrets.attic-admin-token = lib.mkIf cfg.watchStore.enable (
           sopsHelpers.mkSecret ../../secrets/development.yaml sopsHelpers.rootOnly
         );
-
-        systemd.services.attic-watch-store = lib.mkIf cfg.watchStore.enable {
-          description = "Attic watch-store push";
-          after = [ "network-online.target" ];
-          wants = [ "network-online.target" ];
-          wantedBy = [ "multi-user.target" ];
-          serviceConfig = {
-            Type = "simple";
-            User = "root";
-            Restart = "always";
-            RestartSec = "30s";
-            # Don't limit restarts - we want it to keep trying
-            StartLimitIntervalSec = 0;
-          };
-          # Use 'true' to ensure the service doesn't fail during activation
-          # The actual attic commands will run after, but failures won't block boot
-          script = ''
-            set +e  # Don't exit on error
-            ${pkgs.attic-client}/bin/attic login --set-default rvn ${cfg.endpoint} "$(cat ${tokenFile})" || echo "Warning: attic login failed, will retry..."
-            ${pkgs.attic-client}/bin/attic watch-store ${cfg.cacheName} || echo "Warning: attic watch-store failed, will retry..."
-          '';
-        };
       };
     };
 }
