@@ -16,7 +16,6 @@
     }:
     let
       requiredSecrets = [
-        "context7-api-key"
         "github-token"
         "kagi-api-token"
         "openai-api-key"
@@ -29,7 +28,6 @@
         )
         requiredSecrets;
       secretsMap = lib.optionalAttrs hasRequiredSecrets {
-        CONTEXT7_API_KEY = config.sops.secrets.context7-api-key.path;
         GITHUB_TOKEN = config.sops.secrets.github-token.path;
         COPILOT_TOKEN = config.sops.secrets.github-token.path;
         KAGI_API_TOKEN = config.sops.secrets.kagi-api-token.path;
