@@ -12,7 +12,7 @@
         "pokemonshow@latest" # Pokemon Showdown - not in nixpkgs
         "corepack@latest" # Node.js package manager manager
         "@fsouza/prettierd@latest" # Faster prettier daemon
-        "opencode-ai@latest" # AI code assistant
+        "opencode-ai@1.2.24" # AI code assistant
         "neovim@latest" # Neovim npm package
         "typescript-language-server@latest" # TS LSP server
         "vercel@latest" # Vercel CLI
