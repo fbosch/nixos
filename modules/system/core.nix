@@ -44,6 +44,7 @@ let
     useGlobalPkgs = true;
     useUserPackages = true;
     backupFileExtension = "hm-backup";
+    overwriteBackup = true;
   };
 in
 {

@@ -24,7 +24,23 @@
         qemu = {
           package = pkgs.qemu_kvm;
           vhostUserPackages = [ pkgs.virtiofsd ];
-          runAsRoot = false;
+          runAsRoot = true;
+          verbatimConfig = ''
+            namespaces = []
+
+            cgroup_device_acl = [
+              "/dev/null", "/dev/full", "/dev/zero",
+              "/dev/random", "/dev/urandom",
+              "/dev/ptmx", "/dev/kvm", "/dev/kqemu",
+              "/dev/rtc", "/dev/hpet", "/dev/sev",
+              "/dev/vfio/vfio", "/dev/net/tun",
+
+              "/dev/dri/renderD128",
+              "/dev/nvidia0", "/dev/nvidiactl",
+              "/dev/nvidia-modeset", "/dev/nvidia-uvm",
+              "/dev/nvidia-uvm-tools"
+            ]
+          '';
           swtpm.enable = true;
         };
       };
