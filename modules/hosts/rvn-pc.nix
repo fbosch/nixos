@@ -12,8 +12,6 @@ let
     dnsServers = [
       "192.168.1.46"
       "192.168.1.202"
-      "9.9.9.9"
-      "149.112.112.112"
     ];
   };
 in
@@ -110,9 +108,39 @@ in
           # Enable SSH for remote access
           openssh.enable = true;
 
-          # Act as a peer relay so tailnet devices (e.g. MacBook) use this node
-          # instead of Tailscale's DERP servers when direct connections fail
-          tailscale.extraSetFlags = [ "--relay-server-port=40000" ];
+          samba = {
+            enable = true;
+            openFirewall = true;
+            settings = {
+              global = {
+                "workgroup" = "WORKGROUP";
+                "server string" = hostMeta.name;
+                "netbios name" = "RVN-PC";
+                "security" = "user";
+                "map to guest" = "never";
+                "hosts allow" = "127.0.0.1 192.168.122.0/24 10.0.2.0/24 192.168.1.0/24";
+                "hosts deny" = "0.0.0.0/0";
+              };
+
+              storage = {
+                "path" = "/mnt/storage";
+                "browseable" = "yes";
+                "read only" = "no";
+                "guest ok" = "no";
+                "valid users" = config.flake.meta.user.username;
+                "force user" = config.flake.meta.user.username;
+                "create mask" = "0664";
+                "directory mask" = "0775";
+              };
+            };
+          };
+
+          samba-wsdd = {
+            enable = true;
+            openFirewall = true;
+          };
+
+          tailscale.extraSetFlags = [ "--accept-dns=false" ];
         };
 
         # Keep these available for manual start/socket activation, but do not auto-start at boot.

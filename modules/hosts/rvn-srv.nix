@@ -172,7 +172,10 @@ in
               openFirewall = true;
             };
 
-            tailscale.extraSetFlags = [ "--relay-server-port=40000" ];
+            tailscale.extraSetFlags = [
+              "--relay-server-port=40000"
+              "--accept-dns=false"
+            ];
 
             # OpenMemory
             openmemory-container = {

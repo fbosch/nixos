@@ -12,6 +12,7 @@
         lsof
         ethtool
         icu
+        dig
       ];
     };
 }
