@@ -11,7 +11,9 @@ let
     sshPublicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJl/WCQsXEkE7em5A6d2Du2JAWngIPfA8sVuJP/9cuyq fbb@nixos";
     dnsServers = [
       "192.168.1.46"
-      "192.168.1.2"
+      "192.168.1.202"
+      "9.9.9.9"
+      "149.112.112.112"
     ];
   };
 in
@@ -112,8 +114,6 @@ in
           # instead of Tailscale's DERP servers when direct connections fail
           tailscale.extraSetFlags = [ "--relay-server-port=40000" ];
         };
-
-        networking.firewall.allowedUDPPorts = [ 40000 ];
 
         # Keep these available for manual start/socket activation, but do not auto-start at boot.
         systemd.services = {
