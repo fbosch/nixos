@@ -7,11 +7,16 @@
 
 let
   pname = "helium-browser";
-  version = "0.9.2.1";
+  version = "0.10.5.1";
 
   src = fetchurl {
     url = "https://github.com/imputnet/helium-linux/releases/download/${version}/helium-${version}-x86_64.AppImage";
-    hash = "sha256-guDBIr8NOD0GtjWznsVXlvb6llvdWHxREfDvXeP4m/w=";
+    hash = "sha256-c/ea8C1XjTkBo0/ujGHEbKWyCmRMxyuiuOzAO9AMf1o=";
+  };
+
+  icon = fetchurl {
+    url = "https://github.com/imputnet/helium/raw/main/resources/branding/app_icon/raw.png";
+    hash = "sha256-dX8As09QbMdBlDf2KVHa10GecnCumWWPe1VLo6Ofnt0=";
   };
 
   appimageContents = appimageTools.extractType2 { inherit pname version src; };
@@ -31,7 +36,7 @@ appimageTools.wrapType2 rec {
       --replace 'Exec=AppRun %U' 'Exec=${pname} %U' \
       --replace 'Exec=AppRun' 'Exec=${pname}' \
 
-    install -Dm444 ${appimageContents}/usr/share/icons/hicolor/256x256/apps/helium.png \
+    install -Dm444 ${icon} \
       $out/share/icons/hicolor/256x256/apps/helium.png
   '';
 
