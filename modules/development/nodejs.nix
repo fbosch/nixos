@@ -107,6 +107,12 @@
           export PNPM_STORE_DIR="$pnpm_store_dir"
           export PATH="$pnpm_home:${pkgs.nodejs_24}/bin:${pkgs.nodePackages.pnpm}/bin:${pkgs.bun}/bin:$PATH"
 
+          ${lib.optionalString pkgs.stdenv.hostPlatform.isDarwin ''
+            echo "Skipping npm global update during activation on Darwin"
+            exit 0
+          ''}
+
+          ${lib.optionalString pkgs.stdenv.hostPlatform.isLinux ''
           # Do not block boot/login path. Boot-time Home Manager activation runs
           # without a user systemd daemon; defer npm global updates.
           if ! ${pkgs.systemd}/bin/systemctl --user show-environment >/dev/null 2>&1; then
@@ -128,6 +134,7 @@
             echo "WARNING: network not ready for $npm_registry_host, skipping npm global update" >&2
             exit 0
           fi
+          ''}
 
           install_failed=0
 
