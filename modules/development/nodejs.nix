@@ -107,23 +107,28 @@
           export PNPM_STORE_DIR="$pnpm_store_dir"
           export PATH="$pnpm_home:${pkgs.nodejs_24}/bin:${pkgs.nodePackages.pnpm}/bin:${pkgs.bun}/bin:$PATH"
 
-          ${lib.optionalString pkgs.stdenv.hostPlatform.isDarwin ''
-            echo "Skipping npm global update during activation on Darwin"
-            exit 0
-          ''}
-
-          ${lib.optionalString pkgs.stdenv.hostPlatform.isLinux ''
           # Do not block boot/login path. Boot-time Home Manager activation runs
-          # without a user systemd daemon; defer npm global updates.
-          if ! ${pkgs.systemd}/bin/systemctl --user show-environment >/dev/null 2>&1; then
+          # without a user service manager; defer npm global updates on Linux
+          # until the user systemd instance is ready.
+          if command -v systemctl >/dev/null 2>&1 && ! systemctl --user show-environment >/dev/null 2>&1; then
             echo "User systemd daemon not running, skipping npm global update during boot activation"
             exit 0
           fi
 
           # Wait for DNS/network before trying npm registry operations.
+          resolve_host() {
+            if command -v getent >/dev/null 2>&1; then
+              getent hosts "$1" >/dev/null 2>&1
+            elif command -v dscacheutil >/dev/null 2>&1; then
+              dscacheutil -q host -a name "$1" >/dev/null 2>&1
+            else
+              return 0
+            fi
+          }
+
           network_ready=0
           for _ in $(seq 1 30); do
-            if ${pkgs.glibc.bin}/bin/getent hosts "$npm_registry_host" >/dev/null 2>&1; then
+            if resolve_host "$npm_registry_host"; then
               network_ready=1
               break
             fi
@@ -134,7 +139,6 @@
             echo "WARNING: network not ready for $npm_registry_host, skipping npm global update" >&2
             exit 0
           fi
-          ''}
 
           install_failed=0
 
