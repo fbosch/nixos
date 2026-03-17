@@ -36,18 +36,19 @@
         text = ''
           export PNPM_HOME="${pnpmHome}"
           export PNPM_STORE_DIR="${pnpmStoreDir}"
+          export PATH="$PNPM_HOME:${pkgs.nodejs_24}/bin:${pkgs.nodePackages.pnpm}/bin:${pkgs.bun}/bin:$PATH"
           state_dir="$HOME/.local/state/pnpm-globals"
 
           mkdir -p "$PNPM_HOME" "$PNPM_STORE_DIR" "$state_dir"
 
-          ${lib.optionalString (pinnedNpmGlobalPackages != [ ]) ''
-            echo "Enforcing pinned package versions..."
-            pnpm add -g ${lib.concatStringsSep " " (map lib.escapeShellArg pinnedNpmGlobalPackages)}
-          ''}
-
           ${lib.optionalString (latestNpmGlobalPackages != [ ]) ''
             echo "Updating @latest packages..."
             pnpm add -g ${lib.concatStringsSep " " (map lib.escapeShellArg latestNpmGlobalPackages)}
+          ''}
+
+          ${lib.optionalString (pinnedNpmGlobalPackages != [ ]) ''
+            echo "Enforcing pinned package versions..."
+            pnpm add -g ${lib.concatStringsSep " " (map lib.escapeShellArg pinnedNpmGlobalPackages)}
           ''}
 
           echo ""
@@ -139,16 +140,16 @@
 
           install_failed=0
 
-          if [ "${if pinnedNpmGlobalPackages != [ ] then "true" else "false"}" = "true" ]; then
-            echo "Installing/updating pinned npm global packages..."
-            if ! ${pkgs.nodePackages.pnpm}/bin/pnpm add -g ${lib.concatStringsSep " " (map lib.escapeShellArg pinnedNpmGlobalPackages)} 2>&1; then
+          if [ "${if latestNpmGlobalPackages != [ ] then "true" else "false"}" = "true" ]; then
+            echo "Installing/updating @latest npm global packages..."
+            if ! ${pkgs.nodePackages.pnpm}/bin/pnpm add -g ${lib.concatStringsSep " " (map lib.escapeShellArg latestNpmGlobalPackages)} 2>&1; then
               install_failed=1
             fi
           fi
 
-          if [ "${if latestNpmGlobalPackages != [ ] then "true" else "false"}" = "true" ]; then
-            echo "Installing/updating @latest npm global packages..."
-            if ! ${pkgs.nodePackages.pnpm}/bin/pnpm add -g ${lib.concatStringsSep " " (map lib.escapeShellArg latestNpmGlobalPackages)} 2>&1; then
+          if [ "${if pinnedNpmGlobalPackages != [ ] then "true" else "false"}" = "true" ]; then
+            echo "Enforcing pinned npm global package versions..."
+            if ! ${pkgs.nodePackages.pnpm}/bin/pnpm add -g ${lib.concatStringsSep " " (map lib.escapeShellArg pinnedNpmGlobalPackages)} 2>&1; then
               install_failed=1
             fi
           fi
