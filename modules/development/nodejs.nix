@@ -23,10 +23,8 @@
 
       pinnedNpmGlobalPackages = lib.filter (pkg: !(lib.hasSuffix "@latest" pkg)) npmGlobalPackages;
       latestNpmGlobalPackages = lib.filter (pkg: lib.hasSuffix "@latest" pkg) npmGlobalPackages;
-
-      pinnedPackagesHash = builtins.hashString "sha256" (
-        lib.concatStringsSep "," pinnedNpmGlobalPackages
-      );
+      pnpmHome = if pkgs.stdenv.isDarwin then "$HOME/Library/pnpm" else "$HOME/.local/share/pnpm";
+      pnpmStoreDir = "${pnpmHome}/store";
 
       updateNodePackages = pkgs.writeShellApplication {
         name = "pnpm-global-update";
@@ -36,22 +34,15 @@
           pkgs.bun
         ];
         text = ''
-          export PNPM_HOME="$HOME/.local/share/pnpm"
-          export PNPM_STORE_DIR="$HOME/.local/share/pnpm/store"
+          export PNPM_HOME="${pnpmHome}"
+          export PNPM_STORE_DIR="${pnpmStoreDir}"
           state_dir="$HOME/.local/state/pnpm-globals"
 
           mkdir -p "$PNPM_HOME" "$PNPM_STORE_DIR" "$state_dir"
 
           ${lib.optionalString (pinnedNpmGlobalPackages != [ ]) ''
-            pinned_hash_file="$state_dir/pinned-packages.hash"
-            current_pinned_hash="${pinnedPackagesHash}"
-            if [ -f "$pinned_hash_file" ] && [ "$(cat "$pinned_hash_file")" = "$current_pinned_hash" ]; then
-              echo "Pinned packages unchanged, skipping"
-            else
-              echo "Updating pinned packages..."
-              pnpm add -g ${lib.concatStringsSep " " (map lib.escapeShellArg pinnedNpmGlobalPackages)}
-              echo "$current_pinned_hash" > "$pinned_hash_file"
-            fi
+            echo "Enforcing pinned package versions..."
+            pnpm add -g ${lib.concatStringsSep " " (map lib.escapeShellArg pinnedNpmGlobalPackages)}
           ''}
 
           ${lib.optionalString (latestNpmGlobalPackages != [ ]) ''
@@ -84,20 +75,19 @@
         ];
 
         sessionVariables = {
-          PNPM_HOME = "$HOME/.local/share/pnpm";
-          PNPM_STORE_DIR = "$HOME/.local/share/pnpm/store";
+          PNPM_HOME = pnpmHome;
+          PNPM_STORE_DIR = pnpmStoreDir;
         };
 
         sessionPath = [
-          "$HOME/.local/share/pnpm"
+          "$HOME/.local/bin"
+          pnpmHome
         ];
 
         activation.installNpmGlobalPackages = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
-          pnpm_home="$HOME/.local/share/pnpm"
-          pnpm_store_dir="$HOME/.local/share/pnpm/store"
+          pnpm_home="${pnpmHome}"
+          pnpm_store_dir="${pnpmStoreDir}"
           state_dir="$HOME/.local/state/pnpm-globals"
-          pinned_hash_file="$state_dir/pinned-packages.hash"
-          current_pinned_hash="${pinnedPackagesHash}"
           npm_registry_host="registry.npmjs.org"
 
           mkdir -p "$pnpm_home" "$pnpm_store_dir" "$state_dir"
@@ -106,6 +96,13 @@
           export PNPM_HOME="$pnpm_home"
           export PNPM_STORE_DIR="$pnpm_store_dir"
           export PATH="$pnpm_home:${pkgs.nodejs_24}/bin:${pkgs.nodePackages.pnpm}/bin:${pkgs.bun}/bin:$PATH"
+
+          # Only run installs when a new Home Manager generation is activated
+          # (e.g. via `home-manager switch`), not on every subsequent activation.
+          if [ -n "''${oldGenPath:-}" ] && [ "''${oldGenPath}" = "''${newGenPath:-}" ]; then
+            echo "Home Manager generation unchanged, skipping npm global update"
+            exit 0
+          fi
 
           # Do not block boot/login path. Boot-time Home Manager activation runs
           # without a user service manager; defer npm global updates on Linux
@@ -143,21 +140,15 @@
           install_failed=0
 
           if [ "${if pinnedNpmGlobalPackages != [ ] then "true" else "false"}" = "true" ]; then
-            if [ -f "$pinned_hash_file" ] && [ "$(cat "$pinned_hash_file")" = "$current_pinned_hash" ]; then
-              echo "Pinned npm global packages unchanged, skipping pinned install"
-            else
-              echo "Installing/updating pinned npm global packages..."
-              if ${pkgs.nodePackages.pnpm}/bin/pnpm add -g --prefer-offline ${lib.concatStringsSep " " (map lib.escapeShellArg pinnedNpmGlobalPackages)} 2>&1; then
-                echo "$current_pinned_hash" > "$pinned_hash_file"
-              else
-                install_failed=1
-              fi
+            echo "Installing/updating pinned npm global packages..."
+            if ! ${pkgs.nodePackages.pnpm}/bin/pnpm add -g ${lib.concatStringsSep " " (map lib.escapeShellArg pinnedNpmGlobalPackages)} 2>&1; then
+              install_failed=1
             fi
           fi
 
           if [ "${if latestNpmGlobalPackages != [ ] then "true" else "false"}" = "true" ]; then
             echo "Installing/updating @latest npm global packages..."
-            if ! ${pkgs.nodePackages.pnpm}/bin/pnpm add -g --prefer-offline ${lib.concatStringsSep " " (map lib.escapeShellArg latestNpmGlobalPackages)} 2>&1; then
+            if ! ${pkgs.nodePackages.pnpm}/bin/pnpm add -g ${lib.concatStringsSep " " (map lib.escapeShellArg latestNpmGlobalPackages)} 2>&1; then
               install_failed=1
             fi
           fi
