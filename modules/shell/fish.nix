@@ -28,13 +28,13 @@
         )
         requiredSecrets;
       secretsMap = lib.optionalAttrs hasRequiredSecrets {
-          GITHUB_TOKEN = config.sops.secrets.github-token.path;
-          COPILOT_TOKEN = config.sops.secrets.github-token.path;
-          KAGI_API_TOKEN = config.sops.secrets.kagi-api-token.path;
-          OPENAI_API_KEY = config.sops.secrets.openai-api-key.path;
-          EXA_API_KEY = config.sops.secrets.exa-api-key.path;
-          OPENMEMORY_API_KEY = config.sops.secrets.openmemory-api-key.path;
-        };
+        GITHUB_TOKEN = config.sops.secrets.github-token.path;
+        COPILOT_TOKEN = config.sops.secrets.github-token.path;
+        KAGI_API_TOKEN = config.sops.secrets.kagi-api-token.path;
+        OPENAI_API_KEY = config.sops.secrets.openai-api-key.path;
+        EXA_API_KEY = config.sops.secrets.exa-api-key.path;
+        OPENMEMORY_API_KEY = config.sops.secrets.openmemory-api-key.path;
+      };
 
       readSecrets = lib.concatStringsSep "\n" (
         lib.mapAttrsToList
@@ -56,7 +56,6 @@
     {
       home.packages = with pkgs; [
         fish
-        zsh
         dash
         starship
         zoxide

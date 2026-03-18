@@ -24,6 +24,7 @@ in
       ];
       home.activation = {
         # Phase 1: ensure the dotfiles repo is present and uses SSH.
+
         # Runs after writeBoundary so the home directory structure exists.
         setupDotfiles = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
           set -euo pipefail

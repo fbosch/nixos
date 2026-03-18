@@ -12,7 +12,7 @@
         "pokemonshow@latest" # Pokemon Showdown - not in nixpkgs
         "corepack@latest" # Node.js package manager manager
         "@fsouza/prettierd@latest" # Faster prettier daemon
-        "opencode-ai@1.2.24" # AI code assistant
+        "opencode-ai@latest" # AI code assistant
         "neovim@latest" # Neovim npm package
         "typescript-language-server@latest" # TS LSP server
         "vercel@latest" # Vercel CLI
@@ -23,10 +23,8 @@
 
       pinnedNpmGlobalPackages = lib.filter (pkg: !(lib.hasSuffix "@latest" pkg)) npmGlobalPackages;
       latestNpmGlobalPackages = lib.filter (pkg: lib.hasSuffix "@latest" pkg) npmGlobalPackages;
-
-      pinnedPackagesHash = builtins.hashString "sha256" (
-        lib.concatStringsSep "," pinnedNpmGlobalPackages
-      );
+      pnpmHome = if pkgs.stdenv.isDarwin then "$HOME/Library/pnpm" else "$HOME/.local/share/pnpm";
+      pnpmStoreDir = "${pnpmHome}/store";
 
       updateNodePackages = pkgs.writeShellApplication {
         name = "pnpm-global-update";
@@ -36,27 +34,21 @@
           pkgs.bun
         ];
         text = ''
-          export PNPM_HOME="$HOME/.local/share/pnpm"
-          export PNPM_STORE_DIR="$HOME/.local/share/pnpm/store"
+          export PNPM_HOME="${pnpmHome}"
+          export PNPM_STORE_DIR="${pnpmStoreDir}"
+          export PATH="$PNPM_HOME:${pkgs.nodejs_24}/bin:${pkgs.nodePackages.pnpm}/bin:${pkgs.bun}/bin:$PATH"
           state_dir="$HOME/.local/state/pnpm-globals"
 
           mkdir -p "$PNPM_HOME" "$PNPM_STORE_DIR" "$state_dir"
 
-          ${lib.optionalString (pinnedNpmGlobalPackages != [ ]) ''
-            pinned_hash_file="$state_dir/pinned-packages.hash"
-            current_pinned_hash="${pinnedPackagesHash}"
-            if [ -f "$pinned_hash_file" ] && [ "$(cat "$pinned_hash_file")" = "$current_pinned_hash" ]; then
-              echo "Pinned packages unchanged, skipping"
-            else
-              echo "Updating pinned packages..."
-              pnpm add -g ${lib.concatStringsSep " " (map lib.escapeShellArg pinnedNpmGlobalPackages)}
-              echo "$current_pinned_hash" > "$pinned_hash_file"
-            fi
-          ''}
-
           ${lib.optionalString (latestNpmGlobalPackages != [ ]) ''
             echo "Updating @latest packages..."
             pnpm add -g ${lib.concatStringsSep " " (map lib.escapeShellArg latestNpmGlobalPackages)}
+          ''}
+
+          ${lib.optionalString (pinnedNpmGlobalPackages != [ ]) ''
+            echo "Enforcing pinned package versions..."
+            pnpm add -g ${lib.concatStringsSep " " (map lib.escapeShellArg pinnedNpmGlobalPackages)}
           ''}
 
           echo ""
@@ -84,20 +76,19 @@
         ];
 
         sessionVariables = {
-          PNPM_HOME = "$HOME/.local/share/pnpm";
-          PNPM_STORE_DIR = "$HOME/.local/share/pnpm/store";
+          PNPM_HOME = pnpmHome;
+          PNPM_STORE_DIR = pnpmStoreDir;
         };
 
         sessionPath = [
-          "$HOME/.local/share/pnpm"
+          "$HOME/.local/bin"
+          pnpmHome
         ];
 
         activation.installNpmGlobalPackages = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
-          pnpm_home="$HOME/.local/share/pnpm"
-          pnpm_store_dir="$HOME/.local/share/pnpm/store"
+          pnpm_home="${pnpmHome}"
+          pnpm_store_dir="${pnpmStoreDir}"
           state_dir="$HOME/.local/state/pnpm-globals"
-          pinned_hash_file="$state_dir/pinned-packages.hash"
-          current_pinned_hash="${pinnedPackagesHash}"
           npm_registry_host="registry.npmjs.org"
 
           mkdir -p "$pnpm_home" "$pnpm_store_dir" "$state_dir"
@@ -107,17 +98,35 @@
           export PNPM_STORE_DIR="$pnpm_store_dir"
           export PATH="$pnpm_home:${pkgs.nodejs_24}/bin:${pkgs.nodePackages.pnpm}/bin:${pkgs.bun}/bin:$PATH"
 
+          # Only run installs when a new Home Manager generation is activated
+          # (e.g. via `home-manager switch`), not on every subsequent activation.
+          if [ -n "''${oldGenPath:-}" ] && [ "''${oldGenPath}" = "''${newGenPath:-}" ]; then
+            echo "Home Manager generation unchanged, skipping npm global update"
+            exit 0
+          fi
+
           # Do not block boot/login path. Boot-time Home Manager activation runs
-          # without a user systemd daemon; defer npm global updates.
-          if ! ${pkgs.systemd}/bin/systemctl --user show-environment >/dev/null 2>&1; then
+          # without a user service manager; defer npm global updates on Linux
+          # until the user systemd instance is ready.
+          if command -v systemctl >/dev/null 2>&1 && ! systemctl --user show-environment >/dev/null 2>&1; then
             echo "User systemd daemon not running, skipping npm global update during boot activation"
             exit 0
           fi
 
           # Wait for DNS/network before trying npm registry operations.
+          resolve_host() {
+            if command -v getent >/dev/null 2>&1; then
+              getent hosts "$1" >/dev/null 2>&1
+            elif command -v dscacheutil >/dev/null 2>&1; then
+              dscacheutil -q host -a name "$1" >/dev/null 2>&1
+            else
+              return 0
+            fi
+          }
+
           network_ready=0
           for _ in $(seq 1 30); do
-            if ${pkgs.glibc.bin}/bin/getent hosts "$npm_registry_host" >/dev/null 2>&1; then
+            if resolve_host "$npm_registry_host"; then
               network_ready=1
               break
             fi
@@ -131,22 +140,16 @@
 
           install_failed=0
 
-          if [ "${if pinnedNpmGlobalPackages != [ ] then "true" else "false"}" = "true" ]; then
-            if [ -f "$pinned_hash_file" ] && [ "$(cat "$pinned_hash_file")" = "$current_pinned_hash" ]; then
-              echo "Pinned npm global packages unchanged, skipping pinned install"
-            else
-              echo "Installing/updating pinned npm global packages..."
-              if ${pkgs.nodePackages.pnpm}/bin/pnpm add -g --prefer-offline ${lib.concatStringsSep " " (map lib.escapeShellArg pinnedNpmGlobalPackages)} 2>&1; then
-                echo "$current_pinned_hash" > "$pinned_hash_file"
-              else
-                install_failed=1
-              fi
+          if [ "${if latestNpmGlobalPackages != [ ] then "true" else "false"}" = "true" ]; then
+            echo "Installing/updating @latest npm global packages..."
+            if ! ${pkgs.nodePackages.pnpm}/bin/pnpm add -g ${lib.concatStringsSep " " (map lib.escapeShellArg latestNpmGlobalPackages)} 2>&1; then
+              install_failed=1
             fi
           fi
 
-          if [ "${if latestNpmGlobalPackages != [ ] then "true" else "false"}" = "true" ]; then
-            echo "Installing/updating @latest npm global packages..."
-            if ! ${pkgs.nodePackages.pnpm}/bin/pnpm add -g --prefer-offline ${lib.concatStringsSep " " (map lib.escapeShellArg latestNpmGlobalPackages)} 2>&1; then
+          if [ "${if pinnedNpmGlobalPackages != [ ] then "true" else "false"}" = "true" ]; then
+            echo "Enforcing pinned npm global package versions..."
+            if ! ${pkgs.nodePackages.pnpm}/bin/pnpm add -g ${lib.concatStringsSep " " (map lib.escapeShellArg pinnedNpmGlobalPackages)} 2>&1; then
               install_failed=1
             fi
           fi
