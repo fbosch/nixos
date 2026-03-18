@@ -50,27 +50,27 @@ list_matching_gist_ids() {
 
 while [ "$#" -gt 0 ]; do
 	case "$1" in
-		--dry-run)
-			dry_run="true"
-			shift
-			;;
-		--key-id)
-			if [ -z "${2:-}" ]; then
-				printf "Error: --key-id requires a value.\n"
-				exit 1
-			fi
-			gpg_key_id="$2"
-			shift 2
-			;;
-		-h|--help)
-			usage
-			exit 0
-			;;
-		*)
-			printf "Error: Unknown argument: %s\n" "$1"
-			usage
+	--dry-run)
+		dry_run="true"
+		shift
+		;;
+	--key-id)
+		if [ -z "${2:-}" ]; then
+			printf "Error: --key-id requires a value.\n"
 			exit 1
-			;;
+		fi
+		gpg_key_id="$2"
+		shift 2
+		;;
+	-h | --help)
+		usage
+		exit 0
+		;;
+	*)
+		printf "Error: Unknown argument: %s\n" "$1"
+		usage
+		exit 1
+		;;
 	esac
 done
 
