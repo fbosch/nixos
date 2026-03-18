@@ -199,11 +199,11 @@
     "dotfiles": {
       "flake": false,
       "locked": {
-        "lastModified": 1773754824,
-        "narHash": "sha256-kturbZr50WSHITGRRLbwooIdITzxBNJLi73nFQ/boBk=",
+        "lastModified": 1773844774,
+        "narHash": "sha256-646hlGxkwrpK6h4StKDk2vh13v3NKzWIxFIbqtsffN0=",
         "owner": "fbosch",
         "repo": "dotfiles",
-        "rev": "3b755ea21e2d9bc989e2bfd6f8235235bdedcacd",
+        "rev": "7a1ad58c19b24fad29bb91f638c53428f1d661c6",
         "type": "github"
       },
       "original": {
@@ -1855,11 +1855,11 @@
         "rust-overlay": "rust-overlay"
       },
       "locked": {
-        "lastModified": 1773544829,
-        "narHash": "sha256-IGn+PcTNP8RLdiazJIc3uaW7O6Ip2+wNqkmW0uJn+QQ=",
+        "lastModified": 1773795422,
+        "narHash": "sha256-Kw/bJNxelZNdrQ0hmMK1zrNXgN1dCKNOls4tnbTlfK4=",
         "owner": "max-sixty",
         "repo": "worktrunk",
-        "rev": "6e062d766158edd7653fc082ab54b8fc570d9d33",
+        "rev": "618518c2a45c850c08d8cd454387941edc8232a4",
         "type": "github"
       },
       "original": {
