@@ -11,6 +11,7 @@ _: {
       # TUIGreet configuration
       tuigreetTheme = builtins.readFile ../../configs/greetd/theme.txt;
       nixosVersion = "${nixosConfig.system.nixos.release} ${nixosConfig.system.nixos.codeName}";
+      linuxVersion = "Linux ${nixosConfig.boot.kernelPackages.kernel.version}";
       issueText = builtins.readFile ../../configs/greetd/issue.txt;
 
       # Session script for greetd
@@ -21,7 +22,7 @@ _: {
       environment.etc = {
         "issue".text = ''
           ${issueText}
-          ${nixosVersion}
+          ${nixosVersion} (${linuxVersion})
         '';
 
         "greetd/session-hyprland" = {
