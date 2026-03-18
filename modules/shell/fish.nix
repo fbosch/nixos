@@ -50,7 +50,7 @@
       );
 
       fishExports = lib.concatStringsSep "\n" (
-        lib.mapAttrsToList (name: _: "set -gx ${name} '$" + name + "'") secretsMap
+        lib.mapAttrsToList (name: _: "set -gx ${name} \"$" + name + "\"") secretsMap
       );
     in
     {
