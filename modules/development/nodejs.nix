@@ -18,6 +18,7 @@
         "vercel@latest" # Vercel CLI
         "@github/copilot@latest" # Copilot CLI
         "agent-browser@latest" # headless browser for AI Agents
+        "opencode-claude-auth@latest"
         # "dorita980" # Roomba password
       ];
 
