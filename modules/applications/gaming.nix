@@ -35,7 +35,13 @@ _: {
             proton-ge-bin
           ];
           package = pkgs.steam.override {
-            extraEnv = { }; # global environment variables for all games
+            extraEnv = {
+              DXVK_ASYNC = "1";
+              PROTON_HIDE_NVIDIA_GPU = "0";
+              PROTON_ENABLE_NVAPI = "1";
+              GAMEMODERUN = "1";
+              PROTON_LOCAL_SHADER_CACHE = "1";
+            };
           };
         };
 
