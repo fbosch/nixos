@@ -115,7 +115,7 @@ in
           openssh.enable = true;
 
           samba = {
-            enable = true;
+            enable = false;
             openFirewall = true;
             settings = {
               global = {
@@ -126,6 +126,11 @@ in
                 "map to guest" = "never";
                 "hosts allow" = "127.0.0.1 192.168.122.0/24 10.0.2.0/24 192.168.1.0/24";
                 "hosts deny" = "0.0.0.0/0";
+
+                # Improve LAN transfer throughput with async I/O and zero-copy sends.
+                "aio read size" = "1";
+                "aio write size" = "1";
+                "use sendfile" = "yes";
               };
 
               storage = {
