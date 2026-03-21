@@ -8,6 +8,7 @@ _: {
         steam-run
         wowup-cf
         protontricks
+        faugus-launcher
         # sgdboop - disabled due to build error in nixpkgs (function signature mismatch)
         steamtinkerlaunch
       ];
@@ -57,7 +58,6 @@ _: {
       # Flatpak gaming applications
       services.flatpak.packages = [
         "net.davidotek.pupgui2" # ProtonUp-Qt for managing Proton versions
-        "io.github.Faugus.faugus-launcher" # Game launcher
         "org.freedesktop.Platform.VulkanLayer.vkBasalt//25.08" # Vulkan post-processing
         "org.freedesktop.Platform.VulkanLayer.MangoHud//25.08" # MangoHud overlay
         "io.mgba.mGBA" # GBA emulator

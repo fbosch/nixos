@@ -56,6 +56,9 @@
           "image/heic" = [ defaultImageViewer ];
           "image/heif" = [ defaultImageViewer ];
 
+          # Windows executables
+          "application/x-ms-dos-executable" = [ "faugus-launcher.desktop" ];
+
           # Archive formats
           "application/zip" = [ "org.gnome.FileRoller.desktop" ];
           "application/x-7z-compressed" = [ "org.gnome.FileRoller.desktop" ];
