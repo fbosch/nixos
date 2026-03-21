@@ -15,26 +15,28 @@
     , ...
     }:
     let
-      requiredSecrets = [
-        "github-token"
-        "kagi-api-token"
-        "openai-api-key"
-        "exa-api-key"
-        "openmemory-api-key"
-      ];
-      hasRequiredSecrets = lib.all
-        (
-          name: lib.hasAttrByPath [ "sops" "secrets" name "path" ] config
-        )
-        requiredSecrets;
-      secretsMap = lib.optionalAttrs hasRequiredSecrets {
-        GITHUB_TOKEN = config.sops.secrets.github-token.path;
-        COPILOT_TOKEN = config.sops.secrets.github-token.path;
-        KAGI_API_TOKEN = config.sops.secrets.kagi-api-token.path;
-        OPENAI_API_KEY = config.sops.secrets.openai-api-key.path;
-        EXA_API_KEY = config.sops.secrets.exa-api-key.path;
-        OPENMEMORY_API_KEY = config.sops.secrets.openmemory-api-key.path;
+      secretNamesByEnv = {
+        GITHUB_TOKEN = "github-token";
+        COPILOT_TOKEN = "github-token";
+        KAGI_API_TOKEN = "kagi-api-token";
+        OPENAI_API_KEY = "openai-api-key";
+        EXA_API_KEY = "exa-api-key";
+        OPENMEMORY_API_KEY = "openmemory-api-key";
       };
+
+      availableSecretNamesByEnv = lib.filterAttrs
+        (
+          _: secretName: lib.hasAttrByPath [ "sops" "secrets" secretName "path" ] config
+        )
+        secretNamesByEnv;
+
+      secretsMap = lib.mapAttrs
+        (
+          _: secretName: config.sops.secrets.${secretName}.path
+        )
+        availableSecretNamesByEnv;
+
+      hasAnySecrets = secretsMap != { };
 
       readSecrets = lib.concatStringsSep "\n" (
         lib.mapAttrsToList
@@ -64,7 +66,7 @@
         tealdeer
       ];
 
-      home.activation.generateFishSecrets = lib.mkIf hasRequiredSecrets (
+      home.activation.generateFishSecrets = lib.mkIf hasAnySecrets (
         lib.hm.dag.entryAfter [ "sops-nix" "setupLaunchAgents" "writeBoundary" ] ''
           $DRY_RUN_CMD mkdir -p ${config.home.homeDirectory}/.config/fish
 
