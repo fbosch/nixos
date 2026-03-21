@@ -97,28 +97,28 @@ _: {
         source = ../../assets/steam-theme/custom.css;
       };
 
-      xdg.desktopEntries.steam =
-        lib.mkIf (osConfig.programs.steam.enable && osConfig.services.mullvad-vpn.enable)
-          {
-            name = "Steam";
-            comment = "Application for managing and playing games on Steam";
-            exec = "${lib.getExe' pkgs.mullvad-vpn "mullvad-exclude"} steam %U";
-            icon = "steam";
-            type = "Application";
-            categories = [
-              "Network"
-              "FileTransfer"
-              "Game"
-            ];
-            mimeType = [
-              "x-scheme-handler/steam"
-              "x-scheme-handler/steamlink"
-            ];
-            terminal = false;
-            settings = {
-              PrefersNonDefaultGPU = "true";
-              X-KDE-RunOnDiscreteGpu = "true";
-            };
-          };
+      # xdg.desktopEntries.steam =
+      #   lib.mkIf (osConfig.programs.steam.enable && osConfig.services.mullvad-vpn.enable)
+      #     {
+      #       name = "Steam";
+      #       comment = "Application for managing and playing games on Steam";
+      #       exec = "${lib.getExe' pkgs.mullvad-vpn "mullvad-exclude"} steam steam://open/main %U";
+      #       icon = "steam";
+      #       type = "Application";
+      #       categories = [
+      #         "Network"
+      #         "FileTransfer"
+      #         "Game"
+      #       ];
+      #       mimeType = [
+      #         "x-scheme-handler/steam"
+      #         "x-scheme-handler/steamlink"
+      #       ];
+      #       terminal = false;
+      #       settings = {
+      #         PrefersNonDefaultGPU = "true";
+      #         X-KDE-RunOnDiscreteGpu = "true";
+      #       };
+      #     };
     };
 }

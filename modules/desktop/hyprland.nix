@@ -87,6 +87,8 @@
         GDK_DEBUG = "no-portals";
         WLR_NO_HARDWARE_CURSORS = "1";
         HYPR_PLUGIN_DIR = hypr-plugin-dir;
+        __GL_GSYNC_ALLOWED = "1";
+        __GL_VRR_ALLOWED = "1";
         QT_QPA_PLATFORM = "wayland;xcb";
         QT_IM_MODULE = "wayland";
         __JAVA_AWT_WM_NONREPARENTING = "1";
