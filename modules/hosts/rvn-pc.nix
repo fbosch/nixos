@@ -131,6 +131,9 @@ in
                 "aio read size" = "1";
                 "aio write size" = "1";
                 "use sendfile" = "yes";
+
+                # Allow SMB3 multichannel when clients/NICs support it.
+                "server multi channel support" = "yes";
               };
 
               storage = {
@@ -156,6 +159,8 @@ in
 
         # Keep these available for manual start/socket activation, but do not auto-start at boot.
         systemd.services = {
+          # Desktop host: avoid blocking boot on network-online when not required.
+          NetworkManager-wait-online.enable = lib.mkForce false;
           tailscaled.wantedBy = lib.mkForce [ ];
           libvirtd.wantedBy = lib.mkForce [ ];
         };
