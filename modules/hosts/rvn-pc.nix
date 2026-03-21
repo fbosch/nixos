@@ -96,9 +96,15 @@ in
           ];
 
         # Keep rebuilds fast while reserving CPU headroom for desktop responsiveness.
-        nix.settings = {
-          max-jobs = 6;
-          cores = 2;
+        nix = {
+          settings = {
+            max-jobs = "auto";
+            cores = 0;
+          };
+
+          # De-prioritize Nix daemon scheduling so desktop workloads stay responsive.
+          daemonCPUSchedPolicy = "batch";
+          daemonIOSchedClass = "idle";
         };
 
         services = {
