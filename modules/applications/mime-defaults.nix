@@ -15,6 +15,7 @@
     let
       defaultFileExplorer = "nemo.desktop";
       defaultImageViewer = "org.gnome.Loupe.desktop";
+      defaultExeLauncher = "faugus-launcher.desktop";
     in
     {
       home.packages = with pkgs; [
@@ -36,6 +37,12 @@
           "image/png" = [ defaultImageViewer ];
           "image/jpeg" = [ defaultImageViewer ];
           "image/webp" = [ defaultImageViewer ];
+
+          # Common MIME types for Windows executables
+          "application/x-ms-dos-executable" = [ defaultExeLauncher ];
+          "application/x-dosexec" = [ defaultExeLauncher ];
+          "application/x-msdownload" = [ defaultExeLauncher ];
+          "application/vnd.microsoft.portable-executable" = [ defaultExeLauncher ];
         };
         defaultApplications = {
           "inode/directory" = [ defaultFileExplorer ];
@@ -57,7 +64,10 @@
           "image/heif" = [ defaultImageViewer ];
 
           # Windows executables
-          "application/x-ms-dos-executable" = [ "faugus-launcher.desktop" ];
+          "application/x-ms-dos-executable" = [ defaultExeLauncher ];
+          "application/x-dosexec" = [ defaultExeLauncher ];
+          "application/x-msdownload" = [ defaultExeLauncher ];
+          "application/vnd.microsoft.portable-executable" = [ defaultExeLauncher ];
 
           # Archive formats
           "application/zip" = [ "org.gnome.FileRoller.desktop" ];
