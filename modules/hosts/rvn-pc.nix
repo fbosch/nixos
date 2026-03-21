@@ -112,7 +112,10 @@ in
           ananicy.enable = lib.mkForce false;
 
           # Enable SSH for remote access
-          openssh.enable = true;
+          openssh = {
+            enable = true;
+            startWhenNeeded = true;
+          };
 
           samba = {
             enable = false;
