@@ -165,9 +165,6 @@ in
           # Desktop host: avoid blocking boot on network-online when not required.
           NetworkManager-wait-online.enable = lib.mkForce false;
 
-          # Keep VPN daemon off until explicitly needed.
-          mullvad-daemon.wantedBy = lib.mkForce [ ];
-
           # tailscaled-set pulls in tailscaled during boot; keep both manual.
           tailscaled-set.wantedBy = lib.mkForce [ ];
           tailscaled.wantedBy = lib.mkForce [ ];

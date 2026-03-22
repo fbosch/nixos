@@ -13,6 +13,7 @@
         ethtool
         icu
         dig
+        lazyjournal
       ];
     };
 }
