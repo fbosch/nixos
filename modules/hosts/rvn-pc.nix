@@ -152,8 +152,8 @@ in
             };
           };
 
-          samba-wsdd = lib.mkIf config.services.samba.enable {
-            enable = true;
+          samba-wsdd = {
+            enable = false;
             openFirewall = true;
           };
 
