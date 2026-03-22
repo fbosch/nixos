@@ -7,6 +7,7 @@
         [
           htop
           btop
+          s-tui
           glances
           dust
           dua

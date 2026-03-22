@@ -14,7 +14,6 @@
         gnomeExtensions.mock-tray
         gucharmap
         networkmanagerapplet
-        mission-center
       ];
     };
 }

@@ -18,9 +18,6 @@
         # Image viewers
         loupe # GNOME image viewer
 
-        # Audio control
-        pavucontrol # PulseAudio volume control
-
         # Media web apps
         local.chromium-youtubemusic # YouTube Music
         local.chromium-synologyphotos # Synology Photos
