@@ -1,9 +1,10 @@
 { inputs, config, ... }:
 {
   flake.modules.homeManager.desktop =
-    { pkgs
-    , lib
-    , ...
+    {
+      pkgs,
+      lib,
+      ...
     }:
     let
       inherit (pkgs.stdenv.hostPlatform) system;
@@ -26,23 +27,24 @@
     };
 
   flake.modules.nixos.desktop =
-    { pkgs
-    , ...
+    {
+      pkgs,
+      ...
     }:
     let
       inherit (pkgs.stdenv.hostPlatform) system;
 
-      # Hyprland plugins - upstream now includes API fixes for v0.52.0+
-      hyprPluginPkgs = inputs.hyprland-plugins.packages.${system};
-      splitMonitorWorkspacesPkg =
-        inputs.split-monitor-workspaces.packages.${system}.split-monitor-workspaces;
-      hypr-plugin-dir = pkgs.symlinkJoin {
-        name = "hyprland-plugins";
-        paths = [
-          hyprPluginPkgs.hyprbars
-          splitMonitorWorkspacesPkg
-        ];
-      };
+      # Hyprland plugins (temporarily disabled for upgrade)
+      # hyprPluginPkgs = inputs.hyprland-plugins.packages.${system};
+      # splitMonitorWorkspacesPkg =
+      #   inputs.split-monitor-workspaces.packages.${system}.split-monitor-workspaces;
+      # hypr-plugin-dir = pkgs.symlinkJoin {
+      #   name = "hyprland-plugins";
+      #   paths = [
+      #     hyprPluginPkgs.hyprbars
+      #     splitMonitorWorkspacesPkg
+      #   ];
+      # };
 
       hyprlockPackages = inputs.hyprlock.packages.${system};
       hyprlockPackage = hyprlockPackages.hyprlock or hyprlockPackages.default;
@@ -86,7 +88,7 @@
         GDK_BACKEND = "wayland,x11";
         GDK_DEBUG = "no-portals";
         WLR_NO_HARDWARE_CURSORS = "1";
-        HYPR_PLUGIN_DIR = hypr-plugin-dir;
+        # HYPR_PLUGIN_DIR = hypr-plugin-dir;
         __GL_GSYNC_ALLOWED = "1";
         __GL_VRR_ALLOWED = "1";
         QT_QPA_PLATFORM = "wayland;xcb";

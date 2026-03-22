@@ -50,14 +50,14 @@
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.systems.follows = "dedupe_systems";
     };
-    hyprland-plugins = {
-      url = "github:hyprwm/hyprland-plugins";
-      inputs.hyprland.follows = "hyprland";
-    };
-    split-monitor-workspaces = {
-      url = "github:Duckonaut/split-monitor-workspaces";
-      inputs.hyprland.follows = "hyprland";
-    };
+    # hyprland-plugins = {
+    #   url = "github:hyprwm/hyprland-plugins";
+    #   inputs.hyprland.follows = "hyprland";
+    # };
+    # split-monitor-workspaces = {
+    #   url = "github:Duckonaut/split-monitor-workspaces";
+    #   inputs.hyprland.follows = "hyprland";
+    # };
     hyprland-contrib = {
       url = "github:hyprwm/contrib";
       inputs.nixpkgs.follows = "nixpkgs";
