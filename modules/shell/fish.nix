@@ -9,10 +9,11 @@
     };
 
   flake.modules.homeManager.shell =
-    { config
-    , lib
-    , pkgs
-    , ...
+    {
+      config,
+      lib,
+      pkgs,
+      ...
     }:
     let
       secretNamesByEnv = {
@@ -24,31 +25,25 @@
         OPENMEMORY_API_KEY = "openmemory-api-key";
       };
 
-      availableSecretNamesByEnv = lib.filterAttrs
-        (
-          _: secretName: lib.hasAttrByPath [ "sops" "secrets" secretName "path" ] config
-        )
-        secretNamesByEnv;
+      availableSecretNamesByEnv = lib.filterAttrs (
+        _: secretName: lib.hasAttrByPath [ "sops" "secrets" secretName "path" ] config
+      ) secretNamesByEnv;
 
-      secretsMap = lib.mapAttrs
-        (
-          _: secretName: config.sops.secrets.${secretName}.path
-        )
-        availableSecretNamesByEnv;
+      secretsMap = lib.mapAttrs (
+        _: secretName: config.sops.secrets.${secretName}.path
+      ) availableSecretNamesByEnv;
 
       hasAnySecrets = secretsMap != { };
 
       readSecrets = lib.concatStringsSep "\n" (
-        lib.mapAttrsToList
-          (name: path: ''
-            if [ -r ${path} ]; then
-              ${name}=$(cat ${path})
-            else
-              echo "Warning: skipping unreadable secret ${name} at ${path}" >&2
-              ${name}=""
-            fi
-          '')
-          secretsMap
+        lib.mapAttrsToList (name: path: ''
+          if [ -r ${path} ]; then
+            ${name}=$(cat ${path})
+          else
+            echo "Warning: skipping unreadable secret ${name} at ${path}" >&2
+            ${name}=""
+          fi
+        '') secretsMap
       );
 
       fishExports = lib.concatStringsSep "\n" (
@@ -79,6 +74,10 @@
           EOF
 
           $DRY_RUN_CMD ${lib.getExe' pkgs.coreutils "chmod"} 600 ${config.home.homeDirectory}/.config/fish/private.fish
+
+          if [ "$(id -u)" = "0" ]; then
+            $DRY_RUN_CMD ${lib.getExe' pkgs.coreutils "chown"} ${config.home.username}:${config.home.username} ${config.home.homeDirectory}/.config/fish/private.fish
+          fi
         ''
       );
     };
