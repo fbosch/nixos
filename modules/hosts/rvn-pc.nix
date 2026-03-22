@@ -81,6 +81,7 @@ in
             {
               xdg.userDirs = {
                 enable = true;
+                setSessionVariables = true;
                 download = "/mnt/storage/Downloads";
               };
 
