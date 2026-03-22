@@ -11,6 +11,7 @@ _: {
         faugus-launcher
         # sgdboop - disabled due to build error in nixpkgs (function signature mismatch)
         steamtinkerlaunch
+        nvitop
       ];
 
       programs = {

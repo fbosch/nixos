@@ -11,6 +11,7 @@
     {
       home.packages = [
         pkgsStable.wezterm
+        pkgs.foot
         pkgs.kitty
         pkgs.ghostty
       ];
