@@ -8,6 +8,11 @@ Before running or instructing diagnostic commands, check which machine the agent
 
 Do not run `sops` commands directly; they break the TUI. Instruct the user to run them.
 
+## Network Context
+
+- This environment is behind CGNAT.
+- Do not assume direct public inbound reachability by default; prioritize LAN/Tailscale/internal exposure in security assessments unless explicit port forwarding or reverse tunnels are configured.
+
 ## Nix Linting Hygiene
 
 - Avoid repeated top-level keys in a single attrset (Statix W20), especially `sops.*`.
