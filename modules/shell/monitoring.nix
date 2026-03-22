@@ -7,7 +7,6 @@
         [
           htop
           btop
-          s-tui
           glances
           dust
           dua
@@ -16,6 +15,7 @@
         ]
         ++ lib.optionals pkgs.stdenv.isLinux [
           # Not available on Darwin
+          s-tui
           microfetch
           below
         ];
