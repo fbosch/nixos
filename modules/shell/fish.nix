@@ -9,11 +9,10 @@
     };
 
   flake.modules.homeManager.shell =
-    {
-      config,
-      lib,
-      pkgs,
-      ...
+    { config
+    , lib
+    , pkgs
+    , ...
     }:
     let
       secretNamesByEnv = {
@@ -25,21 +24,27 @@
         OPENMEMORY_API_KEY = "openmemory-api-key";
       };
 
-      availableSecretNamesByEnv = lib.filterAttrs (
-        _: secretName: lib.hasAttrByPath [ "sops" "secrets" secretName "path" ] config
-      ) secretNamesByEnv;
+      availableSecretNamesByEnv = lib.filterAttrs
+        (
+          _: secretName: lib.hasAttrByPath [ "sops" "secrets" secretName "path" ] config
+        )
+        secretNamesByEnv;
 
-      secretsMap = lib.mapAttrs (
-        _: secretName: config.sops.secrets.${secretName}.path
-      ) availableSecretNamesByEnv;
+      secretsMap = lib.mapAttrs
+        (
+          _: secretName: config.sops.secrets.${secretName}.path
+        )
+        availableSecretNamesByEnv;
 
       hasAnySecrets = secretsMap != { };
 
       fishLazyReads = lib.concatStringsSep "\n" (
-        lib.mapAttrsToList (name: path: ''
-          if test -r ${path}
-            set -gx ${name} (string trim < ${path})
-          end'') secretsMap
+        lib.mapAttrsToList
+          (name: path: ''
+            if test -r ${path}
+              set -gx ${name} (string trim < ${path})
+            end'')
+          secretsMap
       );
     in
     {

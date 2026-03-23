@@ -4,10 +4,9 @@ let
 in
 {
   flake.modules.nixos."services/containers/glance" =
-    {
-      config,
-      lib,
-      ...
+    { config
+    , lib
+    , ...
     }:
     let
       cfg = config.services.glance-container;
@@ -41,15 +40,19 @@ in
         MDB_LIST_API_KEY = "mdb-list-api-key";
       };
 
-      availableSecretNamesByEnv = lib.filterAttrs (
-        _: secretName: lib.hasAttrByPath [ "sops" "secrets" secretName ] config
-      ) secretNamesByEnv;
+      availableSecretNamesByEnv = lib.filterAttrs
+        (
+          _: secretName: lib.hasAttrByPath [ "sops" "secrets" secretName ] config
+        )
+        secretNamesByEnv;
 
       glanceEnvTemplateContent =
         (lib.concatStringsSep "\n" (
-          lib.mapAttrsToList (
-            name: secretName: "${name}=${config.sops.placeholder.${secretName}}"
-          ) availableSecretNamesByEnv
+          lib.mapAttrsToList
+            (
+              name: secretName: "${name}=${config.sops.placeholder.${secretName}}"
+            )
+            availableSecretNamesByEnv
         ))
         + "\n";
     in
