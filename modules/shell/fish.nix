@@ -37,6 +37,12 @@
 
       readSecrets = lib.concatStringsSep "\n" (
         lib.mapAttrsToList (name: path: ''
+          for _i in $(seq 1 25); do
+            if [ -r ${path} ]; then
+              break
+            fi
+            sleep 0.2
+          done
           if [ -r ${path} ]; then
             ${name}=$(cat ${path})
           else
