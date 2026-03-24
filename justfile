@@ -47,3 +47,10 @@ rotate-gpg-gist:
 # Show the GPG gist rotation actions without writing to GitHub
 rotate-gpg-gist-dry:
     nix run .#rotate-gpg-gist -- --dry-run
+
+# Install the pre-commit hook
+install-hooks:
+    mkdir -p .git/hooks
+    printf '#!/usr/bin/env bash\nexec nix run .#pre-commit-wrapper "$@"\n' > .git/hooks/pre-commit
+    chmod +x .git/hooks/pre-commit
+    @echo "Installed pre-commit hook"

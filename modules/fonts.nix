@@ -37,12 +37,11 @@
       };
 
     homeManager.fonts =
-      {
-        pkgs,
-        lib,
-        config,
-        osConfig,
-        ...
+      { pkgs
+      , lib
+      , config
+      , osConfig
+      , ...
       }:
       let
         # Check if we're on Darwin (macOS already has SF Pro and Apple Color Emoji)
@@ -140,13 +139,15 @@
               fonts = baseFonts ++ (if isDarwin then [ ] else linuxOnlyFonts);
 
               installCommands = lib.concatStringsSep "\n" (
-                map (
-                  font:
-                  let
-                    srcPath = if font ? sourcePath then "${font.src}/${font.sourcePath}" else "${font.src}";
-                  in
-                  ''install -Dm644 ${lib.escapeShellArg srcPath} "$out/${font.fileName}"''
-                ) fonts
+                map
+                  (
+                    font:
+                    let
+                      srcPath = if font ? sourcePath then "${font.src}/${font.sourcePath}" else "${font.src}";
+                    in
+                    ''install -Dm644 ${lib.escapeShellArg srcPath} "$out/${font.fileName}"''
+                  )
+                  fonts
               );
             in
             pkgs.runCommandLocal "proprietary-fonts"
