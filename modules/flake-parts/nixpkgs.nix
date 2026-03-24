@@ -7,15 +7,12 @@
     "aarch64-darwin"
   ];
 
-  imports = [
-    ./overlays/chromium-webapps-hardening.nix
-  ];
-
   perSystem =
-    { config
-    , lib
-    , system
-    , ...
+    {
+      config,
+      lib,
+      system,
+      ...
     }:
     let
       pkgs = import inputs.nixpkgs {

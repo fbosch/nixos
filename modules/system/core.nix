@@ -1,7 +1,8 @@
-{ inputs
-, lib
-, config
-, ...
+{
+  inputs,
+  lib,
+  config,
+  ...
 }:
 let
   # Shared Cachix configuration for both NixOS and Darwin
@@ -78,7 +79,7 @@ in
         let
           name = lib.getName pkg;
         in
-        builtins.elem name (config.flake.meta.unfree.allowList or [ ]);
+        builtins.elem name config.flake.meta.unfree.allowList;
     };
 
     nix = {
