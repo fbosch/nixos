@@ -1,8 +1,7 @@
-{
-  inputs,
-  lib,
-  config,
-  ...
+{ inputs
+, lib
+, config
+, ...
 }:
 let
   # Shared Cachix configuration for both NixOS and Darwin

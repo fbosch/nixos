@@ -29,17 +29,21 @@
       ];
 
       # Fetch all installers
-      fetchedInstallers = map (installer: {
-        inherit (installer) name;
-        source = pkgs.fetchurl { inherit (installer) url sha256; };
-      }) windowsInstallers;
+      fetchedInstallers = map
+        (installer: {
+          inherit (installer) name;
+          source = pkgs.fetchurl { inherit (installer) url sha256; };
+        })
+        windowsInstallers;
 
       # Generate home.file entries for all installers
       installerFiles = lib.listToAttrs (
-        map (installer: {
-          name = ".local/share/windows-installers/${installer.name}";
-          value = { inherit (installer) source; };
-        }) fetchedInstallers
+        map
+          (installer: {
+            name = ".local/share/windows-installers/${installer.name}";
+            value = { inherit (installer) source; };
+          })
+          fetchedInstallers
       );
     in
     {

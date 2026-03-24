@@ -8,11 +8,10 @@
   ];
 
   perSystem =
-    {
-      config,
-      lib,
-      system,
-      ...
+    { config
+    , lib
+    , system
+    , ...
     }:
     let
       pkgs = import inputs.nixpkgs {
