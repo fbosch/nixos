@@ -37,11 +37,12 @@
       };
 
     homeManager.fonts =
-      { pkgs
-      , lib
-      , config
-      , osConfig
-      , ...
+      {
+        pkgs,
+        lib,
+        config,
+        osConfig,
+        ...
       }:
       let
         # Check if we're on Darwin (macOS already has SF Pro and Apple Color Emoji)
@@ -139,15 +140,13 @@
               fonts = baseFonts ++ (if isDarwin then [ ] else linuxOnlyFonts);
 
               installCommands = lib.concatStringsSep "\n" (
-                map
-                  (
-                    font:
-                    let
-                      srcPath = if font ? sourcePath then "${font.src}/${font.sourcePath}" else "${font.src}";
-                    in
-                    ''install -Dm644 ${lib.escapeShellArg srcPath} "$out/${font.fileName}"''
-                  )
-                  fonts
+                map (
+                  font:
+                  let
+                    srcPath = if font ? sourcePath then "${font.src}/${font.sourcePath}" else "${font.src}";
+                  in
+                  ''install -Dm644 ${lib.escapeShellArg srcPath} "$out/${font.fileName}"''
+                ) fonts
               );
             in
             pkgs.runCommandLocal "proprietary-fonts"
@@ -164,12 +163,12 @@
       {
         xdg.configFile."fontconfig/fonts.conf".text = builtins.readFile ../configs/fontconfig/fonts.conf;
 
-        home.packages =
-          [
-            (pkgs.callPackage ../pkgs/by-name/font-zenbones/package.nix { })
-            (pkgs.callPackage ../pkgs/by-name/font-babelstone-runes/package.nix { })
-            (pkgs.callPackage ../pkgs/by-name/font-ionicons/package.nix { })
-          ];
+        home.packages = with pkgs.local; [
+          font-fast-font
+          font-zenbones
+          font-babelstone-runes
+          font-ionicons
+        ];
 
         xdg.dataFile = lib.mkIf allowProprietary {
           "fonts/proprietary" = {
