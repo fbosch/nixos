@@ -28,7 +28,7 @@ _: {
 
           [Container]
           ContainerName=termix
-          Image=ghcr.io/lukegus/termix:release-1.11.1
+          Image=ghcr.io/lukegus/termix:release-2.0.0
           PublishPort=${toString config.services.termix-container.port}:8080
           Volume=termix-data.volume:/app/data
           Environment=PORT=8080
