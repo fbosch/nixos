@@ -29,26 +29,22 @@
       ];
 
       # Fetch all installers
-      fetchedInstallers = map
-        (installer: {
-          inherit (installer) name;
-          source = pkgs.fetchurl { inherit (installer) url sha256; };
-        })
-        windowsInstallers;
+      fetchedInstallers = map (installer: {
+        inherit (installer) name;
+        source = pkgs.fetchurl { inherit (installer) url sha256; };
+      }) windowsInstallers;
 
       # Generate home.file entries for all installers
       installerFiles = lib.listToAttrs (
-        map
-          (installer: {
-            name = ".local/share/windows-installers/${installer.name}";
-            value = { inherit (installer) source; };
-          })
-          fetchedInstallers
+        map (installer: {
+          name = ".local/share/windows-installers/${installer.name}";
+          value = { inherit (installer) source; };
+        }) fetchedInstallers
       );
     in
     {
       home.packages = with pkgs; [
-        winboat
+        # winboat  # disabled: go-1.26.1 + binutils-2.44 CGo/mingw cross-compilation regression
         inputs.winapps.packages.${pkgs.stdenv.hostPlatform.system}.winapps
         inputs.winapps.packages.${pkgs.stdenv.hostPlatform.system}.winapps-launcher
         freerdp
