@@ -9,7 +9,7 @@ pkgs.nix-webapps-lib.mkChromiumApp {
   class = "Linear";
   desktopName = "Linear";
   comment = "Issue tracking and project management";
-  icon = ./linear-logo.svg;
+  icon = ./linear-logo.png;
   profile = "LinearProfile";
   url = "https://linear.app";
   hardening = {
