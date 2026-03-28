@@ -12,7 +12,7 @@ pkgs.nix-webapps-lib.mkChromiumApp {
   icon = ./linear-logo.png;
   profile = "LinearProfile";
   url = "https://linear.app";
-  hardening = {
+  runtime = {
     extraFlags = [ "--hide-scrollbars" ];
   };
 }

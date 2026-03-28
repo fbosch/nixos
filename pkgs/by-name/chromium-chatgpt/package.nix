@@ -12,7 +12,7 @@ pkgs.nix-webapps-lib.mkChromiumApp {
   icon = ./chatgpt.png;
   profile = "ChatGPTProfile";
   url = "https://chat.openai.com";
-  hardening = {
+  runtime = {
     extraFlags = [
       "--hide-scrollbars"
       # ChatGPT-specific optimizations

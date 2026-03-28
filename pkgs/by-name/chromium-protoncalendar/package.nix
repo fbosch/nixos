@@ -13,7 +13,7 @@ pkgs.nix-webapps-lib.mkChromiumApp {
   icon = ./proton-calendar.svg;
   profile = "ProtonCalendarProfile";
   url = "https://calendar.proton.me";
-  hardening = {
+  runtime = {
     extraFlags = [
       "--hide-scrollbars"
       "--site-per-process"

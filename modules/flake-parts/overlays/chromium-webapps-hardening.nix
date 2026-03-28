@@ -15,16 +15,19 @@
         mkHardenedChromiumApp =
           args:
           let
-            hardening = args.hardening or { };
-            enabled = hardening.enabled or true;
-            sanitizedArgs = builtins.removeAttrs args [ "hardening" ];
+            runtime = args.runtime or (args.hardening or { });
+            enabled = runtime.enabled or true;
+            sanitizedArgs = builtins.removeAttrs args [
+              "runtime"
+              "hardening"
+            ];
             baseDrv = oldMkChromiumApp sanitizedArgs;
           in
           if !enabled then
             baseDrv
           else
             let
-              extraFlags = hardening.extraFlags or [ ];
+              extraFlags = runtime.extraFlags or [ ];
               defaultFlags = [
                 "--disable-extensions"
                 "--disable-sync"
@@ -89,7 +92,7 @@
                 DefaultGeolocationSetting = 2; # Block geolocation
                 DefaultMediaStreamSetting = 2; # Block media stream
               };
-              policyOverrides = hardening.policyOverrides or { };
+              policyOverrides = runtime.policyOverrides or { };
               policy = lib.recursiveUpdate policyBase policyOverrides;
               policyFile = final.writeText "${args.appName}-managed-policy.json" (builtins.toJSON policy);
               flagArgs = lib.concatMapStringsSep " "
