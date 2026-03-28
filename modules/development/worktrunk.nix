@@ -7,6 +7,7 @@
 
       programs.worktrunk = {
         enable = true;
+        enableBashIntegration = true;
       };
     };
 }
