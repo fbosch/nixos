@@ -2,7 +2,11 @@
 
 pkgs.nix-webapps-lib.mkChromiumApp {
   appName = "chromium-protoncalendar";
-  categories = [ "Network" "Office" "Calendar" ];
+  categories = [
+    "Network"
+    "Office"
+    "Calendar"
+  ];
   class = "Proton Calendar";
   desktopName = "Proton Calendar";
   comment = "Secure encrypted calendar";
@@ -10,6 +14,10 @@ pkgs.nix-webapps-lib.mkChromiumApp {
   profile = "ProtonCalendarProfile";
   url = "https://calendar.proton.me";
   hardening = {
-    extraFlags = [ "--hide-scrollbars" ];
+    extraFlags = [
+      "--hide-scrollbars"
+      "--site-per-process"
+      "--isolate-origins=https://calendar.proton.me"
+    ];
   };
 }

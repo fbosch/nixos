@@ -31,21 +31,13 @@
                 "--disable-background-networking"
                 "--no-first-run"
                 "--no-default-browser-check"
-                "--site-per-process"
-                "--isolate-origins=${args.url}"
                 "--disable-features=TranslateUI"
                 # Disable crash reporter to avoid crashpad issues on NixOS
                 "--disable-crash-reporter"
                 # Performance improvements
                 "--enable-gpu-rasterization"
                 "--enable-zero-copy"
-                "--disable-background-timer-throttling"
-                "--disable-renderer-backgrounding"
-                "--disable-backgrounding-occluded-windows"
-                "--max-tiles-for-interest-area=512"
-                "--num-raster-threads=4"
                 "--enable-hardware-overlays=single-fullscreen,single-on-top,underlay"
-                "--use-gl=desktop"
                 # Additional password manager disabling
                 "--disable-password-generation"
                 "--disable-password-saving"
@@ -54,8 +46,6 @@
                 # Memory and performance optimizations
                 "--disable-low-end-device-mode"
                 "--enable-threaded-compositing"
-                "--memory-pressure-off"
-                "--max-tiles-for-interest-area=512"
                 "--enable-overlay-scrollbar"
                 "--disable-component-extensions-with-background-pages"
                 "--disable-hang-monitor"

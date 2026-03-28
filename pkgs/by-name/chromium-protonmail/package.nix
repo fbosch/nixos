@@ -2,7 +2,10 @@
 
 pkgs.nix-webapps-lib.mkChromiumApp {
   appName = "chromium-protonmail";
-  categories = [ "Network" "Email" ];
+  categories = [
+    "Network"
+    "Email"
+  ];
   class = "Proton Mail";
   desktopName = "Proton Mail";
   comment = "Secure encrypted email";
@@ -10,6 +13,10 @@ pkgs.nix-webapps-lib.mkChromiumApp {
   profile = "ProtonmailProfile";
   url = "https://mail.proton.me";
   hardening = {
-    extraFlags = [ "--hide-scrollbars" ];
+    extraFlags = [
+      "--hide-scrollbars"
+      "--site-per-process"
+      "--isolate-origins=https://mail.proton.me"
+    ];
   };
 }
