@@ -12,7 +12,7 @@
 
     environment.systemPackages = with pkgs; [
       tailscale
-      protonvpn-gui
+      proton-vpn
     ];
   };
 }
