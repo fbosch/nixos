@@ -89,7 +89,7 @@ in
                 autostart = true;
                 settings = {
                   general.default_download_dir = "/mnt/storage/Downloads";
-                  connections.proxy_url = "http://192.168.1.46:8889";
+                  network.proxy_url = "http://192.168.1.46:8889";
                 };
               };
 
