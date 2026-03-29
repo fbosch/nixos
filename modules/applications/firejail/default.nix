@@ -2,10 +2,6 @@
   flake.modules.nixos.applications =
     { pkgs, lib, ... }:
     {
-      environment.etc."firejail/helium.profile".source = pkgs.replaceVars ./helium.profile {
-        chromiumProfile = "${pkgs.firejail}/etc/firejail/chromium.profile";
-      };
-
       programs.firejail = {
         enable = true;
         wrappedBinaries =
@@ -26,12 +22,6 @@
               })
               browserPackages)
             {
-              helium = {
-                executable = "${pkgs.local.helium-browser}/bin/helium-browser";
-                profile = "/etc/firejail/helium.profile";
-                desktop = "${pkgs.local.helium-browser}/share/applications/helium-browser.desktop";
-              };
-
               vlc = {
                 executable = "${pkgs.vlc}/bin/vlc";
                 profile = "${pkgs.firejail}/etc/firejail/vlc.profile";

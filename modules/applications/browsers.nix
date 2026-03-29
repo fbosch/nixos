@@ -1,8 +1,19 @@
 {
   flake.modules.homeManager.applications =
-    { pkgs, config, ... }:
+    { pkgs
+    , config
+    , ...
+    }:
+    let
+      heliumWrapped = pkgs.mkBwrapper {
+        imports = [ pkgs.bwrapperPresets.desktop ];
+        app = {
+          package = pkgs.local.helium-browser;
+        };
+      };
+    in
     {
-      home.packages = with pkgs; [ local.helium-browser ];
+      home.packages = [ heliumWrapped ];
 
       home.activation.zenCacheToRAM = config.lib.dag.entryAfter [ "writeBoundary" ] ''
         ZEN_PROFILE="$HOME/.var/app/app.zen_browser.zen/.zen"
