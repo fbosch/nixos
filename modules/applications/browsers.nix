@@ -1,14 +1,34 @@
 {
   flake.modules.homeManager.applications =
-    { pkgs
+    { lib
+    , pkgs
     , config
     , ...
     }:
     let
+      heliumExtensionForcelist = [
+        "nngceckbapebfimnlniiiahkandclblb;https://clients2.google.com/service/update2/crx"
+        "mendokngpagmkejfpmeellpppjgbpdaj;https://clients2.google.com/service/update2/crx"
+      ];
+
+      heliumPolicies = pkgs.writeTextDir "share/chromium/policies/managed/extensions.json" (
+        builtins.toJSON {
+          ExtensionInstallForcelist = heliumExtensionForcelist;
+        }
+      );
+
+      heliumFlags = [
+        "--enable-blink-features=MiddleClickAutoscroll"
+      ];
+
       heliumWrapped = pkgs.mkBwrapper {
         imports = [ pkgs.bwrapperPresets.desktop ];
         app = {
           package = pkgs.local.helium-browser;
+          runScript = ''
+            CHROME_POLICY_FILES_DIR=${heliumPolicies}/share/chromium/policies \
+              helium-browser ${lib.escapeShellArgs heliumFlags}
+          '';
         };
       };
     in
