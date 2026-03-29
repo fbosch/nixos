@@ -1,40 +1,11 @@
 {
   flake.modules.homeManager.applications =
-    { lib
-    , pkgs
-    , config
-    , ...
-    }:
-    let
-      heliumExtensionForcelist = [
-        "nngceckbapebfimnlniiiahkandclblb;https://clients2.google.com/service/update2/crx"
-        "mendokngpagmkejfpmeellpppjgbpdaj;https://clients2.google.com/service/update2/crx"
-      ];
-
-      heliumPolicies = pkgs.writeTextDir "share/chromium/policies/managed/extensions.json" (
-        builtins.toJSON {
-          ExtensionInstallForcelist = heliumExtensionForcelist;
-        }
-      );
-
-      heliumFlags = [
-        "--enable-blink-features=MiddleClickAutoscroll"
-      ];
-
-      heliumWrapped = pkgs.mkBwrapper {
-        imports = [ pkgs.bwrapperPresets.desktop ];
-        app = {
-          package = pkgs.local.helium-browser;
-          runScript = ''
-            CHROME_POLICY_FILES_DIR=${heliumPolicies}/share/chromium/policies \
-              helium-browser ${lib.escapeShellArgs heliumFlags}
-          '';
-        };
-      };
-    in
     {
-      home.packages = [ heliumWrapped ];
-
+      config,
+      pkgs,
+      ...
+    }:
+    {
       home.activation.zenCacheToRAM = config.lib.dag.entryAfter [ "writeBoundary" ] ''
         ZEN_PROFILE="$HOME/.var/app/app.zen_browser.zen/.zen"
         if [ -d "$ZEN_PROFILE" ]; then
@@ -118,12 +89,5 @@
         };
       };
 
-      xdg.mimeApps.defaultApplications = {
-        "text/html" = [ "io.github.zen_browser.zen.desktop" ];
-        "x-scheme-handler/http" = [ "io.github.zen_browser.zen.desktop" ];
-        "x-scheme-handler/https" = [ "io.github.zen_browser.zen.desktop" ];
-        "x-scheme-handler/about" = [ "io.github.zen_browser.zen.desktop" ];
-        "x-scheme-handler/unknown" = [ "io.github.zen_browser.zen.desktop" ];
-      };
     };
 }
