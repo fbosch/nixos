@@ -1,7 +1,6 @@
 {
   flake.modules.homeManager.applications =
-    { lib
-    , pkgs
+    { pkgs
     , ...
     }:
     let
@@ -36,15 +35,10 @@
         '';
       };
 
-      heliumFlags = [
-        "--enable-features=MiddleClickAutoscroll"
-      ];
-
       heliumWrapped = pkgs.mkBwrapper {
         imports = [ pkgs.bwrapperPresets.desktop ];
         app = {
           package = heliumPackage;
-          runScript = "helium-browser ${lib.escapeShellArgs heliumFlags}";
         };
       };
     in
