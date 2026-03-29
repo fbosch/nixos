@@ -29,6 +29,7 @@
           "cleanshot"
           "obsidian"
           "codexbar"
+          "linear-linear"
         ];
 
         brews = [
