@@ -1,9 +1,11 @@
 {
   flake.modules.homeManager.applications =
-    { pkgs, config, ... }:
     {
-      home.packages = with pkgs; [ local.helium-browser ];
-
+      config,
+      pkgs,
+      ...
+    }:
+    {
       home.activation.zenCacheToRAM = config.lib.dag.entryAfter [ "writeBoundary" ] ''
         ZEN_PROFILE="$HOME/.var/app/app.zen_browser.zen/.zen"
         if [ -d "$ZEN_PROFILE" ]; then
@@ -87,12 +89,5 @@
         };
       };
 
-      xdg.mimeApps.defaultApplications = {
-        "text/html" = [ "io.github.zen_browser.zen.desktop" ];
-        "x-scheme-handler/http" = [ "io.github.zen_browser.zen.desktop" ];
-        "x-scheme-handler/https" = [ "io.github.zen_browser.zen.desktop" ];
-        "x-scheme-handler/about" = [ "io.github.zen_browser.zen.desktop" ];
-        "x-scheme-handler/unknown" = [ "io.github.zen_browser.zen.desktop" ];
-      };
     };
 }

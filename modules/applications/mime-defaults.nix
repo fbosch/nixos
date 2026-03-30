@@ -16,6 +16,7 @@
       defaultFileExplorer = "nemo.desktop";
       defaultImageViewer = "org.gnome.Loupe.desktop";
       defaultExeLauncher = "faugus-launcher.desktop";
+      defaultWebBrowser = "io.github.zen_browser.zen.desktop";
     in
     {
       home.packages = with pkgs; [
@@ -45,6 +46,13 @@
           "application/vnd.microsoft.portable-executable" = [ defaultExeLauncher ];
         };
         defaultApplications = {
+          # Browser defaults
+          "text/html" = [ defaultWebBrowser ];
+          "x-scheme-handler/http" = [ defaultWebBrowser ];
+          "x-scheme-handler/https" = [ defaultWebBrowser ];
+          "x-scheme-handler/about" = [ defaultWebBrowser ];
+          "x-scheme-handler/unknown" = [ defaultWebBrowser ];
+
           "inode/directory" = [ defaultFileExplorer ];
           "application/x-gnome-saved-search" = [ defaultFileExplorer ];
           "application/x-directory" = [ defaultFileExplorer ];

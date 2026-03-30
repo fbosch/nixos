@@ -107,6 +107,11 @@
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.flake-utils.follows = "dedupe_flake-utils";
     };
+    nix-bwrapper = {
+      # modules/applications/browsers.nix
+      url = "https://flakehub.com/f/Naxdy/nix-bwrapper/1.*";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     flatpaks.url = "github:gmodena/nix-flatpak"; # modules/applications/flatpak.nix
     vicinae = {
       # modules/applications/vicinae.nix
