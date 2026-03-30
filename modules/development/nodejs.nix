@@ -19,6 +19,7 @@
         "@github/copilot@latest" # Copilot CLI
         "agent-browser@latest" # headless browser for AI Agents
         "opencode-claude-auth@latest"
+        "@schpet/linear-cli@latest" # linear-cli
         # "dorita980" # Roomba password
       ];
 
