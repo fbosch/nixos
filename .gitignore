@@ -2,6 +2,7 @@
 result
 result-*
 *.log
+node_modules
 
 # Secrets - encrypted files are committed, decrypted ones are not
 secrets/*.key
