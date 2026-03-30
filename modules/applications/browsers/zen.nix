@@ -1,9 +1,8 @@
 {
   flake.modules.homeManager.applications =
-    {
-      config,
-      pkgs,
-      ...
+    { config
+    , pkgs
+    , ...
     }:
     {
       home.activation.zenCacheToRAM = config.lib.dag.entryAfter [ "writeBoundary" ] ''

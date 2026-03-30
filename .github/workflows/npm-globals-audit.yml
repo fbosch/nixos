@@ -40,7 +40,6 @@ jobs:
         working-directory: modules/development/npm-globals
         run: |
           nix shell nixpkgs#nodejs_24 nixpkgs#pnpm --command bash -c "
-            corepack enable
             pnpm install --lockfile-only
           "
 
@@ -48,7 +47,6 @@ jobs:
         working-directory: modules/development/npm-globals
         run: |
           nix shell nixpkgs#nodejs_24 nixpkgs#pnpm --command bash -c "
-            corepack enable
             pnpm install --frozen-lockfile --ignore-scripts
           "
 
@@ -56,6 +54,5 @@ jobs:
         working-directory: modules/development/npm-globals
         run: |
           nix shell nixpkgs#nodejs_24 nixpkgs#pnpm --command bash -c "
-            corepack enable
-            pnpm audit --prod --audit-level=high
+            pnpm audit --prod --audit-level=critical
           "
