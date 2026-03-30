@@ -1,0 +1,61 @@
+name: NPM Globals Audit
+
+on:
+  pull_request:
+    branches: [main, master]
+    paths:
+      - "modules/development/nodejs.nix"
+      - "modules/development/npm-globals/**"
+      - ".github/workflows/npm-globals-audit.yml"
+  push:
+    branches: [main, master]
+    paths:
+      - "modules/development/nodejs.nix"
+      - "modules/development/npm-globals/**"
+      - ".github/workflows/npm-globals-audit.yml"
+  schedule:
+    - cron: "0 7 * * 1" # weekly on Monday
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}-npm-globals-audit
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - uses: ./.github/actions/setup-nix
+        with:
+          cachix-name: fbosch
+          cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
+      - name: Resolve latest dependency graph
+        working-directory: modules/development/npm-globals
+        run: |
+          nix shell nixpkgs#nodejs_24 nixpkgs#pnpm --command bash -c "
+            corepack enable
+            pnpm update --latest --lockfile-only
+          "
+
+      - name: Install dependencies from lockfile
+        working-directory: modules/development/npm-globals
+        run: |
+          nix shell nixpkgs#nodejs_24 nixpkgs#pnpm --command bash -c "
+            corepack enable
+            pnpm install --frozen-lockfile --ignore-scripts
+          "
+
+      - name: Audit production dependencies
+        working-directory: modules/development/npm-globals
+        run: |
+          nix shell nixpkgs#nodejs_24 nixpkgs#pnpm --command bash -c "
+            corepack enable
+            pnpm audit --prod --audit-level=high
+          "

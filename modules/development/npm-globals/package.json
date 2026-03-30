@@ -1,0 +1,16 @@
+{
+  "name": "nixos-npm-globals",
+  "private": true,
+  "packageManager": "pnpm@10.33.0",
+  "dependencies": {
+    "@github/copilot": "latest",
+    "@schpet/linear-cli": "latest",
+    "agent-browser": "latest",
+    "corepack": "latest",
+    "neovim": "latest",
+    "opencode-ai": "latest",
+    "opencode-claude-auth": "latest",
+    "pokemonshow": "latest",
+    "vercel": "latest"
+  }
+}
