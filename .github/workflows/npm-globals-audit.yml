@@ -36,12 +36,12 @@ jobs:
           cachix-name: fbosch
           cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
-      - name: Resolve latest dependency graph
+      - name: Refresh lockfile from package specifiers
         working-directory: modules/development/npm-globals
         run: |
           nix shell nixpkgs#nodejs_24 nixpkgs#pnpm --command bash -c "
             corepack enable
-            pnpm update --latest --lockfile-only
+            pnpm install --lockfile-only
           "
 
       - name: Install dependencies from lockfile

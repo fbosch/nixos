@@ -9,8 +9,8 @@ pnpm_bin="${PNPM_BIN:?PNPM_BIN is required}"
 node_bin_dir="${NODE_BIN_DIR:?NODE_BIN_DIR is required}"
 pnpm_bin_dir="${PNPM_BIN_DIR:?PNPM_BIN_DIR is required}"
 bun_bin_dir="${BUN_BIN_DIR:?BUN_BIN_DIR is required}"
-latest_packages_file="${LATEST_PACKAGES_FILE:?LATEST_PACKAGES_FILE is required}"
-pinned_packages_file="${PINNED_PACKAGES_FILE:?PINNED_PACKAGES_FILE is required}"
+lockfile_path="${LOCKFILE_PATH:?LOCKFILE_PATH is required}"
+yq_bin="${YQ_BIN:?YQ_BIN is required}"
 
 mkdir -p "$pnpm_home" "$pnpm_store_dir" "$state_dir"
 
@@ -59,31 +59,24 @@ if [ "$network_ready" -ne 1 ]; then
 fi
 
 install_failed=0
+declare -a packages=()
 
-install_from_file() {
-  local package_file="$1"
-  local label="$2"
-  local -a packages=()
-  local package
-
-  while IFS= read -r package || [ -n "$package" ]; do
-    if [ -n "$package" ]; then
-      packages+=("$package")
-    fi
-  done < "$package_file"
-
-  if [ "${#packages[@]}" -eq 0 ]; then
-    return 0
+while IFS=$'\t' read -r dep_name dep_version || [ -n "${dep_name:-}" ]; do
+  if [ -z "${dep_name:-}" ] || [ -z "${dep_version:-}" ]; then
+    continue
   fi
+  dep_version="${dep_version%%(*}"
+  packages+=("${dep_name}@${dep_version}")
+done < <(
+  "$yq_bin" -r '.importers["."].dependencies // {} | to_entries[] | "\(.key)\t\(.value.version)"' "$lockfile_path"
+)
 
-  echo "$label"
+if [ "${#packages[@]}" -gt 0 ]; then
+  echo "Installing npm global packages from lockfile-resolved versions..."
   if ! "$pnpm_bin" add -g "${packages[@]}" 2>&1; then
     install_failed=1
   fi
-}
-
-install_from_file "$latest_packages_file" "Installing/updating @latest npm global packages declared in npm-globals/package.json..."
-install_from_file "$pinned_packages_file" "Enforcing pinned npm global package versions declared in npm-globals/package.json..."
+fi
 
 if [ "$install_failed" -eq 0 ]; then
   pnpm_global_dir="$($pnpm_bin root -g)"

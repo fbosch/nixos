@@ -2,18 +2,10 @@
   flake.modules.homeManager.development =
     { pkgs
     , lib
-    , config
     , ...
     }:
     let
-      npmGlobalsManifest = builtins.fromJSON (builtins.readFile ./npm-globals/package.json);
-      npmGlobalPackages =
-        lib.mapAttrsToList (name: version: "${name}@${version}")
-          (npmGlobalsManifest.dependencies or { });
-      pinnedNpmGlobalPackages = lib.filter (pkg: !(lib.hasSuffix "@latest" pkg)) npmGlobalPackages;
-      latestNpmGlobalPackages = lib.filter (pkg: lib.hasSuffix "@latest" pkg) npmGlobalPackages;
-      latestNpmGlobalPackagesFile = pkgs.writeText "npm-global-latest-packages.txt" (lib.concatStringsSep "\n" latestNpmGlobalPackages);
-      pinnedNpmGlobalPackagesFile = pkgs.writeText "npm-global-pinned-packages.txt" (lib.concatStringsSep "\n" pinnedNpmGlobalPackages);
+      npmGlobalsRepoDir = "$HOME/nixos/modules/development/npm-globals";
       pnpmHome = if pkgs.stdenv.isDarwin then "$HOME/Library/pnpm" else "$HOME/.local/share/pnpm";
       pnpmStoreDir = "${pnpmHome}/store";
 
@@ -24,6 +16,7 @@
           pkgs.nodePackages.pnpm
           pkgs.nodejs_24
           pkgs.bun
+          pkgs.yq-go
         ];
         text = builtins.readFile ./npm-globals/install-global-packages.sh;
       };
@@ -34,28 +27,83 @@
           pkgs.nodePackages.pnpm
           pkgs.nodejs_24
           pkgs.bun
+          pkgs.yq-go
         ];
         text = ''
           export PNPM_HOME="${pnpmHome}"
           export PNPM_STORE_DIR="${pnpmStoreDir}"
           export PATH="$PNPM_HOME:${pkgs.nodejs_24}/bin:${pkgs.nodePackages.pnpm}/bin:${pkgs.bun}/bin:$PATH"
           state_dir="$HOME/.local/state/pnpm-globals"
+          npm_globals_dir="''${1:-${npmGlobalsRepoDir}}"
 
           mkdir -p "$PNPM_HOME" "$PNPM_STORE_DIR" "$state_dir"
 
-          ${lib.optionalString (latestNpmGlobalPackages != [ ]) ''
-            echo "Updating @latest packages declared in npm-globals/package.json..."
-            pnpm add -g ${lib.concatStringsSep " " (map lib.escapeShellArg latestNpmGlobalPackages)}
-          ''}
+          if [ ! -f "$npm_globals_dir/package.json" ]; then
+            echo "ERROR: package.json not found in: $npm_globals_dir" >&2
+            echo "Pass an explicit directory: pnpm-global-update /path/to/modules/development/npm-globals" >&2
+            exit 1
+          fi
 
-          ${lib.optionalString (pinnedNpmGlobalPackages != [ ]) ''
-            echo "Enforcing pinned package versions declared in npm-globals/package.json..."
-            pnpm add -g ${lib.concatStringsSep " " (map lib.escapeShellArg pinnedNpmGlobalPackages)}
-          ''}
+          echo "Refreshing pnpm lockfile from package.json specifiers..."
+          (
+            cd "$npm_globals_dir"
+            pnpm install --lockfile-only
+          )
+
+          export PNPM_HOME_VALUE="${pnpmHome}"
+          export PNPM_STORE_DIR_VALUE="${pnpmStoreDir}"
+          export STATE_DIR_VALUE="$state_dir"
+          export NPM_REGISTRY_HOST="registry.npmjs.org"
+          export PNPM_BIN="${pkgs.nodePackages.pnpm}/bin/pnpm"
+          export NODE_BIN_DIR="${pkgs.nodejs_24}/bin"
+          export PNPM_BIN_DIR="${pkgs.nodePackages.pnpm}/bin"
+          export BUN_BIN_DIR="${pkgs.bun}/bin"
+          export LOCKFILE_PATH="$npm_globals_dir/pnpm-lock.yaml"
+          export YQ_BIN="${pkgs.yq-go}/bin/yq"
+
+          ${installNpmGlobalPackagesScript}/bin/install-npm-global-packages
 
           echo ""
-          echo "Global npm packages updated:"
-          pnpm ls -g --depth=0
+          echo "Lockfile refreshed and global npm packages updated."
+          echo "Review and commit lockfile changes in: $npm_globals_dir/pnpm-lock.yaml"
+        '';
+      };
+
+      installNodePackages = pkgs.writeShellApplication {
+        name = "pnpm-global-install";
+        runtimeInputs = [
+          pkgs.nodePackages.pnpm
+          pkgs.nodejs_24
+          pkgs.bun
+          pkgs.yq-go
+        ];
+        text = ''
+          export PNPM_HOME="${pnpmHome}"
+          export PNPM_STORE_DIR="${pnpmStoreDir}"
+          export PATH="$PNPM_HOME:${pkgs.nodejs_24}/bin:${pkgs.nodePackages.pnpm}/bin:${pkgs.bun}/bin:$PATH"
+          state_dir="$HOME/.local/state/pnpm-globals"
+          npm_globals_dir="''${1:-${npmGlobalsRepoDir}}"
+
+          mkdir -p "$PNPM_HOME" "$PNPM_STORE_DIR" "$state_dir"
+
+          if [ ! -f "$npm_globals_dir/pnpm-lock.yaml" ]; then
+            echo "ERROR: pnpm-lock.yaml not found in: $npm_globals_dir" >&2
+            echo "Run 'pnpm-global-update $npm_globals_dir' to generate it from package.json." >&2
+            exit 1
+          fi
+
+          export PNPM_HOME_VALUE="${pnpmHome}"
+          export PNPM_STORE_DIR_VALUE="${pnpmStoreDir}"
+          export STATE_DIR_VALUE="$state_dir"
+          export NPM_REGISTRY_HOST="registry.npmjs.org"
+          export PNPM_BIN="${pkgs.nodePackages.pnpm}/bin/pnpm"
+          export NODE_BIN_DIR="${pkgs.nodejs_24}/bin"
+          export PNPM_BIN_DIR="${pkgs.nodePackages.pnpm}/bin"
+          export BUN_BIN_DIR="${pkgs.bun}/bin"
+          export LOCKFILE_PATH="$npm_globals_dir/pnpm-lock.yaml"
+          export YQ_BIN="${pkgs.yq-go}/bin/yq"
+
+          ${installNpmGlobalPackagesScript}/bin/install-npm-global-packages
         '';
       };
 
@@ -77,6 +125,7 @@
           prettierd
           playwright-test # Pure Nix Playwright with pre-configured browsers
           updateNodePackages
+          installNodePackages
         ];
 
         sessionVariables = {
@@ -98,8 +147,8 @@
           export NODE_BIN_DIR="${pkgs.nodejs_24}/bin"
           export PNPM_BIN_DIR="${pkgs.nodePackages.pnpm}/bin"
           export BUN_BIN_DIR="${pkgs.bun}/bin"
-          export LATEST_PACKAGES_FILE="${latestNpmGlobalPackagesFile}"
-          export PINNED_PACKAGES_FILE="${pinnedNpmGlobalPackagesFile}"
+          export LOCKFILE_PATH="${./npm-globals/pnpm-lock.yaml}"
+          export YQ_BIN="${pkgs.yq-go}/bin/yq"
 
           ${installNpmGlobalPackagesScript}/bin/install-npm-global-packages
         '';
