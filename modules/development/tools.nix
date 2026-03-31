@@ -5,7 +5,6 @@
       environment.systemPackages = with pkgs; [
         git
         just
-        cargo
         uv
         gcc
         cmake

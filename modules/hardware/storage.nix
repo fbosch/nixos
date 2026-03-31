@@ -1,28 +1,42 @@
 { config, ... }:
 {
-  flake.modules.nixos."hardware/storage" = _: {
-    # Enable NTFS support
-    boot.supportedFilesystems = [ "ntfs" ];
+  flake.modules.nixos."hardware/storage" =
+    { pkgs, ... }:
+    {
+      # Enable NTFS support
+      boot.supportedFilesystems = [ "ntfs" ];
 
-    # Mount 2TB HDD (shared with Windows)
-    fileSystems."/mnt/storage" = {
-      device = "/dev/disk/by-uuid/AC7674097673D316";
-      fsType = "ntfs3";
-      options = [
-        "rw" # Read-write access
-        "uid=1000" # Owner UID (your user)
-        "gid=100" # Group GID (users group)
-        "dmask=022" # Directory permissions (755)
-        "fmask=022" # File permissions (755) - allows execution
-        "noatime" # Don't update access times (better performance)
-        "nofail" # Do not block boot if the disk is unavailable
-        "x-systemd.automount" # Mount on first access instead of during boot
+      # Mount 2TB HDD (shared with Windows)
+      fileSystems."/mnt/storage" = {
+        device = "/dev/disk/by-uuid/AC7674097673D316";
+        fsType = "ntfs3";
+        options = [
+          "rw" # Read-write access
+          "uid=1000" # Owner UID (your user)
+          "gid=100" # Group GID (users group)
+          "dmask=022" # Directory permissions (755)
+          "fmask=022" # File permissions (755) - allows execution
+          "noatime" # Don't update access times (better performance)
+          "nofail" # Do not block boot if the disk is unavailable
+          "x-systemd.automount" # Mount on first access instead of during boot
+        ];
+      };
+
+      # Ensure mount point exists
+      systemd.tmpfiles.rules = [
+        "d /mnt/storage 0755 ${config.flake.meta.user.username} users -"
       ];
-    };
 
-    # Ensure mount point exists
-    systemd.tmpfiles.rules = [
-      "d /mnt/storage 0755 ${config.flake.meta.user.username} users -"
-    ];
-  };
+      systemd.services.storage-downloads-permissions = {
+        description = "Ensure /mnt/storage/Downloads is writable";
+        after = [ "mnt-storage.mount" ];
+        requires = [ "mnt-storage.mount" ];
+        partOf = [ "mnt-storage.mount" ];
+        wantedBy = [ "mnt-storage.mount" ];
+        serviceConfig = {
+          Type = "oneshot";
+          ExecStart = "${pkgs.coreutils}/bin/chmod 0775 /mnt/storage/Downloads";
+        };
+      };
+    };
 }
