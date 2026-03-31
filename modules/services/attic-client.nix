@@ -52,6 +52,12 @@ in
           description = "Trusted public key for the Attic cache.";
         };
 
+        enableSubstituter = lib.mkOption {
+          type = lib.types.bool;
+          default = true;
+          description = "Whether to add the Attic cache as a Nix substituter on this host.";
+        };
+
         watchStore = {
           enable = lib.mkOption {
             type = lib.types.bool;
@@ -63,10 +69,10 @@ in
 
       config = {
         nix.settings = lib.mkMerge [
-          {
+          (lib.mkIf cfg.enableSubstituter {
             substituters = lib.mkBefore [ cacheUrl ];
             trusted-public-keys = [ cfg.publicKey ];
-          }
+          })
           (lib.mkIf cfg.watchStore.enable {
             post-build-hook = postBuildHookScript;
           })

@@ -109,6 +109,8 @@ in
         };
 
         services = {
+          attic-client.enableSubstituter = false;
+
           # Avoid running two process-priority daemons with overlapping policies.
           ananicy.enable = lib.mkForce false;
 
