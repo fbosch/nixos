@@ -1,7 +1,6 @@
-{
-  inputs,
-  config,
-  ...
+{ inputs
+, config
+, ...
 }:
 let
   hostMeta = {
@@ -28,38 +27,40 @@ in
     modules.nixos."hosts/rvn-pc" =
       { pkgs, lib, ... }:
       {
-        imports = config.flake.lib.resolve [
-          # Desktop preset (users, security, development, shell, system, desktop environment)
-          "presets/desktop"
+        imports =
+          config.flake.lib.resolve [
+            # Desktop preset (users, security, development, shell, system, desktop environment)
+            "presets/desktop"
 
-          # system
-          "secrets"
-          "nas"
-          "services/attic-client"
+            # system
+            "secrets"
+            "nas"
+            "services/attic-client"
 
-          # files
-          "files/wakatime"
-          "files/npmrc"
+            # files
+            "files/wakatime"
+            "files/npmrc"
 
-          # hardware
-          "hardware/usb-automount"
-          "hosts/rvn-pc/storage"
-          "hardware/fingerprint"
-          "hardware/fancontrol"
+            # hardware
+            "hardware/usb-automount"
+            "hosts/rvn-pc/storage"
+            "hosts/rvn-pc/machine/configuration"
+            "hosts/rvn-pc/machine/hardware-configuration"
+            "hardware/fingerprint"
+            "hardware/fancontrol"
 
-          # desktop features
-          "gaming"
+            # desktop features
+            "gaming"
 
-          # virtualization
-          "virtualization/podman"
-          "virtualization/libvirt"
+            # virtualization
+            "virtualization/podman"
+            "virtualization/libvirt"
 
-          # hardware configuration
-          ../../../machines/desktop/configuration.nix
-          ../../../machines/desktop/hardware-configuration.nix
-          inputs.nixos-hardware.nixosModules.common-cpu-intel
-          inputs.grub2-themes.nixosModules.default
-        ];
+          ]
+          ++ [
+            inputs.nixos-hardware.nixosModules.common-cpu-intel
+            inputs.grub2-themes.nixosModules.default
+          ];
 
         # Home Manager configuration for user
         home-manager.users.${config.flake.meta.user.username}.imports =
