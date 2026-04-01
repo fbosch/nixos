@@ -1,12 +1,13 @@
-{ config
-, lib
-, ...
+{
+  config,
+  lib,
+  ...
 }:
 let
   hostMeta = lib.findFirst (host: host.name == "rvn-pc") null config.flake.meta.hosts;
 in
 {
-  flake.modules.nixos."hosts/rvn-pc/networking" = {
+  flake.modules.nixos."hosts/rvn-pc/platform" = {
     assertions = [
       {
         assertion = hostMeta != null;

@@ -1,5 +1,5 @@
 {
-  flake.modules.nixos."hosts/rvn-pc/services" =
+  flake.modules.nixos."hosts/rvn-pc/platform" =
     { config, lib, ... }:
     {
       services = {

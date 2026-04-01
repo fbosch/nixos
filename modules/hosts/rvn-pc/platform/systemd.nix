@@ -1,5 +1,5 @@
 {
-  flake.modules.nixos."hosts/rvn-pc/systemd" =
+  flake.modules.nixos."hosts/rvn-pc/platform" =
     { lib, ... }:
     {
       # Keep these available for manual start/socket activation, but do not auto-start at boot.

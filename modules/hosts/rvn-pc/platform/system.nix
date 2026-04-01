@@ -1,5 +1,5 @@
 {
-  flake.modules.nixos."hosts/rvn-pc/system" =
+  flake.modules.nixos."hosts/rvn-pc/platform" =
     { pkgs, ... }:
     {
       system.stateVersion = "25.11";

@@ -1,12 +1,13 @@
 # Do not modify this file manually. It originates from nixos-generate-config
 # and may be overwritten when hardware configuration is regenerated.
 {
-  flake.modules.nixos."hosts/rvn-pc/machine/hardware-configuration" =
-    { config
-    , lib
-    , pkgs
-    , modulesPath
-    , ...
+  flake.modules.nixos."hosts/rvn-pc/hardware" =
+    {
+      config,
+      lib,
+      pkgs,
+      modulesPath,
+      ...
     }:
     {
       imports = [

@@ -29,6 +29,12 @@ in
       {
         imports =
           config.flake.lib.resolve [
+            "hosts/rvn-pc/hardware"
+            "hosts/rvn-pc/boot"
+            "hosts/rvn-pc/platform"
+            "hosts/rvn-pc/storage"
+            "hosts/rvn-pc/home"
+
             # Desktop preset (users, security, development, shell, system, desktop environment)
             "presets/desktop"
 
@@ -43,16 +49,8 @@ in
 
             # hardware
             "hardware/usb-automount"
-            "hosts/rvn-pc/storage"
-            "hosts/rvn-pc/machine/hardware-configuration"
             "hardware/fingerprint"
             "hardware/fancontrol"
-            "hosts/rvn-pc/boot"
-            "hosts/rvn-pc/system"
-            "hosts/rvn-pc/networking"
-            "hosts/rvn-pc/services"
-            "hosts/rvn-pc/systemd"
-            "hosts/rvn-pc/home"
 
             # desktop features
             "gaming"
