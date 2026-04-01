@@ -25,7 +25,7 @@ in
     meta.hosts = [ hostMeta ];
 
     modules.nixos."hosts/rvn-pc" =
-      { pkgs, lib, ... }:
+      { ... }:
       {
         imports =
           config.flake.lib.resolve [
@@ -44,10 +44,15 @@ in
             # hardware
             "hardware/usb-automount"
             "hosts/rvn-pc/storage"
-            "hosts/rvn-pc/machine/configuration"
             "hosts/rvn-pc/machine/hardware-configuration"
             "hardware/fingerprint"
             "hardware/fancontrol"
+            "hosts/rvn-pc/boot"
+            "hosts/rvn-pc/system"
+            "hosts/rvn-pc/networking"
+            "hosts/rvn-pc/services"
+            "hosts/rvn-pc/systemd"
+            "hosts/rvn-pc/home"
 
             # desktop features
             "gaming"
@@ -62,42 +67,6 @@ in
             inputs.grub2-themes.nixosModules.default
           ];
 
-        # Home Manager configuration for user
-        home-manager.users.${config.flake.meta.user.username}.imports =
-          config.flake.lib.resolveHm [
-            # Desktop preset (includes users, dotfiles, fonts, security, desktop, applications, development, shell)
-            "presets/desktop"
-            "applications/surge"
-            "worktrunk"
-
-            # Shared modules with Home Manager components
-            "secrets"
-            "windows"
-          ]
-          ++ [
-            # External Home Manager modules
-            inputs.flatpaks.homeManagerModules.nix-flatpak
-            inputs.vicinae.homeManagerModules.default
-
-            # User directory configuration
-            {
-              xdg.userDirs = {
-                enable = true;
-                setSessionVariables = true;
-                download = "/mnt/storage/Downloads";
-              };
-
-              services.surge = {
-                autostart = true;
-                settings = {
-                  general.default_download_dir = "/mnt/storage/Downloads";
-                  network.proxy_url = "http://192.168.1.46:8889";
-                };
-              };
-
-            }
-          ];
-
         # Keep rebuilds fast while reserving CPU headroom for desktop responsiveness.
         nix = {
           settings = {
@@ -110,81 +79,10 @@ in
           daemonIOSchedClass = "idle";
         };
 
-        services = {
-          attic-client.enableSubstituter = false;
-
-          # Avoid running two process-priority daemons with overlapping policies.
-          ananicy.enable = lib.mkForce false;
-
-          # Enable SSH for remote access
-          openssh = {
-            enable = true;
-            startWhenNeeded = true;
-          };
-
-          samba = {
-            enable = false;
-            openFirewall = true;
-            settings = {
-              global = {
-                "workgroup" = "WORKGROUP";
-                "server string" = hostMeta.name;
-                "netbios name" = "RVN-PC";
-                "security" = "user";
-                "map to guest" = "never";
-                "hosts allow" = "127.0.0.1 192.168.122.0/24 10.0.2.0/24 192.168.1.0/24";
-                "hosts deny" = "0.0.0.0/0";
-
-                # Improve LAN transfer throughput with async I/O and zero-copy sends.
-                "aio read size" = "1";
-                "aio write size" = "1";
-                "use sendfile" = "yes";
-
-                # Allow SMB3 multichannel when clients/NICs support it.
-                "server multi channel support" = "yes";
-              };
-
-              storage = {
-                "path" = "/mnt/storage";
-                "browseable" = "yes";
-                "read only" = "no";
-                "guest ok" = "no";
-                "valid users" = config.flake.meta.user.username;
-                "force user" = config.flake.meta.user.username;
-                "create mask" = "0664";
-                "directory mask" = "0775";
-              };
-            };
-          };
-
-          samba-wsdd = {
-            enable = false;
-            openFirewall = true;
-          };
-
-          tailscale.extraSetFlags = [ "--accept-dns=false" ];
-        };
-
-        # Keep these available for manual start/socket activation, but do not auto-start at boot.
-        systemd.services = {
-          # Desktop host: avoid blocking boot on network-online when not required.
-          NetworkManager-wait-online.enable = lib.mkForce false;
-
-          # tailscaled-set pulls in tailscaled during boot; keep both manual.
-          tailscaled-set.wantedBy = lib.mkForce [ ];
-          tailscaled.wantedBy = lib.mkForce [ ];
-
-          # libvirt-guests starts libvirtd at boot; keep virtualization services manual.
-          libvirt-guests.wantedBy = lib.mkForce [ ];
-          libvirtd.wantedBy = lib.mkForce [ ];
-        };
-
         security.apparmor = {
           enable = true;
           killUnconfinedConfinables = false;
         };
-
-        networking.nameservers = hostMeta.dnsServers;
 
         time.hardwareClockInLocalTime = true;
 

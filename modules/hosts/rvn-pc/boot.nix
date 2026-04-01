@@ -1,17 +1,7 @@
-# Edit this configuration file to define what should be installed on
-# your system. Help is available in the configuration.nix(5) man page
-# and in the NixOS manual (accessible by running 'nixos-help').
-
 {
-  flake.modules.nixos."hosts/rvn-pc/machine/configuration" =
-    { pkgs
-    , options
-    , ...
-    }:
+  flake.modules.nixos."hosts/rvn-pc/boot" =
+    { pkgs, ... }:
     {
-      system.stateVersion = "25.11"; # Did you read the comment?
-      hardware.bluetooth.enable = false;
-
       boot = {
         # Hide boot messages for clean splash screen experience
         consoleLogLevel = 3; # Show only errors and critical messages
@@ -67,7 +57,7 @@
             icon = "white";
             screen = "1080p";
             footer = true;
-            splashImage = ./../../../../assets/grub-backgrounds/black.jpg;
+            splashImage = ./../../../assets/grub-backgrounds/black.jpg;
           };
         };
 
@@ -77,47 +67,5 @@
           themePackages = [ pkgs.local.monoarch-plymouth ];
         };
       };
-
-      nixpkgs = {
-        config.allowUnfree = true;
-      };
-
-      services = {
-        upower.enable = true;
-        dbus.enable = true;
-        timesyncd.enable = true;
-        fstrim.enable = true;
-        ananicy = {
-          enable = true;
-          package = pkgs.ananicy-cpp;
-          rulesProvider = pkgs.ananicy-rules-cachyos;
-        };
-        system76-scheduler.enable = true;
-      };
-
-      # Configure console keymap
-      console.keyMap = "dk-latin1";
-
-      networking = {
-        hostName = "rvn-pc";
-        networkmanager.enable = true;
-        timeServers = options.networking.timeServers.default ++ [ "time.nist.gov" ];
-      };
-
-      zramSwap.enable = true;
-
-      boot.kernel.sysctl = {
-        "vm.swappiness" = 10;
-        "vm.vfs_cache_pressure" = 50;
-      };
-      security.polkit.enable = true;
-
-      # List packages installed in system profile. To search, run:
-      # $ nix search wget
-      environment.systemPackages = with pkgs; [
-        wget
-        vim
-        neovim
-      ];
     };
 }
