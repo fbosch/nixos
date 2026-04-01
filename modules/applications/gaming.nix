@@ -8,6 +8,7 @@ _: {
         steam-run
         wowup-cf
         protontricks
+        wineWow64Packages.stable
         faugus-launcher
         # sgdboop - disabled due to build error in nixpkgs (function signature mismatch)
         steamtinkerlaunch
