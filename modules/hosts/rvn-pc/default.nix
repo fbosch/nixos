@@ -1,6 +1,7 @@
-{ inputs
-, config
-, ...
+{
+  inputs,
+  config,
+  ...
 }:
 let
   hostMeta = {
@@ -42,7 +43,7 @@ in
 
           # hardware
           "hardware/usb-automount"
-          "hardware/storage"
+          "hosts/rvn-pc/storage"
           "hardware/fingerprint"
           "hardware/fancontrol"
 
@@ -54,8 +55,8 @@ in
           "virtualization/libvirt"
 
           # hardware configuration
-          ../../machines/desktop/configuration.nix
-          ../../machines/desktop/hardware-configuration.nix
+          ../../../machines/desktop/configuration.nix
+          ../../../machines/desktop/hardware-configuration.nix
           inputs.nixos-hardware.nixosModules.common-cpu-intel
           inputs.grub2-themes.nixosModules.default
         ];
