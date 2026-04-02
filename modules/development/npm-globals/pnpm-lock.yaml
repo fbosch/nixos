@@ -29,7 +29,7 @@ importers:
         version: 2.1.90
       '@github/copilot':
         specifier: latest
-        version: 1.0.15
+        version: 1.0.16
       '@schpet/linear-cli':
         specifier: latest
         version: 1.11.1
@@ -257,44 +257,44 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@github/copilot-darwin-arm64@1.0.15':
-    resolution: {integrity: sha512-q4VO/xGXHaHfsP2vF1LvXsc/tu9rrHg0ryVRNJcyqaVqf/4KGptKBKwVv0dt0JX5EtsLzZf52FMyBfTGi0sd/g==}
+  '@github/copilot-darwin-arm64@1.0.16':
+    resolution: {integrity: sha512-Yxu8+Sau1X7Ah9lHeC/pHms40/6Dw2Ry/97BaKijZSTAbyhkfjy8UjAmROoihqmoW89kOaCi4JnT+1XvP/bYZw==}
     cpu: [arm64]
     os: [darwin]
     hasBin: true
 
-  '@github/copilot-darwin-x64@1.0.15':
-    resolution: {integrity: sha512-fRaQruE+vgM4MX7lhGZMryh/IL8Mym1YCzEKHxuvM1FeueKbxoyJl6bmtrq3eo1qo1Gc3kPhoqv4sTIzF9vz+Q==}
+  '@github/copilot-darwin-x64@1.0.16':
+    resolution: {integrity: sha512-EptQqgQ0GGdji0LQ09Q1BRB5TRpxkb4DK5bKGLbhE9chHsByv6ppukT8qLFZXktAB1DU5J5k0VZ77IhBuvF6Fw==}
     cpu: [x64]
     os: [darwin]
     hasBin: true
 
-  '@github/copilot-linux-arm64@1.0.15':
-    resolution: {integrity: sha512-yljm/cS5k4Xnpj5qY03naCL6nsQOy0fg1FNy4lcngUVA7LXOCAF4+nqGDlqOpd3Vq3nOlSJ3ZWcFuGRDbLnrag==}
+  '@github/copilot-linux-arm64@1.0.16':
+    resolution: {integrity: sha512-OlG/WeJlnr/42w5w1mI3aKA2zpmSjCJKSSL0TM9chYW3J2vEPcghYHKGRRijRPHpyB4/+WGGE5UrcHc9DaL2FA==}
     cpu: [arm64]
     os: [linux]
     hasBin: true
 
-  '@github/copilot-linux-x64@1.0.15':
-    resolution: {integrity: sha512-1Mr9K8OeVybbiQhsWxgLAtITAA/wOiNyFf8LV2ll2BFgbkkYPCwf1H9EKctQMgG+PhRHn7rCayhqIjY57kp1WQ==}
+  '@github/copilot-linux-x64@1.0.16':
+    resolution: {integrity: sha512-zbZCkU3FqqQEPIF1Qf/Eq6DzTclyGhU09JM6UciOfPUA3yC2uFQHYkUyK0xYNSNzJaD2TdOGtmi1/O5sDyqQ9A==}
     cpu: [x64]
     os: [linux]
     hasBin: true
 
-  '@github/copilot-win32-arm64@1.0.15':
-    resolution: {integrity: sha512-E8etZRfm7JlAByHCLiEHbM1k9W0vhOuOz9YkwMkIJIV0Q/nOz8o1a790tV3jXtGm2Flp8KK7V3obug7cG9KfcA==}
+  '@github/copilot-win32-arm64@1.0.16':
+    resolution: {integrity: sha512-QgSBkcNwi7r5SbPiq8/0RYyQqdN4qfspliiuzlwjL0Ib7iG0zSCWJyQ5IRoUNPYfDbkgnpNZDp91aONhrhX4LQ==}
     cpu: [arm64]
     os: [win32]
     hasBin: true
 
-  '@github/copilot-win32-x64@1.0.15':
-    resolution: {integrity: sha512-SEA36mwhMK/XXmaQQTtdEiPe02XzEHo0t03TfQAA30MLJ+oRZhmapNm11+YOqVnRwpda1f+q4fziEpflsy2TqQ==}
+  '@github/copilot-win32-x64@1.0.16':
+    resolution: {integrity: sha512-t+w/dENE8AR/Bm7vtHMzQBPFHZWN/2vsXXNJewYUNZGkV3mIthl+fUOiY9Ni7oVuEfDsnfrz2LFvJ2CGxs8lHA==}
     cpu: [x64]
     os: [win32]
     hasBin: true
 
-  '@github/copilot@1.0.15':
-    resolution: {integrity: sha512-nQ+4fim8uuGJxR20HTTbowinoVTgeRUgSkvq6H6NsK4bVp5pwZcX2OWHyw+Ql++V7EPQJ3nlgFt1HCYT4vMGXg==}
+  '@github/copilot@1.0.16':
+    resolution: {integrity: sha512-ecLG87eEBVUfF49n1CDKddbm027Eg7noa7ccSHNtmgbteJ40k1sbMY3OJJ3JHhYgEqwt2OOJo7gEX17rp/8cVg==}
     hasBin: true
 
   '@img/sharp-darwin-arm64@0.34.5':
@@ -1309,8 +1309,8 @@ packages:
   kuler@2.0.0:
     resolution: {integrity: sha512-Xq9nH7KlWZmXAtodXDDRE7vs6DU1gTU8zYDHDiWLSip45Egwq3plLHzPn27NgvzL2r1LMPC1vdqh98sQxtqj4A==}
 
-  lodash@4.17.23:
-    resolution: {integrity: sha512-LgVTMpQtIopCi79SJeDiP0TfWi5CNEc/L/aRdTh3yIvmZXTnheWpKjSZhnvMl8iXbC1tFg9gdHHDMLoV7CnG+w==}
+  lodash@4.18.1:
+    resolution: {integrity: sha512-dMInicTPVE8d1e5otfwmmjlxkZoUpiVLwyeTdUsi/Caj/gfzzblBcCE5sRHV/AsjuCmxWrte2TNGSYuCeCq+0Q==}
 
   logform@2.7.0:
     resolution: {integrity: sha512-TFYA4jnP7PVbmlBIfhlSe+WKxs9dklXMTEGcBCIvLhE/Tn3H6Gk1norupVW7m5Cnd4bLcr08AytbyV/xj7f/kQ==}
@@ -1368,8 +1368,8 @@ packages:
     resolution: {integrity: sha512-OqbOk5oEQeAZ8WXWydlu9HJjz9WVdEIvamMCcXmuqUYjTknH/sqsWvhQ3vgwKFRR1HpjvNBKQ37nbJgYzGqGcg==}
     engines: {node: '>=6'}
 
-  minimatch@10.2.4:
-    resolution: {integrity: sha512-oRjTw/97aTBN0RHbYCdtF1MQfvusSIBQM0IZEgzl6426+8jSC0nF1a/GmnVLpfB9yyr6g6FTqWqiZVbxrtaCIg==}
+  minimatch@10.2.5:
+    resolution: {integrity: sha512-MULkVLfKGYDFYejP07QOurDLLQpcjk7Fw+7jXS2R2czRQzR56yHRveU5NDJEOviH+hETZKSkIk5c+T23GjFUMg==}
     engines: {node: 18 || 20 || >=22}
 
   minimatch@3.1.5:
@@ -1576,8 +1576,8 @@ packages:
   path-to-regexp@6.3.0:
     resolution: {integrity: sha512-Yhpw4T9C6hPpgPeA28us07OJeqZ5EzQTkbfwuhsUg0c237RomFoETJgmp2sa3F/41gfLE6G5cqcYwznmeEeOlQ==}
 
-  path-to-regexp@8.4.0:
-    resolution: {integrity: sha512-PuseHIvAnz3bjrM2rGJtSgo1zjgxapTLZ7x2pjhzWwlp4SJQgK3f3iZIQwkpEnBaKz6seKBADpM4B4ySkuYypg==}
+  path-to-regexp@8.4.2:
+    resolution: {integrity: sha512-qRcuIdP69NPm4qbACK+aDogI5CBDMi1jKe0ry5rSQJz8JVLsC7jV8XpiJjGRLLol3N+R5ihGYcrPLTno6pAdBA==}
 
   pend@1.2.0:
     resolution: {integrity: sha512-F3asv42UuXchdzt+xXqfW1OGlVBe+mxa2mqI0pg5yAHZPvFmY3Y6drSf/GQ1A86WgWEN9Kzh/WrgKa6iGcHXLg==}
@@ -1736,8 +1736,8 @@ packages:
     resolution: {integrity: sha512-UjgapumWlbMhkBgzT7Ykc5YXUT46F0iKu8SGXq0bcwP5dz/h0Plj6enJqjz1Zbq2l5WaqYnrVbwWOWMyF3F47g==}
     engines: {node: '>=0.10.0'}
 
-  srvx@0.11.13:
-    resolution: {integrity: sha512-oknN6qduuMPafxKtHucUeG32Q963pjriA5g3/Bl05cwEsUe5VVbIU4qR9LrALHbipSCyBe+VmfDGGydqazDRkw==}
+  srvx@0.11.14:
+    resolution: {integrity: sha512-mx+pKrWJCzo5m6uXqyB7n4VA81mpdFRroSWsVTQTYqCZE65hFJ+jtVIeyhtL2/kvtDMrHdbA0hWEUh/vu0+Viw==}
     engines: {node: '>=20.16.0'}
     hasBin: true
 
@@ -1838,9 +1838,9 @@ packages:
   undici-types@5.26.5:
     resolution: {integrity: sha512-JlCMO+ehdEIKqlFxk6IfVoAUVmgz7cU7zD/h9XZ0qzeosSHmUJVOzSQvvYSYWXkFXC+IfLKSIffhv0sVZup6pA==}
 
-  undici@6.24.1:
-    resolution: {integrity: sha512-sC+b0tB1whOCzbtlx20fx3WgCXwkW627p4EA9uM+/tNNPkSS+eSEld6pAs9nDv7WbY1UUljBMYPtu9BCOrCWKA==}
-    engines: {node: '>=18.17'}
+  undici@8.0.0:
+    resolution: {integrity: sha512-RGabV5g1ggSX5mU4k+B8BLWgb418gDbg0wAVFeiU00iOxtw4ufGsE6GFsuSd2uqOKooWSLf71JGapOFYpE8f+A==}
+    engines: {node: '>=22.19.0'}
 
   universalify@2.0.1:
     resolution: {integrity: sha512-gptHNQghINnc/vTGIk0SOFGFNXw7JVrlRUtConJRlvaw6DuX0wO5Jeko9sWrMBhh+PsYAZ7oXAiOnf/UKogyiw==}
@@ -2052,32 +2052,32 @@ snapshots:
   '@esbuild/win32-x64@0.27.0':
     optional: true
 
-  '@github/copilot-darwin-arm64@1.0.15':
+  '@github/copilot-darwin-arm64@1.0.16':
     optional: true
 
-  '@github/copilot-darwin-x64@1.0.15':
+  '@github/copilot-darwin-x64@1.0.16':
     optional: true
 
-  '@github/copilot-linux-arm64@1.0.15':
+  '@github/copilot-linux-arm64@1.0.16':
     optional: true
 
-  '@github/copilot-linux-x64@1.0.15':
+  '@github/copilot-linux-x64@1.0.16':
     optional: true
 
-  '@github/copilot-win32-arm64@1.0.15':
+  '@github/copilot-win32-arm64@1.0.16':
     optional: true
 
-  '@github/copilot-win32-x64@1.0.15':
+  '@github/copilot-win32-x64@1.0.16':
     optional: true
 
-  '@github/copilot@1.0.15':
+  '@github/copilot@1.0.16':
     optionalDependencies:
-      '@github/copilot-darwin-arm64': 1.0.15
-      '@github/copilot-darwin-x64': 1.0.15
-      '@github/copilot-linux-arm64': 1.0.15
-      '@github/copilot-linux-x64': 1.0.15
-      '@github/copilot-win32-arm64': 1.0.15
-      '@github/copilot-win32-x64': 1.0.15
+      '@github/copilot-darwin-arm64': 1.0.16
+      '@github/copilot-darwin-x64': 1.0.16
+      '@github/copilot-linux-arm64': 1.0.16
+      '@github/copilot-linux-x64': 1.0.16
+      '@github/copilot-win32-arm64': 1.0.16
+      '@github/copilot-win32-x64': 1.0.16
 
   '@img/sharp-darwin-arm64@0.34.5':
     optionalDependencies:
@@ -2357,10 +2357,10 @@ snapshots:
       execa: 3.2.0
       fs-extra: 11.1.0
       oxc-transform: 0.111.0(@emnapi/core@1.9.1)(@emnapi/runtime@1.9.1)
-      path-to-regexp: 8.4.0
+      path-to-regexp: 8.4.2
       resolve.exports: 2.0.3
       rolldown: 1.0.0-rc.1(@emnapi/core@1.9.1)(@emnapi/runtime@1.9.1)
-      srvx: 0.11.13
+      srvx: 0.11.14
       tsx: 4.21.0
       typescript: 5.9.3
       zod: 3.22.4
@@ -2377,7 +2377,7 @@ snapshots:
       is-buffer: 2.0.5
       is-node-process: 1.2.0
       throttleit: 2.1.0
-      undici: 6.24.1
+      undici: 8.0.0
 
   '@vercel/build-utils@13.12.2':
     dependencies:
@@ -2416,7 +2416,7 @@ snapshots:
       '@vercel/node': 5.6.24
       '@vercel/static-config': 3.2.0
       fs-extra: 11.1.0
-      path-to-regexp: 8.4.0
+      path-to-regexp: 8.4.2
       ts-morph: 12.0.0
       zod: 3.22.4
     transitivePeerDependencies:
@@ -2445,7 +2445,7 @@ snapshots:
       micro: 9.3.5-canary.3
       ms: 2.1.1
       node-fetch: 2.6.7
-      path-to-regexp: 8.4.0
+      path-to-regexp: 8.4.2
       promisepipe: 3.0.0
       semver: 7.5.4
       stat-mode: 0.3.0
@@ -2489,7 +2489,7 @@ snapshots:
       '@vercel/node': 5.6.24
       '@vercel/static-config': 3.2.0
       fs-extra: 11.1.0
-      path-to-regexp: 8.4.0
+      path-to-regexp: 8.4.2
       ts-morph: 12.0.0
       zod: 3.22.4
     transitivePeerDependencies:
@@ -2570,7 +2570,7 @@ snapshots:
       ts-morph: 12.0.0
       tsx: 4.21.0
       typescript: 5.9.3
-      undici: 6.24.1
+      undici: 8.0.0
     transitivePeerDependencies:
       - encoding
       - rollup
@@ -2584,7 +2584,7 @@ snapshots:
       '@renovatebot/pep440': 4.2.1
       fs-extra: 11.1.1
       js-yaml: 4.1.1
-      minimatch: 10.2.4
+      minimatch: 10.2.5
       smol-toml: 1.6.1
       zod: 3.22.4
 
@@ -3044,7 +3044,7 @@ snapshots:
 
   glob@13.0.6:
     dependencies:
-      minimatch: 10.2.4
+      minimatch: 10.2.5
       minipass: 7.1.3
       path-scurry: 2.0.2
 
@@ -3138,7 +3138,7 @@ snapshots:
 
   kuler@2.0.0: {}
 
-  lodash@4.17.23: {}
+  lodash@4.18.1: {}
 
   logform@2.7.0:
     dependencies:
@@ -3186,7 +3186,7 @@ snapshots:
 
   mimic-fn@2.1.0: {}
 
-  minimatch@10.2.4:
+  minimatch@10.2.5:
     dependencies:
       brace-expansion: 5.0.5
 
@@ -3375,7 +3375,7 @@ snapshots:
 
   path-to-regexp@6.3.0: {}
 
-  path-to-regexp@8.4.0: {}
+  path-to-regexp@8.4.2: {}
 
   pend@1.2.0: {}
 
@@ -3394,7 +3394,7 @@ snapshots:
   pokemonshow@4.0.0:
     dependencies:
       fuse.js: 7.1.0
-      lodash: 4.17.23
+      lodash: 4.18.1
       meow: 12.1.1
       term-img: 6.0.0
 
@@ -3532,7 +3532,7 @@ snapshots:
   source-map@0.6.1:
     optional: true
 
-  srvx@0.11.13: {}
+  srvx@0.11.14: {}
 
   stack-trace@0.0.10: {}
 
@@ -3617,7 +3617,7 @@ snapshots:
 
   undici-types@5.26.5: {}
 
-  undici@6.24.1: {}
+  undici@8.0.0: {}
 
   universalify@2.0.1: {}
 

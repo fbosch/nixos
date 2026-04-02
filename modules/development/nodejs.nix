@@ -44,10 +44,10 @@
             exit 1
           fi
 
-          echo "Refreshing pnpm lockfile from package.json specifiers..."
+          echo "Updating pnpm lockfile to latest dependency releases..."
           (
             cd "$npm_globals_dir"
-            pnpm install --lockfile-only
+            pnpm update --latest --lockfile-only
           )
 
           export PNPM_HOME_VALUE="${pnpmHome}"
