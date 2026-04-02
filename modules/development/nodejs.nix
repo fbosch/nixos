@@ -13,7 +13,7 @@
         name = "install-npm-global-packages";
         runtimeInputs = [
           pkgs.coreutils
-          pkgs.nodePackages.pnpm
+          pkgs.pnpm
           pkgs.nodejs_24
           pkgs.bun
           pkgs.yq-go
@@ -24,7 +24,7 @@
       updateNodePackages = pkgs.writeShellApplication {
         name = "pnpm-global-update";
         runtimeInputs = [
-          pkgs.nodePackages.pnpm
+          pkgs.pnpm
           pkgs.nodejs_24
           pkgs.bun
           pkgs.yq-go
@@ -32,7 +32,7 @@
         text = ''
           export PNPM_HOME="${pnpmHome}"
           export PNPM_STORE_DIR="${pnpmStoreDir}"
-          export PATH="$PNPM_HOME:${pkgs.nodejs_24}/bin:${pkgs.nodePackages.pnpm}/bin:${pkgs.bun}/bin:$PATH"
+          export PATH="$PNPM_HOME:${pkgs.nodejs_24}/bin:${pkgs.pnpm}/bin:${pkgs.bun}/bin:$PATH"
           state_dir="$HOME/.local/state/pnpm-globals"
           npm_globals_dir="''${1:-${npmGlobalsRepoDir}}"
 
@@ -54,9 +54,9 @@
           export PNPM_STORE_DIR_VALUE="${pnpmStoreDir}"
           export STATE_DIR_VALUE="$state_dir"
           export NPM_REGISTRY_HOST="registry.npmjs.org"
-          export PNPM_BIN="${pkgs.nodePackages.pnpm}/bin/pnpm"
+          export PNPM_BIN="${pkgs.pnpm}/bin/pnpm"
           export NODE_BIN_DIR="${pkgs.nodejs_24}/bin"
-          export PNPM_BIN_DIR="${pkgs.nodePackages.pnpm}/bin"
+          export PNPM_BIN_DIR="${pkgs.pnpm}/bin"
           export BUN_BIN_DIR="${pkgs.bun}/bin"
           export LOCKFILE_PATH="$npm_globals_dir/pnpm-lock.yaml"
           export YQ_BIN="${pkgs.yq-go}/bin/yq"
@@ -72,7 +72,7 @@
       installNodePackages = pkgs.writeShellApplication {
         name = "pnpm-global-install";
         runtimeInputs = [
-          pkgs.nodePackages.pnpm
+          pkgs.pnpm
           pkgs.nodejs_24
           pkgs.bun
           pkgs.yq-go
@@ -80,7 +80,7 @@
         text = ''
           export PNPM_HOME="${pnpmHome}"
           export PNPM_STORE_DIR="${pnpmStoreDir}"
-          export PATH="$PNPM_HOME:${pkgs.nodejs_24}/bin:${pkgs.nodePackages.pnpm}/bin:${pkgs.bun}/bin:$PATH"
+          export PATH="$PNPM_HOME:${pkgs.nodejs_24}/bin:${pkgs.pnpm}/bin:${pkgs.bun}/bin:$PATH"
           state_dir="$HOME/.local/state/pnpm-globals"
           npm_globals_dir="''${1:-${npmGlobalsRepoDir}}"
 
@@ -96,9 +96,9 @@
           export PNPM_STORE_DIR_VALUE="${pnpmStoreDir}"
           export STATE_DIR_VALUE="$state_dir"
           export NPM_REGISTRY_HOST="registry.npmjs.org"
-          export PNPM_BIN="${pkgs.nodePackages.pnpm}/bin/pnpm"
+          export PNPM_BIN="${pkgs.pnpm}/bin/pnpm"
           export NODE_BIN_DIR="${pkgs.nodejs_24}/bin"
-          export PNPM_BIN_DIR="${pkgs.nodePackages.pnpm}/bin"
+          export PNPM_BIN_DIR="${pkgs.pnpm}/bin"
           export BUN_BIN_DIR="${pkgs.bun}/bin"
           export LOCKFILE_PATH="$npm_globals_dir/pnpm-lock.yaml"
           export YQ_BIN="${pkgs.yq-go}/bin/yq"
@@ -114,13 +114,13 @@
           fnm
           bun
           nodejs_24
-          nodePackages.pnpm
-          nodePackages.yarn
+          pnpm
+          yarn
           # Prefer Nix packages for better reproducibility
-          nodePackages.typescript
-          nodePackages.prettier
-          nodePackages.eslint
-          nodePackages.npm-check-updates
+          typescript
+          prettier
+          eslint
+          npm-check-updates
           typescript-language-server
           prettierd
           playwright-test # Pure Nix Playwright with pre-configured browsers
@@ -143,9 +143,9 @@
           export PNPM_STORE_DIR_VALUE="${pnpmStoreDir}"
           export STATE_DIR_VALUE="$HOME/.local/state/pnpm-globals"
           export NPM_REGISTRY_HOST="registry.npmjs.org"
-          export PNPM_BIN="${pkgs.nodePackages.pnpm}/bin/pnpm"
+          export PNPM_BIN="${pkgs.pnpm}/bin/pnpm"
           export NODE_BIN_DIR="${pkgs.nodejs_24}/bin"
-          export PNPM_BIN_DIR="${pkgs.nodePackages.pnpm}/bin"
+          export PNPM_BIN_DIR="${pkgs.pnpm}/bin"
           export BUN_BIN_DIR="${pkgs.bun}/bin"
           export LOCKFILE_PATH="${./npm-globals/pnpm-lock.yaml}"
           export YQ_BIN="${pkgs.yq-go}/bin/yq"
