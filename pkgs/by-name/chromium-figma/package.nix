@@ -9,7 +9,7 @@ pkgs.nix-webapps-lib.mkChromiumApp {
   class = "Figma";
   desktopName = "Figma";
   comment = "Collaborative interface design and prototyping";
-  icon = ./figma-logo.svg;
+  icon = ./figma-logo.png;
   profile = "FigmaProfile";
   url = "https://www.figma.com";
   runtime = {

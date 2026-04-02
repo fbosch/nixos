@@ -1,7 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 192" role="img" aria-label="Figma logo">
-  <rect x="0" y="0" width="64" height="64" rx="32" fill="#F24E1E"/>
-  <rect x="0" y="64" width="64" height="64" rx="32" fill="#A259FF"/>
-  <rect x="0" y="128" width="64" height="64" rx="32" fill="#0ACF83"/>
-  <rect x="64" y="0" width="64" height="64" rx="32" fill="#FF7262"/>
-  <circle cx="96" cy="96" r="32" fill="#1ABCFE"/>
-</svg>
