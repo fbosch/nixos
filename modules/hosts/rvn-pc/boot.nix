@@ -1,6 +1,10 @@
 {
   flake.modules.nixos."hosts/rvn-pc/boot" =
-    { pkgs, ... }:
+    { lib
+    , options
+    , pkgs
+    , ...
+    }:
     {
       boot = {
         # Hide boot messages for clean splash screen experience
@@ -51,7 +55,8 @@
           };
 
           efi.canTouchEfiVariables = true;
-
+        }
+        // lib.optionalAttrs (options.boot.loader ? "grub2-theme") {
           grub2-theme = {
             enable = true;
             theme = "whitesur";
