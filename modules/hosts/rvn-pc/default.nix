@@ -70,6 +70,10 @@ in
           settings = {
             max-jobs = "auto";
             cores = 0;
+            extra-substituters = [ "https://cache.flox.dev" ];
+            extra-trusted-public-keys = [
+              "flox-cache-public-1:7F4OyH7ZCnFhcze3fJdfyXYLQw/aV7GEed86nQ7IsOs="
+            ];
           };
 
           # De-prioritize Nix daemon scheduling so desktop workloads stay responsive.
