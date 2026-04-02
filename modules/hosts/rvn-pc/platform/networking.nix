@@ -1,7 +1,6 @@
-{
-  config,
-  lib,
-  ...
+{ config
+, lib
+, ...
 }:
 let
   hostMeta = lib.findFirst (host: host.name == "rvn-pc") null config.flake.meta.hosts;

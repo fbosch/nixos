@@ -2,12 +2,11 @@
 # and may be overwritten when hardware configuration is regenerated.
 {
   flake.modules.nixos."hosts/rvn-pc/hardware" =
-    {
-      config,
-      lib,
-      pkgs,
-      modulesPath,
-      ...
+    { config
+    , lib
+    , pkgs
+    , modulesPath
+    , ...
     }:
     {
       imports = [
