@@ -10,10 +10,15 @@ _: {
         protontricks
         wineWow64Packages.stable
         faugus-launcher
+        vulkan-tools
+        protonup-qt
         # sgdboop - disabled due to build error in nixpkgs (function signature mismatch)
         steamtinkerlaunch
         nvitop
       ];
+
+      hardware.graphics.enable = true;
+      hardware.graphics.enable32Bit = true;
 
       programs = {
         gamescope = {
@@ -65,7 +70,6 @@ _: {
 
       # Flatpak gaming applications
       services.flatpak.packages = [
-        "net.davidotek.pupgui2" # ProtonUp-Qt for managing Proton versions
         "org.freedesktop.Platform.VulkanLayer.vkBasalt//25.08" # Vulkan post-processing
         "org.freedesktop.Platform.VulkanLayer.MangoHud//25.08" # MangoHud overlay
         "io.mgba.mGBA" # GBA emulator
