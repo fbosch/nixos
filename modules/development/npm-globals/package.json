@@ -12,6 +12,7 @@
     "opencode-ai": "latest",
     "opencode-claude-auth": "latest",
     "pokemonshow": "latest",
-    "vercel": "latest"
+    "vercel": "latest",
+    "@fission-ai/openspec": "latest"
   }
 }
