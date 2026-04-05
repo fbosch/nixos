@@ -12,7 +12,7 @@
 
 let
   pname = "codexbar";
-  version = "0.18.0-beta.2";
+  version = "0.19.0";
 
   inherit (stdenvNoCC.hostPlatform) system;
   arch =
@@ -25,7 +25,7 @@ let
     url = "https://github.com/steipete/CodexBar/releases/download/v${version}/CodexBarCLI-v${version}-linux-${arch}.tar.gz";
     hash =
       {
-        x86_64-linux = "sha256-oaAT1LaYivJZt6n5lukkg8oQoeUEbNfjRiV5DvHVkCk=";
+        x86_64-linux = "sha256-fASLPS24EQOgZNbV3D5e5g8ZWudzysBDgFXE+fxPZYM=";
         aarch64-linux = "sha256-/TsvvMod3IMaZhEirQmu/oOC94f0yAsLCdnkzqob3b4=";
       }.${system};
   };
