@@ -91,6 +91,7 @@ in
         environment.sessionVariables = {
           TERMINAL = "wezterm";
           ELECTRON_OZONE_PLATFORM_HINT = "auto";
+          TZDIR = "/etc/zoneinfo";
         };
       };
   };
