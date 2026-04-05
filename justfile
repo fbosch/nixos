@@ -40,6 +40,10 @@ update-sops-keys:
 update-avatar:
     bash ./scripts/update-avatar.sh
 
+# Update a local by-name package (optionally pass package=surge)
+update-local-package package='':
+    if [ -n "{{package}}" ]; then bash ./scripts/update-local-package.sh "{{package}}"; else bash ./scripts/update-local-package.sh; fi
+
 # Rotate the encrypted GPG backup gist from the current local key
 rotate-gpg-gist:
     nix run .#rotate-gpg-gist
