@@ -27,6 +27,7 @@
           # rofi
           pkgs.xwayland
           pkgs.xwayland-satellite
+          pkgs.setxkbmap
           agsPackage
           pkgs.wev
           pkgs.nwg-look
