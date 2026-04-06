@@ -38,6 +38,8 @@
           pkgs.autocutsel
           pkgs.cliphist
           pkgs.wl-clip-persist
+          pkgs.wtype
+          pkgs.xdotool
           pkgs.waybar
           pkgs.swaynotificationcenter
           pkgs.libnotify
@@ -110,6 +112,24 @@
               Service = {
                 ExecStart = "${pkgs.autocutsel}/bin/autocutsel -selection PRIMARY";
                 Restart = "on-failure";
+              };
+
+              Install = {
+                WantedBy = [ "graphical-session.target" ];
+              };
+            };
+
+            gamescope-clipboard-sync = {
+              Unit = {
+                Description = "Sync clipboard between Wayland and Gamescope Xwayland";
+                PartOf = [ "graphical-session.target" ];
+                After = [ "graphical-session.target" ];
+              };
+
+              Service = {
+                ExecStart = "${pkgs.bash}/bin/bash %h/.config/hypr/scripts/gamescope-clipboard-sync.sh";
+                Restart = "on-failure";
+                RestartSec = "1";
               };
 
               Install = {
