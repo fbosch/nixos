@@ -48,6 +48,8 @@ _: {
               PROTON_ENABLE_NVAPI = "1";
               GAMEMODERUN = "1";
               PROTON_LOCAL_SHADER_CACHE = "1";
+              TZ = ":/etc/localtime";
+              TZDIR = "/etc/zoneinfo";
             };
           };
         };
