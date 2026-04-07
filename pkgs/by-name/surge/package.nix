@@ -27,6 +27,12 @@ buildGoModule rec {
     CGO_ENABLED = 0;
   };
 
+  postInstall = ''
+    if [ -x "$out/bin/Surge" ] && [ ! -e "$out/bin/surge" ]; then
+      ln -s "$out/bin/Surge" "$out/bin/surge"
+    fi
+  '';
+
   # Tests are flaky in sandboxed builds due to SQLite locking issues
   doCheck = false;
 
