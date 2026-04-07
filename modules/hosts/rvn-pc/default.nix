@@ -65,6 +65,7 @@ in
             inputs.grub2-themes.nixosModules.default
           ];
 
+
         # Keep rebuilds fast while reserving CPU headroom for desktop responsiveness.
         nix = {
           settings = {
