@@ -1,6 +1,6 @@
 {
   flake.modules.nixos."hosts/rvn-pc/platform" =
-    { lib, pkgs, ... }:
+    { pkgs, ... }:
     {
       system.stateVersion = "25.11";
 
@@ -18,7 +18,6 @@
           package = pkgs.ananicy-cpp;
           rulesProvider = pkgs.ananicy-rules-cachyos;
         };
-        system76-scheduler.enable = lib.mkForce false;
       };
 
       zramSwap.enable = true;
