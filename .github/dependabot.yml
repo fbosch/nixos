@@ -1,0 +1,15 @@
+version: 2
+updates:
+  - package-ecosystem: "nix"
+    directory: "/"
+    target-branch: "master"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "02:00"
+      timezone: "Europe/Copenhagen"
+    assignees:
+      - "fbosch"
+    labels:
+      - "dependencies"
+    open-pull-requests-limit: 5
