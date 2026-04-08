@@ -30,6 +30,9 @@
     };
     nixos-hardware.url = "github:nixos/nixos-hardware/master";
 
+    # Alternative kernel variants (hosts/rvn-pc)
+    nix-cachyos-kernel.url = "github:xddxdd/nix-cachyos-kernel/release";
+
     # Package infrastructure (modules/flake-parts/nixpkgs.nix, modules/system/core.nix)
     pkgs-by-name-for-flake-parts.url = "github:drupol/pkgs-by-name-for-flake-parts";
     nix-webapps = {

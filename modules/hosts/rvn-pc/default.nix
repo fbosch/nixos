@@ -65,15 +65,22 @@ in
             inputs.grub2-themes.nixosModules.default
           ];
 
-
         # Keep rebuilds fast while reserving CPU headroom for desktop responsiveness.
+        nixpkgs.overlays = [ inputs.nix-cachyos-kernel.overlays.default ];
+
         nix = {
           settings = {
             max-jobs = "auto";
             cores = 0;
-            extra-substituters = [ "https://cache.flox.dev" ];
+            extra-substituters = [
+              "https://cache.flox.dev"
+              "https://attic.xuyh0120.win/lantian"
+              "https://cache.garnix.io"
+            ];
             extra-trusted-public-keys = [
               "flox-cache-public-1:7F4OyH7ZCnFhcze3fJdfyXYLQw/aV7GEed86nQ7IsOs="
+              "lantian:EeAUQ+W+6r7EtwnmYjeVwx5kOGEBpjlBfPlzGlTNvHc="
+              "cache.garnix.io:CTFPyKSLcx5RMJKfLo5EEPUObbA78b0YQ2DTCJXqr9g="
             ];
           };
 
