@@ -6,6 +6,13 @@
 let
   prefix = "hosts/";
 
+  isTopLevelHostModule =
+    name:
+    let
+      hostPath = lib.removePrefix prefix name;
+    in
+    (lib.hasPrefix prefix name) && (!lib.hasInfix "/" hostPath);
+
   # Helper to build a host configuration (works for both NixOS and Darwin)
   mkHostConfig =
     hostType: name: hostModule:
@@ -57,8 +64,8 @@ let
     };
 
   # Collect host modules from both namespaces
-  nixosHostModules = lib.filterAttrs (name: _: lib.hasPrefix prefix name) config.flake.modules.nixos;
-  darwinHostModules = lib.filterAttrs (name: _: lib.hasPrefix prefix name) (
+  nixosHostModules = lib.filterAttrs (name: _: isTopLevelHostModule name) config.flake.modules.nixos;
+  darwinHostModules = lib.filterAttrs (name: _: isTopLevelHostModule name) (
     config.flake.modules.darwin or { }
   );
 in
