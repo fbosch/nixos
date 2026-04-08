@@ -65,6 +65,10 @@
           ];
         };
 
+        opengl = {
+          enable = true;
+        };
+
         nvidia = {
           modesetting.enable = true;
           powerManagement.enable = true;
