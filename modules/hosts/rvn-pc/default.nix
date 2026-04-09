@@ -14,6 +14,26 @@ let
       "192.168.1.46"
       "192.168.1.202"
     ];
+    system = "x86_64-linux";
+    platform = {
+      os = "linux";
+      arch = "x86_64";
+    };
+    hardware = {
+      vendor = "ASUSTeK COMPUTER INC.";
+      model = "TUF Z370-PLUS GAMING";
+      cpu = {
+        vendor = "Intel";
+        model = "Core i7-8700K";
+        family = "Coffee Lake";
+        cores = 6;
+      };
+      gpu = {
+        vendor = "NVIDIA";
+        model = "GeForce RTX 4070 Ti";
+        kind = "discrete";
+      };
+    };
   };
 in
 {
