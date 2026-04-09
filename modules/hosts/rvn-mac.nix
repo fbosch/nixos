@@ -90,6 +90,7 @@ in
               KeyRepeat = 2;
               NSAutomaticCapitalizationEnabled = false;
               NSAutomaticPeriodSubstitutionEnabled = false;
+              NSWindowShouldDragOnGesture = true;
               "com.apple.swipescrolldirection" = false;
             };
           };
