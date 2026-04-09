@@ -2,6 +2,7 @@
 let
   hostMeta = {
     name = "rvn-mac";
+    role = "laptop";
     sshAlias = "mac";
     tailscale = "100.118.36.81";
     local = "192.168.167.54";

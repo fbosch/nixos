@@ -2,6 +2,7 @@
 let
   hostMeta = {
     name = "rvn-srv";
+    role = "server";
     sshAlias = "srv";
     tailscale = "100.125.172.110";
     local = "192.168.1.46";

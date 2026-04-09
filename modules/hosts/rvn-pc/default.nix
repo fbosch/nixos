@@ -5,6 +5,7 @@
 let
   hostMeta = {
     name = "rvn-pc";
+    role = "desktop";
     sshAlias = "pc";
     tailscale = "100.124.57.90";
     local = "192.168.1.169";

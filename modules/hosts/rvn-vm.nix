@@ -5,6 +5,7 @@
 let
   hostMeta = {
     name = "rvn-vm";
+    role = "vm";
     sshAlias = "vm";
     tailscale = null;
     local = null;

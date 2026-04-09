@@ -33,6 +33,23 @@ let
     "discrete"
     "virtual"
   ];
+
+  hostRoleType = lib.types.enum [
+    "server"
+    "desktop"
+    "laptop"
+    "vm"
+  ];
+
+  hostOsType = lib.types.enum [
+    "linux"
+    "darwin"
+  ];
+
+  hostArchType = lib.types.enum [
+    "x86_64"
+    "arm64"
+  ];
 in
 {
   # Declare options for flake metadata
@@ -80,6 +97,10 @@ in
               type = lib.types.str;
               description = "Full host name (matches flake host id)";
             };
+            role = lib.mkOption {
+              type = hostRoleType;
+              description = "Primary role of this host";
+            };
             sshAlias = lib.mkOption {
               type = lib.types.nullOr lib.types.str;
               default = null;
@@ -120,11 +141,11 @@ in
                 lib.types.submodule {
                   options = {
                     os = lib.mkOption {
-                      type = lib.types.str;
+                      type = hostOsType;
                       description = "Operating system family";
                     };
                     arch = lib.mkOption {
-                      type = lib.types.str;
+                      type = hostArchType;
                       description = "CPU architecture";
                     };
                   };
