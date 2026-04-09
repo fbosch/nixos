@@ -27,6 +27,14 @@ Do not run `sops` commands directly; they break the TUI. Instruct the user to ru
 - `config.flake.lib.resolveDarwin`: resolve Darwin module paths from string names.
 - `config.flake.lib.sopsHelpers`: SOPS helper set with `rootOnly`, `wheelReadable`, `worldReadable`, `mkSecrets`, `mkSecretsWithOpts`, and `mkSecret`.
 
+## Host Machine Metadata
+
+- Host machine details are defined in each host module under `hostMeta` and exported via `flake.meta.hosts`.
+- Primary location pattern: `modules/hosts/**`.
+- Use `hostname` to identify the current machine, then find the matching record in `flake.meta.hosts` by `name`.
+- Treat `hostMeta` as the source of static intent (model/fleet metadata, addressing, role-oriented fields).
+- Treat runtime facts (current firmware, live microcode revision, active peripherals, temperatures, uptime) as diagnostics to check on-host, not static metadata.
+
 ## Container Services Policy
 
 **IMPORTANT**: All container services MUST use Podman Quadlet (systemd container units), not custom build services or docker-compose.
