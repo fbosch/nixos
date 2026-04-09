@@ -19,11 +19,13 @@ let
       cpu = {
         vendor = "Apple";
         model = "M4 Pro";
+        family = "Apple Silicon";
         cores = 14;
       };
       gpu = {
         vendor = "Apple";
         model = "M4 Pro";
+        kind = "integrated";
       };
     };
   };

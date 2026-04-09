@@ -6,12 +6,33 @@ let
     tailscale = "100.125.172.110";
     local = "192.168.1.46";
     sshPublicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJl/WCQsXEkE7em5A6d2Du2JAWngIPfA8sVuJP/9cuyq fbb@nixos";
+    useTailnet = false;
     dnsServers = [
       "127.0.0.1"
       "192.168.1.202"
       "9.9.9.9"
       "149.112.112.112"
     ];
+    system = "x86_64-linux";
+    platform = {
+      os = "linux";
+      arch = "x86_64";
+    };
+    hardware = {
+      vendor = "MSI";
+      model = "Cubi";
+      cpu = {
+        vendor = "Intel";
+        model = "N200";
+        family = "Alder Lake-N";
+        cores = 4;
+      };
+      gpu = {
+        vendor = "Intel";
+        model = "Alder Lake-N UHD Graphics";
+        kind = "integrated";
+      };
+    };
   };
 in
 {
