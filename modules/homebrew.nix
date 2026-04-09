@@ -35,6 +35,7 @@
         brews = [
           "mas"
           "rtk"
+          "bentobox"
         ];
       };
     };
