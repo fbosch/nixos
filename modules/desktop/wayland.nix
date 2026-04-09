@@ -34,7 +34,8 @@
           pkgs.nwg-displays
           pkgs.wlr-randr
           pkgs.wl-clipboard
-          pkgs.wl-clipboard-x11
+          pkgs.xclip
+          pkgs.xsel
           pkgs.autocutsel
           pkgs.cliphist
           pkgs.wl-clip-persist

@@ -86,6 +86,11 @@ in
       settings = lib.mkMerge [
         nixosNixSettings
         {
+          allowed-users = [
+            "root"
+            "@wheel"
+          ];
+
           trusted-users = [
             "root"
             "@wheel"

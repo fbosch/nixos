@@ -1,6 +1,5 @@
 { pkgs
 , options
-, lib
 , ...
 }:
 {
@@ -70,8 +69,6 @@
     };
     spice-vdagentd.enable = true;
 
-    # Disable system76-scheduler (conflicts with ananicy-cpp and uses eBPF unnecessarily in VM)
-    system76-scheduler.enable = lib.mkForce false;
   };
 
   environment.systemPackages = with pkgs; [

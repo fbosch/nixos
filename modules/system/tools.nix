@@ -14,6 +14,7 @@
         icu
         dig
         lazyjournal
+        mission-center
       ];
     };
 }

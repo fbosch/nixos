@@ -34,6 +34,7 @@
         peco
         tree
         just
+        comma
 
         grc
         cloc

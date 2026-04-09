@@ -18,7 +18,6 @@
           package = pkgs.ananicy-cpp;
           rulesProvider = pkgs.ananicy-rules-cachyos;
         };
-        system76-scheduler.enable = true;
       };
 
       zramSwap.enable = true;

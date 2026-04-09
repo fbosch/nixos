@@ -51,7 +51,7 @@ else
 	package_name="$(select_package_with_gum)"
 fi
 
-if [[ "$package_name" == *"/"* ]]; then
+if [[ $package_name == *"/"* ]]; then
 	echo "Error: package name must be a by-name key (for example: surge), not a path." >&2
 	exit 1
 fi
