@@ -10,12 +10,7 @@ let
   };
 in
 {
-  # rvn-mac: Dendritic host configuration for MacBook Pro
-  # Hardware: Apple Silicon MacBook Pro
-  # Role: Development workstation running nix-darwin with Home Manager
-
   flake = {
-    # Host metadata
     meta.hosts = [ hostMeta ];
 
     modules.darwin."hosts/rvn-mac" =
