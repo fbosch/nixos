@@ -39,7 +39,7 @@ in
 
         imageTag = lib.mkOption {
           type = lib.types.str;
-          default = "1.13.11";
+          default = "1.13.12";
           description = "Speedtest Tracker Docker image tag";
         };
       };
