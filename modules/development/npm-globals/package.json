@@ -3,7 +3,7 @@
   "private": true,
   "packageManager": "pnpm@10.33.0",
   "dependencies": {
-    "@anthropic-ai/claude-code": "2.1.96",
+    "@anthropic-ai/claude-code": "2.1.97",
     "@fission-ai/openspec": "1.2.0",
     "@github/copilot": "1.0.21",
     "@schpet/linear-cli": "2.0.0",
