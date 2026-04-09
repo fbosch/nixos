@@ -9,7 +9,7 @@
       boot = {
         # Hide boot messages for clean splash screen experience
         consoleLogLevel = 3; # Show only errors and critical messages
-        kernelPackages = pkgs.cachyosKernels.linuxPackages-cachyos-latest;
+        kernelPackages = pkgs.cachyosKernels.linuxPackages-cachyos-lts;
         kernelModules = [ "ntsync" ];
         kernelParams = [
           "quiet" # Suppress most kernel messages
