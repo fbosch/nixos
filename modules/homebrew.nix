@@ -30,12 +30,12 @@
           "obsidian"
           "codexbar"
           "linear-linear"
+          "bentobox"
         ];
 
         brews = [
           "mas"
           "rtk"
-          "bentobox"
         ];
       };
     };
