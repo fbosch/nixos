@@ -91,9 +91,6 @@
           { config, ... }:
           {
             local = config.packages;
-            buildNpmGlobalPackage = import "${inputs.self}/pkgs/lib/buildNpmGlobalPackage.nix" {
-              pkgs = final;
-            };
           }
         );
 
