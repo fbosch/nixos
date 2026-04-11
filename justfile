@@ -28,6 +28,10 @@ build-images: build-helium build-openmemory
 lint:
     nix run .#lint
 
+# Validate documented service ports against rvn-srv declarations
+check-service-ports:
+    bash ./scripts/check-service-ports.sh
+
 # Format all files
 fmt:
     nix run .#fmt

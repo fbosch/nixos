@@ -2,6 +2,8 @@
 
 Current service port assignments used by the `rvn-srv` host.
 
+Declared container ports for `rvn-srv` are linted against this document.
+
 ## Port map
 
 | Service | Port(s) | Notes |
@@ -17,7 +19,9 @@ Current service port assignments used by the `rvn-srv` host.
 | redlib-container | `8282/tcp` | App port |
 | redlib-container (nginx) | `8283/tcp` | Reverse proxy port |
 | helium-services-container | `8100/tcp` | Helium service HTTP port |
+| openmemory-container | `8380/tcp`, `3380/tcp` | API server + dashboard |
 | linkwarden-container | `3100/tcp` | Web UI |
+| komodo | `9120/tcp`, `8120/tcp` | Core UI + periphery |
 | rdtclient | `6500/tcp` | Web UI/API |
 | flaresolverr-container | `8191/tcp` | FlareSolverr API |
 | speedtest-tracker | `8085/tcp` | Web UI |

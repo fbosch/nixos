@@ -39,6 +39,14 @@ else
 	exit_code=1
 fi
 
+if gum spin --spinner dot --title "service ports" -- bash ./scripts/check-service-ports.sh >/tmp/service-ports-output 2>&1; then
+	echo "$(gum style --foreground 2 '[OK]') service ports"
+else
+	echo "$(gum style --foreground 1 '[FAIL]') service ports"
+	cat /tmp/service-ports-output
+	exit_code=1
+fi
+
 shell_files=$(find scripts configs -type f -name '*.sh' 2>/dev/null || true)
 if [ -n "$shell_files" ]; then
 	if gum spin --spinner dot --title "shellcheck" -- sh -c "printf '%s\n' \"\$1\" | xargs -r shellcheck -S error" -- "$shell_files" >/tmp/shellcheck-output 2>&1; then

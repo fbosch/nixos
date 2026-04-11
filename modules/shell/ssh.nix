@@ -81,7 +81,7 @@ in
           (lib.mkMerge (map mkMatchBlocks hosts))
           {
             "ssh.dev.azure.com" = {
-              identityFile = "~/.ssh/id_rsa.pub";
+              identityFile = "~/.ssh/id_rsa";
               identitiesOnly = true;
               extraOptions = {
                 HostkeyAlgorithms = "+ssh-rsa";
