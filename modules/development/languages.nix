@@ -9,6 +9,7 @@
         rustc
         rustup
         zig
+        lua
       ];
     };
 }
