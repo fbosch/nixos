@@ -18,7 +18,7 @@ mapfile -t declared_ports < <(
 missing_ports=()
 
 for port in "${declared_ports[@]}"; do
-  if ! rg -Fq "$port" "$doc_path"; then
+  if ! grep -Fq -- "$port" "$doc_path"; then
     missing_ports+=("$port")
   fi
 done
