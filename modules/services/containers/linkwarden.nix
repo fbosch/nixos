@@ -247,7 +247,7 @@ in
 
             [Container]
             ContainerName=linkwarden-meilisearch
-            Image=docker.io/getmeili/meilisearch:v1.41.0
+            Image=docker.io/getmeili/meilisearch:v1.42.0
             Network=linkwarden.network
             PodmanArgs=--network-alias=meilisearch
             ${lib.optionalString (cfg.envFile != null) "EnvironmentFile=${cfg.envFile}"}
