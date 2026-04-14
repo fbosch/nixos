@@ -10,7 +10,7 @@
     in
     {
       home.packages = [
-        pkgsStable.wezterm
+        pkgs.wezterm
         pkgs.foot
         pkgs.kitty
         pkgs.ghostty
