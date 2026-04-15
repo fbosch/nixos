@@ -1,11 +1,8 @@
 {
   flake.modules.nixos."hosts/rvn-pc/platform" =
-    { config, lib, ... }:
+    { config, ... }:
     {
       services = {
-        # Avoid running two process-priority daemons with overlapping policies.
-        ananicy.enable = lib.mkForce false;
-
         irqbalance.enable = true;
 
         # Enable SSH for remote access
