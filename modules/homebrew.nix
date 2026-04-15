@@ -36,7 +36,7 @@
 
         brews = [
           "mas"
-          "homebrew/core/rtk"
+          "rtk"
           "lightpanda"
         ];
       };
