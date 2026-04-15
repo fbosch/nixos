@@ -43,27 +43,31 @@
           pkgs.ast-grep;
     in
     {
-      home.packages = with pkgs; [
-        stylua
-        luarocks
-        biome
-        deno
-        docker
-        docker-buildx
-        bacon
-        azureCli
-        units
-        astGrep
-        keychain
-        openssl
-        statix
-        deadnix
-        nixpkgs-fmt
-        posting
-        pastel
-        ripsecrets
-        shellcheck
-        luajitPackages.luacheck
-      ];
+      home.packages =
+        (with pkgs; [
+          stylua
+          luarocks
+          biome
+          deno
+          docker
+          docker-buildx
+          bacon
+          azureCli
+          units
+          astGrep
+          keychain
+          openssl
+          statix
+          deadnix
+          nixpkgs-fmt
+          posting
+          pastel
+          ripsecrets
+          shellcheck
+          luajitPackages.luacheck
+        ])
+        ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isLinux [
+          pkgs.local.lightpanda
+        ];
     };
 }
