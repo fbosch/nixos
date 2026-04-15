@@ -64,6 +64,7 @@
         ripsecrets
         shellcheck
         luajitPackages.luacheck
+        pkgs.local.lightpanda
       ];
     };
 }
