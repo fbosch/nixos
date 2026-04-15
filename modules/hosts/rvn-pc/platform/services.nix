@@ -6,6 +6,8 @@
         # Avoid running two process-priority daemons with overlapping policies.
         ananicy.enable = lib.mkForce false;
 
+        irqbalance.enable = true;
+
         # Enable SSH for remote access
         openssh = {
           enable = true;

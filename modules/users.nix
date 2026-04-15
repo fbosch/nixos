@@ -11,6 +11,7 @@
         description = lib.mkForce config.flake.meta.user.fullName;
         openssh.authorizedKeys.keys = lib.mkForce config.flake.meta.user.ssh.authorizedKeys;
         extraGroups = lib.mkForce [
+          "gamemode"
           "networkmanager"
           "wheel"
         ];
