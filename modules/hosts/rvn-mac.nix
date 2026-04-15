@@ -113,11 +113,14 @@ in
           };
         };
 
-        # Add user to trusted users (core already adds @admin)
-        nix.settings.trusted-users = [ config.flake.meta.user.username ];
+        nix.settings = {
+          # Add user to trusted users (core already adds @admin)
+          trusted-users = [ config.flake.meta.user.username ];
 
-        # limit how many cores nix build can use
-        nix.settings.cores = 6;
+          # Keep rebuilds responsive on this laptop.
+          max-jobs = 4;
+          cores = 2;
+        };
 
         # Enable biometric auth for sudo on macOS
         security.pam.services.sudo_local.touchIdAuth = true;
