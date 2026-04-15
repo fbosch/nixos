@@ -12,6 +12,7 @@
 
         taps = [
           "steipete/tap"
+          "lightpanda-io/browser"
         ];
 
         casks = [
@@ -36,6 +37,7 @@
         brews = [
           "mas"
           "rtk"
+          "lightpanda"
         ];
       };
     };
