@@ -94,8 +94,11 @@ in
             max-jobs = "auto";
             cores = 0;
             extra-substituters = [
+              # Flox cache: useful for prebuilt CUDA/NVIDIA-related artifacts.
               "https://cache.flox.dev"
+              # CachyOS kernel cache (Hydra/Attic) for nix-cachyos-kernel artifacts.
               "https://attic.xuyh0120.win/lantian"
+              # CachyOS kernel cache mirror built on Garnix.
               "https://cache.garnix.io"
             ];
             extra-trusted-public-keys = [
