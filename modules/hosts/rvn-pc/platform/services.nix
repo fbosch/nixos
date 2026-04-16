@@ -7,7 +7,7 @@
 
         # Enable SSH for remote access
         openssh = {
-          enable = true;
+          enable = false;
           startWhenNeeded = true;
         };
 

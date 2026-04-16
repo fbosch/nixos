@@ -78,7 +78,6 @@ in
 
             # virtualization
             "virtualization/podman"
-            "virtualization/libvirt"
 
           ]
           ++ [

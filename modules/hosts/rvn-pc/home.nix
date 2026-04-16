@@ -10,7 +10,6 @@
 
         # Shared modules with Home Manager components
         "secrets"
-        "windows"
       ]
       ++ [
         # External Home Manager modules
