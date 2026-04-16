@@ -37,6 +37,7 @@ if [[ $OSTYPE == "darwin"* ]]; then
 else
 	PLATFORM="NixOS"
 	AGE_KEY_FILE="/var/lib/sops-nix/key.txt"
+	HM_AGE_KEY_FILE="$HOME/.config/sops/age/keys.txt"
 	# shellcheck disable=SC2016
 	REBUILD_CMD='sudo nixos-rebuild switch --flake .#$(hostname)'
 	SED_INPLACE=(-i)
@@ -97,6 +98,16 @@ else
 		chmod 600 "$AGE_KEY_FILE"
 	fi
 	echo "Generated age key at $AGE_KEY_FILE"
+	echo
+fi
+
+# Keep Home Manager sops-nix key in sync with system key on NixOS.
+if [[ $PLATFORM == "NixOS" ]]; then
+	mkdir -p "$(dirname "$HM_AGE_KEY_FILE")"
+	sudo install -Dm600 "$AGE_KEY_FILE" "$HM_AGE_KEY_FILE"
+	sudo chown "$USER:$(id -gn "$USER")" "$HM_AGE_KEY_FILE"
+	chmod 600 "$HM_AGE_KEY_FILE"
+	echo "Synced user age key: $HM_AGE_KEY_FILE"
 	echo
 fi
 
