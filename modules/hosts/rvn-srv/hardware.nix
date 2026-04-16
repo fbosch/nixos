@@ -1,0 +1,52 @@
+# Do not modify this file manually. It originates from nixos-generate-config
+# and may be overwritten when hardware configuration is regenerated.
+{
+  flake.modules.nixos."hosts/rvn-srv/hardware" =
+    { config
+    , lib
+    , modulesPath
+    , ...
+    }:
+    {
+      imports = [
+        (modulesPath + "/installer/scan/not-detected.nix")
+      ];
+
+      boot = {
+        initrd = {
+          availableKernelModules = [
+            "xhci_pci"
+            "ahci"
+            "nvme"
+            "usbhid"
+            "usb_storage"
+            "sd_mod"
+          ];
+          kernelModules = [ ];
+        };
+        kernelModules = [ "kvm-intel" ];
+        extraModulePackages = [ ];
+      };
+
+      fileSystems."/" = {
+        device = "/dev/disk/by-uuid/ce1428bf-24ee-4cb0-bc58-7493c69ee437";
+        fsType = "ext4";
+      };
+
+      fileSystems."/boot" = {
+        device = "/dev/disk/by-uuid/F7E6-7FB7";
+        fsType = "vfat";
+        options = [
+          "fmask=0077"
+          "dmask=0077"
+        ];
+      };
+
+      swapDevices = [
+        { device = "/dev/disk/by-uuid/664d28b0-b8fa-4102-8867-7e9d4fd86981"; }
+      ];
+
+      nixpkgs.hostPlatform = lib.mkDefault "x86_64-linux";
+      hardware.cpu.intel.updateMicrocode = lib.mkDefault config.hardware.enableRedistributableFirmware;
+    };
+}
