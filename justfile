@@ -40,6 +40,10 @@ fmt:
 update-sops-keys:
     bash ./scripts/update-sops-keys.sh
 
+# Add/update current host age key in .sops.yaml and re-encrypt secrets
+update-host-age-key:
+    bash ./scripts/bootstrap-age.sh
+
 # Update GitHub avatar hash in flake metadata
 update-avatar:
     bash ./scripts/update-avatar.sh
