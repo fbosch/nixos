@@ -11,7 +11,7 @@
     "corepack": "0.34.6",
     "neovim": "5.4.0",
     "opencode-ai": "1.4.3",
-    "opencode-claude-auth": "1.4.9",
+    "opencode-claude-auth": "1.5.0",
     "pokemonshow": "4.0.0",
     "vercel": "51.2.1"
   }
