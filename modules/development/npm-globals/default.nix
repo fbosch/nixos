@@ -172,20 +172,6 @@
           pnpmHome
         ];
 
-        activation.installNpmGlobalPackages = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
-          export PNPM_HOME_VALUE="${pnpmHome}"
-          export PNPM_STORE_DIR_VALUE="${pnpmStoreDir}"
-          export STATE_DIR_VALUE="$HOME/.local/state/pnpm-globals"
-          export NPM_REGISTRY_HOST="registry.npmjs.org"
-          export PNPM_BIN="${pkgs.pnpm}/bin/pnpm"
-          export NODE_BIN_DIR="${pkgs.nodejs_24}/bin"
-          export PNPM_BIN_DIR="${pkgs.pnpm}/bin"
-          export BUN_BIN_DIR="${pkgs.bun}/bin"
-          export LOCKFILE_PATH="${./pnpm-lock.yaml}"
-          export YQ_BIN="${pkgs.yq-go}/bin/yq"
-
-          ${installNpmGlobalPackagesScript}/bin/install-npm-global-packages
-        '';
       };
     };
 }
