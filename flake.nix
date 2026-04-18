@@ -134,6 +134,10 @@
       url = "github:aylur/ags";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    handy = {
+      url = "github:cjpais/Handy";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
     # Boot theming
     grub2-themes = {
