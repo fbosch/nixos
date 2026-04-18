@@ -45,6 +45,7 @@
     {
       home.packages =
         (with pkgs; [
+          tree-sitter
           stylua
           luarocks
           biome
