@@ -8,9 +8,9 @@
     "@github/copilot": "1.0.31",
     "@schpet/linear-cli": "2.0.0",
     "agent-browser": "0.26.0",
-    "corepack": "0.34.6",
+    "corepack": "0.34.7",
     "neovim": "5.4.0",
-    "opencode-ai": "1.4.7",
+    "opencode-ai": "1.4.9",
     "opencode-claude-auth": "1.5.0",
     "pokemonshow": "4.0.0",
     "vercel": "51.6.1"
