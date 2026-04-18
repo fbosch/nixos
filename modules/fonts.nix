@@ -185,6 +185,11 @@
           lib.hm.dag.entryAfter [ "linkGeneration" ] ''
             set -euo pipefail
 
+            if [ -n "''${oldGenPath:-}" ] && [ "''${oldGenPath}" = "''${newGenPath:-}" ]; then
+              echo "Home Manager generation unchanged, skipping font cache refresh"
+              exit 0
+            fi
+
             fonts_dir="''${XDG_DATA_HOME:-$HOME/.local/share}/fonts"
             ${pkgs.fontconfig}/bin/fc-cache -f "$fonts_dir"
           ''
