@@ -1,5 +1,9 @@
+{ inputs, ... }:
 {
-  flake.modules.nixos.applications = _: { services.flatpak.enable = true; };
+  flake.modules.nixos.applications = {
+    imports = [ inputs.flatpaks.nixosModules.nix-flatpak ];
+    services.flatpak.enable = true;
+  };
   flake.modules.homeManager.applications = _: {
     services.flatpak = {
       enable = true;

@@ -22,7 +22,7 @@ in
         };
         settings = {
           General = {
-            scale = 1.0;
+            scale = 1.22;
             enable-animations = true;
           };
           LockScreen = {
@@ -30,6 +30,7 @@ in
             blur = 7;
           };
           "LockScreen.Clock" = {
+            position = "center";
             "font-family" = "\"SF Pro Rounded\"";
             format = "HH:mm";
             "font-size" = 140;
@@ -43,13 +44,13 @@ in
             "font-size" = 23;
             "font-weight" = 500;
             color = "#B3FFFFFF";
-            "margin-top" = -30;
+            "margin-top" = 12;
           };
           "LockScreen.Message" = {
             "display-icon" = false;
             text = "NixOS ${nixosVersion} | Linux ${linuxKernelVersion}\nPress any key";
             position = "bottom-center";
-            "font-family" = "\"SF Pro Rounded\"";
+            "font-family" = "\"SF Pro Text\"";
             "font-size" = 14;
             "font-weight" = 500;
             color = "#B3FFFFFF";
@@ -63,7 +64,7 @@ in
           };
           "LoginScreen.LoginArea" = {
             position = "center";
-            margin = -1;
+            margin = 90;
           };
           "LoginScreen.LoginArea.Avatar" = {
             shape = "circle";
@@ -72,23 +73,28 @@ in
             "inactive-opacity" = 1.0;
           };
           "LoginScreen.LoginArea.PasswordInput" = {
-            width = 230;
-            height = 43;
+            width = 250;
+            height = 48;
+            "display-icon" = false;
             border-size = 0;
+            "background-color" = "#FFFFFF";
             "border-radius-left" = 22;
             "border-radius-right" = 22;
-            "background-opacity" = 0.12;
-            "content-color" = "#BFFFFFFF";
-            "font-size" = 18;
+            "background-opacity" = 0.16;
+            "content-color" = "#FFFFFF";
+            "font-size" = 20;
             "font-family" = "\"SF Pro Rounded\"";
+            "masked-character" = "●";
+            "margin-top" = 18;
           };
           "LoginScreen.LoginArea.Username" = {
-            "font-family" = "\"SF Pro Rounded\"";
-            "font-size" = 23;
+            "font-family" = "\"SF Pro Text\"";
+            "font-size" = 24;
             color = "#B3FFFFFF";
+            margin = 14;
           };
           "LoginScreen.LoginArea.LoginButton" = {
-            "font-family" = "\"SF Pro Rounded\"";
+            "font-family" = "\"SF Pro Text\"";
             "font-size" = 18;
           };
         };

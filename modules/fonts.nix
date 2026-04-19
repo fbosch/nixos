@@ -24,6 +24,12 @@
               } "$out/share/fonts/opentype/SF-Pro-Rounded-Regular.otf"
               install -Dm644 ${
                 pkgs.fetchurl {
+                  url = "https://raw.githubusercontent.com/sahibjotsaggu/San-Francisco-Pro-Fonts/master/SF-Pro-Text-Regular.otf";
+                  sha256 = "sha256-Ov0qyVxb/487oy8NZYZACUdnRznYV+c/TXtjlLCui3c=";
+                }
+              } "$out/share/fonts/opentype/SF-Pro-Text-Regular.otf"
+              install -Dm644 ${
+                pkgs.fetchurl {
                   url = "https://raw.githubusercontent.com/sahibjotsaggu/San-Francisco-Pro-Fonts/master/SF-Pro-Rounded-Medium.otf";
                   sha256 = "sha256-pTyu3elDUk/6ImW24eJNJ3t2kSMPfYB1XLQZ167yj70=";
                 }
