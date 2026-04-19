@@ -29,6 +29,11 @@ in
         setupDotfiles = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
           set -euo pipefail
 
+          if [ -n "''${oldGenPath:-}" ] && [ "''${oldGenPath}" = "''${newGenPath:-}" ]; then
+            echo "Home Manager generation unchanged, skipping dotfiles setup"
+            exit 0
+          fi
+
           if [ ! -d ${REPO}/.git ]; then
             echo "Cloning dotfiles repository at revision ${DOTFILES_REV}..."
             $DRY_RUN_CMD ${pkgs.git}/bin/git clone ${DOTFILES_URL} ${REPO}
@@ -51,6 +56,12 @@ in
         # so stow doesn't conflict with Home Manager's own symlinks.
         stowDotFiles = lib.hm.dag.entryAfter [ "setupDotfiles" "linkGeneration" ] ''
           set -euo pipefail
+
+          if [ -n "''${oldGenPath:-}" ] && [ "''${oldGenPath}" = "''${newGenPath:-}" ]; then
+            echo "Home Manager generation unchanged, skipping dotfiles stow"
+            exit 0
+          fi
+
           cd ${REPO}
           CURRENT_REV=$(${pkgs.git}/bin/git rev-parse --short HEAD 2>/dev/null || echo "unknown")
           echo "Stowing dotfiles from current revision: $CURRENT_REV"

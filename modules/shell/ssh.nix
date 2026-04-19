@@ -101,6 +101,11 @@ in
 
       home.activation = lib.mkIf hasSopsPrivateKey {
         syncSshPublicKey = lib.hm.dag.entryAfter [ "sopsInstallSecrets" "writeBoundary" ] ''
+          if [ -n "''${oldGenPath:-}" ] && [ "''${oldGenPath}" = "''${newGenPath:-}" ]; then
+            echo "Home Manager generation unchanged, skipping SSH public key sync"
+            exit 0
+          fi
+
           if [ -r ${privateKeyPath} ]; then
             $DRY_RUN_CMD ${lib.getExe' pkgs.coreutils "mkdir"} -p ${config.home.homeDirectory}/.ssh
 

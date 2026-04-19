@@ -60,6 +60,11 @@
 
       home.activation.generateFishSecrets = lib.mkIf hasAnySecrets (
         lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+          if [ -n "''${oldGenPath:-}" ] && [ "''${oldGenPath}" = "''${newGenPath:-}" ]; then
+            echo "Home Manager generation unchanged, skipping Fish secrets generation"
+            exit 0
+          fi
+
           $DRY_RUN_CMD mkdir -p ${config.home.homeDirectory}/.config/fish
           umask 077
           cat > ${config.home.homeDirectory}/.config/fish/private.fish << 'EOF'

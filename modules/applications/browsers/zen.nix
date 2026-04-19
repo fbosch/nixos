@@ -6,6 +6,11 @@
     }:
     {
       home.activation.zenCacheToRAM = config.lib.dag.entryAfter [ "writeBoundary" ] ''
+        if [ -n "''${oldGenPath:-}" ] && [ "''${oldGenPath}" = "''${newGenPath:-}" ]; then
+          echo "Home Manager generation unchanged, skipping Zen cache setup"
+          exit 0
+        fi
+
         ZEN_PROFILE="$HOME/.var/app/app.zen_browser.zen/.zen"
         if [ -d "$ZEN_PROFILE" ]; then
           PROFILE_DIR=$(${pkgs.findutils}/bin/find "$ZEN_PROFILE" -maxdepth 1 -name "*.default*" -type d | ${pkgs.coreutils}/bin/head -1)

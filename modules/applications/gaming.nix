@@ -91,6 +91,11 @@ _: {
         in
         {
           updateSteamTheme = config.lib.dag.entryAfter [ "writeBoundary" "dconfSettings" ] ''
+            if [ -n "''${oldGenPath:-}" ] && [ "''${oldGenPath}" = "''${newGenPath:-}" ]; then
+              echo "Home Manager generation unchanged, skipping Steam theme update"
+              exit 0
+            fi
+
             run ${applySteamTheme}
           '';
         }

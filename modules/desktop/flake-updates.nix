@@ -1,5 +1,10 @@
 _: {
-  flake.modules.homeManager.desktop = { lib, pkgs, config, ... }:
+  flake.modules.homeManager.desktop =
+    { lib
+    , pkgs
+    , config
+    , ...
+    }:
     let
       flakeCheckScript = pkgs.writeShellScriptBin "flake-check-updates" ''
         set -euo pipefail
@@ -188,6 +193,11 @@ _: {
 
       # Trigger update check after rebuild to ensure cache is current
       home.activation.flakeUpdatesCache = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+        if [ -n "''${oldGenPath:-}" ] && [ "''${oldGenPath}" = "''${newGenPath:-}" ]; then
+          echo "Home Manager generation unchanged, skipping flake update cache trigger"
+          exit 0
+        fi
+
         if [ -n "''${DRY_RUN:-}" ]; then
           echo "Would trigger flake update check"
         else
