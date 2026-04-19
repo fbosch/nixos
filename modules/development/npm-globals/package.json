@@ -10,7 +10,7 @@
     "agent-browser": "0.26.0",
     "corepack": "0.34.7",
     "neovim": "5.4.0",
-    "opencode-ai": "1.4.11",
+    "opencode-ai": "1.4.12",
     "opencode-claude-auth": "1.5.0",
     "pokemonshow": "4.0.0",
     "vercel": "51.7.0"

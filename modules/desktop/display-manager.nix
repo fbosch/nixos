@@ -9,16 +9,19 @@ in
     programs.silentSDDM = {
       enable = true;
       theme = "default";
+      backgrounds = {
+        main = sddmBackground;
+      };
       settings = {
         General = {
           scale = 1.0;
           enable-animations = true;
         };
         LockScreen = {
-          background = "${sddmBackground}";
+          background = "wallpaper.png";
         };
         LoginScreen = {
-          background = "${sddmBackground}";
+          background = "wallpaper.png";
           use-background-color = false;
           background-color = "#000000";
           blur = 0;
@@ -60,6 +63,12 @@ in
         };
       };
       defaultSession = "hyprland-uwsm";
+    };
+
+    systemd.services.display-manager.environment = {
+      XCURSOR_THEME = "WinSur-white-cursors";
+      XCURSOR_SIZE = "28";
+      XCURSOR_PATH = "/run/current-system/sw/share/icons";
     };
   };
 }

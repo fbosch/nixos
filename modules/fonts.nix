@@ -1,21 +1,64 @@
 {
   flake.modules = {
     nixos.fonts =
-      { pkgs, ... }:
+      { pkgs
+      , lib
+      , config
+      , ...
+      }:
+      let
+        allowProprietary = config.nixpkgs.config.allowUnfree or false;
+
+        sfProRoundedSystem =
+          if !allowProprietary then
+            null
+          else
+            pkgs.runCommandLocal "sf-pro-rounded-system-fonts" { } ''
+              set -euo pipefail
+              mkdir -p "$out/share/fonts/opentype"
+              install -Dm644 ${
+                pkgs.fetchurl {
+                  url = "https://raw.githubusercontent.com/sahibjotsaggu/San-Francisco-Pro-Fonts/master/SF-Pro-Rounded-Regular.otf";
+                  sha256 = "sha256-law3sWLJMN9jjLnLFJw2+HHL8fQpZsyYuA63/uGtyW4=";
+                }
+              } "$out/share/fonts/opentype/SF-Pro-Rounded-Regular.otf"
+              install -Dm644 ${
+                pkgs.fetchurl {
+                  url = "https://raw.githubusercontent.com/sahibjotsaggu/San-Francisco-Pro-Fonts/master/SF-Pro-Rounded-Medium.otf";
+                  sha256 = "sha256-pTyu3elDUk/6ImW24eJNJ3t2kSMPfYB1XLQZ167yj70=";
+                }
+              } "$out/share/fonts/opentype/SF-Pro-Rounded-Medium.otf"
+              install -Dm644 ${
+                pkgs.fetchurl {
+                  url = "https://raw.githubusercontent.com/sahibjotsaggu/San-Francisco-Pro-Fonts/master/SF-Pro-Rounded-Semibold.otf";
+                  sha256 = "sha256-iqm39XBGVQ78JzkPNOnYjn+SUz6jpC0v9pv4UuHl1Oc=";
+                }
+              } "$out/share/fonts/opentype/SF-Pro-Rounded-Semibold.otf"
+              install -Dm644 ${
+                pkgs.fetchurl {
+                  url = "https://raw.githubusercontent.com/sahibjotsaggu/San-Francisco-Pro-Fonts/master/SF-Pro-Rounded-Bold.otf";
+                  sha256 = "sha256-eLDNVmeashZbIpUiPWUZq84TnbB5VJO/Y3b23ZtQBBs=";
+                }
+              } "$out/share/fonts/opentype/SF-Pro-Rounded-Bold.otf"
+            '';
+      in
       {
         fonts = {
           fontconfig.enable = true;
           fontDir.enable = true;
-          packages = with pkgs; [
-            nerd-fonts.symbols-only
-            nerd-fonts.jetbrains-mono
-            dejavu_fonts
-            noto-fonts
-            noto-fonts-cjk-sans
-            noto-fonts-color-emoji
-            noto-fonts-emoji-blob-bin
-            unifont
-          ];
+          packages =
+            with pkgs;
+            [
+              nerd-fonts.symbols-only
+              nerd-fonts.jetbrains-mono
+              dejavu_fonts
+              noto-fonts
+              noto-fonts-cjk-sans
+              noto-fonts-color-emoji
+              noto-fonts-emoji-blob-bin
+              unifont
+            ]
+            ++ lib.optionals allowProprietary [ sfProRoundedSystem ];
         };
       };
 
