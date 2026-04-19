@@ -37,6 +37,13 @@
           enable = true;
           compositor = "weston";
         };
+        settings = {
+          Theme = {
+
+            EnableAvatars = true;
+            FacesDir = "/etc/sddm/faces";
+          };
+        };
       };
       defaultSession = "hyprland-uwsm";
     };
