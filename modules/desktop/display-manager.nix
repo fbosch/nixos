@@ -1,4 +1,7 @@
 { inputs, ... }:
+let
+  sddmBackground = ../../assets/wallpaper.png;
+in
 {
   flake.modules.nixos.desktop = {
     imports = [ inputs.silentSDDM.nixosModules.default ];
@@ -11,7 +14,11 @@
           scale = 1.0;
           enable-animations = true;
         };
+        LockScreen = {
+          background = "${sddmBackground}";
+        };
         LoginScreen = {
+          background = "${sddmBackground}";
           use-background-color = false;
           background-color = "#000000";
           blur = 0;
