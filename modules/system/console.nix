@@ -25,5 +25,4 @@
         "cbcbd5" # 15: bright white (brighter stone)
       ];
     };
-  };
-}
+  }

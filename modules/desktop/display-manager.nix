@@ -1,54 +1,23 @@
 _: {
   flake.modules.nixos.desktop =
-    { pkgs
-    , lib
-    , config
-    , ...
-    }:
+    { config, ... }:
     let
-      nixosConfig = config;
-
-      # TUIGreet configuration
-      tuigreetTheme = builtins.readFile ../../configs/greetd/theme.txt;
-      nixosVersion = "${nixosConfig.system.nixos.release} ${nixosConfig.system.nixos.codeName}";
-      linuxVersion = "Linux ${nixosConfig.boot.kernelPackages.kernel.version}";
-      issueText = builtins.readFile ../../configs/greetd/issue.txt;
-
-      # Session script for greetd
-      sessionScript = builtins.readFile ../../configs/greetd/session-hyprland.sh;
+      nixosVersion = "${config.system.nixos.release} ${config.system.nixos.codeName}";
+      linuxVersion = "Linux ${config.boot.kernelPackages.kernel.version}";
     in
     {
-      # Display custom issue banner on login
-      environment.etc = {
-        "issue".text = ''
-          ${issueText}
-          ${nixosVersion} (${linuxVersion})
-        '';
-
-        "greetd/session-hyprland" = {
-          text = sessionScript;
-          mode = "0755";
-        };
-      };
-
-      # Greetd with TUIGreet
-      services.greetd = {
+      services.displayManager.ly = {
         enable = true;
+        x11Support = true;
         settings = {
-          default_session = {
-            command = ''
-              ${pkgs.tuigreet}/bin/tuigreet --time --remember --asterisks --issue --greet-align center --theme ${lib.escapeShellArg (lib.removeSuffix "\n" tuigreetTheme)} --sessions "" --cmd /etc/greetd/session-hyprland
-            '';
-            user = "greeter";
-          };
+          initial_info_text = "${nixosVersion} (${linuxVersion})";
+          text_in_center = true;
+          margin_box_h = 10;
+          margin_box_v = 2;
+          input_len = 46;
+          hide_key_hints = true;
+          edge_margin = 1;
         };
       };
-
-      systemd.services.greetd = {
-        wantedBy = [ "graphical.target" ];
-      };
-
-      # Enable GNOME Keyring unlock via PAM
-      security.pam.services.greetd.enableGnomeKeyring = true;
     };
 }
