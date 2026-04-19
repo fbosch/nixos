@@ -108,8 +108,8 @@ in
           age.generateKey = true;
 
           secrets = lib.mkMerge [
-            # Common secrets - wheel readable
-            (mkSecretsWithOpts commonFile wheelReadable [
+            # Common secrets
+            (mkSecretsWithOpts commonFile rootOnly [
               "github-token"
             ])
 
@@ -130,8 +130,8 @@ in
               content = ''
                 access-tokens = github.com=${nixosConfig.sops.placeholder.github-token}
               '';
-              mode = "0440";
-              group = "wheel";
+              inherit (rootOnly) mode;
+              owner = "root";
             };
 
           };
@@ -140,6 +140,13 @@ in
         nix.extraOptions = ''
           !include ${nixosConfig.sops.templates."nix-github-token".path}
         '';
+
+        assertions = [
+          {
+            assertion = (nixosConfig.sops.templates."nix-github-token".group or null) != wheelReadable.group;
+            message = "nix-github-token template must not be wheel-readable";
+          }
+        ];
       };
 
     # Darwin-specific SOPS module (system-level secrets)
@@ -165,8 +172,8 @@ in
               "smb-password"
             ])
 
-            # Common secrets - wheel readable
-            (mkSecretsWithOpts commonFile wheelReadable [
+            # Common secrets
+            (mkSecretsWithOpts commonFile rootOnly [
               "github-token"
             ])
 
@@ -197,8 +204,8 @@ in
               content = ''
                 access-tokens = github.com=${darwinConfig.sops.placeholder.github-token}
               '';
-              mode = "0440";
-              group = "wheel";
+              inherit (rootOnly) mode;
+              owner = "root";
             };
           };
         };
@@ -206,6 +213,13 @@ in
         nix.extraOptions = ''
           !include ${darwinConfig.sops.templates."nix-github-token".path}
         '';
+
+        assertions = [
+          {
+            assertion = (darwinConfig.sops.templates."nix-github-token".group or null) != wheelReadable.group;
+            message = "nix-github-token template must not be wheel-readable";
+          }
+        ];
       };
   };
 }
