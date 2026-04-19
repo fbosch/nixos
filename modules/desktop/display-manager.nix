@@ -26,6 +26,13 @@
           width = 200;
           height = 30;
           border-size = 0;
+          "font-family" = "SF Pro Rounded";
+        };
+        "LoginScreen.LoginArea.Username" = {
+          "font-family" = "SF Pro Rounded";
+        };
+        "LoginScreen.LoginArea.LoginButton" = {
+          "font-family" = "SF Pro Rounded";
         };
       };
     };
