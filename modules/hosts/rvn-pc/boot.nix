@@ -11,12 +11,19 @@
         consoleLogLevel = 3; # Show only errors and critical messages
         kernelPackages = pkgs.cachyosKernels.linuxPackages-cachyos-latest;
         kernelModules = [ "ntsync" ];
+        initrd.kernelModules = [
+          "nvidia"
+          "nvidia_modeset"
+          "nvidia_uvm"
+          "nvidia_drm"
+        ];
         kernelParams = [
           "quiet" # Suppress most kernel messages
           "splash" # Enable splash screen
           "vt.global_cursor_default=1" # Keep cursor visible
           "udev.log_level=3" # Reduce udev verbosity
-          "rd.systemd.show_status=auto" # Only show status on errors
+          "rd.systemd.show_status=false" # Keep splash instead of initrd status output
+          "systemd.show_status=false" # Keep splash instead of userspace status output
           "rd.udev.log_level=3" # Reduce initrd udev verbosity
           # HDR support for NVIDIA
           "nvidia_drm.modeset=1" # Enable modesetting (required for HDR)
@@ -27,13 +34,13 @@
           "nvidia.NVreg_EnableStreamMemOPs=1" # Enable stream memory operations
           # Use deep suspend mode for better NVIDIA compatibility
           "mem_sleep_default=deep" # More reliable suspend with NVIDIA GPUs
-          # Fix framebuffer console artifacts
-          "fbcon=nodefer" # Prevent deferred framebuffer console takeover
           # Keep transparent huge pages available without forcing always-on compaction
           "transparent_hugepage=madvise"
         ];
 
         # Optimize tmpfs usage for 32GB RAM system
+        initrd.verbose = false;
+
         tmp = {
           useTmpfs = true;
           tmpfsSize = "16G"; # ~50% of RAM for temporary files

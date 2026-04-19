@@ -28,16 +28,35 @@ stdenvNoCC.mkDerivation {
   '';
 
   installPhase = ''
-    runHook preInstall
+        runHook preInstall
 
-    mkdir -p $out/share/plymouth/themes/monoarch-refined
-    cp -r monoarch-refined/* $out/share/plymouth/themes/monoarch-refined/
+        mkdir -p $out/share/plymouth/themes/monoarch-refined
+        cp -r monoarch-refined/* $out/share/plymouth/themes/monoarch-refined/
 
-    # Fix absolute paths in .plymouth file
-    substituteInPlace $out/share/plymouth/themes/monoarch-refined/monoarch-refined.plymouth \
-      --replace-fail "/usr/share/plymouth/themes/monoarch-refined" "$out/share/plymouth/themes/monoarch-refined"
+        # Plymouth mode naming changed across versions; keep spinner active on all boot-mode variants
+        substituteInPlace $out/share/plymouth/themes/monoarch-refined/monoarch-refined.script \
+          --replace-fail 'Plymouth.GetMode() == "boot"' '(Plymouth.GetMode() == "boot" || Plymouth.GetMode() == "boot-up" || Plymouth.GetMode() == "startup")'
 
-    runHook postInstall
+        # Keep splash clean: disable message renderer that looks like scrolling console text
+        cat >> $out/share/plymouth/themes/monoarch-refined/monoarch-refined.script <<'EOF'
+
+    fun display_message_callback (text)
+    {
+    }
+
+    fun hide_message_callback (text)
+    {
+    }
+
+    Plymouth.SetDisplayMessageFunction (display_message_callback);
+    Plymouth.SetHideMessageFunction (hide_message_callback);
+    EOF
+
+        # Fix absolute paths in .plymouth file
+        substituteInPlace $out/share/plymouth/themes/monoarch-refined/monoarch-refined.plymouth \
+          --replace-fail "/usr/share/plymouth/themes/monoarch-refined" "$out/share/plymouth/themes/monoarch-refined"
+
+        runHook postInstall
   '';
 
   meta = {
