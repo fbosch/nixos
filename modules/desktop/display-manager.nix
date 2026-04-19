@@ -1,23 +1,44 @@
-_: {
-  flake.modules.nixos.desktop =
-    { config, ... }:
-    let
-      nixosVersion = "${config.system.nixos.release} ${config.system.nixos.codeName}";
-      linuxVersion = "Linux ${config.boot.kernelPackages.kernel.version}";
-    in
-    {
-      services.displayManager.ly = {
-        enable = true;
-        x11Support = true;
-        settings = {
-          initial_info_text = "${nixosVersion} (${linuxVersion})";
-          text_in_center = true;
-          margin_box_h = 10;
-          margin_box_v = 2;
-          input_len = 46;
-          hide_key_hints = true;
-          edge_margin = 1;
+{ inputs, ... }:
+{
+  flake.modules.nixos.desktop = {
+    imports = [ inputs.silentSDDM.nixosModules.default ];
+
+    programs.silentSDDM = {
+      enable = true;
+      theme = "default";
+      settings = {
+        General = {
+          scale = 1.0;
+          enable-animations = true;
+        };
+        LoginScreen = {
+          use-background-color = false;
+          background-color = "#000000";
+          blur = 0;
+          brightness = 0.0;
+          saturation = 0.0;
+        };
+        "LoginScreen.LoginArea" = {
+          position = "center";
+          margin = -1;
+        };
+        "LoginScreen.LoginArea.PasswordInput" = {
+          width = 200;
+          height = 30;
+          border-size = 0;
         };
       };
     };
+
+    services.displayManager = {
+      ly.enable = false;
+      sddm = {
+        wayland = {
+          enable = true;
+          compositor = "weston";
+        };
+      };
+      defaultSession = "hyprland-uwsm";
+    };
+  };
 }

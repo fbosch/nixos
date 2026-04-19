@@ -5,8 +5,18 @@
     , lib
     , ...
     }:
+    let
+      inherit (config.flake.meta.user) username;
+      avatarFile =
+        if config.flake.meta.user.avatar.source != null then
+          config.flake.meta.user.avatar.source
+        else
+          pkgs.fetchurl {
+            inherit (config.flake.meta.user.avatar) url sha256;
+          };
+    in
     {
-      users.users.${config.flake.meta.user.username} = {
+      users.users.${username} = {
         isNormalUser = lib.mkForce true;
         description = lib.mkForce config.flake.meta.user.fullName;
         openssh.authorizedKeys.keys = lib.mkForce config.flake.meta.user.ssh.authorizedKeys;
@@ -17,6 +27,13 @@
         ];
         shell = lib.mkForce pkgs.fish;
         ignoreShellProgramCheck = lib.mkForce true;
+      };
+
+      environment.etc."sddm/faces/${username}.face.icon".source = avatarFile;
+
+      services.displayManager.sddm.settings.Theme = {
+        EnableAvatars = true;
+        FacesDir = "/etc/sddm/faces";
       };
 
     };
@@ -46,6 +63,7 @@
 
         # Link avatar to .face for display managers
         file.".face".source = avatarFile;
+        file.".face.icon".source = avatarFile;
       };
     };
 }

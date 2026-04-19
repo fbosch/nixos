@@ -85,6 +85,12 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # SDDM theme
+    silentSDDM = {
+      url = "github:uiriansan/SilentSDDM";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     # Secrets management (modules/sops.nix)
     sops-nix = {
       url = "github:Mic92/sops-nix";

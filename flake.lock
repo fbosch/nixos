@@ -1842,6 +1842,7 @@
         "nixpkgs-stable": "nixpkgs-stable",
         "pkgs-by-name-for-flake-parts": "pkgs-by-name-for-flake-parts_2",
         "pre-commit-hooks": "pre-commit-hooks_2",
+        "silentSDDM": "silentSDDM",
         "sops-nix": "sops-nix",
         "vicinae": "vicinae",
         "winapps": "winapps",
@@ -1866,6 +1867,26 @@
       "original": {
         "owner": "oxalica",
         "repo": "rust-overlay",
+        "type": "github"
+      }
+    },
+    "silentSDDM": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1775652648,
+        "narHash": "sha256-mLE7i9r9qenayJ8adWm22SbqUwLuopvRhyoizuZTtyo=",
+        "owner": "uiriansan",
+        "repo": "SilentSDDM",
+        "rev": "a0fb8a48de772c0340dd6639b331ebf6ec2eb554",
+        "type": "github"
+      },
+      "original": {
+        "owner": "uiriansan",
+        "repo": "SilentSDDM",
         "type": "github"
       }
     },

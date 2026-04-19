@@ -6,11 +6,11 @@
         pass
         gnupg
         pinentry-curses
+        bitwarden-desktop
       ];
 
       services.flatpak.packages = [
         "org.keepassxc.KeePassXC"
-        "com.bitwarden.desktop"
       ];
     };
 }
