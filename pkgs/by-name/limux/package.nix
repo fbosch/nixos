@@ -14,15 +14,18 @@ let
     hash = "sha256-y/QMnLWFPA2fDkp9/yCTyYkzoUjx3IAjNO9Rz6Ms3Hs=";
   };
 
-  icon = fetchurl {
-    url = "https://cmux.com/logo.png";
-    hash = "sha256-hw9pprEMK4oVm4yK9jA7EaLm+OnUMx8G4BGDkOEhVjs=";
-  };
+  icon = ./logo.png;
 in
 appimageTools.wrapType2 {
   inherit pname version src;
 
-  extraPkgs = pkgs: with pkgs; [ nss_latest ];
+  extraPkgs =
+    pkgs: with pkgs; [
+      nss_latest
+      gtk4
+      libadwaita
+      webkitgtk_6_0
+    ];
 
   extraInstallCommands = ''
     install -Dm444 ${icon} \
