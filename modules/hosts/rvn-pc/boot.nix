@@ -14,7 +14,7 @@
         kernelParams = [
           "quiet" # Suppress most kernel messages
           "splash" # Enable splash screen
-          "vt.global_cursor_default=0" # Hide cursor
+          "vt.global_cursor_default=1" # Keep cursor visible
           "udev.log_level=3" # Reduce udev verbosity
           "rd.systemd.show_status=auto" # Only show status on errors
           "rd.udev.log_level=3" # Reduce initrd udev verbosity
