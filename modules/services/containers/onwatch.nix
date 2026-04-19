@@ -161,7 +161,7 @@ in
           onwatch-container.opencodeAuthFile = lib.mkDefault "/home/${username}/.local/share/opencode/auth.json";
           onwatch-container.codexAuthFile = lib.mkDefault "/home/${username}/.codex/auth.json";
 
-          containerPorts = lib.mkAfter [
+          exposedPorts = lib.mkAfter [
             {
               service = "onwatch-container";
               tcpPorts = [ cfg.port ];

@@ -27,5 +27,16 @@ in
       useDHCP = false;
       nameservers = hostMeta.dnsServers;
     };
+
+    services.exposedPorts = lib.mkAfter [
+      {
+        service = "uptime-kuma";
+        tcpPorts = [ 3001 ];
+      }
+      {
+        service = "tailscale-relay";
+        udpPorts = [ 40000 ];
+      }
+    ];
   };
 }

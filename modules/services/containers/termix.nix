@@ -14,7 +14,7 @@ _: {
       };
 
       config = {
-        services.containerPorts = lib.mkAfter [
+        services.exposedPorts = lib.mkAfter [
           {
             service = "termix-container";
             tcpPorts = [ config.services.termix-container.port ];

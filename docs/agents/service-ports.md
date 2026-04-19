@@ -2,7 +2,7 @@
 
 Current service port assignments used by the `rvn-srv` host.
 
-Declared container ports for `rvn-srv` are linted against this document.
+Declared exposed ports for `rvn-srv` are linted against this document.
 
 ## Port map
 
@@ -16,6 +16,10 @@ Declared container ports for `rvn-srv` are linted against this document.
 | dozzle                    | `8090/tcp`                     | Container log viewer         |
 | gluetun-container         | `8889/tcp`, `8000/tcp`         | Proxy + control API          |
 | tinyproxy                 | `8888/tcp`                     | Local/TS proxy               |
+| uptime-kuma               | `3001/tcp`                     | Monitoring web UI            |
+| prowlarr                  | `9696/tcp`                     | *arr indexer manager         |
+| glances                   | `61208/tcp`                    | Monitoring web UI            |
+| tailscale-relay           | `40000/udp`                    | DERP relay server port       |
 | redlib-container          | `8282/tcp`                     | App port                     |
 | redlib-container (nginx)  | `8283/tcp`                     | Reverse proxy port           |
 | helium-services-container | `8100/tcp`                     | Helium service HTTP port     |
@@ -36,4 +40,4 @@ Declared container ports for `rvn-srv` are linted against this document.
 
 - Before assigning a new port, search for conflicts in `modules/**/*.nix`.
 - Keep this file updated when adding/changing service ports.
-- For container modules, also update `services.containerPorts` declarations used by `validation/container-port-conflicts`.
+- For service modules, also update `services.exposedPorts` declarations used by `validation/container-port-conflicts`.

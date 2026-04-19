@@ -4,7 +4,7 @@
   # Replaces the mkHost preset="desktop" pattern with explicit dendritic imports
   #
   # Based on config.flake.meta.presets.desktop:
-  #   modules: users, fonts, security, desktop, applications, development, shell
+  #   modules: users, fonts, security, security/keyring, desktop, applications, development, shell
   #   nixos: system, vpn
   #   homeManager: dotfiles
 
@@ -14,6 +14,7 @@
       "users"
       "fonts"
       "security"
+      "security/keyring"
       "desktop"
       "applications"
       "development"

@@ -72,7 +72,7 @@ _: {
       };
 
       config = {
-        services.containerPorts = lib.mkAfter [
+        services.exposedPorts = lib.mkAfter [
           {
             service = "rdtclient";
             tcpPorts = [ cfg.port ];

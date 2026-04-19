@@ -56,11 +56,11 @@ assertions = [{
 
 ### Firewall rules and port registration
 
-Each container module is responsible for both declaring its ports in `services.containerPorts` **and** opening them in `networking.firewall`. The `validation/container-port-conflicts` module only checks for port conflicts — it does not generate firewall rules.
+Each container module is responsible for both declaring its ports in `services.exposedPorts` **and** opening them in `networking.firewall`. The `validation/container-port-conflicts` module only checks for port conflicts — it does not generate firewall rules.
 
 ```nix
 # ✅ correct: both declarations live in the module
-services.containerPorts = lib.mkAfter [{
+services.exposedPorts = lib.mkAfter [{
   service = "myapp-container";
   tcpPorts = [ cfg.port ];
 }];
@@ -68,7 +68,7 @@ services.containerPorts = lib.mkAfter [{
 networking.firewall.allowedTCPPorts = [ cfg.port ];
 ```
 
-`services.containerPorts` is still required — omitting it means the conflict validator can't catch collisions with other services.
+`services.exposedPorts` is still required — omitting it means the conflict validator can't catch collisions with other services.
 
 ## Quadlet File
 
@@ -226,7 +226,7 @@ Requires=myapp-db.service
 - [ ] No `enable` option — use assertions for credential requirements
 - [ ] `cfg = config.services.<name>-container` alias in `let`
 - [ ] Quadlet file under `environment.etc."containers/systemd/<name>.container"`
-- [ ] `services.containerPorts` declaration — no direct `networking.firewall.*`
+- [ ] `services.exposedPorts` declaration — no direct `networking.firewall.*`
 - [ ] Resource limits use native Quadlet fields
 - [ ] `LogDriver=journald` + `LogOpt=tag=<name>` on every container
 - [ ] `[Service]` has `Restart=always`, `RestartSec=10`, `TimeoutStartSec=`

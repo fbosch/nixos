@@ -261,7 +261,7 @@ _: {
           '';
         in
         {
-          services.containerPorts = lib.mkAfter [
+          services.exposedPorts = lib.mkAfter [
             {
               service = "helium-services-container";
               tcpPorts = lib.optional (cfg.httpPort != null) cfg.httpPort;

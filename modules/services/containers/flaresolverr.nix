@@ -40,7 +40,7 @@ _: {
       };
 
       config = {
-        services.containerPorts = lib.mkAfter [
+        services.exposedPorts = lib.mkAfter [
           {
             service = "flaresolverr-container";
             tcpPorts = [ cfg.port ];

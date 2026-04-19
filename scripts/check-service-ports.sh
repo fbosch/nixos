@@ -11,7 +11,7 @@ if ! command -v jq >/dev/null 2>&1; then
 fi
 
 mapfile -t declared_ports < <(
-	nix eval --json ".#nixosConfigurations.${host}.config.services.containerPorts" |
+	nix eval --json ".#nixosConfigurations.${host}.config.services.exposedPorts" |
 		jq -r '[.[] | (.tcpPorts[]? | "\(.)/tcp"), (.udpPorts[]? | "\(.)/udp")] | unique | .[]'
 )
 
@@ -29,4 +29,4 @@ if [ "${#missing_ports[@]}" -gt 0 ]; then
 	exit 1
 fi
 
-echo "${doc_path} covers all declared container ports for ${host}"
+echo "${doc_path} covers all declared exposed ports for ${host}"

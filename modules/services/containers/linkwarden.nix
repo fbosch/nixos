@@ -189,7 +189,7 @@ in
           }
         ];
 
-        services.containerPorts = lib.mkAfter [
+        services.exposedPorts = lib.mkAfter [
           {
             service = "linkwarden-container";
             tcpPorts = [ cfg.port ];

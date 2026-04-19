@@ -174,7 +174,7 @@ in
           };
         };
 
-        services.containerPorts = lib.mkAfter [
+        services.exposedPorts = lib.mkAfter [
           {
             service = "glance-container";
             tcpPorts = [ cfg.port ];

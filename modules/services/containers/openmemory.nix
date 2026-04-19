@@ -382,7 +382,7 @@ in
             fi
           '';
 
-          services.containerPorts = lib.mkAfter [
+          services.exposedPorts = lib.mkAfter [
             {
               service = "openmemory-container";
               tcpPorts = [ cfg.port ] ++ lib.optional cfg.enableDashboard cfg.dashboardPort;

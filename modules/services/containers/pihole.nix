@@ -83,7 +83,7 @@ in
           mode = "0400";
         };
 
-        services.containerPorts = lib.mkAfter [
+        services.exposedPorts = lib.mkAfter [
           {
             service = "pihole-container";
             tcpPorts = [

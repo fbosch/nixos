@@ -107,7 +107,7 @@ _: {
         # We use Podman with docker-compat instead (from virtualization/podman.nix)
         virtualisation.docker.enable = lib.mkForce false;
 
-        services.containerPorts = lib.mkIf cfg.core.enable (
+        services.exposedPorts = lib.mkIf cfg.core.enable (
           lib.mkAfter [
             {
               service = "komodo";

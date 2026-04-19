@@ -138,7 +138,7 @@ in
           }
         ];
 
-        services.containerPorts = lib.mkAfter [
+        services.exposedPorts = lib.mkAfter [
           {
             service = "gluetun-container";
             tcpPorts = [ cfg.port ] ++ lib.optional cfg.controlServer.enable cfg.controlServer.port;

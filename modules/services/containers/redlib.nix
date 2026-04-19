@@ -94,7 +94,7 @@ _: {
       };
 
       config = {
-        services.containerPorts = lib.mkAfter [
+        services.exposedPorts = lib.mkAfter [
           {
             service = "redlib-container";
             tcpPorts = [ config.services.redlib-container.port ];

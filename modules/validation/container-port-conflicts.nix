@@ -5,7 +5,7 @@ _: {
     , ...
     }:
     {
-      options.services.containerPorts = lib.mkOption {
+      options.services.exposedPorts = lib.mkOption {
         type = lib.types.listOf (
           lib.types.submodule {
             options = {
@@ -27,7 +27,7 @@ _: {
           }
         );
         default = [ ];
-        description = "Declared container service ports for conflict checks";
+        description = "Declared service ports for conflict checks";
       };
 
       config = {
@@ -44,7 +44,7 @@ _: {
                     })
                     svc.tcpPorts
                 )
-                config.services.containerPorts
+                config.services.exposedPorts
             );
 
             udpPorts = lib.flatten (
@@ -58,7 +58,7 @@ _: {
                     })
                     svc.udpPorts
                 )
-                config.services.containerPorts
+                config.services.exposedPorts
             );
 
             # Helper function to find duplicate ports
@@ -92,14 +92,14 @@ _: {
             {
               assertion = tcpDuplicates == { };
               message = ''
-                Container services have conflicting TCP ports:
+                Services have conflicting TCP ports:
                 ${formatDuplicates "TCP" tcpDuplicates}
               '';
             }
             {
               assertion = udpDuplicates == { };
               message = ''
-                Container services have conflicting UDP ports:
+                Services have conflicting UDP ports:
                 ${formatDuplicates "UDP" udpDuplicates}
               '';
             }

@@ -60,7 +60,7 @@ _: {
       };
 
       config = {
-        services.containerPorts = lib.mkAfter [
+        services.exposedPorts = lib.mkAfter [
           {
             service = "dozzle";
             tcpPorts = [ cfg.port ];

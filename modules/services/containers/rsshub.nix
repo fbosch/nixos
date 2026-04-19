@@ -38,7 +38,7 @@ _: {
       };
 
       config = {
-        services.containerPorts = lib.mkAfter [
+        services.exposedPorts = lib.mkAfter [
           {
             service = "rsshub-container";
             tcpPorts = [ cfg.port ];

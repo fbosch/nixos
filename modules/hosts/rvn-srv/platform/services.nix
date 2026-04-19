@@ -187,6 +187,22 @@ in
           };
         };
       }
+      {
+        exposedPorts = [
+          {
+            service = "prowlarr";
+            tcpPorts = [ 9696 ];
+          }
+          {
+            service = "glances";
+            tcpPorts = [ 61208 ];
+          }
+          {
+            service = "tinyproxy";
+            tcpPorts = [ 8888 ];
+          }
+        ];
+      }
     ];
   };
 }

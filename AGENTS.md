@@ -42,7 +42,7 @@ Do not run `sops` commands directly; they break the TUI. Instruct the user to ru
 - Use `environment.etc."containers/systemd/*.container"` for container definitions
 - Reference pre-built images from registries (Docker Hub, ghcr.io, etc.) when they exist
 - Do NOT create custom systemd build services; if upstream has no images, ship a build helper command instead
-- Declare ports in `services.containerPorts` AND open them with `networking.firewall.*` in the same module — keep firewall rules colocated with the service that needs them
+- Declare ports in `services.exposedPorts` AND open them with `networking.firewall.*` in the same module — keep firewall rules colocated with the service that needs them
 - Use native Quadlet fields for resource limits (`Memory=`, `PidsLimit=`, `CPUQuota=`), not `PodmanArgs=`
 
 See the full authoring guide: [Container module authoring](docs/agents/container-modules.md)

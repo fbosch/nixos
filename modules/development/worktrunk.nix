@@ -1,13 +1,13 @@
 { inputs, ... }:
 {
   flake.modules.homeManager.worktrunk =
-    { ... }:
+    { pkgs, ... }:
     {
       imports = [ inputs.worktrunk.homeModules.default ];
 
       programs.worktrunk = {
         enable = true;
-        enableBashIntegration = true;
+        package = pkgs.worktrunk;
       };
     };
 }
