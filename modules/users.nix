@@ -30,12 +30,6 @@
       };
 
       environment.etc."sddm/faces/${username}.face.icon".source = avatarFile;
-
-      services.displayManager.sddm.settings.Theme = {
-        EnableAvatars = true;
-        FacesDir = "/etc/sddm/faces";
-      };
-
     };
 
   flake.modules.homeManager.users =
