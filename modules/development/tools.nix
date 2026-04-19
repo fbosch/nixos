@@ -69,6 +69,7 @@
         ])
         ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isLinux [
           pkgs.local.lightpanda
+          pkgs.local.limux
         ];
     };
 }
