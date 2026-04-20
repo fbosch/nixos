@@ -57,6 +57,7 @@
             [
               nerd-fonts.symbols-only
               nerd-fonts.jetbrains-mono
+              mononoki
               dejavu_fonts
               noto-fonts
               noto-fonts-cjk-sans
@@ -75,6 +76,7 @@
           packages = with pkgs; [
             nerd-fonts.symbols-only
             nerd-fonts.jetbrains-mono
+            mononoki
             dejavu_fonts
             noto-fonts
             noto-fonts-cjk-sans
