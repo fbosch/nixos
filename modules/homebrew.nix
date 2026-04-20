@@ -36,6 +36,7 @@
 
         brews = [
           "mas"
+          "mole"
           "rtk"
           "lightpanda"
         ];
