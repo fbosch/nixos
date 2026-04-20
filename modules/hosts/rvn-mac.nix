@@ -131,6 +131,7 @@ in
             nh
             nix-output-monitor
             keychain
+            neovim
             wezterm
             rectangle
             tailscale
