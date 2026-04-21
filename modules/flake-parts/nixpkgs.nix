@@ -25,7 +25,7 @@
           inputs.self.overlays.chromium-webapps-hardening
         ];
       };
-      enableByName = pkgs.stdenv.isLinux;
+      enableByNameLegacy = pkgs.stdenv.isLinux;
       inputsScope = lib.makeScope pkgs.newScope (_self: {
         inherit inputs;
       });
@@ -50,25 +50,28 @@
       byNameLegacyPackages = extractPackages scope;
       flattenPkgs =
         separator: path: value:
-        if lib.isDerivation value then
+        let
+          evaluated = builtins.tryEval value;
+        in
+        if !evaluated.success then
+          { }
+        else if lib.isDerivation evaluated.value then
           {
-            ${lib.concatStringsSep separator path} = value;
+            ${lib.concatStringsSep separator path} = evaluated.value;
           }
-        else if lib.isAttrs value then
-          lib.concatMapAttrs (name: flattenPkgs separator (path ++ [ name ])) value
+        else if lib.isAttrs evaluated.value then
+          lib.concatMapAttrs (name: flattenPkgs separator (path ++ [ name ])) evaluated.value
         else
           { };
     in
     {
-      legacyPackages = lib.mkIf enableByName (lib.mkForce byNameLegacyPackages);
+      legacyPackages = lib.mkIf enableByNameLegacy (lib.mkForce byNameLegacyPackages);
 
-      packages = lib.mkIf enableByName (
-        lib.mkForce (
-          let
-            flatPackages = flattenPkgs "/" [ ] byNameLegacyPackages;
-          in
-          lib.filterAttrs (_: pkg: lib.meta.availableOn pkgs.stdenv.hostPlatform pkg) flatPackages
-        )
+      packages = lib.mkForce (
+        let
+          flatPackages = flattenPkgs "/" [ ] byNameLegacyPackages;
+        in
+        lib.filterAttrs (_: pkg: lib.meta.availableOn pkgs.stdenv.hostPlatform pkg) flatPackages
       );
     };
 
