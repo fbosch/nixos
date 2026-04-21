@@ -25,6 +25,7 @@ let
             [settings]
             api_url = https://wakapi.corvus-corax.synology.me/api
             api_key = ${config.sops.placeholder.wakapi-api-key}
+            status_bar_enabled = false
           '';
           mode = "0600";
           owner = username;
