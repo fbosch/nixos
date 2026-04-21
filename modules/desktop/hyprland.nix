@@ -106,10 +106,6 @@
         hyprland.enableGnomeKeyring = true;
         hyprlock = {
           enableGnomeKeyring = true;
-          text = ''
-            auth include login
-            account include login
-          '';
         };
         hypridle = { };
       };

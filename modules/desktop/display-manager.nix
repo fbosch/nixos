@@ -6,7 +6,7 @@ let
 in
 {
   flake.modules.nixos.desktop =
-    { config, ... }:
+    { config, lib, ... }:
     let
       nixosVersion = config.system.nixos.release;
       linuxKernelVersion = config.boot.kernelPackages.kernel.version;
@@ -105,6 +105,19 @@ in
           };
         };
         defaultSession = "hyprland-uwsm";
+      };
+
+      security.pam.services.sddm.rules = {
+        auth.login.modulePath = lib.mkForce "/etc/pam.d/login";
+        account.login.modulePath = lib.mkForce "/etc/pam.d/login";
+        password.login.modulePath = lib.mkForce "/etc/pam.d/login";
+        session.login.modulePath = lib.mkForce "/etc/pam.d/login";
+      };
+
+      security.pam.services.sddm-autologin.rules = {
+        account.sddm.modulePath = lib.mkForce "/etc/pam.d/sddm";
+        password.sddm.modulePath = lib.mkForce "/etc/pam.d/sddm";
+        session.sddm.modulePath = lib.mkForce "/etc/pam.d/sddm";
       };
 
       systemd.services.display-manager.environment = {
