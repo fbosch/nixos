@@ -13,6 +13,7 @@
     "opencode-ai": "1.14.17",
     "opencode-claude-auth": "1.5.0",
     "pokemonshow": "4.0.0",
-    "vercel": "51.7.0"
+    "vercel": "51.7.0",
+    "jiti": "2.6.1"
   }
 }
