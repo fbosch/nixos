@@ -8,6 +8,7 @@
           # cursor-cli
           # aichat
           tesseract
+          local.no-mistakes
         ])
         ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
           pkgs.local.codexbar
