@@ -86,7 +86,20 @@ in
                 };
               }
             ];
+
+            templates = {
+              "nix-github-token" = {
+                content = ''
+                  access-tokens = github.com=${hmConfig.sops.placeholder.github-token}
+                '';
+                mode = "0400";
+              };
+            };
           };
+
+          xdg.configFile."nix/nix.conf".text = ''
+            !include ${hmConfig.sops.templates."nix-github-token".path}
+          '';
 
         };
     };
