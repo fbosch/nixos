@@ -56,6 +56,10 @@ sync-wallpaper config="$HOME/.config/hypr/hyprpaper.conf" output="assets/wallpap
 update-local-package package='':
     if [ -n "{{package}}" ]; then bash ./scripts/update-local-package.sh "{{package}}"; else bash ./scripts/update-local-package.sh; fi
 
+# Register U2F key for current user (optionally set rp=pam://rvn-pc)
+setup-u2f rp='':
+    if [ -n "{{rp}}" ]; then bash ./scripts/setup-u2f.sh "{{rp}}"; else bash ./scripts/setup-u2f.sh; fi
+
 # Rotate the encrypted GPG backup gist from the current local key
 rotate-gpg-gist:
     nix run .#rotate-gpg-gist

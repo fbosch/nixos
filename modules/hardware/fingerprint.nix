@@ -1,6 +1,6 @@
 {
-  # Kensington VeriMark is a FIDO2 security key, not a system fingerprint reader
-  # It works for passkeys/WebAuthn in browsers, not for OS-level authentication
+  # Kensington VeriMark is a FIDO2 security key, not a libfprint-compatible fingerprint reader
+  # It works for passkeys/WebAuthn and PAM U2F flows, not for fprintd/pam_fprintd
   flake.modules.nixos."hardware/fingerprint" =
     { pkgs, ... }:
     {
