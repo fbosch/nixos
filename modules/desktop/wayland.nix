@@ -46,6 +46,7 @@
           pkgs.libnotify
           pkgs.swayosd
           pkgs.gsettings-desktop-schemas
+          pkgs.awww
         ]
       );
 
