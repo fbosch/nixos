@@ -9,6 +9,7 @@
           # aichat
           tesseract
           local.no-mistakes
+          local.plannotator
         ])
         ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
           pkgs.local.codexbar
