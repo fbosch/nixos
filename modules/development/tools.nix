@@ -53,6 +53,7 @@
           docker
           docker-buildx
           bacon
+          sqlite
           azureCli
           units
           astGrep
