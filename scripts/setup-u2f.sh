@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+if [[ ${1:-} == "-h" || ${1:-} == "--help" ]]; then
 	cat <<'EOF'
 Usage: ./scripts/setup-u2f.sh [pam://rp-id]
 
@@ -50,7 +50,7 @@ new_entry="$(pamu2fcfg -u "${user_name}" -o "${rp}" -i "${rp}")"
 tmp_file="$(mktemp)"
 trap 'rm -f "${tmp_file}"' EXIT
 
-if [[ -f "${auth_file}" ]]; then
+if [[ -f ${auth_file} ]]; then
 	cp "${auth_file}" "${auth_file}.bak.$(date +%Y%m%d%H%M%S)"
 	awk -v user="${user_name}" -F: '$1 != user' "${auth_file}" >"${tmp_file}"
 fi
