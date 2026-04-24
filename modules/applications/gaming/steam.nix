@@ -32,12 +32,11 @@ _: {
 
   # Home Manager module: Apply Adwaita theme to Steam
   flake.modules.homeManager.applications =
-    {
-      pkgs,
-      lib,
-      config,
-      osConfig,
-      ...
+    { pkgs
+    , lib
+    , config
+    , osConfig
+    , ...
     }:
     {
       home.packages = lib.mkIf osConfig.programs.steam.enable [ pkgs.adwsteamgtk ];
@@ -56,11 +55,6 @@ _: {
         in
         {
           updateSteamTheme = config.lib.dag.entryAfter [ "writeBoundary" "dconfSettings" ] ''
-            if [ -n "''${oldGenPath:-}" ] && [ "''${oldGenPath}" = "''${newGenPath:-}" ]; then
-              echo "Home Manager generation unchanged, skipping Steam theme update"
-              exit 0
-            fi
-
             run ${applySteamTheme}
           '';
         }
