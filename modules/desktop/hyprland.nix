@@ -52,6 +52,7 @@
 
       hyprsunsetPackages = inputs.hyprsunset.packages.${system};
       hyprsunsetPackage = hyprsunsetPackages.hyprsunset or hyprsunsetPackages.default;
+
     in
     {
       xdg.portal = {
@@ -79,6 +80,8 @@
         portalPackage = inputs.hyprland.packages.${system}.xdg-desktop-portal-hyprland;
         xwayland.enable = true;
       };
+
+      services.hyprwhspr-rs.enable = true;
 
       environment.sessionVariables = {
         EMOJI_FONT = "Apple Color Emoji";

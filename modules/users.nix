@@ -22,6 +22,7 @@
         openssh.authorizedKeys.keys = lib.mkForce config.flake.meta.user.ssh.authorizedKeys;
         extraGroups = lib.mkForce [
           "gamemode"
+          "input"
           "networkmanager"
           "wheel"
         ];
