@@ -14,6 +14,9 @@
           pkgs.local.chromium-figma
         ];
 
-      services.flatpak.packages = [ "md.obsidian.Obsidian" ];
+      services.flatpak.packages = [
+        "md.obsidian.Obsidian"
+        "io.github.efogdev.mpris-timer"
+      ];
     };
 }
