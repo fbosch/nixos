@@ -6,16 +6,16 @@
 
 buildGoModule rec {
   pname = "no-mistakes";
-  version = "1.8.0";
+  version = "1.10.5";
 
   src = fetchFromGitHub {
     owner = "kunchenguid";
     repo = "no-mistakes";
     rev = "v${version}";
-    hash = "sha256-fmUYnGjatSCqqK4sWHP56SnoqhI7lxTFX2kJ/AYZiqY=";
+    hash = "sha256-fUzPGmzxJWheRaq+dDKOJmupL7V0XDW8ZSEDpJs5/b0=";
   };
 
-  vendorHash = "sha256-jX801hUq4x7xchpXQ5MRu32p4JG1Ii/Z4vqFTMyNjIg=";
+  vendorHash = "sha256-2pjiHVUwdQpXG9HTLW6wMZD+JpvFEcPMgBsVc6sck6w=";
 
   subPackages = [ "cmd/no-mistakes" ];
 
