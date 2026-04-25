@@ -103,6 +103,7 @@
         hyprlockPackage
         hypridlePackage
         hyprsunsetPackage
+        pkgs.hyprwhspr-rs
       ];
 
       security.pam.services = {
