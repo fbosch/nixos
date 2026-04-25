@@ -56,6 +56,10 @@ sync-wallpaper config="$HOME/.config/hypr/hyprpaper.conf" output="assets/wallpap
 update-local-package package='':
     if [ -n "{{package}}" ]; then bash ./scripts/update-local-package.sh "{{package}}"; else bash ./scripts/update-local-package.sh; fi
 
+# Download the Parakeet ONNX model used by hyprwhspr-rs
+download-hyprwhspr-parakeet target="$HOME/.local/share/hyprwhspr-rs/models/parakeet/parakeet-tdt-0.6b-v3-onnx":
+    bash ./scripts/download-hyprwhspr-parakeet-model.sh "{{target}}"
+
 # Register U2F key for current user (optionally set rp=pam://rvn-pc)
 setup-u2f rp='':
     if [ -n "{{rp}}" ]; then bash ./scripts/setup-u2f.sh "{{rp}}"; else bash ./scripts/setup-u2f.sh; fi
