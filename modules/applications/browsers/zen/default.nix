@@ -13,8 +13,10 @@
 
         ZEN_PROFILE="$HOME/.var/app/app.zen_browser.zen/.zen"
         if [ -d "$ZEN_PROFILE" ]; then
-          PROFILE_DIR=$(${pkgs.findutils}/bin/find "$ZEN_PROFILE" -maxdepth 1 -name "*.default*" -type d | ${pkgs.coreutils}/bin/head -1)
-          if [ -n "$PROFILE_DIR" ] && [ -d "$PROFILE_DIR" ]; then
+          ${pkgs.findutils}/bin/find "$ZEN_PROFILE" -maxdepth 1 -iname "*default*" -type d ! -name "static-*" | while IFS= read -r PROFILE_DIR; do
+            ${pkgs.coreutils}/bin/install -m 0644 ${./user.js} "$PROFILE_DIR/user.js"
+            echo "Zen user.js installed at $PROFILE_DIR/user.js"
+
             CACHE_DIR="$PROFILE_DIR/cache2"
             RAM_CACHE="/run/user/$(${pkgs.coreutils}/bin/id -u)/zen-cache"
 
@@ -28,13 +30,12 @@
               ${pkgs.coreutils}/bin/ln -sf "$RAM_CACHE" "$CACHE_DIR"
               echo "Zen browser cache symlinked to RAM at $RAM_CACHE"
             fi
-          fi
+          done
         fi
       '';
 
       services.flatpak.packages = [
         "app.zen_browser.zen"
-        "one.ablaze.floorp"
       ];
 
       services.flatpak.overrides."app.zen_browser.zen" = {
@@ -92,6 +93,5 @@
           PrefersNonDefaultGPU = "true";
         };
       };
-
     };
 }

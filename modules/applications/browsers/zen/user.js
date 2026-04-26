@@ -112,6 +112,8 @@ user_pref("config.trim_on_minimize", true);
 user_pref("timer.auto_increase_timer_resolution", true);
 user_pref("widget.wayland.opaque-region.enabled", true);
 user_pref("widget.wayland.fractional-scale.enabled", true);
+user_pref("gfx.wayland.hdr", false);
+user_pref("widget.dmabuf.force-enabled", false);
 user_pref("widget.macos.titlebar-blend", true);
 
 // 12. Zen-Exclusive Features

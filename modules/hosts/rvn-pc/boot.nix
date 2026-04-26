@@ -12,6 +12,7 @@
         kernelPackages = pkgs.cachyosKernels.linuxPackages-cachyos-latest;
         kernelModules = [ "ntsync" ];
         initrd.kernelModules = [
+          "rtc_cmos"
           "nvidia"
           "nvidia_modeset"
           "nvidia_uvm"
