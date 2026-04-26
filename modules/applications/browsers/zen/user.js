@@ -71,6 +71,9 @@ user_pref("webgl.max-size", 16384);
 user_pref("dom.webgpu.enabled", true);
 
 // 7. UI Responsiveness
+user_pref("browser.tabs.allow_transparent_browser", true);
+user_pref("layout.css.backdrop-filter.enabled", true);
+user_pref("toolkit.legacyUserProfileCustomizations.stylesheets", true);
 user_pref("ui.submenuDelay", 0);
 user_pref("dom.element.animate.enabled", true);
 user_pref("general.smoothScroll", true);
@@ -110,13 +113,14 @@ user_pref("browser.safebrowsing.downloads.remote.enabled", false);
 // 11. Platform-Specific
 user_pref("config.trim_on_minimize", true);
 user_pref("timer.auto_increase_timer_resolution", true);
-user_pref("widget.wayland.opaque-region.enabled", true);
+user_pref("widget.wayland.opaque-region.enabled", false);
 user_pref("widget.wayland.fractional-scale.enabled", true);
 user_pref("gfx.wayland.hdr", false);
-user_pref("widget.dmabuf.force-enabled", false);
+user_pref("widget.dmabuf.force-enabled", true);
 user_pref("widget.macos.titlebar-blend", true);
 
 // 12. Zen-Exclusive Features
+user_pref("zen.widget.linux.transparency", true);
 user_pref("zen.workspaces.open-new-tab-if-last-unpinned-tab-is-closed", true);
 user_pref("reader.parse-on-load.enabled", false);
 
