@@ -15,7 +15,13 @@ buildGoModule rec {
     hash = "sha256-M6XlKd9JFVg7/01M5l7fjsi7HrcL+Smo+fQrhFRI7B0=";
   };
 
-  vendorHash = "sha256-dM0MpXdvxn7RH4USOyeIOVsdoyE4VUw+U44Qc9IkK5s=";
+  vendorHash = "sha256-pbKnMrfY/abu/Mj0HhDhTUSOlWl82kgIM0zXwtlQw/U=";
+
+  subPackages = [ "." ];
+
+  postPatch = ''
+    rm -rf vendor
+  '';
 
   ldflags = [
     "-s"
