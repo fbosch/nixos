@@ -95,10 +95,7 @@ user_pref("accessibility.force_disabled", 1);
 // 9. Media & Codecs
 user_pref("dom.media.webcodecs.h265.enabled", true);
 user_pref("media.wmf.hevc.enabled", true);
-user_pref(
-  "media.videocontrols.picture-in-picture.enable-when-switching-tabs.enabled",
-  true,
-);
+user_pref("media.videocontrols.picture-in-picture.enable-when-switching-tabs.enabled", true);
 user_pref("media.ffmpeg.vaapi.enabled", true);
 
 // 10. Security & Privacy
