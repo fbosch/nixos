@@ -33,6 +33,57 @@
         "app.zen_browser.zen"
       ];
 
+      systemd.user.services.zen-prewarm = {
+        Unit = {
+          Description = "Prewarm Zen Browser files into page cache";
+          After = [ "graphical-session.target" ];
+        };
+
+        Service = {
+          Type = "oneshot";
+          ExecStart = "${pkgs.writeShellScript "zen-prewarm" ''
+            set -euo pipefail
+
+            targets=()
+            zen_app_root="$HOME/.local/share/flatpak/app/app.zen_browser.zen"
+            zen_cache="$HOME/.var/app/app.zen_browser.zen/cache"
+            zen_profile_root="$HOME/.var/app/app.zen_browser.zen/.zen"
+
+            if [ -d "$zen_app_root" ]; then
+              while IFS= read -r -d "" path; do
+                targets+=("$path")
+              done < <(${pkgs.findutils}/bin/find "$zen_app_root" -path "*/files/zen" -type d -print0)
+            fi
+
+            if [ -d "$zen_cache" ]; then
+              targets+=("$zen_cache")
+            fi
+
+            if [ -d "$zen_profile_root" ]; then
+              while IFS= read -r -d "" profile_dir; do
+                if [ -d "$profile_dir/extensions" ]; then
+                  targets+=("$profile_dir/extensions")
+                fi
+
+                if [ -f "$profile_dir/extensions.json" ]; then
+                  targets+=("$profile_dir/extensions.json")
+                fi
+
+                if [ -d "$profile_dir/startupCache" ]; then
+                  targets+=("$profile_dir/startupCache")
+                fi
+              done < <(${pkgs.findutils}/bin/find "$zen_profile_root" -maxdepth 1 -iname "*default*" -type d ! -name "static-*" -print0)
+            fi
+
+            if [ "''${#targets[@]}" -gt 0 ]; then
+              ${pkgs.vmtouch}/bin/vmtouch -q -t "''${targets[@]}"
+            fi
+          ''}";
+        };
+
+        Install.WantedBy = [ "graphical-session.target" ];
+      };
+
       services.flatpak.overrides."app.zen_browser.zen" = {
         Context = {
           sockets = [

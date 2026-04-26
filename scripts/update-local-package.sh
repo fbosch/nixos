@@ -8,6 +8,16 @@ usage() {
 	echo "       $0" >&2
 }
 
+is_update_candidate() {
+	local package_file="$1"
+	local package_contents
+
+	package_contents="$(<"$package_file")"
+
+	[[ $package_contents == *"version ="* ]] &&
+		[[ $package_contents == *"fetchFromGitHub"* || $package_contents == *"fetchurl"* || $package_contents == *"fetchgit"* ]]
+}
+
 if [ "$#" -gt 1 ]; then
 	usage
 	exit 1
@@ -23,6 +33,8 @@ if [ ! -d "$packages_dir" ]; then
 fi
 
 select_package_with_gum() {
+	local selection
+
 	if ! command -v gum >/dev/null 2>&1; then
 		echo "Error: no package argument provided and 'gum' is not installed." >&2
 		echo "Pass a package name explicitly, for example: $0 surge" >&2
@@ -31,18 +43,28 @@ select_package_with_gum() {
 
 	mapfile -t package_names < <(
 		for dir in "$packages_dir"/*; do
-			if [ -f "$dir/package.nix" ]; then
+			if [ -f "$dir/package.nix" ] && is_update_candidate "$dir/package.nix"; then
 				basename "$dir"
 			fi
 		done | sort
 	)
 
 	if [ "${#package_names[@]}" -eq 0 ]; then
-		echo "Error: no by-name packages found under $packages_dir" >&2
+		echo "Error: no updatable by-name packages found under $packages_dir" >&2
 		exit 1
 	fi
 
-	printf '%s\n' "${package_names[@]}" | gum filter --placeholder "Select package to update"
+	if ! selection="$(printf '%s\n' "${package_names[@]}" | gum filter --placeholder "Select package to update")"; then
+		echo "Cancelled."
+		exit 0
+	fi
+
+	if [ -z "$selection" ]; then
+		echo "Cancelled."
+		exit 0
+	fi
+
+	printf '%s\n' "$selection"
 }
 
 if [ "$#" -eq 1 ]; then
@@ -63,6 +85,11 @@ if [ ! -f "$package_file" ]; then
 	exit 1
 fi
 
+if ! is_update_candidate "$package_file"; then
+	echo "Done: .#$package_name has no versioned upstream source for nix-update."
+	exit 0
+fi
+
 cd "$repo_root"
 
 if nix eval --raw ".#$package_name.name" >/dev/null 2>&1; then
@@ -73,7 +100,14 @@ else
 fi
 
 echo "Updating .#$package_name via nix-update..."
+before_hash="$(sha256sum "$package_file")"
 nix run nixpkgs#nix-update -- -F "$package_name"
+after_hash="$(sha256sum "$package_file")"
+
+if [ "$before_hash" = "$after_hash" ]; then
+	echo "Done: .#$package_name already matches upstream; no changes to build."
+	exit 0
+fi
 
 echo "Building .#$package_name to verify update..."
 nix build ".#$package_name"

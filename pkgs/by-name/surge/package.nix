@@ -12,7 +12,7 @@ buildGoModule rec {
     owner = "surge-downloader";
     repo = "surge";
     rev = "v${version}";
-    hash = "sha256-YuNQlpdigs44Xrl0P7TKmSN0FKoxwZUZTGWuF3yDbHs=";
+    hash = "sha256-M6XlKd9JFVg7/01M5l7fjsi7HrcL+Smo+fQrhFRI7B0=";
   };
 
   vendorHash = "sha256-dM0MpXdvxn7RH4USOyeIOVsdoyE4VUw+U44Qc9IkK5s=";
