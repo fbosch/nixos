@@ -44,9 +44,6 @@ importers:
       corepack:
         specifier: 0.34.7
         version: 0.34.7
-      greptile:
-        specifier: 2.4.0
-        version: 2.4.0
       jiti:
         specifier: 2.6.1
         version: 2.6.1
@@ -1405,12 +1402,6 @@ packages:
 
   graceful-fs@4.2.11:
     resolution: {integrity: sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ==}
-
-  greptile@2.4.0:
-    resolution: {integrity: sha512-sZzmSw+0GlLqjwSz4vRG3n+JQQtgbJR47G88ZE0y1j6XEPI8Sn0OvT95J4+mBmzLIQc/PQYZ2RVgXOvK/+7AEQ==}
-    engines: {node: '>=18.0.0'}
-    os: [darwin]
-    hasBin: true
 
   has-symbols@1.1.0:
     resolution: {integrity: sha512-1cDNdwJ2Jaohmb3sg4OmKaMBwuC48sYni5HUw2DvsC8LjGTLK9h+eb1X6RyuOHe4hT0ULCW68iomhjUoKUqlPQ==}
@@ -3554,8 +3545,6 @@ snapshots:
   gopd@1.2.0: {}
 
   graceful-fs@4.2.11: {}
-
-  greptile@2.4.0: {}
 
   has-symbols@1.1.0: {}
 

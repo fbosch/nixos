@@ -14,7 +14,6 @@
     "opencode-ai": "1.14.24",
     "opencode-claude-auth": "1.5.0",
     "pokemonshow": "4.0.0",
-    "vercel": "52.0.0",
-    "greptile": "2.4.0"
+    "vercel": "52.0.0"
   }
 }

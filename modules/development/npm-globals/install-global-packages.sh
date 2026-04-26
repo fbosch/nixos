@@ -60,6 +60,7 @@ fi
 
 install_failed=0
 declare -a packages=()
+declare -A desired_package_names=()
 
 while IFS=$'\t' read -r dep_name dep_version || [ -n "${dep_name:-}" ]; do
 	if [ -z "${dep_name:-}" ] || [ -z "${dep_version:-}" ]; then
@@ -67,9 +68,41 @@ while IFS=$'\t' read -r dep_name dep_version || [ -n "${dep_name:-}" ]; do
 	fi
 	dep_version="${dep_version%%(*}"
 	packages+=("${dep_name}@${dep_version}")
+	desired_package_names["$dep_name"]=1
 done < <(
 	"$yq_bin" -r '.importers["."].dependencies // {} | to_entries[] | "\(.key)\t\(.value.version)"' "$lockfile_path"
 )
+
+current_packages_json="$($pnpm_bin list -g --depth 0 --json 2>/dev/null || true)"
+declare -a stale_packages=()
+while IFS= read -r package_name || [ -n "${package_name:-}" ]; do
+	if [ -z "${package_name:-}" ]; then
+		continue
+	fi
+	if [ -z "${desired_package_names[$package_name]:-}" ]; then
+		stale_packages+=("$package_name")
+	fi
+done < <(
+	printf '%s' "$current_packages_json" | node -e '
+const fs = require("fs")
+const input = fs.readFileSync(0, "utf8").trim()
+if (!input) process.exit(0)
+try {
+  const entries = JSON.parse(input)
+  const dependencies = entries?.[0]?.dependencies ?? {}
+  for (const packageName of Object.keys(dependencies)) console.log(packageName)
+} catch {
+  process.exit(0)
+}
+'
+)
+
+if [ "${#stale_packages[@]}" -gt 0 ]; then
+	echo "Removing npm global packages no longer declared in lockfile..."
+	if ! "$pnpm_bin" remove -g "${stale_packages[@]}" 2>&1; then
+		install_failed=1
+	fi
+fi
 
 if [ "${#packages[@]}" -gt 0 ]; then
 	echo "Installing npm global packages from lockfile-resolved versions..."
