@@ -122,6 +122,16 @@ in
           cores = 2;
         };
 
+        # direnv 2.37.x runs long shell tests on darwin during checkPhase.
+        # Keep rvn-mac rebuilds fast by skipping upstream checks for this host.
+        nixpkgs.overlays = [
+          (_: prev: {
+            direnv = prev.direnv.overrideAttrs (_: {
+              doCheck = false;
+            });
+          })
+        ];
+
         # Enable biometric auth for sudo on macOS
         security.pam.services.sudo_local.touchIdAuth = true;
 
