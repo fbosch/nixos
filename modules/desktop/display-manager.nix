@@ -6,10 +6,26 @@ let
 in
 {
   flake.modules.nixos.desktop =
-    { config, lib, ... }:
+    { config
+    , lib
+    , pkgs
+    , ...
+    }:
     let
       nixosVersion = config.system.nixos.release;
       linuxKernelVersion = config.boot.kernelPackages.kernel.version;
+      fishSession =
+        (pkgs.writeTextDir "share/wayland-sessions/fish.desktop" ''
+          [Desktop Entry]
+          Name=Fish
+          Comment=Fish shell session
+          Exec=${lib.getExe pkgs.cage} -s -- ${lib.getExe pkgs.foot} ${lib.getExe pkgs.fish}
+          Type=Application
+          DesktopNames=fish
+        '').overrideAttrs
+          (_: {
+            passthru.providedSessions = [ "fish" ];
+          });
     in
     {
       imports = [ inputs.silentSDDM.nixosModules.default ];
@@ -91,6 +107,7 @@ in
 
       services.displayManager = {
         ly.enable = false;
+        sessionPackages = [ fishSession ];
         sddm = {
           wayland = {
             enable = true;

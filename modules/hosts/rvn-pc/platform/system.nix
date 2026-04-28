@@ -10,7 +10,7 @@
 
         [output]
         name=DP-2
-        mode=3440x1440
+        mode=3440x1440@164.9
 
         [output]
         name=HDMI-A-2
