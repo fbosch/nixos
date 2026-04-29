@@ -74,6 +74,8 @@
           nvidiaPersistenced = true; # Keep GPU initialized for better performance
           package = config.boot.kernelPackages.nvidiaPackages.stable;
         };
+
+        keyboard.zsa.enable = true;
       };
 
       services.xserver.videoDrivers = [ "nvidia" ];
