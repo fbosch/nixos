@@ -51,6 +51,8 @@
 
       nixpkgs.hostPlatform = lib.mkDefault "x86_64-linux";
 
+      environment.systemPackages = with pkgs; [ keymapp ];
+
       hardware = {
         cpu.intel.updateMicrocode = lib.mkDefault config.hardware.enableRedistributableFirmware;
 
