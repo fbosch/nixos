@@ -11,6 +11,7 @@ pnpm_bin_dir="${PNPM_BIN_DIR:?PNPM_BIN_DIR is required}"
 bun_bin_dir="${BUN_BIN_DIR:?BUN_BIN_DIR is required}"
 lockfile_path="${LOCKFILE_PATH:?LOCKFILE_PATH is required}"
 yq_bin="${YQ_BIN:?YQ_BIN is required}"
+project_dir="$(dirname "$lockfile_path")"
 
 mkdir -p "$pnpm_home" "$pnpm_store_dir" "$state_dir"
 
@@ -73,7 +74,7 @@ done < <(
 	"$yq_bin" -r '.importers["."].dependencies // {} | to_entries[] | "\(.key)\t\(.value.version)"' "$lockfile_path"
 )
 
-current_packages_json="$($pnpm_bin list -g --depth 0 --json 2>/dev/null || true)"
+current_packages_json="$($pnpm_bin --dir "$project_dir" list -g --depth 0 --json 2>/dev/null || true)"
 declare -a stale_packages=()
 while IFS= read -r package_name || [ -n "${package_name:-}" ]; do
 	if [ -z "${package_name:-}" ]; then
@@ -99,20 +100,20 @@ try {
 
 if [ "${#stale_packages[@]}" -gt 0 ]; then
 	echo "Removing npm global packages no longer declared in lockfile..."
-	if ! "$pnpm_bin" remove -g "${stale_packages[@]}" 2>&1; then
+	if ! "$pnpm_bin" --dir "$project_dir" remove -g "${stale_packages[@]}" 2>&1; then
 		install_failed=1
 	fi
 fi
 
 if [ "${#packages[@]}" -gt 0 ]; then
 	echo "Installing npm global packages from lockfile-resolved versions..."
-	if ! "$pnpm_bin" add -g "${packages[@]}" 2>&1; then
+	if ! "$pnpm_bin" --dir "$project_dir" add -g "${packages[@]}" 2>&1; then
 		install_failed=1
 	fi
 fi
 
 if [ "$install_failed" -eq 0 ]; then
-	pnpm_global_dir="$($pnpm_bin root -g)"
+	pnpm_global_dir="$($pnpm_bin --dir "$project_dir" root -g)"
 	echo ""
 	echo "npm global packages are up to date in: $pnpm_global_dir"
 else
