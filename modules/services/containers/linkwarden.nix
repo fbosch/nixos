@@ -229,6 +229,8 @@ in
             LogOpt=tag=linkwarden-postgres
 
             [Service]
+            RestrictAddressFamilies=~AF_ALG
+            SystemCallArchitectures=native
             Restart=always
             RestartSec=10
             TimeoutStartSec=60
@@ -261,6 +263,8 @@ in
             LogOpt=tag=linkwarden-meilisearch
 
             [Service]
+            RestrictAddressFamilies=~AF_ALG
+            SystemCallArchitectures=native
             Restart=always
             RestartSec=10
             TimeoutStartSec=60
@@ -308,6 +312,8 @@ in
             LogOpt=tag=linkwarden
 
             [Service]
+            RestrictAddressFamilies=~AF_ALG
+            SystemCallArchitectures=native
             Restart=always
             RestartSec=10
             TimeoutStartSec=120

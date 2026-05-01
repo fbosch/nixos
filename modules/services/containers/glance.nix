@@ -212,6 +212,8 @@ in
           LogOpt=tag=glance
 
           [Service]
+          RestrictAddressFamilies=~AF_ALG
+          SystemCallArchitectures=native
           Restart=always
           RestartSec=10
           TimeoutStartSec=60

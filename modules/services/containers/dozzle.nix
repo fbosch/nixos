@@ -127,6 +127,8 @@ _: {
               LogOpt=tag=dozzle
 
               [Service]
+              RestrictAddressFamilies=~AF_ALG
+              SystemCallArchitectures=native
               Restart=always
               RestartSec=10
               CPUQuota=50%

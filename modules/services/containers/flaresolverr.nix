@@ -65,6 +65,8 @@ _: {
           LogOpt=tag=flaresolverr
 
           [Service]
+          RestrictAddressFamilies=~AF_ALG
+          SystemCallArchitectures=native
           Restart=always
           RestartSec=10
           TimeoutStartSec=120

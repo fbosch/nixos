@@ -134,6 +134,8 @@ in
               LogOpt=tag=pihole
 
               [Service]
+              RestrictAddressFamilies=~AF_ALG
+              SystemCallArchitectures=native
               Restart=always
               RestartSec=10
               CPUQuota=100%

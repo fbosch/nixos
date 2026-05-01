@@ -477,6 +477,8 @@ in
                 LogOpt=tag=openmemory
 
                 [Service]
+                RestrictAddressFamilies=~AF_ALG
+                SystemCallArchitectures=native
                 Restart=always
                 RestartSec=10
                 CPUQuota=200%
@@ -526,6 +528,8 @@ in
                 LogOpt=tag=openmemory-dashboard
 
                 [Service]
+                RestrictAddressFamilies=~AF_ALG
+                SystemCallArchitectures=native
                 Restart=always
                 RestartSec=10
                 CPUQuota=100%

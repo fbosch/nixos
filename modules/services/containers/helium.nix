@@ -336,6 +336,8 @@ _: {
               LogOpt=tag=helium-ubo-proxy
 
               [Service]
+              RestrictAddressFamilies=~AF_ALG
+              SystemCallArchitectures=native
               Restart=always
               RestartSec=10
               CPUQuota=50%
@@ -364,6 +366,8 @@ _: {
               LogOpt=tag=helium-ext-proxy
 
               [Service]
+              RestrictAddressFamilies=~AF_ALG
+              SystemCallArchitectures=native
               Restart=always
               RestartSec=10
               CPUQuota=50%
@@ -392,6 +396,8 @@ _: {
               LogOpt=tag=helium-ext-proxy-backup
 
               [Service]
+              RestrictAddressFamilies=~AF_ALG
+              SystemCallArchitectures=native
               Restart=always
               RestartSec=10
               CPUQuota=50%
@@ -429,6 +435,8 @@ _: {
               LogOpt=tag=helium-nginx
 
               [Service]
+              RestrictAddressFamilies=~AF_ALG
+              SystemCallArchitectures=native
               Restart=always
               RestartSec=10
               CPUQuota=100%

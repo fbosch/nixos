@@ -121,6 +121,8 @@ _: {
           LogOpt=tag=redlib
 
           [Service]
+          RestrictAddressFamilies=~AF_ALG
+          SystemCallArchitectures=native
           CPUQuota=${config.services.redlib-container.cpuQuota}
           Restart=always
           RestartSec=10

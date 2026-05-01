@@ -214,6 +214,8 @@ in
           LogOpt=tag=onwatch
 
           [Service]
+          RestrictAddressFamilies=~AF_ALG
+          SystemCallArchitectures=native
           ExecStartPre=${extractTokensScript}
           Restart=always
           RestartSec=10
