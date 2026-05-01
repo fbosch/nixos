@@ -80,6 +80,8 @@ in
             LogOpt=tag=speedtest-tracker
 
             [Service]
+            RestrictAddressFamilies=~AF_ALG
+            SystemCallArchitectures=native
             Restart=always
             RestartSec=10
             CPUQuota=100%

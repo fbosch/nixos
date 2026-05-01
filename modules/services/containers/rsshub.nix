@@ -65,6 +65,8 @@ _: {
             LogOpt=tag=rsshub
 
             [Service]
+            RestrictAddressFamilies=~AF_ALG
+            SystemCallArchitectures=native
             Restart=always
             RestartSec=10
             TimeoutStartSec=120
@@ -89,6 +91,8 @@ _: {
             LogOpt=tag=rsshub-redis
 
             [Service]
+            RestrictAddressFamilies=~AF_ALG
+            SystemCallArchitectures=native
             Restart=always
             RestartSec=10
             TimeoutStartSec=60

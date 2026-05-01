@@ -39,6 +39,8 @@ _: {
           LogOpt=tag=termix
 
           [Service]
+          RestrictAddressFamilies=~AF_ALG
+          SystemCallArchitectures=native
           CPUQuota=400%
           Restart=always
           RestartSec=10

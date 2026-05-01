@@ -160,6 +160,8 @@ _: {
               LogOpt=tag=komodo-mongo
 
               [Service]
+              RestrictAddressFamilies=~AF_ALG
+              SystemCallArchitectures=native
               Restart=always
               RestartSec=10
               CPUQuota=200%
@@ -195,6 +197,8 @@ _: {
               LogOpt=tag=komodo-core
 
               [Service]
+              RestrictAddressFamilies=~AF_ALG
+              SystemCallArchitectures=native
               Restart=always
               RestartSec=10
               CPUQuota=100%
@@ -235,6 +239,8 @@ _: {
               LogOpt=tag=komodo-periphery
 
               [Service]
+              RestrictAddressFamilies=~AF_ALG
+              SystemCallArchitectures=native
               Restart=always
               RestartSec=10
               CPUQuota=100%
