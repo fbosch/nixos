@@ -103,6 +103,7 @@
         hyprlockPackage
         hypridlePackage
         hyprsunsetPackage
+        pkgs.hyprshutdown
         pkgs.hyprwhspr-rs
       ];
 
