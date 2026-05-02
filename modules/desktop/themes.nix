@@ -185,6 +185,18 @@ in
           sizes = [ "scalable" ];
           context = "apps";
         }
+        {
+          name = "org.wezfurlong.wezterm";
+          source = ../../assets/icons/wezterm.png;
+          sizes = [ "scalable" ];
+          context = "apps";
+        }
+        {
+          name = "wezterm";
+          source = ../../assets/icons/wezterm.png;
+          sizes = [ "scalable" ];
+          context = "apps";
+        }
       ];
 
       win11Icons = iconOverrideLib.applyIconOverrides {
