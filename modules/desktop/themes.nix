@@ -68,6 +68,10 @@ in
         '';
       };
 
+      lactIcon = pkgs.fetchurl {
+        url = "https://raw.githubusercontent.com/tsora1603/pixora-icons/446edba0937fca3593a0da08cf4307eeff3e0d7d/pixora/scalable/apps/lact.svg";
+        hash = "sha256-dKP35GxVJXhbDDQd4/e2KWggWH87SVvZr0/9U5iBt7A=";
+      };
 
       win11IconOverrides = [
         {
@@ -183,6 +187,12 @@ in
         {
           name = "discord";
           source = ../../assets/icons/discord.svg;
+          sizes = [ "scalable" ];
+          context = "apps";
+        }
+        {
+          name = "io.github.ilya_zlobintsev.LACT";
+          source = lactIcon;
           sizes = [ "scalable" ];
           context = "apps";
         }

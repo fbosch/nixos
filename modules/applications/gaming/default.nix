@@ -14,8 +14,12 @@ _: {
         protonup-qt
         # sgdboop - disabled due to build error in nixpkgs (function signature mismatch)
         steamtinkerlaunch
+        lact
         nvitop
       ];
+
+      systemd.packages = with pkgs; [ lact ];
+      systemd.services.lact.enable = true;
 
       hardware.graphics.enable = true;
       hardware.graphics.enable32Bit = true;
