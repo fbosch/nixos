@@ -68,6 +68,11 @@ in
         '';
       };
 
+      weztermIcon = pkgs.fetchurl {
+        url = "https://raw.githubusercontent.com/mikker/wezterm-icon/main/wezterm.svg";
+        sha256 = "102g2byvb3f957pk2xdncl53ip1cv9sh50k9ilgbg6mpv0g37vm0";
+      };
+
       win11IconOverrides = [
         {
           name = "folder";
@@ -187,13 +192,13 @@ in
         }
         {
           name = "org.wezfurlong.wezterm";
-          source = ../../assets/icons/wezterm.png;
+          source = weztermIcon;
           sizes = [ "scalable" ];
           context = "apps";
         }
         {
           name = "wezterm";
-          source = ../../assets/icons/wezterm.png;
+          source = weztermIcon;
           sizes = [ "scalable" ];
           context = "apps";
         }

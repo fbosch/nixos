@@ -104,8 +104,6 @@
                     ''
                                             # Use custom icon from assets
                       if [ -f "${override.source}" ]; then
-                        override_source="${override.source}"
-
                         # Determine target size for resizing
                         target_size=""
                                               case "${size}" in
@@ -120,22 +118,12 @@
                                                 *) target_size="16" ;;
                                               esac
 
-                                              # Copy and resize custom SVG by modifying width/height attributes.
-                                              # Non-SVG sources are embedded into an SVG wrapper so theme targets stay SVG.
+                                              # Copy and resize custom SVG by modifying width/height attributes
                                               # Remove existing file/symlink first to ensure clean override
                                               rm -f "$size_dir/${override.name}.svg"
-                                              if [ "''${override_source##*.}" = "svg" ]; then
-                                                cp "${override.source}" "$size_dir/${override.name}.svg"
-                          else
-                            image_mime="image/''${override_source##*.}"
-                            {
-                              ${pkgs.coreutils}/bin/printf '%s' "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"$target_size\" height=\"$target_size\" viewBox=\"0 0 $target_size $target_size\"><image width=\"$target_size\" height=\"$target_size\" href=\"data:$image_mime;base64,"
-                              ${pkgs.coreutils}/bin/base64 -w0 "$override_source"
-                              ${pkgs.coreutils}/bin/printf '%s\n' '"/></svg>'
-                            } > "$size_dir/${override.name}.svg"
-                          fi
+                                              cp "${override.source}" "$size_dir/${override.name}.svg"
 
-                                              if [ "${size}" != "scalable" ] && [ "''${override_source##*.}" = "svg" ]; then
+                                              if [ "${size}" != "scalable" ]; then
                                                 ${pkgs.xmlstarlet}/bin/xmlstarlet ed -L \
                                                   -u "//*[local-name()='svg']/@width" -v "$target_size" \
                                                   -u "//*[local-name()='svg']/@height" -v "$target_size" \
