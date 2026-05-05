@@ -2,7 +2,7 @@
 
 pkgs.stdenvNoCC.mkDerivation {
   pname = "font-fast-font";
-  version = "unstable-2026-02-25";
+  version = "final";
 
   src = pkgs.fetchFromGitHub {
     owner = "Born2Root";
