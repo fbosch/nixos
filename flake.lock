@@ -2023,11 +2023,11 @@
         "systems": "systems_3"
       },
       "locked": {
-        "lastModified": 1778008087,
-        "narHash": "sha256-qSv+lJxCdhnwXMerZ/kiDF5GoT2ZtPI3BuwdPVGaJkQ=",
+        "lastModified": 1778015354,
+        "narHash": "sha256-yZm7GuAEssqpSLCVNGegTgj/Vzpm/7sm48axU414Uus=",
         "owner": "vicinaehq",
         "repo": "vicinae",
-        "rev": "beafd7f7586d6e0757b146c98ddc43cf292a5db4",
+        "rev": "f9dbdc4478fff777b355b51cbd5df64a5180ad03",
         "type": "github"
       },
       "original": {
