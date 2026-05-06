@@ -15,7 +15,7 @@
     "@schpet/linear-cli": "2.0.0",
     "agent-browser": "0.26.0",
     "corepack": "0.34.7",
-    "jiti": "2.6.1",
+    "jiti": "2.7.0",
     "neovim": "5.4.0",
     "opencode-ai": "1.14.33",
     "opencode-claude-auth": "1.5.3",
