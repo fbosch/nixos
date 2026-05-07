@@ -32,6 +32,18 @@
     let
       inherit (pkgs.stdenv.hostPlatform) system;
 
+      hyprlandPackages = inputs.hyprland.packages.${system};
+      hyprlandPackage = hyprlandPackages.hyprland.overrideAttrs (old: {
+        postPatch = (old.postPatch or "") + ''
+          if [ ! -e example/hyprland.conf ]; then
+            touch example/hyprland.conf
+          fi
+        '';
+      });
+      xdgDesktopPortalHyprlandPackage = hyprlandPackages.xdg-desktop-portal-hyprland.override {
+        hyprland = hyprlandPackage;
+      };
+
       # Hyprland plugins (temporarily disabled for upgrade)
       # hyprPluginPkgs = inputs.hyprland-plugins.packages.${system};
       # splitMonitorWorkspacesPkg =
@@ -59,7 +71,7 @@
         enable = true;
         xdgOpenUsePortal = true;
         extraPortals = [
-          inputs.hyprland.packages.${system}.xdg-desktop-portal-hyprland
+          xdgDesktopPortalHyprlandPackage
           pkgs.xdg-desktop-portal-gtk
         ];
         config = {
@@ -76,8 +88,8 @@
       programs.hyprland = {
         enable = true;
         withUWSM = true;
-        package = inputs.hyprland.packages.${system}.hyprland;
-        portalPackage = inputs.hyprland.packages.${system}.xdg-desktop-portal-hyprland;
+        package = hyprlandPackage;
+        portalPackage = xdgDesktopPortalHyprlandPackage;
         xwayland.enable = true;
       };
 
