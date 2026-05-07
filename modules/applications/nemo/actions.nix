@@ -37,16 +37,6 @@
         text = builtins.readFile ./scripts/convert-image.sh;
       };
 
-      copyScript = pkgs.writeShellApplication {
-        name = "nemo-copy-selection";
-        runtimeInputs = [
-          pkgs.coreutils
-          pkgs.wl-clipboard
-          pkgs.zenity
-        ];
-        text = builtins.readFile ./scripts/copy-selection.sh;
-      };
-
       mkConvertAction = ext: label: mimes: ''
         [Nemo Action]
         Active=true
