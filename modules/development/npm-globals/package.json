@@ -9,17 +9,17 @@
     ]
   },
   "dependencies": {
-    "@anthropic-ai/claude-code": "2.1.126",
+    "@anthropic-ai/claude-code": "2.1.129",
     "@fission-ai/openspec": "1.3.1",
-    "@github/copilot": "1.0.40",
+    "@github/copilot": "1.0.41",
     "@schpet/linear-cli": "2.0.0",
     "agent-browser": "0.26.0",
     "corepack": "0.34.7",
-    "jiti": "2.6.1",
+    "jiti": "2.7.0",
     "neovim": "5.4.0",
-    "opencode-ai": "1.14.33",
+    "opencode-ai": "1.14.39",
     "opencode-claude-auth": "1.5.3",
     "pokemonshow": "4.0.0",
-    "vercel": "53.1.0"
+    "vercel": "53.1.1"
   }
 }
