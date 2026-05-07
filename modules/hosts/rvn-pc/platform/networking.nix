@@ -17,6 +17,7 @@ in
       hostName = "rvn-pc";
       networkmanager.enable = true;
       nameservers = hostMeta.dnsServers;
+      networkmanager.insertNameservers = hostMeta.dnsServers;
       timeServers = [ "time.nist.gov" ];
     };
 

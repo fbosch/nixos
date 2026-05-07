@@ -1,6 +1,11 @@
 {
   flake.modules.nixos.shell =
     { pkgs, ... }:
+    let
+      open = pkgs.writeShellScriptBin "open" ''
+        exec ${pkgs.xdg-utils}/bin/xdg-open "$@"
+      '';
+    in
     {
       environment.systemPackages = with pkgs; [
         wget
@@ -13,6 +18,7 @@
         killall
         nixfmt
         freshfetch
+        open
       ];
     };
   flake.modules.homeManager.shell =

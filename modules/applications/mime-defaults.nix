@@ -31,6 +31,8 @@
       ];
 
       xdg.mimeApps = {
+        enable = true;
+
         # Explicitly add Loupe to associations so it wins over flatpak
         # mimeinfo.cache entries (e.g. Gradia) which appear earlier in
         # XDG_DATA_DIRS than the nix per-user profile.

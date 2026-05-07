@@ -3,6 +3,7 @@
 }:
 let
   sddmBackground = ../../assets/wallpapers/glaze_2.png;
+  sddmBackgroundName = builtins.baseNameOf sddmBackground;
 in
 {
   flake.modules.nixos.desktop =
@@ -42,7 +43,7 @@ in
             enable-animations = true;
           };
           LockScreen = {
-            background = "wallpaper.png";
+            background = sddmBackgroundName;
             blur = 7;
             "padding-top" = 150;
           };
@@ -71,7 +72,7 @@ in
             spacing = 6;
           };
           LoginScreen = {
-            background = "wallpaper.png";
+            background = sddmBackgroundName;
             use-background-color = false;
             background-color = "#000000";
             blur = 7;
