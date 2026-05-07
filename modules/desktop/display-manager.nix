@@ -2,7 +2,7 @@
 , ...
 }:
 let
-  sddmBackground = ../../assets/wallpaper.png;
+  sddmBackground = ../../assets/wallpapers/glaze_2.png;
 in
 {
   flake.modules.nixos.desktop =
