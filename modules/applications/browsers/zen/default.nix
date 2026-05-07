@@ -5,6 +5,8 @@
     , ...
     }:
     {
+      home.packages = [ pkgs.local.zen-twilight ];
+
       home.activation.zenProfileSetup = config.lib.dag.entryAfter [ "writeBoundary" ] ''
         ZEN_PROFILE="$HOME/.var/app/app.zen_browser.zen/.zen"
         if [ -d "$ZEN_PROFILE" ]; then
