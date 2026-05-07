@@ -11,12 +11,13 @@
         consoleLogLevel = 3; # Show only errors and critical messages
         kernelPackages = pkgs.cachyosKernels.linuxPackages-cachyos-latest;
         kernelModules = [ "ntsync" ];
-        initrd.kernelModules = [
-          "rtc_cmos"
+        initrd.kernelModules = lib.mkForce [
+          "dm_mod"
+          "i915"
           "nvidia"
           "nvidia_modeset"
-          "nvidia_uvm"
           "nvidia_drm"
+          "rtc_cmos"
         ];
         kernelParams = [
           "quiet" # Suppress most kernel messages
@@ -26,8 +27,10 @@
           "rd.systemd.show_status=false" # Keep splash instead of initrd status output
           "systemd.show_status=false" # Keep splash instead of userspace status output
           "rd.udev.log_level=3" # Reduce initrd udev verbosity
+          "fbcon=nodefer"
           # HDR support for NVIDIA
           "nvidia_drm.modeset=1" # Enable modesetting (required for HDR)
+          "nvidia_drm.fbdev=1"
           "nvidia.NVreg_EnableGpuFirmware=0" # Improve compatibility
           # NVIDIA suspend support
           "nvidia.NVreg_PreserveVideoMemoryAllocations=1" # Preserve video memory allocations for suspend
@@ -81,6 +84,11 @@
           theme = "monoarch-refined";
           themePackages = [ pkgs.local.monoarch-plymouth ];
         };
+      };
+
+      boot.initrd.systemd.services.plymouth-start = {
+        after = [ "systemd-modules-load.service" ];
+        wants = [ "systemd-modules-load.service" ];
       };
     };
 }
