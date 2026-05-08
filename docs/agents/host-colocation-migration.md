@@ -70,4 +70,4 @@ If evaluation fails with missing module attributes for newly created files, ensu
 
 ## Related decision
 
-For the concrete `rvn-pc` migration this guide is based on, see `docs/decisions/0003-colocate-rvn-pc-host-modules-under-platform-namespace.md`.
+For the concrete `rvn-pc` migration this guide is based on, see `docs/adr/0003-colocate-rvn-pc-host-modules-under-platform-namespace.md`.
