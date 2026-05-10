@@ -145,6 +145,24 @@
         hash = "sha256-dKP35GxVJXhbDDQd4/e2KWggWH87SVvZr0/9U5iBt7A=";
       };
 
+      panStartIcon = pkgs.writeText "pan-start-symbolic.svg" ''
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+          <path d="M10.5 3 5.5 8l5 5z" fill="currentColor"/>
+        </svg>
+      '';
+
+      panEndIcon = pkgs.writeText "pan-end-symbolic.svg" ''
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+          <path d="M5.5 3 10.5 8l-5 5z" fill="currentColor"/>
+        </svg>
+      '';
+
+      panDownIcon = pkgs.writeText "pan-down-symbolic.svg" ''
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+          <path d="M3 5.5 8 10.5l5-5z" fill="currentColor"/>
+        </svg>
+      '';
+
       gnomeCalendarIcons = pkgs.runCommand "gnome-calendar-icons" { } ''
         mkdir -p $out
         tar -xf ${pkgs.gnome-calendar.src} --strip-components=1 -C $out
@@ -178,6 +196,24 @@
         {
           name = "go-previous-symbolic-rtl";
           source = "${pkgs.adwaita-icon-theme}/share/icons/Adwaita/symbolic/actions/go-previous-symbolic-rtl.svg";
+          sizes = [ "symbolic" ];
+          context = "actions";
+        }
+        {
+          name = "pan-start-symbolic";
+          source = panStartIcon;
+          sizes = [ "symbolic" ];
+          context = "actions";
+        }
+        {
+          name = "pan-end-symbolic";
+          source = panEndIcon;
+          sizes = [ "symbolic" ];
+          context = "actions";
+        }
+        {
+          name = "pan-down-symbolic";
+          source = panDownIcon;
           sizes = [ "symbolic" ];
           context = "actions";
         }
