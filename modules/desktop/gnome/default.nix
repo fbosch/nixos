@@ -3,6 +3,10 @@ let
   inherit (zenwritten.css) base bright;
 in
 {
+  flake.modules.nixos.desktop = {
+    services.gnome.evolution-data-server.enable = true;
+  };
+
   flake.modules.homeManager.desktop =
     { pkgs, ... }:
     {
@@ -81,6 +85,34 @@ in
             --overview-bg-color: ${base.surface};
           }
         }
+      '';
+
+      xdg.configFile."evolution/sources/denmark-holidays.source".text = ''
+        [Data Source]
+        DisplayName=Denmark Holidays
+        Enabled=true
+        Parent=webcal-stub
+
+        [Calendar]
+        BackendName=webcal
+        Color=#cc241d
+        Selected=true
+
+        [Authentication]
+        Host=www.thunderbird.net
+        Method=none
+        Port=443
+        ProxyUid=system-proxy
+
+        [Refresh]
+        Enabled=true
+        IntervalMinutes=1440
+
+        [Security]
+        Method=tls
+
+        [WebDAV Backend]
+        Uri=https://www.thunderbird.net/media/caldata/autogen/DenmarkHolidays.ics
       '';
     };
 }
