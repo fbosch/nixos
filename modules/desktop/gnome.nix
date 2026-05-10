@@ -9,6 +9,7 @@
         gnome-tweaks
         gnome-themes-extra
         gnome-calculator
+        gnome-calendar
         gnomeExtensions.appindicator
         gnomeExtensions.blur-my-shell
         gnomeExtensions.mock-tray
