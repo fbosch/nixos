@@ -1,41 +1,115 @@
-{ config, ... }:
-let
-  inherit (config.flake.lib) iconOverrides;
-in
 {
-  flake.modules.nixos.themes =
+  flake.modules.nixos.desktop =
     { pkgs, ... }:
     let
-      iconOverrideLib = iconOverrides {
-        inherit pkgs;
-        inherit (pkgs) lib;
-      };
+      inherit (pkgs) lib;
 
-      monoTheme = pkgs.stdenv.mkDerivation {
-        name = "MonoTheme";
-        src = pkgs.fetchzip {
-          url = "https://github.com/witalihirsch/Mono-gtk-theme/releases/download/1.3/MonoTheme.zip";
-          sha256 = "sha256-/Ysak/WeWY4+svCu3yhi/blfcUsSnGOrWn8/YCyNTYM=";
-        };
-        dontBuild = true;
-        installPhase = ''
-          mkdir -p $out/share/themes/MonoTheme
-          cp -r . $out/share/themes/MonoTheme/
-        '';
-      };
+      applyIconOverrides =
+        {
+          basePackage,
+          overrides,
+          themeName,
+        }:
+        pkgs.stdenv.mkDerivation {
+          name = "${basePackage.name}-with-overrides";
+          inherit (basePackage) src;
 
-      monoThemeDark = pkgs.stdenv.mkDerivation {
-        name = "MonoThemeDark";
-        src = pkgs.fetchzip {
-          url = "https://github.com/witalihirsch/Mono-gtk-theme/releases/download/1.3/MonoThemeDark.zip";
-          sha256 = "sha256-wQvRdJr6LWltnk8CMchu2y5zPXM5k7m0EOv4w4R8l9U=";
+          nativeBuildInputs = (basePackage.nativeBuildInputs or [ ]) ++ [ pkgs.xmlstarlet ];
+          dontBuild = basePackage.dontBuild or true;
+          dontFixup = basePackage.dontFixup or false;
+
+          installPhase =
+            basePackage.installPhase or ''
+              runHook preInstall
+              mkdir -p $out
+              cp -r . $out/
+              runHook postInstall
+            '';
+
+          postInstall = (basePackage.postInstall or "") + ''
+            ${lib.concatMapStringsSep "\n" (override: ''
+              for theme_dir in $out/share/icons/${themeName}*; do
+                ${lib.concatMapStringsSep "\n" (size: ''
+                  size_dir="$theme_dir/${override.context}/${size}"
+                  if [ -d "$size_dir" ]; then
+                    ${
+                      if override ? useBuiltin then
+                        ''
+                          if [ -f "$size_dir/${override.useBuiltin}.svg" ]; then
+                            rm -f "$size_dir/${override.name}.svg"
+                            cp -f "$size_dir/${override.useBuiltin}.svg" "$size_dir/${override.name}.svg"
+                          fi
+                        ''
+                      else if override ? useBuiltinFrom then
+                        ''
+                          source_icon="$theme_dir/${override.useBuiltinFrom}.svg"
+                          if [ -f "$source_icon" ]; then
+                            target_size=""
+                            case "${size}" in
+                              16) target_size="16" ;;
+                              22) target_size="22" ;;
+                              24) target_size="24" ;;
+                              32) target_size="32" ;;
+                              48) target_size="48" ;;
+                              64) target_size="64" ;;
+                              scalable) target_size="64" ;;
+                              symbolic) target_size="16" ;;
+                              *) target_size="16" ;;
+                            esac
+
+                            rm -f "$size_dir/${override.name}.svg"
+                            cp "$source_icon" "$size_dir/${override.name}.svg"
+
+                            if [ "${size}" != "scalable" ]; then
+                              ${pkgs.xmlstarlet}/bin/xmlstarlet ed -L \
+                                -u "//*[local-name()='svg']/@width" -v "$target_size" \
+                                -u "//*[local-name()='svg']/@height" -v "$target_size" \
+                                "$size_dir/${override.name}.svg" 2>/dev/null || true
+                            fi
+                          fi
+                        ''
+                      else
+                        ''
+                          if [ -f "${override.source}" ]; then
+                            target_size=""
+                            case "${size}" in
+                              16) target_size="16" ;;
+                              22) target_size="22" ;;
+                              24) target_size="24" ;;
+                              32) target_size="32" ;;
+                              48) target_size="48" ;;
+                              64) target_size="64" ;;
+                              scalable) target_size="64" ;;
+                              symbolic) target_size="16" ;;
+                              *) target_size="16" ;;
+                            esac
+
+                            rm -f "$size_dir/${override.name}.svg"
+                            cp "${override.source}" "$size_dir/${override.name}.svg"
+
+                            if [ "${size}" != "scalable" ]; then
+                              ${pkgs.xmlstarlet}/bin/xmlstarlet ed -L \
+                                -u "//*[local-name()='svg']/@width" -v "$target_size" \
+                                -u "//*[local-name()='svg']/@height" -v "$target_size" \
+                                "$size_dir/${override.name}.svg" 2>/dev/null || true
+                            fi
+                          fi
+                        ''
+                    }
+                  fi
+                '') override.sizes}
+              done
+            '') overrides}
+
+            if command -v gtk-update-icon-cache &> /dev/null; then
+              for dir in $out/share/icons/*/; do
+                if [ -f "$dir/index.theme" ]; then
+                  ${pkgs.gtk3}/bin/gtk-update-icon-cache -f -t "$dir" || true
+                fi
+              done
+            fi
+          '';
         };
-        dontBuild = true;
-        installPhase = ''
-          mkdir -p $out/share/themes/MonoThemeDark
-          cp -r . $out/share/themes/MonoThemeDark/
-        '';
-      };
 
       win11IconsBase = pkgs.stdenv.mkDerivation {
         name = "Win11";
@@ -186,7 +260,7 @@ in
         }
         {
           name = "discord";
-          source = ../../assets/icons/discord.svg;
+          source = ../../../assets/icons/discord.svg;
           sizes = [ "scalable" ];
           context = "apps";
         }
@@ -198,7 +272,7 @@ in
         }
       ];
 
-      win11Icons = iconOverrideLib.applyIconOverrides {
+      win11Icons = applyIconOverrides {
         basePackage = win11IconsBase;
         overrides = win11IconOverrides;
         themeName = "Win11";
@@ -252,15 +326,10 @@ in
     in
     {
       environment.systemPackages = [
-        monoTheme
-        monoThemeDark
         win11Icons
         winsurCursors
         we10xIcons
         mkosBigSurIcons
-        pkgs.gtk4
-        pkgs.adw-gtk3
-        pkgs.colloid-gtk-theme
       ];
     };
 }

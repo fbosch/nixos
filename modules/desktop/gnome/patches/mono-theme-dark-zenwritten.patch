@@ -1,0 +1,614 @@
+--- a/gnome-shell/gnome-shell.css
++++ b/gnome-shell/gnome-shell.css
+@@ -114,7 +114,7 @@
+     text-align: center;
+     font-weight: bold;
+     color: white;
+-    background-color: #252525;
++    background-color: #191919;
+     border: 1px solid rgba(255, 255, 255, 0.1);
+     border-radius: 8px;
+     spacing: 12px;
+@@ -170,7 +170,7 @@
+ 
+ .osd-monitor-label {
+     color: white;
+-    background-color: #252525;
++    background-color: #191919;
+     border: 1px solid rgba(255, 255, 255, 0.1);
+     border-radius: 999px;
+     padding: 12px;
+@@ -208,7 +208,7 @@
+ 
+ 
+ #panel {
+-    background-color: rgba(37, 37, 37, 0.4);
++    background-color: rgba(25, 25, 25, 0.4);
+     font-weight: bold;
+     height: 2.2em;
+     transition-duration: 250ms;
+@@ -1336,7 +1336,7 @@
+     box-shadow: none;
+     border-radius: 12px;
+     margin: 10px;
+-    background-color: #252525;
++    background-color: #191919;
+     border: 1px solid rgba(255, 255, 255, 0.05);
+ }
+ 
+@@ -1346,7 +1346,7 @@
+     box-shadow: none;
+     border-radius: 12px;
+     margin: 10px;
+-    background-color: #282828;
++    background-color: #242424;
+     border: 1px solid rgba(255, 255, 255, 0.05);
+ }
+ 
+@@ -1523,7 +1523,7 @@
+ 
+ .screenshot-ui-panel {
+     color: white;
+-    background-color: #252525;
++    background-color: #191919;
+     border: 1px solid rgba(255, 255, 255, 0.1);
+     border-radius: 999px;
+     padding: 12px;
+@@ -1770,7 +1770,7 @@
+ }
+ 
+ .screenshot-ui-window-selector {
+-    background-color: #252525;
++    background-color: #191919;
+ }
+ 
+ .screenshot-ui-window-selector .screenshot-ui-window-selector-window-container {
+@@ -1829,7 +1829,7 @@
+ 
+ .screenshot-ui-tooltip {
+     color: white;
+-    background-color: #252525;
++    background-color: #191919;
+     border-radius: 6px;
+     padding: 6px 12px;
+     text-align: center;
+@@ -1861,7 +1861,7 @@
+     border-radius: 12px;
+     border: 1px solid rgba(255, 255, 255, 0.1);
+     box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.2);
+-    background-color: #252525;
++    background-color: #191919;
+ }
+ 
+ .popup-menu-item {
+@@ -2100,7 +2100,7 @@
+ 
+ .modal-dialog {
+     color: white;
+-    background-color: #252525;
++    background-color: #191919;
+     border-radius: 12px;
+     border: 1px solid rgba(255, 255, 255, 0.1);
+     padding: 0px 5px 5px 5px;
+@@ -2390,7 +2390,7 @@
+ 
+ .window-caption {
+     color: white;
+-    background-color: #252525;
++    background-color: #191919;
+     border-radius: 6px;
+     padding: 6px 12px;
+ }
+@@ -2459,7 +2459,7 @@
+ .switcher-list,
+ .resize-popup {
+     color: white;
+-    background-color: #252525;
++    background-color: #191919;
+     border: 1px solid rgba(255, 255, 255, 0.1);
+     border-radius: 999px;
+     padding: 12px;
+@@ -2563,7 +2563,7 @@
+ }
+ 
+ #overviewGroup {
+-    background-color: #252525;
++    background-color: #191919;
+ }
+ 
+ .overview-controls {
+@@ -2576,7 +2576,7 @@
+ 
+ 
+ .workspace-animation {
+-    background-color: #252525;
++    background-color: #191919;
+ }
+ 
+ 
+@@ -2745,7 +2745,7 @@
+ 
+ .dash-label {
+     color: white;
+-    background-color: #252525;
++    background-color: #191919;
+     border-radius: 6px;
+     padding: 6px 12px;
+     text-align: center;
+@@ -2932,7 +2932,7 @@
+ .app-folder-dialog {
+     padding: 5px;
+     border-radius: 32px;
+-    background-color: #252525;
++    background-color: #191919;
+ }
+ 
+ .app-folder-dialog .folder-name-container {
+@@ -3292,7 +3292,7 @@
+ #keyboard {
+     background-color: transparent;
+     box-shadow: none;
+-    background-color: #252525;
++    background-color: #191919;
+ }
+ 
+ #keyboard .page-indicator {
+@@ -3338,7 +3338,7 @@
+ }
+ 
+ .keyboard-key:grayed {
+-    background-color: #252525;
++    background-color: #191919;
+     color: white;
+     border-color: rgba(0, 0, 0, 0.7);
+ }
+@@ -3419,7 +3419,7 @@
+ 
+ .keyboard-subkeys {
+     -arrow-border-radius: 16px;
+-    -arrow-background-color: #252525;
++    -arrow-background-color: #191919;
+     -arrow-border-width: 1px;
+     -arrow-border-color: transparent;
+     -arrow-base: 20px;
+@@ -3778,7 +3778,7 @@
+ 
+ 
+ #LookingGlassDialog {
+-    background-color: #252525;
++    background-color: #191919;
+     box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.2);
+     border: 1px solid rgba(255, 255, 255, 0.05);
+     color: white;
+@@ -4674,7 +4674,7 @@
+ }
+ 
+ #lockDialogGroup {
+-    background-color: #252525;
++    background-color: #191919;
+ }
+ 
+ #unlockDialogNotifications StButton#vhandle,
+--- a/gtk-3.0/gtk.css
++++ b/gtk-3.0/gtk.css
+@@ -6,13 +6,13 @@
+ 
+ .background {
+     color: white;
+-    background-color: #252525;
++    background-color: #191919;
+     transition: 0ms;
+ }
+ 
+ .background:backdrop {
+     color: rgba(255, 255, 255, 0.5);
+-    background-color: #282828;
++    background-color: #242424;
+     transition: 0ms;
+ }
+ 
+@@ -640,7 +640,7 @@
+ iconview text,
+ textview text {
+     color: white;
+-    background-color: #252525;
++    background-color: #191919;
+ }
+ 
+ .view:backdrop,
+@@ -652,7 +652,7 @@
+ iconview text:backdrop,
+ textview text:backdrop {
+     color: rgba(255, 255, 255, 0.5);
+-    background-color: #282828;
++    background-color: #242424;
+ }
+ 
+ .view:backdrop:disabled,
+@@ -675,7 +675,7 @@
+ iconview text:disabled,
+ textview text:disabled {
+     color: rgba(255, 255, 255, 0.5);
+-    background-color: #252525;
++    background-color: #191919;
+ }
+ 
+ .view:selected:focus,
+@@ -1887,7 +1887,7 @@
+     border-style: solid none none solid;
+     border-width: 1px;
+     border-color: rgba(255, 255, 255, 0.1);
+-    background-color: #252525;
++    background-color: #191919;
+ }
+ 
+ scrolledwindow junction:dir(rtl) {
+@@ -1895,7 +1895,7 @@
+ }
+ 
+ scrolledwindow junction:backdrop {
+-    background-color: #252525;
++    background-color: #191919;
+     transition: 200ms ease-out;
+ }
+ 
+@@ -2214,7 +2214,7 @@
+ messagedialog.csd.background {
+     border-radius: 0px;
+     min-height: 28px;
+-    background-color: #252525;
++    background-color: #191919;
+ }
+ 
+ messagedialog.csd .titlebar {
+@@ -2233,7 +2233,7 @@
+ 
+ messagedialog .titlebar:backdrop,
+ messagedialog.csd.background:backdrop {
+-    background-color: #282828;
++    background-color: #242424;
+     color: rgba(255, 255, 255, 0.5);
+ }
+ 
+@@ -9771,7 +9771,7 @@
+ 
+ .terminal,
+ .terminal text {
+-    background-color: #252525;
++    background-color: #191919;
+     color: white;
+     font-family: monospace;
+ }
+@@ -9784,7 +9784,7 @@
+ 
+ .terminal:backdrop,
+ .terminal text:backdrop {
+-    background-color: #282828;
++    background-color: #242424;
+     color: white;
+ }
+ 
+@@ -9794,12 +9794,12 @@
+ 
+ 
+ .terminator-terminal-window paned>separator {
+-    background-color: #252525;
++    background-color: #191919;
+ }
+ 
+ .terminator-terminal-window notebook.frame {
+     border: 1px solid #252525;
+-    background-color: #252525;
++    background-color: #191919;
+ }
+ 
+ 
+@@ -10227,7 +10227,7 @@
+ 
+ .xfce4-panel.background {
+     border: none;
+-    background-color: rgba(37, 37, 37, 0.7);
++    background-color: rgba(25, 25, 25, 0.7);
+     color: white;
+     transition-duration: 250ms;
+ }
+@@ -10428,7 +10428,7 @@
+ 
+ 
+ window.background.chromium {
+-    background-color: #252525;
++    background-color: #191919;
+ }
+ 
+ window.background.chromium entry,
+@@ -10478,7 +10478,7 @@
+ 
+ window.background.chromium treeview.view button {
+     border: 1px solid rgba(255, 255, 255, 0.1);
+-    background-color: #252525;
++    background-color: #191919;
+ }
+ 
+ tooltip.background.chromium {
+@@ -10506,7 +10506,7 @@
+ }
+ 
+ #MozillaGtkWidget.background {
+-    background-color: #252525;
++    background-color: #191919;
+ }
+ 
+ #MozillaGtkWidget>widget border {
+@@ -10650,7 +10650,7 @@
+ 
+ 
+ geary-conversation-viewer#conversation_viewer list.background.conversation-listbox.content {
+-    background-color: #252525;
++    background-color: #191919;
+     border: none;
+     border-radius: 0;
+ }
+@@ -10746,7 +10746,7 @@
+ }
+ 
+ .deck {
+-    background-color: #252525;
++    background-color: #191919;
+ }
+ 
+ .overlay-bar {
+@@ -10863,7 +10863,7 @@
+ 
+ sq_view {
+     font-size: 1.5em;
+-    background-color: #252525;
++    background-color: #191919;
+     box-shadow: none;
+ }
+ 
+--- a/gtk-3.0/gtk-dark.css
++++ b/gtk-3.0/gtk-dark.css
+@@ -6,13 +6,13 @@
+ 
+ .background {
+     color: white;
+-    background-color: #252525;
++    background-color: #191919;
+     transition: 0ms;
+ }
+ 
+ .background:backdrop {
+     color: rgba(255, 255, 255, 0.5);
+-    background-color: #282828;
++    background-color: #242424;
+     transition: 0ms;
+ }
+ 
+@@ -640,7 +640,7 @@
+ iconview text,
+ textview text {
+     color: white;
+-    background-color: #252525;
++    background-color: #191919;
+ }
+ 
+ .view:backdrop,
+@@ -652,7 +652,7 @@
+ iconview text:backdrop,
+ textview text:backdrop {
+     color: rgba(255, 255, 255, 0.5);
+-    background-color: #282828;
++    background-color: #242424;
+ }
+ 
+ .view:backdrop:disabled,
+@@ -675,7 +675,7 @@
+ iconview text:disabled,
+ textview text:disabled {
+     color: rgba(255, 255, 255, 0.5);
+-    background-color: #252525;
++    background-color: #191919;
+ }
+ 
+ .view:selected:focus,
+@@ -1887,7 +1887,7 @@
+     border-style: solid none none solid;
+     border-width: 1px;
+     border-color: rgba(255, 255, 255, 0.1);
+-    background-color: #252525;
++    background-color: #191919;
+ }
+ 
+ scrolledwindow junction:dir(rtl) {
+@@ -1895,7 +1895,7 @@
+ }
+ 
+ scrolledwindow junction:backdrop {
+-    background-color: #252525;
++    background-color: #191919;
+     transition: 200ms ease-out;
+ }
+ 
+@@ -2214,7 +2214,7 @@
+ messagedialog.csd.background {
+     border-radius: 0px;
+     min-height: 28px;
+-    background-color: #252525;
++    background-color: #191919;
+ }
+ 
+ messagedialog.csd .titlebar {
+@@ -2233,7 +2233,7 @@
+ 
+ messagedialog .titlebar:backdrop,
+ messagedialog.csd.background:backdrop {
+-    background-color: #282828;
++    background-color: #242424;
+     color: rgba(255, 255, 255, 0.5);
+ }
+ 
+@@ -9771,7 +9771,7 @@
+ 
+ .terminal,
+ .terminal text {
+-    background-color: #252525;
++    background-color: #191919;
+     color: white;
+     font-family: monospace;
+ }
+@@ -9784,7 +9784,7 @@
+ 
+ .terminal:backdrop,
+ .terminal text:backdrop {
+-    background-color: #282828;
++    background-color: #242424;
+     color: white;
+ }
+ 
+@@ -9794,12 +9794,12 @@
+ 
+ 
+ .terminator-terminal-window paned>separator {
+-    background-color: #252525;
++    background-color: #191919;
+ }
+ 
+ .terminator-terminal-window notebook.frame {
+     border: 1px solid #252525;
+-    background-color: #252525;
++    background-color: #191919;
+ }
+ 
+ 
+@@ -10227,7 +10227,7 @@
+ 
+ .xfce4-panel.background {
+     border: none;
+-    background-color: rgba(37, 37, 37, 0.7);
++    background-color: rgba(25, 25, 25, 0.7);
+     color: white;
+     transition-duration: 250ms;
+ }
+@@ -10428,7 +10428,7 @@
+ 
+ 
+ window.background.chromium {
+-    background-color: #252525;
++    background-color: #191919;
+ }
+ 
+ window.background.chromium entry,
+@@ -10478,7 +10478,7 @@
+ 
+ window.background.chromium treeview.view button {
+     border: 1px solid rgba(255, 255, 255, 0.1);
+-    background-color: #252525;
++    background-color: #191919;
+ }
+ 
+ tooltip.background.chromium {
+@@ -10506,7 +10506,7 @@
+ }
+ 
+ #MozillaGtkWidget.background {
+-    background-color: #252525;
++    background-color: #191919;
+ }
+ 
+ #MozillaGtkWidget>widget border {
+@@ -10650,7 +10650,7 @@
+ 
+ 
+ geary-conversation-viewer#conversation_viewer list.background.conversation-listbox.content {
+-    background-color: #252525;
++    background-color: #191919;
+     border: none;
+     border-radius: 0;
+ }
+@@ -10746,7 +10746,7 @@
+ }
+ 
+ .deck {
+-    background-color: #252525;
++    background-color: #191919;
+ }
+ 
+ .overlay-bar {
+@@ -10863,7 +10863,7 @@
+ 
+ sq_view {
+     font-size: 1.5em;
+-    background-color: #252525;
++    background-color: #191919;
+     box-shadow: none;
+ }
+ 
+--- a/gtk-4.0/gtk.css
++++ b/gtk-4.0/gtk.css
+@@ -51,12 +51,12 @@
+ 
+ .background {
+     color: white;
+-    background-color: #252525;
++    background-color: #191919;
+ }
+ 
+ .background:backdrop {
+     color: rgba(255, 255, 255, 0.5);
+-    background-color: #282828;
++    background-color: #242424;
+ }
+ 
+ .background.csd {
+@@ -142,13 +142,13 @@
+     border: 1px solid rgba(255, 255, 255, 0.05);
+     border-radius: 0;
+     margin: 0;
+-    background-color: #252525;
++    background-color: #191919;
+     box-shadow: none;
+ }
+ 
+ window.solid-csd:backdrop {
+     box-shadow: none;
+-    background-color: #282828;
++    background-color: #242424;
+ }
+ 
+ window.popup {
+@@ -1950,7 +1950,7 @@
+ window.dialog.message.csd .titlebar {
+     border-radius: 12px;
+     min-height: 28px;
+-    background-color: #252525;
++    background-color: #191919;
+ }
+ 
+ messagedialog.csd.background {
+@@ -1969,7 +1969,7 @@
+ 
+ window.dialog.message.csd.background:backdrop,
+ window.dialog.message.csd .titlebar:backdrop {
+-    background-color: #282828;
++    background-color: #242424;
+ }
+ 
+ window.dialog.message box.dialog-vbox.vertical {
+@@ -4213,7 +4213,7 @@
+ 
+ filechooser {
+     box-shadow: transparent;
+-    background-color: #252525;
++    background-color: #191919;
+     border-radius: 0 0 12px 12px;
+ }
+ 
+@@ -8379,7 +8379,7 @@
+ 
+ 
+ window.messagedialog {
+-    background-color: #252525;
++    background-color: #191919;
+     color: white;
+ }
+ 

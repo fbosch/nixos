@@ -1,0 +1,53 @@
+--- a/src/sass/_defaults.scss
++++ b/src/sass/_defaults.scss
+@@ -55,15 +55,15 @@
+ }
+ 
+ // Window
+-@define-color window_bg_color #{if(sass($variant == 'light'): '#fafafb'; else: '#222226')};
++@define-color window_bg_color #{if(sass($variant == 'light'): '#fafafb'; else: '#191919')};
+ @define-color window_fg_color #{if(sass($variant == 'light'): $_fg_color; else: 'white')};
+ 
+ // Views - e.g. text view or tree view
+-@define-color view_bg_color #{if(sass($variant == 'light'): '#ffffff'; else: '#1d1d20')};
++@define-color view_bg_color #{if(sass($variant == 'light'): '#ffffff'; else: '#191919')};
+ @define-color view_fg_color #{if(sass($variant == 'light'): $_text_color; else: 'white')};
+ 
+ // Header bar, search bar, tab bar
+-@define-color headerbar_bg_color #{if(sass($variant == 'light'): '#ebebed'; else: '#2e2e32')};
++@define-color headerbar_bg_color #{if(sass($variant == 'light'): '#ebebed'; else: '#242424')};
+ @define-color headerbar_fg_color #{if(sass($variant == 'light'): $_hb_fg_color; else: 'white')};
+ @define-color headerbar_border_color #{if(sass($variant == 'light'): rgba(0,0,6,0.8); else: 'white')};
+ @define-color headerbar_backdrop_color @window_bg_color;
+@@ -71,9 +71,9 @@
+ @define-color headerbar_darker_shade_color #{if(sass($variant == 'light'): rgba(0,0,6,0.12); else: rgba(0,0,12,0.9))};
+ 
+ // Split pane views
+-@define-color sidebar_bg_color #{if(sass($variant == 'light'): '#ebebed'; else: '#2e2e32')};
++@define-color sidebar_bg_color #{if(sass($variant == 'light'): '#ebebed'; else: '#242424')};
+ @define-color sidebar_fg_color #{if(sass($variant == 'light'): $_hb_fg_color; else: 'white')};
+-@define-color sidebar_backdrop_color #{if(sass($variant == 'light'): '#f2f2f4'; else: '#28282c')};
++@define-color sidebar_backdrop_color #{if(sass($variant == 'light'): '#f2f2f4'; else: '#242424')};
+ @define-color sidebar_shade_color #{if(sass($variant == 'light'): rgba(0,0,6,0.07); else: rgba(0,0,6,0.25))};
+ @define-color sidebar_border_color #{if(sass($variant == 'light'): rgba(0,0,6,0.07); else: rgba(0,0,6,0.36))};
+ 
+@@ -83,16 +83,16 @@
+ @define-color card_shade_color #{if(sass($variant == 'light'): rgba(0,0,6,0.07); else: rgba(0,0,6,0.36))};
+ 
+ // Dialogs
+-@define-color dialog_bg_color #{if(sass($variant == 'light'): '#fafafb'; else: '#36363a')};
++@define-color dialog_bg_color #{if(sass($variant == 'light'): '#fafafb'; else: '#242424')};
+ @define-color dialog_fg_color #{if(sass($variant == 'light'): $_fg_color; else: 'white')};
+ 
+ // Popovers
+-@define-color popover_bg_color #{if(sass($variant == 'light'): '#ffffff'; else: '#36363a')};
++@define-color popover_bg_color #{if(sass($variant == 'light'): '#ffffff'; else: '#242424')};
+ @define-color popover_fg_color #{if(sass($variant == 'light'): $_text_color; else: 'white')};
+ @define-color popover_shade_color #{if(sass($variant == 'light'): rgba(0,0,6,0.07); else: rgba(0,0,6,0.25))};
+ 
+ // Thumbnails
+-@define-color thumbnail_bg_color #{if(sass($variant == 'light'): '#ffffff'; else: '#39393d')};
++@define-color thumbnail_bg_color #{if(sass($variant == 'light'): '#ffffff'; else: '#242424')};
+ @define-color thumbnail_fg_color #{if(sass($variant == 'light'): $_text_color; else: 'white')};
+ 
+ // Miscellaneous

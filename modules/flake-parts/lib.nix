@@ -1,10 +1,6 @@
 { config, lib, ... }:
 {
   config.flake.lib = {
-    # Icon override utilities (from lib/icon-overrides.nix)
-    # Kept here because icon-overrides is tightly coupled to this flake's structure
-    iconOverrides = import ../../lib/icon-overrides.nix;
-
     # Dendritic pattern helpers for module path resolution
     # These helpers allow using string paths in imports while maintaining dendritic pattern compliance
 
