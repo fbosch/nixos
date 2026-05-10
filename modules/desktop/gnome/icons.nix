@@ -101,13 +101,11 @@
               done
             '') overrides}
 
-            if command -v gtk-update-icon-cache &> /dev/null; then
-              for dir in $out/share/icons/*/; do
-                if [ -f "$dir/index.theme" ]; then
-                  ${pkgs.gtk3}/bin/gtk-update-icon-cache -f -t "$dir" || true
-                fi
-              done
-            fi
+            for dir in $out/share/icons/*/; do
+              if [ -f "$dir/index.theme" ]; then
+                ${pkgs.gtk3}/bin/gtk-update-icon-cache -f -t "$dir" || true
+              fi
+            done
           '';
         };
 
@@ -147,6 +145,11 @@
         hash = "sha256-dKP35GxVJXhbDDQd4/e2KWggWH87SVvZr0/9U5iBt7A=";
       };
 
+      gnomeCalendarIcons = pkgs.runCommand "gnome-calendar-icons" { } ''
+        mkdir -p $out
+        tar -xf ${pkgs.gnome-calendar.src} --strip-components=1 -C $out
+      '';
+
       win11IconOverrides = [
         {
           name = "go-down-symbolic";
@@ -177,6 +180,36 @@
           source = "${pkgs.adwaita-icon-theme}/share/icons/Adwaita/symbolic/actions/go-previous-symbolic-rtl.svg";
           sizes = [ "symbolic" ];
           context = "actions";
+        }
+        {
+          name = "calendar-agenda-symbolic";
+          source = "${gnomeCalendarIcons}/src/gui/icons/calendar-agenda-symbolic.svg";
+          sizes = [ "symbolic" ];
+          context = "actions";
+        }
+        {
+          name = "checkmark-small-symbolic";
+          source = "${gnomeCalendarIcons}/src/gui/icons/checkmark-small-symbolic.svg";
+          sizes = [ "symbolic" ];
+          context = "actions";
+        }
+        {
+          name = "clock-alt-symbolic";
+          source = "${gnomeCalendarIcons}/src/gui/icons/clock-alt-symbolic.svg";
+          sizes = [ "symbolic" ];
+          context = "actions";
+        }
+        {
+          name = "loupe-large-symbolic";
+          source = "${gnomeCalendarIcons}/src/gui/icons/loupe-large-symbolic.svg";
+          sizes = [ "symbolic" ];
+          context = "actions";
+        }
+        {
+          name = "x-office-calendar-symbolic";
+          source = "${pkgs.adwaita-icon-theme}/share/icons/Adwaita/symbolic/mimetypes/x-office-calendar-symbolic.svg";
+          sizes = [ "symbolic" ];
+          context = "mimes";
         }
         {
           name = "folder";
