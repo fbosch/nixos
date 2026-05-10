@@ -18,7 +18,7 @@ in
 
         [Calendar]
         BackendName=webcal
-        Color=#cc241d
+        Color=${zenwritten.css.base.rose}
         Selected=true
 
         [Authentication]
