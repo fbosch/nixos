@@ -5,10 +5,10 @@
       inherit (pkgs) lib;
 
       applyIconOverrides =
-        {
-          basePackage,
-          overrides,
-          themeName,
+        { basePackage
+        , overrides
+        , themeName
+        ,
         }:
         pkgs.stdenv.mkDerivation {
           name = "${basePackage.name}-with-overrides";
@@ -148,6 +148,36 @@
       };
 
       win11IconOverrides = [
+        {
+          name = "go-down-symbolic";
+          source = "${pkgs.adwaita-icon-theme}/share/icons/Adwaita/symbolic/actions/go-down-symbolic.svg";
+          sizes = [ "symbolic" ];
+          context = "actions";
+        }
+        {
+          name = "go-next-symbolic";
+          source = "${pkgs.adwaita-icon-theme}/share/icons/Adwaita/symbolic/actions/go-next-symbolic.svg";
+          sizes = [ "symbolic" ];
+          context = "actions";
+        }
+        {
+          name = "go-next-symbolic-rtl";
+          source = "${pkgs.adwaita-icon-theme}/share/icons/Adwaita/symbolic/actions/go-next-symbolic-rtl.svg";
+          sizes = [ "symbolic" ];
+          context = "actions";
+        }
+        {
+          name = "go-previous-symbolic";
+          source = "${pkgs.adwaita-icon-theme}/share/icons/Adwaita/symbolic/actions/go-previous-symbolic.svg";
+          sizes = [ "symbolic" ];
+          context = "actions";
+        }
+        {
+          name = "go-previous-symbolic-rtl";
+          source = "${pkgs.adwaita-icon-theme}/share/icons/Adwaita/symbolic/actions/go-previous-symbolic-rtl.svg";
+          sizes = [ "symbolic" ];
+          context = "actions";
+        }
         {
           name = "folder";
           useBuiltinFrom = "places/scalable/folder";

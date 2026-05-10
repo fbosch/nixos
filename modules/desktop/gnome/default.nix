@@ -8,7 +8,42 @@ in
   };
 
   flake.modules.homeManager.desktop =
-    { pkgs, ... }:
+    { config, pkgs, ... }:
+    let
+      denmarkHolidaysSource = pkgs.writeText "denmark-holidays.source" ''
+        [Data Source]
+        DisplayName=Denmark Holidays
+        Enabled=true
+        Parent=webcal-stub
+
+        [Calendar]
+        BackendName=webcal
+        Color=#cc241d
+        Selected=true
+
+        [Authentication]
+        Host=www.thunderbird.net
+        Method=none
+        Port=443
+        ProxyUid=system-proxy
+        RememberPassword=false
+        User=
+
+        [Refresh]
+        Enabled=true
+        IntervalMinutes=1440
+
+        [Security]
+        Method=tls
+
+        [WebDAV Backend]
+        ResourcePath=/media/caldata/autogen/DenmarkHolidays.ics
+        ResourceQuery=
+
+        [Offline]
+        StaySynchronized=true
+      '';
+    in
     {
       home.packages = with pkgs; [
         gtk4
@@ -87,32 +122,15 @@ in
         }
       '';
 
-      xdg.configFile."evolution/sources/denmark-holidays.source".text = ''
-        [Data Source]
-        DisplayName=Denmark Holidays
-        Enabled=true
-        Parent=webcal-stub
+      home.activation.denmarkHolidaysCalendar = config.lib.dag.entryAfter [ "writeBoundary" ] ''
+        source_dir="$HOME/.config/evolution/sources"
+        source_file="$source_dir/denmark-holidays.source"
 
-        [Calendar]
-        BackendName=webcal
-        Color=#cc241d
-        Selected=true
-
-        [Authentication]
-        Host=www.thunderbird.net
-        Method=none
-        Port=443
-        ProxyUid=system-proxy
-
-        [Refresh]
-        Enabled=true
-        IntervalMinutes=1440
-
-        [Security]
-        Method=tls
-
-        [WebDAV Backend]
-        Uri=https://www.thunderbird.net/media/caldata/autogen/DenmarkHolidays.ics
+        $DRY_RUN_CMD ${pkgs.coreutils}/bin/mkdir -p "$source_dir"
+        if [ -L "$source_file" ]; then
+          $DRY_RUN_CMD ${pkgs.coreutils}/bin/rm "$source_file"
+        fi
+        $DRY_RUN_CMD ${pkgs.coreutils}/bin/install -m 0644 ${denmarkHolidaysSource} "$source_file"
       '';
     };
 }
