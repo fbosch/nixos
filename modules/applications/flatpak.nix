@@ -38,6 +38,7 @@
           ];
           Context.filesystems = [
             "xdg-config/fontconfig:ro"
+            "xdg-config/gtk-4.0:ro"
             "~/.local/share/fonts:ro"
             "/nix/store:ro"
           ];

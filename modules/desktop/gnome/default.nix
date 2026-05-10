@@ -34,6 +34,14 @@ in
       };
 
       xdg.configFile."gtk-4.0/gtk.css".text = ''
+        * {
+          font-family: "SF Pro Display", sans-serif;
+        }
+
+        :root {
+          --document-font-family: "SF Pro Display", sans-serif;
+        }
+
         @media (prefers-color-scheme: dark) {
           :root {
             --accent-blue: ${base.sky};
