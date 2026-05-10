@@ -100,6 +100,7 @@ in
             "services/containers/speedtest-tracker"
             "services/containers/onwatch"
             "services/containers/rsshub"
+            "services/containers/priceghost"
 
             # validation
             "validation/container-port-conflicts"
