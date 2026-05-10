@@ -3,10 +3,10 @@
   /* Font - SF Pro Display to match GTK theme */
   --adw-font-family: "SF Pro Display", sans-serif;
 
-  /* Accent color - Zenwritten water (#5b64db = rgb(91, 100, 219)) */
-  --adw-accent-bg-rbg: 91, 100, 219;
+  /* Accent color - Zenwritten sky (#6baedb = rgb(107, 174, 219)) */
+  --adw-accent-bg-rbg: 107, 174, 219;
   --adw-accent-fg-rbg: 255, 255, 255;
-  --adw-accent-rgb: 107, 116, 235;
+  --adw-accent-rgb: 123, 190, 251;
 
   /* Destructive color - Zenwritten rose (#d86659 = rgb(216, 102, 89)) */
   --adw-destructive-bg-rgb: 216, 102, 89;

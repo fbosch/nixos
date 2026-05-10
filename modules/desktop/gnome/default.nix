@@ -36,7 +36,7 @@ in
       xdg.configFile."gtk-4.0/gtk.css".text = ''
         @media (prefers-color-scheme: dark) {
           :root {
-            --accent-blue: ${base.water};
+            --accent-blue: ${base.sky};
             --accent-teal: ${base.sky};
             --accent-green: ${base.leaf};
             --accent-yellow: ${base.wood};
@@ -45,8 +45,8 @@ in
             --accent-pink: ${base.blossom};
             --accent-purple: ${base.blossom};
             --accent-slate: ${base.stone};
-            --accent-bg-color: ${base.water};
-            --accent-color: ${bright.water};
+            --accent-bg-color: ${base.sky};
+            --accent-color: ${bright.sky};
             --accent-fg-color: #ffffff;
             --destructive-bg-color: ${base.rose};
             --destructive-color: ${bright.rose};
