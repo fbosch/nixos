@@ -30,6 +30,7 @@ Declared exposed ports for `rvn-srv` are linted against this document.
 | flaresolverr-container    | `8191/tcp`                     | FlareSolverr API             |
 | speedtest-tracker         | `8085/tcp`                     | Web UI                       |
 | termix-container          | `7310/tcp`                     | Container web port           |
+| priceghost-container      | `8089/tcp`                     | Price tracking web UI        |
 | plex (nginx)              | `32402/tcp`                    | Reverse proxy port           |
 | onwatch-container         | `9211/tcp`                     | API quota tracker dashboard  |
 | rsshub-container          | `1200/tcp`                     | RSS feed aggregation service |
