@@ -53,6 +53,7 @@
         lazygit
         delta
         difftastic
+        diffnav
         gitui
       ];
 
