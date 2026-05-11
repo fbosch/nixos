@@ -2050,11 +2050,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1777896029,
-        "narHash": "sha256-hfQ9dtcx/MkLY1TPcCAMVYY1NgoDvwkyruOaxdO8PW8=",
+        "lastModified": 1778438986,
+        "narHash": "sha256-FE1jtG5Mur23xV0MU3tjlZcga2Vo3+oCi/qY4ySsZtg=",
         "owner": "winapps-org",
         "repo": "winapps",
-        "rev": "bc8b7856761f3c3b0e5d52ed34b5544319e69675",
+        "rev": "c0cda3cac32ff7e01eab71690a6cefaf69298140",
         "type": "github"
       },
       "original": {
