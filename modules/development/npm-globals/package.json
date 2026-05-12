@@ -1,7 +1,7 @@
 {
   "name": "nixos-npm-globals",
   "private": true,
-  "packageManager": "pnpm@10.33.0",
+  "packageManager": "pnpm@10.33.4",
   "pnpm": {
     "onlyBuiltDependencies": [
       "@anthropic-ai/claude-code",
