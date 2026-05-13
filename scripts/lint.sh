@@ -5,7 +5,7 @@ exit_code=0
 
 gum style --foreground 244 "Linting..."
 
-if gum spin --spinner dot --title "statix" -- statix check --ignore '.agents/**' '.opencode/skills/**' '.github/skills/**' . >/tmp/statix-output 2>&1; then
+if gum spin --spinner dot --title "statix" -- statix check --ignore '.agents/**' --ignore '.opencode/skills/**' --ignore '.github/skills/**' . >/tmp/statix-output 2>&1; then
 	echo "$(gum style --foreground 2 '[OK]') statix"
 else
 	echo "$(gum style --foreground 1 '[FAIL]') statix"

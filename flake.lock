@@ -140,6 +140,27 @@
         "type": "github"
       }
     },
+    "comfyui-nix": {
+      "inputs": {
+        "flake-parts": [
+          "flake-parts"
+        ],
+        "nixpkgs": "nixpkgs"
+      },
+      "locked": {
+        "lastModified": 1776979072,
+        "narHash": "sha256-1BUQDAMWGVcUhPuI5JFQmCTYlBmN/Fmon6MGmaKXrCk=",
+        "owner": "utensils",
+        "repo": "comfyui-nix",
+        "rev": "8a90889efc8fae81a8e03b8d9a8406c9f8ff425b",
+        "type": "github"
+      },
+      "original": {
+        "owner": "utensils",
+        "repo": "comfyui-nix",
+        "type": "github"
+      }
+    },
     "crane": {
       "locked": {
         "lastModified": 1775839657,
@@ -1484,7 +1505,7 @@
         "cachyos-kernel-patches": "cachyos-kernel-patches",
         "flake-compat": "flake-compat_2",
         "flake-parts": "flake-parts_2",
-        "nixpkgs": "nixpkgs"
+        "nixpkgs": "nixpkgs_2"
       },
       "locked": {
         "lastModified": 1778613686,
@@ -1642,16 +1663,16 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1778586796,
-        "narHash": "sha256-/WuJBhnL6LLlXto4Pa2w5FGcmwIVZIN0PA7tY/RLEU8=",
+        "lastModified": 1766902085,
+        "narHash": "sha256-coBu0ONtFzlwwVBzmjacUQwj3G+lybcZ1oeNSQkgC0M=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "b25e938b89759b5f9466fc53c4a970244f84dc39",
+        "rev": "c0b0e0fddf73fd517c3471e546c0df87a42d53f4",
         "type": "github"
       },
       "original": {
         "owner": "NixOS",
-        "ref": "nixos-unstable-small",
+        "ref": "nixos-unstable",
         "repo": "nixpkgs",
         "type": "github"
       }
@@ -1715,6 +1736,22 @@
       }
     },
     "nixpkgs_2": {
+      "locked": {
+        "lastModified": 1778586796,
+        "narHash": "sha256-/WuJBhnL6LLlXto4Pa2w5FGcmwIVZIN0PA7tY/RLEU8=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "b25e938b89759b5f9466fc53c4a970244f84dc39",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixos-unstable-small",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "nixpkgs_3": {
       "locked": {
         "lastModified": 1778443072,
         "narHash": "sha256-zi7/fsqM/kFdNuED//4WOCUtezGtKKqRNORjMvfwjnA=",
@@ -1832,6 +1869,7 @@
     "root": {
       "inputs": {
         "ags": "ags",
+        "comfyui-nix": "comfyui-nix",
         "dedupe_flake-compat": "dedupe_flake-compat",
         "dedupe_flake-utils": "dedupe_flake-utils",
         "dedupe_systems": "dedupe_systems",
@@ -1855,7 +1893,7 @@
         "nix-unit": "nix-unit",
         "nix-webapps": "nix-webapps",
         "nixos-hardware": "nixos-hardware",
-        "nixpkgs": "nixpkgs_2",
+        "nixpkgs": "nixpkgs_3",
         "nixpkgs-lib": "nixpkgs-lib_3",
         "nixpkgs-stable": "nixpkgs-stable",
         "pkgs-by-name-for-flake-parts": "pkgs-by-name-for-flake-parts_2",

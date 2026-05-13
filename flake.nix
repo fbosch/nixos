@@ -139,6 +139,10 @@
         flake-compat.follows = "dedupe_flake-compat";
       };
     };
+    comfyui-nix = {
+      url = "github:utensils/comfyui-nix";
+      inputs.flake-parts.follows = "flake-parts";
+    };
     ags = {
       url = "github:aylur/ags";
       inputs.nixpkgs.follows = "nixpkgs";

@@ -24,6 +24,10 @@ build-openmemory:
 # Build all custom container images
 build-images: build-helium build-openmemory
 
+# Push a Nix closure to Attic (defaults to current host system)
+push-attic target='' jobs='3':
+    if [ -n "{{target}}" ]; then nix path-info -r "{{target}}" | attic push --jobs "{{jobs}}" --no-closure nix-cache --stdin; else nix path-info -r ".#nixosConfigurations.$(hostname).config.system.build.toplevel" | attic push --jobs "{{jobs}}" --no-closure nix-cache --stdin; fi
+
 # Run linter (statix, deadnix, treefmt, actionlint, shellcheck)
 lint:
     nix run .#lint
