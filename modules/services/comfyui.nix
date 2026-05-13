@@ -12,6 +12,27 @@ in
     }:
     let
       nvidiaNamespaceShim = pkgs.writeTextDir "nvidia/__init__.py" "";
+      runtimeCompatibleComfyUI = pkgs.runCommand "comfy-ui-runtime-compatible" { } ''
+        mkdir -p "$out"
+        cp -RL ${pkgs.comfy-ui-cuda}/. "$out/"
+        chmod -R u+w "$out"
+
+        for bin in "$out/bin/comfy-ui" "$out/bin/comfyui"; do
+          substituteInPlace "$bin" \
+            --replace-fail \
+              "          'import sys' \\" \
+              "          'import sys' \\
+          'import importlib' \\
+          ' ' \\
+          'base_dir = os.environ.get(\"COMFYUI_BASE_DIR\")' \\
+          'if base_dir:' \\
+          '    try:' \\
+          '        folder_paths = importlib.import_module(\"folder_paths\")' \\
+          '        folder_paths.__file__ = os.path.join(base_dir, \"folder_paths.py\")' \\
+          '    except Exception:' \\
+          '        pass' \\"
+        done
+      '';
       scriptRuntimeInputs = with pkgs; [
         coreutils
         curl
@@ -58,6 +79,7 @@ in
       services.comfyui = {
         enable = true;
         gpuSupport = "cuda";
+        package = runtimeCompatibleComfyUI;
         enableManager = true;
 
         inherit dataDir port;

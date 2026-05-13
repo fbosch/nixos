@@ -10,7 +10,7 @@
      border-radius: 8px;
      spacing: 12px;
 @@ -170,7 +170,7 @@
- 
+
  .osd-monitor-label {
      color: white;
 -    background-color: #252525;
@@ -19,8 +19,8 @@
      border-radius: 999px;
      padding: 12px;
 @@ -208,7 +208,7 @@
- 
- 
+
+
  #panel {
 -    background-color: rgba(37, 37, 37, 0.4);
 +    background-color: rgba(25, 25, 25, 0.4);
@@ -35,7 +35,7 @@
 +    background-color: #191919;
      border: 1px solid rgba(255, 255, 255, 0.05);
  }
- 
+
 @@ -1346,7 +1346,7 @@
      box-shadow: none;
      border-radius: 12px;
@@ -44,9 +44,9 @@
 +    background-color: #242424;
      border: 1px solid rgba(255, 255, 255, 0.05);
  }
- 
+
 @@ -1523,7 +1523,7 @@
- 
+
  .screenshot-ui-panel {
      color: white;
 -    background-color: #252525;
@@ -56,15 +56,15 @@
      padding: 12px;
 @@ -1770,7 +1770,7 @@
  }
- 
+
  .screenshot-ui-window-selector {
 -    background-color: #252525;
 +    background-color: #191919;
  }
- 
+
  .screenshot-ui-window-selector .screenshot-ui-window-selector-window-container {
 @@ -1829,7 +1829,7 @@
- 
+
  .screenshot-ui-tooltip {
      color: white;
 -    background-color: #252525;
@@ -79,10 +79,10 @@
 -    background-color: #252525;
 +    background-color: #191919;
  }
- 
+
  .popup-menu-item {
 @@ -2100,7 +2100,7 @@
- 
+
  .modal-dialog {
      color: white;
 -    background-color: #252525;
@@ -91,7 +91,7 @@
      border: 1px solid rgba(255, 255, 255, 0.1);
      padding: 0px 5px 5px 5px;
 @@ -2390,7 +2390,7 @@
- 
+
  .window-caption {
      color: white;
 -    background-color: #252525;
@@ -110,24 +110,24 @@
      padding: 12px;
 @@ -2563,7 +2563,7 @@
  }
- 
+
  #overviewGroup {
 -    background-color: #252525;
 +    background-color: #191919;
  }
- 
+
  .overview-controls {
 @@ -2576,7 +2576,7 @@
- 
- 
+
+
  .workspace-animation {
 -    background-color: #252525;
 +    background-color: #191919;
  }
- 
- 
+
+
 @@ -2745,7 +2745,7 @@
- 
+
  .dash-label {
      color: white;
 -    background-color: #252525;
@@ -142,7 +142,7 @@
 -    background-color: #252525;
 +    background-color: #191919;
  }
- 
+
  .app-folder-dialog .folder-name-container {
 @@ -3292,7 +3292,7 @@
  #keyboard {
@@ -151,11 +151,11 @@
 -    background-color: #252525;
 +    background-color: #191919;
  }
- 
+
  #keyboard .page-indicator {
 @@ -3338,7 +3338,7 @@
  }
- 
+
  .keyboard-key:grayed {
 -    background-color: #252525;
 +    background-color: #191919;
@@ -163,7 +163,7 @@
      border-color: rgba(0, 0, 0, 0.7);
  }
 @@ -3419,7 +3419,7 @@
- 
+
  .keyboard-subkeys {
      -arrow-border-radius: 16px;
 -    -arrow-background-color: #252525;
@@ -172,8 +172,8 @@
      -arrow-border-color: transparent;
      -arrow-base: 20px;
 @@ -3778,7 +3778,7 @@
- 
- 
+
+
  #LookingGlassDialog {
 -    background-color: #252525;
 +    background-color: #191919;
@@ -182,31 +182,31 @@
      color: white;
 @@ -4674,7 +4674,7 @@
  }
- 
+
  #lockDialogGroup {
 -    background-color: #252525;
 +    background-color: #191919;
  }
- 
+
  #unlockDialogNotifications StButton#vhandle,
 --- a/gtk-3.0/gtk.css
 +++ b/gtk-3.0/gtk.css
 @@ -6,13 +6,13 @@
- 
+
  .background {
      color: white;
 -    background-color: #252525;
 +    background-color: #191919;
      transition: 0ms;
  }
- 
+
  .background:backdrop {
      color: rgba(255, 255, 255, 0.5);
 -    background-color: #282828;
 +    background-color: #242424;
      transition: 0ms;
  }
- 
+
 @@ -640,7 +640,7 @@
  iconview text,
  textview text {
@@ -214,7 +214,7 @@
 -    background-color: #252525;
 +    background-color: #191919;
  }
- 
+
  .view:backdrop,
 @@ -652,7 +652,7 @@
  iconview text:backdrop,
@@ -223,7 +223,7 @@
 -    background-color: #282828;
 +    background-color: #242424;
  }
- 
+
  .view:backdrop:disabled,
 @@ -675,7 +675,7 @@
  iconview text:disabled,
@@ -232,7 +232,7 @@
 -    background-color: #252525;
 +    background-color: #191919;
  }
- 
+
  .view:selected:focus,
 @@ -1887,7 +1887,7 @@
      border-style: solid none none solid;
@@ -241,17 +241,17 @@
 -    background-color: #252525;
 +    background-color: #191919;
  }
- 
+
  scrolledwindow junction:dir(rtl) {
 @@ -1895,7 +1895,7 @@
  }
- 
+
  scrolledwindow junction:backdrop {
 -    background-color: #252525;
 +    background-color: #191919;
      transition: 200ms ease-out;
  }
- 
+
 @@ -2214,7 +2214,7 @@
  messagedialog.csd.background {
      border-radius: 0px;
@@ -259,19 +259,19 @@
 -    background-color: #252525;
 +    background-color: #191919;
  }
- 
+
  messagedialog.csd .titlebar {
 @@ -2233,7 +2233,7 @@
- 
+
  messagedialog .titlebar:backdrop,
  messagedialog.csd.background:backdrop {
 -    background-color: #282828;
 +    background-color: #242424;
      color: rgba(255, 255, 255, 0.5);
  }
- 
+
 @@ -9771,7 +9771,7 @@
- 
+
  .terminal,
  .terminal text {
 -    background-color: #252525;
@@ -280,31 +280,31 @@
      font-family: monospace;
  }
 @@ -9784,7 +9784,7 @@
- 
+
  .terminal:backdrop,
  .terminal text:backdrop {
 -    background-color: #282828;
 +    background-color: #242424;
      color: white;
  }
- 
+
 @@ -9794,12 +9794,12 @@
- 
- 
+
+
  .terminator-terminal-window paned>separator {
 -    background-color: #252525;
 +    background-color: #191919;
  }
- 
+
  .terminator-terminal-window notebook.frame {
      border: 1px solid #252525;
 -    background-color: #252525;
 +    background-color: #191919;
  }
- 
- 
+
+
 @@ -10227,7 +10227,7 @@
- 
+
  .xfce4-panel.background {
      border: none;
 -    background-color: rgba(37, 37, 37, 0.7);
@@ -313,35 +313,35 @@
      transition-duration: 250ms;
  }
 @@ -10428,7 +10428,7 @@
- 
- 
+
+
  window.background.chromium {
 -    background-color: #252525;
 +    background-color: #191919;
  }
- 
+
  window.background.chromium entry,
 @@ -10478,7 +10478,7 @@
- 
+
  window.background.chromium treeview.view button {
      border: 1px solid rgba(255, 255, 255, 0.1);
 -    background-color: #252525;
 +    background-color: #191919;
  }
- 
+
  tooltip.background.chromium {
 @@ -10506,7 +10506,7 @@
  }
- 
+
  #MozillaGtkWidget.background {
 -    background-color: #252525;
 +    background-color: #191919;
  }
- 
+
  #MozillaGtkWidget>widget border {
 @@ -10650,7 +10650,7 @@
- 
- 
+
+
  geary-conversation-viewer#conversation_viewer list.background.conversation-listbox.content {
 -    background-color: #252525;
 +    background-color: #191919;
@@ -350,40 +350,40 @@
  }
 @@ -10746,7 +10746,7 @@
  }
- 
+
  .deck {
 -    background-color: #252525;
 +    background-color: #191919;
  }
- 
+
  .overlay-bar {
 @@ -10863,7 +10863,7 @@
- 
+
  sq_view {
      font-size: 1.5em;
 -    background-color: #252525;
 +    background-color: #191919;
      box-shadow: none;
  }
- 
+
 --- a/gtk-3.0/gtk-dark.css
 +++ b/gtk-3.0/gtk-dark.css
 @@ -6,13 +6,13 @@
- 
+
  .background {
      color: white;
 -    background-color: #252525;
 +    background-color: #191919;
      transition: 0ms;
  }
- 
+
  .background:backdrop {
      color: rgba(255, 255, 255, 0.5);
 -    background-color: #282828;
 +    background-color: #242424;
      transition: 0ms;
  }
- 
+
 @@ -640,7 +640,7 @@
  iconview text,
  textview text {
@@ -391,7 +391,7 @@
 -    background-color: #252525;
 +    background-color: #191919;
  }
- 
+
  .view:backdrop,
 @@ -652,7 +652,7 @@
  iconview text:backdrop,
@@ -400,7 +400,7 @@
 -    background-color: #282828;
 +    background-color: #242424;
  }
- 
+
  .view:backdrop:disabled,
 @@ -675,7 +675,7 @@
  iconview text:disabled,
@@ -409,7 +409,7 @@
 -    background-color: #252525;
 +    background-color: #191919;
  }
- 
+
  .view:selected:focus,
 @@ -1887,7 +1887,7 @@
      border-style: solid none none solid;
@@ -418,17 +418,17 @@
 -    background-color: #252525;
 +    background-color: #191919;
  }
- 
+
  scrolledwindow junction:dir(rtl) {
 @@ -1895,7 +1895,7 @@
  }
- 
+
  scrolledwindow junction:backdrop {
 -    background-color: #252525;
 +    background-color: #191919;
      transition: 200ms ease-out;
  }
- 
+
 @@ -2214,7 +2214,7 @@
  messagedialog.csd.background {
      border-radius: 0px;
@@ -436,19 +436,19 @@
 -    background-color: #252525;
 +    background-color: #191919;
  }
- 
+
  messagedialog.csd .titlebar {
 @@ -2233,7 +2233,7 @@
- 
+
  messagedialog .titlebar:backdrop,
  messagedialog.csd.background:backdrop {
 -    background-color: #282828;
 +    background-color: #242424;
      color: rgba(255, 255, 255, 0.5);
  }
- 
+
 @@ -9771,7 +9771,7 @@
- 
+
  .terminal,
  .terminal text {
 -    background-color: #252525;
@@ -457,31 +457,31 @@
      font-family: monospace;
  }
 @@ -9784,7 +9784,7 @@
- 
+
  .terminal:backdrop,
  .terminal text:backdrop {
 -    background-color: #282828;
 +    background-color: #242424;
      color: white;
  }
- 
+
 @@ -9794,12 +9794,12 @@
- 
- 
+
+
  .terminator-terminal-window paned>separator {
 -    background-color: #252525;
 +    background-color: #191919;
  }
- 
+
  .terminator-terminal-window notebook.frame {
      border: 1px solid #252525;
 -    background-color: #252525;
 +    background-color: #191919;
  }
- 
- 
+
+
 @@ -10227,7 +10227,7 @@
- 
+
  .xfce4-panel.background {
      border: none;
 -    background-color: rgba(37, 37, 37, 0.7);
@@ -490,35 +490,35 @@
      transition-duration: 250ms;
  }
 @@ -10428,7 +10428,7 @@
- 
- 
+
+
  window.background.chromium {
 -    background-color: #252525;
 +    background-color: #191919;
  }
- 
+
  window.background.chromium entry,
 @@ -10478,7 +10478,7 @@
- 
+
  window.background.chromium treeview.view button {
      border: 1px solid rgba(255, 255, 255, 0.1);
 -    background-color: #252525;
 +    background-color: #191919;
  }
- 
+
  tooltip.background.chromium {
 @@ -10506,7 +10506,7 @@
  }
- 
+
  #MozillaGtkWidget.background {
 -    background-color: #252525;
 +    background-color: #191919;
  }
- 
+
  #MozillaGtkWidget>widget border {
 @@ -10650,7 +10650,7 @@
- 
- 
+
+
  geary-conversation-viewer#conversation_viewer list.background.conversation-listbox.content {
 -    background-color: #252525;
 +    background-color: #191919;
@@ -527,38 +527,38 @@
  }
 @@ -10746,7 +10746,7 @@
  }
- 
+
  .deck {
 -    background-color: #252525;
 +    background-color: #191919;
  }
- 
+
  .overlay-bar {
 @@ -10863,7 +10863,7 @@
- 
+
  sq_view {
      font-size: 1.5em;
 -    background-color: #252525;
 +    background-color: #191919;
      box-shadow: none;
  }
- 
+
 --- a/gtk-4.0/gtk.css
 +++ b/gtk-4.0/gtk.css
 @@ -51,12 +51,12 @@
- 
+
  .background {
      color: white;
 -    background-color: #252525;
 +    background-color: #191919;
  }
- 
+
  .background:backdrop {
      color: rgba(255, 255, 255, 0.5);
 -    background-color: #282828;
 +    background-color: #242424;
  }
- 
+
  .background.csd {
 @@ -142,13 +142,13 @@
      border: 1px solid rgba(255, 255, 255, 0.05);
@@ -568,13 +568,13 @@
 +    background-color: #191919;
      box-shadow: none;
  }
- 
+
  window.solid-csd:backdrop {
      box-shadow: none;
 -    background-color: #282828;
 +    background-color: #242424;
  }
- 
+
  window.popup {
 @@ -1950,7 +1950,7 @@
  window.dialog.message.csd .titlebar {
@@ -583,32 +583,31 @@
 -    background-color: #252525;
 +    background-color: #191919;
  }
- 
+
  messagedialog.csd.background {
 @@ -1969,7 +1969,7 @@
- 
+
  window.dialog.message.csd.background:backdrop,
  window.dialog.message.csd .titlebar:backdrop {
 -    background-color: #282828;
 +    background-color: #242424;
  }
- 
+
  window.dialog.message box.dialog-vbox.vertical {
 @@ -4213,7 +4213,7 @@
- 
+
  filechooser {
      box-shadow: transparent;
 -    background-color: #252525;
 +    background-color: #191919;
      border-radius: 0 0 12px 12px;
  }
- 
+
 @@ -8379,7 +8379,7 @@
- 
- 
+
+
  window.messagedialog {
 -    background-color: #252525;
 +    background-color: #191919;
      color: white;
  }
- 

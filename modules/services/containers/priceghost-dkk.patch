@@ -7,7 +7,7 @@ diff -ruN a/backend/src/routes/products.ts b/backend/src/routes/products.ts
      const userId = req.userId!;
 -    const { url, refresh_interval, selectedPrice, selectedMethod } = req.body;
 +    const { url, refresh_interval, selectedPrice, selectedMethod, selectedCurrency } = req.body;
- 
+
      if (!url) {
        res.status(400).json({ error: 'URL is required' });
 @@ -65,7 +65,7 @@
@@ -18,7 +18,7 @@ diff -ruN a/backend/src/routes/products.ts b/backend/src/routes/products.ts
 +        selectedCurrency || 'DKK',
          null
        );
- 
+
 diff -ruN a/backend/src/services/scraper.ts b/backend/src/services/scraper.ts
 --- a/backend/src/services/scraper.ts	1970-01-01 01:00:01.000000000 +0100
 +++ b/backend/src/services/scraper.ts	2026-05-10 22:48:38.742908166 +0200
@@ -72,7 +72,7 @@ diff -ruN a/backend/src/services/scraper.ts b/backend/src/services/scraper.ts
            // Try to detect currency from nearby elements, parent, or page
 -          let currency = 'USD';
 +          let currency = 'DKK';
- 
+
            // Look for currency in the element's text, parent, and price-box container
            const textSources = [
 @@ -1900,7 +1900,7 @@
@@ -139,23 +139,23 @@ diff -ruN a/backend/src/utils/priceParser.ts b/backend/src/utils/priceParser.ts
 +      return { price, currency: 'DKK' };
      }
    }
- 
+
 @@ -107,7 +110,7 @@
- 
+
    // Match all price-like patterns in the HTML
    const allMatches = html.matchAll(
 -    /(?:[$€£¥₹])\s*[\d,]+\.?\d*|(?:CHF|Fr\.)\s*[\d,]+\.?\d*|[\d,]+\.?\d*\s*(?:USD|EUR|GBP|CAD|AUD|CHF)/gi
 +    /(?:[$€£¥₹]|kr\.?|DKK)\s*[\d.,\s]+|(?:CHF|Fr\.)\s*[\d,]+\.?\d*|[\d.,\s]+\s*(?:USD|EUR|GBP|CAD|AUD|CHF|DKK|kr\.?)/gi
    );
- 
+
    for (const match of allMatches) {
 diff -ruN a/frontend/src/api/client.ts b/frontend/src/api/client.ts
 --- a/frontend/src/api/client.ts	1970-01-01 01:00:01.000000000 +0100
 +++ b/frontend/src/api/client.ts	2026-05-10 22:48:38.751026924 +0200
 @@ -120,12 +120,13 @@
- 
+
    getById: (id: number) => api.get<ProductWithStats>(`/products/${id}`),
- 
+
 -  create: (url: string, refreshInterval?: number, selectedPrice?: number, selectedMethod?: string) =>
 +  create: (url: string, refreshInterval?: number, selectedPrice?: number, selectedMethod?: string, selectedCurrency?: string) =>
      api.post<CreateProductResponse>('/products', {
@@ -165,7 +165,7 @@ diff -ruN a/frontend/src/api/client.ts b/frontend/src/api/client.ts
        selectedMethod,
 +      selectedCurrency,
      }),
- 
+
    update: (id: number, data: {
 diff -ruN a/frontend/src/components/NotificationBell.tsx b/frontend/src/components/NotificationBell.tsx
 --- a/frontend/src/components/NotificationBell.tsx	1970-01-01 01:00:01.000000000 +0100
@@ -178,17 +178,17 @@ diff -ruN a/frontend/src/components/NotificationBell.tsx b/frontend/src/componen
 +  const symbol = currency === 'EUR' ? '\u20AC' : currency === 'GBP' ? '\u00A3' : currency === 'DKK' ? 'kr. ' : '$';
    return `${symbol}${numPrice.toFixed(2)}`;
  }
- 
+
 diff -ruN a/frontend/src/components/PriceChart.tsx b/frontend/src/components/PriceChart.tsx
 --- a/frontend/src/components/PriceChart.tsx	1970-01-01 01:00:01.000000000 +0100
 +++ b/frontend/src/components/PriceChart.tsx	2026-05-10 22:48:38.744212253 +0200
 @@ -59,7 +59,7 @@
    };
- 
+
    const currencySymbol =
 -    currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : currency === 'CHF' ? 'CHF ' : '$';
 +    currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : currency === 'CHF' ? 'CHF ' : currency === 'DKK' ? 'kr. ' : '$';
- 
+
    const chartData = prices.map((p) => ({
      date: new Date(p.recorded_at).getTime(),
 diff -ruN a/frontend/src/components/PriceSelectionModal.tsx b/frontend/src/components/PriceSelectionModal.tsx
@@ -213,13 +213,13 @@ diff -ruN a/frontend/src/components/PriceSelectionModal.tsx b/frontend/src/compo
        setIsSubmitting(false);
      }
    };
- 
+
    const formatPrice = (price: number, currency: string) => {
 -    const symbol = currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : currency === 'CHF' ? 'CHF ' : '$';
 +    const symbol = currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : currency === 'CHF' ? 'CHF ' : currency === 'DKK' ? 'kr. ' : '$';
      return `${symbol}${price.toFixed(2)}`;
    };
- 
+
 diff -ruN a/frontend/src/components/ProductCard.tsx b/frontend/src/components/ProductCard.tsx
 --- a/frontend/src/components/ProductCard.tsx	1970-01-01 01:00:01.000000000 +0100
 +++ b/frontend/src/components/ProductCard.tsx	2026-05-10 22:48:38.752184574 +0200
@@ -231,7 +231,6 @@ diff -ruN a/frontend/src/components/ProductCard.tsx b/frontend/src/components/Pr
 +      currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : currency === 'CHF' ? 'CHF ' : currency === 'DKK' ? 'kr. ' : '$';
      return `${currencySymbol}${numPrice.toFixed(2)}`;
    };
- 
 @@ -498,7 +498,7 @@
                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
                    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
@@ -256,11 +255,11 @@ diff -ruN a/frontend/src/pages/Dashboard.tsx b/frontend/src/pages/Dashboard.tsx
 @@ -83,14 +83,15 @@
      setProducts((prev) => [response.data as Product, ...prev]);
    };
- 
+
 -  const handlePriceSelected = async (selectedPrice: number, selectedMethod: string) => {
 +  const handlePriceSelected = async (selectedPrice: number, selectedMethod: string, selectedCurrency: string) => {
      if (!priceReviewData) return;
- 
+
      const response = await productsApi.create(
        priceReviewData.url,
        pendingRefreshInterval,
@@ -269,7 +268,7 @@ diff -ruN a/frontend/src/pages/Dashboard.tsx b/frontend/src/pages/Dashboard.tsx
 +      selectedMethod,
 +      selectedCurrency
      );
- 
+
      // When selecting a price, the API should always return a Product
 diff -ruN a/frontend/src/pages/NotificationHistory.tsx b/frontend/src/pages/NotificationHistory.tsx
 --- a/frontend/src/pages/NotificationHistory.tsx	1970-01-01 01:00:01.000000000 +0100
@@ -282,7 +281,7 @@ diff -ruN a/frontend/src/pages/NotificationHistory.tsx b/frontend/src/pages/Noti
 +  const symbol = currency === 'EUR' ? '\u20AC' : currency === 'GBP' ? '\u00A3' : currency === 'CHF' ? 'CHF ' : currency === 'DKK' ? 'kr. ' : '$';
    return `${symbol}${numPrice.toFixed(2)}`;
  }
- 
+
 diff -ruN a/frontend/src/pages/ProductDetail.tsx b/frontend/src/pages/ProductDetail.tsx
 --- a/frontend/src/pages/ProductDetail.tsx	1970-01-01 01:00:01.000000000 +0100
 +++ b/frontend/src/pages/ProductDetail.tsx	2026-05-10 22:48:38.746756625 +0200
@@ -294,4 +293,3 @@ diff -ruN a/frontend/src/pages/ProductDetail.tsx b/frontend/src/pages/ProductDet
 +      currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : currency === 'CHF' ? 'CHF ' : currency === 'DKK' ? 'kr. ' : '$';
      return `${currencySymbol}${numPrice.toFixed(2)}`;
    };
- 

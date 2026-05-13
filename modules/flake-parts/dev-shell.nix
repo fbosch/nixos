@@ -95,11 +95,7 @@
             shfmt.enable = true;
             statix = {
               enable = true;
-              settings.ignore = [
-                ".agents"
-                ".opencode/skills"
-                ".github/skills"
-              ];
+              settings.ignore = [ "{.agents,.opencode/skills,.github/skills}/**" ];
             };
             deadnix = {
               enable = true;
