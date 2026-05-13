@@ -33,7 +33,9 @@
       inherit (pkgs.stdenv.hostPlatform) system;
 
       hyprlandPackages = inputs.hyprland.packages.${system};
-      hyprlandPackage = hyprlandPackages.hyprland;
+      hyprlandPackage = hyprlandPackages.hyprland.overrideAttrs (old: {
+        patches = (old.patches or [ ]) ++ [ ./patches/hyprland-pointer-monitor-layout.patch ];
+      });
       xdgDesktopPortalHyprlandPackage = hyprlandPackages.xdg-desktop-portal-hyprland.override {
         hyprland = hyprlandPackage;
       };
