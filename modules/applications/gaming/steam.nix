@@ -17,6 +17,7 @@ _: {
           proton-ge-bin
         ];
         package = pkgs.steam.override {
+          extraArgs = "-system-composer";
           extraEnv = {
             DXVK_ASYNC = "1";
             PROTON_HIDE_NVIDIA_GPU = "0";
