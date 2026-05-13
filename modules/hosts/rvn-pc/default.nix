@@ -55,7 +55,6 @@ in
             "hosts/rvn-pc/platform"
             "hosts/rvn-pc/storage"
             "hosts/rvn-pc/home"
-            # "hosts/rvn-pc/fingerprint"
 
             # Desktop preset (users, security, development, shell, system, desktop environment)
             "presets/desktop"
