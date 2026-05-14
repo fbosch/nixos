@@ -1,4 +1,4 @@
-{ inputs, config, ... }:
+{ inputs, ... }:
 {
   flake.modules.homeManager.desktop =
     { pkgs
@@ -9,20 +9,13 @@
       inherit (pkgs.stdenv.hostPlatform) system;
     in
     {
-      home.packages = lib.optionals pkgs.stdenv.isLinux (
-        let
-          hyprpaperPackages = inputs.hyprpaper.packages.${system};
-          hyprpaperPackage = hyprpaperPackages.hyprpaper or hyprpaperPackages.default;
-          grimblastPackage = inputs.hyprland-contrib.packages.${system}.grimblast;
-        in
-        [
-          hyprpaperPackage
-          pkgs.hyprprop
-          pkgs.hyprpicker
-          pkgs.grim
-          grimblastPackage
-        ]
-      );
+      home.packages = lib.optionals pkgs.stdenv.isLinux [
+        inputs.hyprpaper.packages.${system}.hyprpaper
+        pkgs.hyprprop
+        pkgs.hyprpicker
+        pkgs.grim
+        inputs.hyprland-contrib.packages.${system}.grimblast
+      ];
     };
 
   flake.modules.nixos.desktop =
@@ -32,33 +25,12 @@
     let
       inherit (pkgs.stdenv.hostPlatform) system;
 
-      hyprlandPackages = inputs.hyprland.packages.${system};
-      hyprlandPackage = hyprlandPackages.hyprland;
-      xdgDesktopPortalHyprlandPackage = hyprlandPackages.xdg-desktop-portal-hyprland.override {
-        hyprland = hyprlandPackage;
-      };
-
-      # Hyprland plugins (temporarily disabled for upgrade)
-      # hyprPluginPkgs = inputs.hyprland-plugins.packages.${system};
-      # splitMonitorWorkspacesPkg =
-      #   inputs.split-monitor-workspaces.packages.${system}.split-monitor-workspaces;
-      # hypr-plugin-dir = pkgs.symlinkJoin {
-      #   name = "hyprland-plugins";
-      #   paths = [
-      #     hyprPluginPkgs.hyprbars
-      #     splitMonitorWorkspacesPkg
-      #   ];
-      # };
-
-      hyprlockPackages = inputs.hyprlock.packages.${system};
-      hyprlockPackage = hyprlockPackages.hyprlock or hyprlockPackages.default;
-
-      hypridlePackages = inputs.hypridle.packages.${system};
-      hypridlePackage = hypridlePackages.hypridle or hypridlePackages.default;
-
-      hyprsunsetPackages = inputs.hyprsunset.packages.${system};
-      hyprsunsetPackage = hyprsunsetPackages.hyprsunset or hyprsunsetPackages.default;
-
+      hyprlandPackage = inputs.hyprland.packages.${system}.hyprland;
+      xdgDesktopPortalHyprlandPackage =
+        inputs.hyprland.packages.${system}.xdg-desktop-portal-hyprland.override
+          {
+            hyprland = hyprlandPackage;
+          };
     in
     {
       xdg.portal = {
@@ -95,7 +67,6 @@
         GDK_BACKEND = "wayland,x11";
         GDK_DEBUG = "no-portals";
         WLR_NO_HARDWARE_CURSORS = "1";
-        # HYPR_PLUGIN_DIR = hypr-plugin-dir;
         __GL_GSYNC_ALLOWED = "1";
         __GL_VRR_ALLOWED = "1";
         QT_QPA_PLATFORM = "wayland;xcb";
@@ -106,9 +77,9 @@
       };
 
       environment.systemPackages = [
-        hyprlockPackage
-        hypridlePackage
-        hyprsunsetPackage
+        inputs.hyprlock.packages.${system}.hyprlock
+        inputs.hypridle.packages.${system}.hypridle
+        inputs.hyprsunset.packages.${system}.hyprsunset
         pkgs.hyprshutdown
         pkgs.hyprwhspr-rs
       ];
