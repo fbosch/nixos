@@ -7,7 +7,7 @@
           fnm
           bun
           nodejs_24
-          pnpm
+          local.pnpm
           yarn
           typescript
           prettier

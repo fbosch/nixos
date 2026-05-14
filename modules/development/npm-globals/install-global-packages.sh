@@ -2,6 +2,7 @@
 set -euo pipefail
 
 pnpm_home="${PNPM_HOME_VALUE:?PNPM_HOME_VALUE is required}"
+pnpm_global_bin_dir="$pnpm_home/bin"
 pnpm_store_dir="${PNPM_STORE_DIR_VALUE:?PNPM_STORE_DIR_VALUE is required}"
 state_dir="${STATE_DIR_VALUE:-$HOME/.local/state/pnpm-globals}"
 npm_registry_host="${NPM_REGISTRY_HOST:-registry.npmjs.org}"
@@ -13,11 +14,11 @@ lockfile_path="${LOCKFILE_PATH:?LOCKFILE_PATH is required}"
 yq_bin="${YQ_BIN:?YQ_BIN is required}"
 project_dir="$(dirname "$lockfile_path")"
 
-mkdir -p "$pnpm_home" "$pnpm_store_dir" "$state_dir"
+mkdir -p "$pnpm_global_bin_dir" "$pnpm_store_dir" "$state_dir"
 
 export PNPM_HOME="$pnpm_home"
 export PNPM_STORE_DIR="$pnpm_store_dir"
-export PATH="$pnpm_home:$node_bin_dir:$pnpm_bin_dir:$bun_bin_dir:$PATH"
+export PATH="$node_bin_dir:$pnpm_bin_dir:$bun_bin_dir:$pnpm_global_bin_dir:$PATH"
 
 # Only run installs when a new Home Manager generation is activated
 # (e.g. via `home-manager switch`), not on every subsequent activation.
