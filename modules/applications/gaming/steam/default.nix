@@ -3,6 +3,12 @@ _: {
   flake.modules.nixos.gaming =
     { pkgs, ... }:
     {
+      environment.systemPackages = with pkgs; [
+        steamcmd
+        steam-run
+        steamtinkerlaunch
+      ];
+
       # Enable Steam with proper system support
       programs.steam = {
         enable = true;
@@ -67,31 +73,7 @@ _: {
 
       # Custom CSS to match MonoThemeDark color scheme
       xdg.configFile."AdwSteamGtk/custom.css" = lib.mkIf osConfig.programs.steam.enable {
-        source = ../../../assets/steam-theme/custom.css;
+        source = ./custom.css;
       };
-
-      # xdg.desktopEntries.steam =
-      #   lib.mkIf (osConfig.programs.steam.enable && osConfig.services.mullvad-vpn.enable)
-      #     {
-      #       name = "Steam";
-      #       comment = "Application for managing and playing games on Steam";
-      #       exec = "${lib.getExe' pkgs.mullvad-vpn "mullvad-exclude"} steam steam://open/main %U";
-      #       icon = "steam";
-      #       type = "Application";
-      #       categories = [
-      #         "Network"
-      #         "FileTransfer"
-      #         "Game"
-      #       ];
-      #       mimeType = [
-      #         "x-scheme-handler/steam"
-      #         "x-scheme-handler/steamlink"
-      #       ];
-      #       terminal = false;
-      #       settings = {
-      #         PrefersNonDefaultGPU = "true";
-      #         X-KDE-RunOnDiscreteGpu = "true";
-      #       };
-      #     };
     };
 }
