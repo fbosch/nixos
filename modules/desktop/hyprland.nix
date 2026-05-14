@@ -59,6 +59,12 @@
         xwayland.enable = true;
       };
 
+      systemd.tmpfiles.rules = [
+        "d /usr/share 0755 root root - -"
+        "d /usr/share/hypr 0755 root root - -"
+        "L+ /usr/share/hypr/stubs - - - - ${hyprlandPackage}/share/hypr/stubs"
+      ];
+
       services.hyprwhspr-rs.enable = true;
 
       environment.sessionVariables = {
