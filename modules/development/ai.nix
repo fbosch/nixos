@@ -13,7 +13,6 @@
         ])
         ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
           pkgs.local.codexbar
-          pkgs.local.openpets
           pkgs.local.rtk
         ];
     };
