@@ -2,10 +2,23 @@ _: {
   # NixOS module: Generic gaming system configuration
   flake.modules.nixos.gaming =
     { pkgs, ... }:
+    let
+      wowup-cf-wayland = pkgs.symlinkJoin {
+        name = "wowup-cf-wayland";
+        paths = [ pkgs.wowup-cf ];
+        nativeBuildInputs = [ pkgs.makeWrapper ];
+        postBuild = ''
+          wrapProgram $out/bin/wowup-cf \
+            --set ELECTRON_OZONE_PLATFORM_HINT wayland \
+            --set NIXOS_OZONE_WL 1 \
+            --add-flags --use-gl=desktop
+        '';
+      };
+    in
     {
       environment.systemPackages = with pkgs; [
         mangohud
-        wowup-cf
+        wowup-cf-wayland
         protontricks
         wineWow64Packages.stable
         vulkan-tools
