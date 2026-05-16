@@ -26,6 +26,7 @@
       updateNodePackages = pkgs.writeShellApplication {
         name = "pnpm-global-update";
         runtimeInputs = [
+          pkgs.coreutils
           pnpmPackage
           pkgs.nodejs_24
           pkgs.bun
@@ -45,6 +46,8 @@
             echo "Pass an explicit directory: pnpm-global-update /path/to/modules/development/npm-globals" >&2
             exit 1
           fi
+
+          rm -rf "$npm_globals_dir/node_modules"
 
           echo "Updating pnpm lockfile to latest dependency releases..."
           (
@@ -74,6 +77,7 @@
       upgradeNodePackages = pkgs.writeShellApplication {
         name = "pnpm-global-upgrade";
         runtimeInputs = [
+          pkgs.coreutils
           pnpmPackage
           pkgs.nodejs_24
           pkgs.bun
@@ -93,6 +97,8 @@
             echo "Pass an explicit directory: pnpm-global-upgrade /path/to/modules/development/npm-globals" >&2
             exit 1
           fi
+
+          rm -rf "$npm_globals_dir/node_modules"
 
           echo "Choose upgrades interactively (including majors) ..."
           (
@@ -121,6 +127,7 @@
       installNodePackages = pkgs.writeShellApplication {
         name = "pnpm-global-install";
         runtimeInputs = [
+          pkgs.coreutils
           pnpmPackage
           pkgs.nodejs_24
           pkgs.bun
@@ -140,6 +147,8 @@
             echo "Run 'pnpm-global-update $npm_globals_dir' to generate it from package.json." >&2
             exit 1
           fi
+
+          rm -rf "$npm_globals_dir/node_modules"
 
           export PNPM_HOME_VALUE="${pnpmHome}"
           export PNPM_STORE_DIR_VALUE="${pnpmStoreDir}"

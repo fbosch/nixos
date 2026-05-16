@@ -1,3 +1,10 @@
+allowBuilds:
+  '@anthropic-ai/claude-code': true
+  '@fission-ai/openspec': true
+  '@schpet/linear-cli': true
+  agent-browser: true
+  esbuild: true
+  opencode-ai: true
 minimumReleaseAge: 1440
 minimumReleaseAgeExclude:
   - basic-ftp
