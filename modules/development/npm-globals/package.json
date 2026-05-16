@@ -8,7 +8,7 @@
     "@github/copilot": "1.0.48",
     "@schpet/linear-cli": "2.0.0",
     "agent-browser": "0.27.0",
-    "corepack": "0.34.7",
+    "corepack": "0.35.0",
     "jiti": "2.7.0",
     "neovim": "5.4.0",
     "opencode-ai": "1.15.0",
