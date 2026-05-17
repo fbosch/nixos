@@ -5,6 +5,6 @@ _: {
       environment.systemPackages = [ pkgs.lact ];
 
       systemd.packages = [ pkgs.lact ];
-      systemd.services.lact.enable = true;
+      systemd.services.lactd.enable = true;
     };
 }

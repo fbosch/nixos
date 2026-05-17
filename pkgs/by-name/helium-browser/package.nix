@@ -7,11 +7,11 @@
 
 let
   pname = "helium-browser";
-  version = "0.12.0.2";
+  version = "0.12.3.1";
 
   src = fetchurl {
     url = "https://github.com/imputnet/helium-linux/releases/download/${version}/helium-${version}-x86_64.AppImage";
-    hash = "sha256-1iU+hhisAPF2hAgfFob6Oe54JXjwb6uftiERa4t+OoE=";
+    hash = "sha256-VnOhzhAulvFNBB/0AD1d+K/TzfFL9Zwtk/vcm5vWl+I=";
   };
 
   icon = fetchurl {
@@ -35,6 +35,7 @@ appimageTools.wrapType2 rec {
     substituteInPlace $out/share/applications/${pname}.desktop \
       --replace 'Exec=AppRun %U' 'Exec=${pname} %U' \
       --replace 'Exec=AppRun' 'Exec=${pname}' \
+      --replace 'Exec=helium' 'Exec=${pname}' \
 
     install -Dm444 ${icon} \
       $out/share/icons/hicolor/256x256/apps/helium.png

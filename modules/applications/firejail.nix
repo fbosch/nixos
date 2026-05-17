@@ -11,14 +11,16 @@
             browserPackages = chromiumPackages;
           in
           lib.mkMerge [
-            (lib.mapAttrs' (name: package: {
-              inherit name;
-              value = {
-                executable = "${package}/bin/${name}";
-                profile = "${pkgs.firejail}/etc/firejail/chromium.profile";
-                desktop = "${package}/share/applications/${name}.desktop";
-              };
-            }) browserPackages)
+            (lib.mapAttrs'
+              (name: package: {
+                inherit name;
+                value = {
+                  executable = "${package}/bin/${name}";
+                  profile = "${pkgs.firejail}/etc/firejail/chromium.profile";
+                  desktop = "${package}/share/applications/${name}.desktop";
+                };
+              })
+              browserPackages)
             {
               vlc = {
                 executable = "${pkgs.vlc}/bin/vlc";

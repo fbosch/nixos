@@ -16,6 +16,14 @@
     { pkgs, lib, ... }:
     let
       inherit (pkgs.stdenv.hostPlatform) system;
+      waybar = pkgs.waybar.overrideAttrs (old: {
+        postPatch = (old.postPatch or "") + ''
+          substituteInPlace src/modules/hyprland/workspace.cpp \
+            --replace-fail \
+              'm_ipc.getSocket1Reply("dispatch workspace " + std::to_string(id()));' \
+              'm_ipc.getSocket1Reply("dispatch hl.dsp.focus({ workspace = \"" + std::to_string(id()) + "\" })");'
+        '';
+      });
     in
     {
       home.packages = lib.optionals pkgs.stdenv.isLinux (
@@ -41,7 +49,7 @@
           pkgs.wl-clip-persist
           pkgs.wtype
           pkgs.xdotool
-          pkgs.waybar
+          waybar
           pkgs.swaynotificationcenter
           pkgs.libnotify
           pkgs.swayosd
