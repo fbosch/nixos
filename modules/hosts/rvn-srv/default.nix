@@ -87,7 +87,6 @@ in
             "virtualization/podman"
             "services/containers/dozzle"
             "services/containers/gluetun"
-            "services/containers/redlib"
             "services/containers/termix"
             "services/containers/glance"
             "services/containers/pihole"
