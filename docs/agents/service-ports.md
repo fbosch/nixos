@@ -20,8 +20,6 @@ Declared exposed ports for `rvn-srv` are linted against this document.
 | prowlarr                  | `9696/tcp`                     | *arr indexer manager         |
 | glances                   | `61208/tcp`                    | Monitoring web UI            |
 | tailscale-relay           | `40000/udp`                    | DERP relay server port       |
-| redlib-container          | `8282/tcp`                     | App port                     |
-| redlib-container (nginx)  | `8283/tcp`                     | Reverse proxy port           |
 | helium-services-container | `8100/tcp`                     | Helium service HTTP port     |
 | openmemory-container      | `8380/tcp`, `3380/tcp`         | API server + dashboard       |
 | linkwarden-container      | `3100/tcp`                     | Web UI                       |
