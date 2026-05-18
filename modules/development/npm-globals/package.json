@@ -2,6 +2,16 @@
   "name": "nixos-npm-globals",
   "private": true,
   "packageManager": "pnpm@11.1.2",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@anthropic-ai/claude-code",
+      "@fission-ai/openspec",
+      "@schpet/linear-cli",
+      "agent-browser",
+      "esbuild",
+      "opencode-ai"
+    ]
+  },
   "dependencies": {
     "@anthropic-ai/claude-code": "2.1.143",
     "@fission-ai/openspec": "1.3.1",
