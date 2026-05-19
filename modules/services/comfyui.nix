@@ -95,8 +95,10 @@ in
         environment = {
           HOME = dataDir;
           PYTHONPATH = "${nvidiaNamespaceShim}";
-          XDG_CACHE_HOME = "${dataDir}/.cache";
-          MPLCONFIGDIR = "${dataDir}/.cache/matplotlib";
+          XDG_CACHE_HOME = "/run/comfyui/cache";
+          MPLCONFIGDIR = "/run/comfyui/cache/matplotlib";
+          TORCH_HOME = "${dataDir}/.cache/torch";
+          HF_HOME = "${dataDir}/.cache/huggingface";
         };
       };
 
@@ -104,7 +106,11 @@ in
         after = [ "comfyui-nvidia-uvm.service" ];
         requires = [ "comfyui-nvidia-uvm.service" ];
         wantedBy = lib.mkForce [ ];
-        serviceConfig.Restart = lib.mkForce "no";
+        serviceConfig = {
+          Restart = lib.mkForce "no";
+          RuntimeDirectory = "comfyui";
+          RuntimeDirectoryMode = "0755";
+        };
       };
 
       systemd.services.comfyui-nvidia-uvm = {

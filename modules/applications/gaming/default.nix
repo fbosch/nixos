@@ -34,7 +34,7 @@ _: {
         gamescope = {
           enable = true;
           package = pkgs.gamescope.overrideAttrs (_: {
-            NIX_CFLAGS_COMPILE = [ "-fno-fast-math" ];
+            NIX_CFLAGS_COMPILE = [ "-fno-fast-math" ]; # fixes weird stutter in wow when turning camera
           });
         };
 
