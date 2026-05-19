@@ -36,18 +36,16 @@ in
         host:
         lib.mkMerge [
           {
-            hostname = getAddress host;
+            HostName = getAddress host;
             # Use host-specific user if defined, otherwise use default user
-            user = host.user or flakeConfig.flake.meta.user.username;
-            extraOptions = {
-              AddKeysToAgent = "yes";
-              ServerAliveInterval = "30";
-              ServerAliveCountMax = "3";
-              TCPKeepAlive = "yes";
-            };
+            User = host.user or flakeConfig.flake.meta.user.username;
+            AddKeysToAgent = "yes";
+            ServerAliveInterval = 30;
+            ServerAliveCountMax = 3;
+            TCPKeepAlive = "yes";
           }
           (lib.optionalAttrs hasSopsPrivateKey {
-            identityFile = privateKeyPath;
+            IdentityFile = privateKeyPath;
           })
         ];
 
@@ -77,19 +75,17 @@ in
         enable = true;
         enableDefaultConfig = false;
 
-        matchBlocks = lib.mkMerge [
+        settings = lib.mkMerge [
           (lib.mkMerge (map mkMatchBlocks hosts))
           {
             "ssh.dev.azure.com" = {
-              identityFile = "~/.ssh/id_rsa";
-              identitiesOnly = true;
-              extraOptions = {
-                HostkeyAlgorithms = "+ssh-rsa";
-                PubkeyAcceptedKeyTypes = "ssh-rsa";
-                ServerAliveInterval = "30";
-                ServerAliveCountMax = "3";
-                TCPKeepAlive = "yes";
-              };
+              IdentityFile = "~/.ssh/id_rsa";
+              IdentitiesOnly = true;
+              HostkeyAlgorithms = "+ssh-rsa";
+              PubkeyAcceptedKeyTypes = "ssh-rsa";
+              ServerAliveInterval = 30;
+              ServerAliveCountMax = 3;
+              TCPKeepAlive = "yes";
             };
           }
         ];
