@@ -79,6 +79,10 @@ in
         system = {
           stateVersion = 5;
           primaryUser = config.flake.meta.user.username;
+          keyboard = {
+            enableKeyMapping = true;
+            remapCapsLockToControl = true;
+          };
           defaults = {
             dock = {
               autohide = true;
@@ -109,6 +113,28 @@ in
               NSAutomaticPeriodSubstitutionEnabled = false;
               NSWindowShouldDragOnGesture = true;
               "com.apple.swipescrolldirection" = false;
+            };
+
+            CustomUserPreferences = {
+              "com.knollsoft.Rectangle" = {
+                allowAnyShortcut = 1;
+                alternateDefaultShortcuts = 1;
+                launchOnLogin = 1;
+                windowSnapping = 1;
+              };
+
+              "com.lwouis.alt-tab-macos" = {
+                cursorFollowFocus = 1;
+                cursorFollowFocusEnabled = true;
+                hideAppBadges = false;
+                hideColoredCircles = true;
+                hideSpaceNumberLabels = true;
+                hideStatusIcons = true;
+                hideWindowlessApps = true;
+                previewFocusedWindow = true;
+                showTabsAsWindows = false;
+                vimKeysEnabled = false;
+              };
             };
           };
         };
