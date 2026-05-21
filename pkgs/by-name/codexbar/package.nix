@@ -12,7 +12,7 @@
 
 let
   pname = "codexbar";
-  version = "0.20";
+  version = "v0.27.0";
 
   inherit (stdenvNoCC.hostPlatform) system;
   arch =
