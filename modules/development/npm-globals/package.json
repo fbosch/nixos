@@ -21,7 +21,7 @@
     "corepack": "0.35.0",
     "jiti": "2.7.0",
     "neovim": "5.4.0",
-    "opencode-ai": "1.15.3",
+    "opencode-ai": "1.15.5",
     "opencode-claude-auth": "1.5.4",
     "pokemonshow": "4.0.0",
     "vercel": "54.1.0"
