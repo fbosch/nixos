@@ -6,7 +6,7 @@
 
 rustPlatform.buildRustPackage rec {
   pname = "rtk";
-  version = "0.38.0";
+  version = "0.40.0";
 
   src = fetchFromGitHub {
     owner = "rtk-ai";
