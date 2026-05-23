@@ -28,7 +28,7 @@ let
 
     src = fetchurl {
       url = "https://github.com/zen-browser/desktop/releases/download/twilight-1/zen.linux-x86_64.tar.xz";
-      hash = "sha256-lCoiR4nwZWyo+wiF3YAPgO57R6cyTt3EPFIJb0G4OTs=";
+      hash = "sha256-6ZWTyH4f9VQmy7XpbM1iiNAqzCchlW0vvRjQq1MpzvE=";
     };
 
     nativeBuildInputs = [
