@@ -10,8 +10,7 @@ _: {
         postBuild = ''
           wrapProgram $out/bin/wowup-cf \
             --set ELECTRON_OZONE_PLATFORM_HINT wayland \
-            --set NIXOS_OZONE_WL 1 \
-            --add-flags --use-gl=desktop
+            --set NIXOS_OZONE_WL 1
         '';
       };
     in
