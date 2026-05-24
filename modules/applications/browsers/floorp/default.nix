@@ -18,5 +18,30 @@
       services.flatpak.packages = [
         "one.ablaze.floorp"
       ];
+
+      xdg.desktopEntries."one.ablaze.floorp" = {
+        name = "Floorp";
+        genericName = "Web Browser";
+        exec = "flatpak run one.ablaze.floorp %U";
+        icon = "one.ablaze.floorp";
+        type = "Application";
+        categories = [
+          "Network"
+          "WebBrowser"
+        ];
+        mimeType = [
+          "text/html"
+          "text/xml"
+          "application/xhtml+xml"
+          "x-scheme-handler/http"
+          "x-scheme-handler/https"
+        ];
+        startupNotify = true;
+        terminal = false;
+        settings = {
+          StartupWMClass = "floorp";
+          X-Flatpak = "one.ablaze.floorp";
+        };
+      };
     };
 }
