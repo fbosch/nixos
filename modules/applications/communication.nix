@@ -8,6 +8,27 @@
         "org.signal.Signal" # Secure messaging
       ];
 
+      xdg.desktopEntries."org.signal.Signal" = {
+        name = "Signal";
+        exec = "flatpak run org.signal.Signal %U";
+        icon = "org.signal.Signal";
+        type = "Application";
+        categories = [
+          "Network"
+          "InstantMessaging"
+          "Chat"
+        ];
+        mimeType = [
+          "x-scheme-handler/sgnl"
+          "x-scheme-handler/signalcaptcha"
+        ];
+        terminal = false;
+        settings = {
+          StartupWMClass = "signal";
+          X-Flatpak = "org.signal.Signal";
+        };
+      };
+
       services.flatpak.overrides."com.discordapp.Discord" = {
         Context = {
           sockets = [

@@ -52,5 +52,18 @@ _: {
       "org.freedesktop.Platform.VulkanLayer.MangoHud//25.08" # MangoHud overlay
       "io.mgba.mGBA" # GBA emulator
     ];
+
+    xdg.desktopEntries.wowup-cf = {
+      name = "WowUp-CF";
+      exec = "env ELECTRON_OZONE_PLATFORM_HINT=wayland NIXOS_OZONE_WL=1 wowup-cf --no-sandbox --use-gl=angle --use-angle=opengl %U";
+      icon = "wowup-cf";
+      type = "Application";
+      categories = [ "Game" ];
+      terminal = false;
+      settings = {
+        StartupWMClass = "WowUp-CF";
+        X-AppImage-Version = "2.22.0";
+      };
+    };
   };
 }
