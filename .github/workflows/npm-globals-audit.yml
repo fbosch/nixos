@@ -43,6 +43,9 @@ jobs:
             pnpm install --lockfile-only
           "
 
+      - name: Verify lockfile is committed
+        run: git diff --exit-code -- modules/development/npm-globals/pnpm-lock.yaml
+
       - name: Install dependencies from lockfile
         working-directory: modules/development/npm-globals
         run: |

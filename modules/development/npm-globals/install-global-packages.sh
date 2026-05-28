@@ -13,12 +13,30 @@ bun_bin_dir="${BUN_BIN_DIR:?BUN_BIN_DIR is required}"
 lockfile_path="${LOCKFILE_PATH:?LOCKFILE_PATH is required}"
 yq_bin="${YQ_BIN:?YQ_BIN is required}"
 project_dir="$(dirname "$lockfile_path")"
+non_blocking="${PNPM_GLOBALS_NON_BLOCKING:-0}"
 
 mkdir -p "$pnpm_global_bin_dir" "$pnpm_store_dir" "$state_dir"
 
 export PNPM_HOME="$pnpm_home"
 export PNPM_STORE_DIR="$pnpm_store_dir"
 export PATH="$node_bin_dir:$pnpm_bin_dir:$bun_bin_dir:$pnpm_global_bin_dir:$PATH"
+
+for pnpm_root_entry in "$pnpm_home"/*; do
+	if [ -f "$pnpm_root_entry" ] && [ -x "$pnpm_root_entry" ]; then
+		echo "WARNING: executable found at PNPM_HOME root: $pnpm_root_entry" >&2
+		echo "Only $pnpm_global_bin_dir should be on PATH; remove stale root shims if they shadow managed binaries." >&2
+	fi
+done
+
+finish_failed_install() {
+	echo ""
+	echo "WARNING: Failed to install/update npm global packages." >&2
+	if [ "$non_blocking" = 1 ]; then
+		echo "Run 'home-manager switch' again to retry." >&2
+		exit 0
+	fi
+	exit 1
+}
 
 # Only run installs when a new Home Manager generation is activated
 # (e.g. via `home-manager switch`), not on every subsequent activation.
@@ -118,7 +136,5 @@ if [ "$install_failed" -eq 0 ]; then
 	echo ""
 	echo "npm global packages are up to date in: $pnpm_global_dir"
 else
-	echo ""
-	echo "WARNING: Failed to install/update npm global packages." >&2
-	echo "Run 'home-manager switch' again to retry." >&2
+	finish_failed_install
 fi
