@@ -21,10 +21,11 @@ export PNPM_HOME="$pnpm_home"
 export PNPM_STORE_DIR="$pnpm_store_dir"
 export PATH="$node_bin_dir:$pnpm_bin_dir:$bun_bin_dir:$pnpm_global_bin_dir:$PATH"
 
+stale_shim_dir="$state_dir/stale-root-shims"
 for pnpm_root_entry in "$pnpm_home"/*; do
 	if [ -f "$pnpm_root_entry" ] && [ -x "$pnpm_root_entry" ]; then
-		echo "WARNING: executable found at PNPM_HOME root: $pnpm_root_entry" >&2
-		echo "Only $pnpm_global_bin_dir should be on PATH; remove stale root shims if they shadow managed binaries." >&2
+		mkdir -p "$stale_shim_dir"
+		mv -f "$pnpm_root_entry" "$stale_shim_dir/$(basename "$pnpm_root_entry")"
 	fi
 done
 
