@@ -32,6 +32,7 @@
           "codexbar"
           "linear-linear"
           "bentobox"
+          "bitwarden"
         ];
 
         brews = [

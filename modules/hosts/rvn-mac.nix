@@ -36,7 +36,7 @@ in
     meta.hosts = [ hostMeta ];
 
     modules.darwin."hosts/rvn-mac" =
-      { pkgs, ... }:
+      { pkgs, lib, ... }:
       {
         imports = config.flake.lib.resolveDarwin [
           # Darwin core system configuration (Cachix, nix settings, home-manager)
@@ -155,6 +155,14 @@ in
             direnv = prev.direnv.overrideAttrs (_: {
               doCheck = false;
             });
+
+            _1password-gui = prev._1password-gui.overrideAttrs (old:
+              lib.optionalAttrs (old.version or null == "8.12.21") {
+                src = prev.fetchurl {
+                  url = "https://downloads.1password.com/mac/1Password-8.12.21-aarch64.zip";
+                  hash = "sha256-WrWbGzBK65tVNl9Dc3OnJURiPpfbNLOYUJcVT0ETaAs=";
+                };
+              });
           })
         ];
 
@@ -171,7 +179,6 @@ in
             wezterm
             rectangle
             tailscale
-            bitwarden-desktop
             _1password-gui
           ];
           variables.NH_FLAKE = "/Users/${config.flake.meta.user.username}/nixos";
