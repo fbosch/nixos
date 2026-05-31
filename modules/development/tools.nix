@@ -59,6 +59,7 @@
           astGrep
           keychain
           openssl
+          devenv
           statix
           deadnix
           nixpkgs-fmt
