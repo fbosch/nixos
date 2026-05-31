@@ -73,7 +73,7 @@
         EMOJI_FONT = "Apple Color Emoji";
         NIXOS_OZONE_WL = "1";
         GDK_BACKEND = "wayland,x11";
-        GDK_DEBUG = "no-portals";
+        ADW_DEBUG_COLOR_SCHEME = "prefer-dark";
         WLR_NO_HARDWARE_CURSORS = "1";
         __GL_GSYNC_ALLOWED = "1";
         __GL_VRR_ALLOWED = "1";
