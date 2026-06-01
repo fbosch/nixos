@@ -67,8 +67,6 @@
         "L+ /usr/share/hypr/stubs - - - - ${hyprlandPackage}/share/hypr/stubs"
       ];
 
-      services.hyprwhspr-rs.enable = true;
-
       environment.sessionVariables = {
         EMOJI_FONT = "Apple Color Emoji";
         NIXOS_OZONE_WL = "1";
@@ -89,7 +87,6 @@
         inputs.hypridle.packages.${system}.hypridle
         inputs.hyprsunset.packages.${system}.hyprsunset
         pkgs.hyprshutdown
-        pkgs.hyprwhspr-rs
       ];
 
       security.pam.services = {
@@ -99,5 +96,12 @@
         };
         hypridle = { };
       };
+    };
+
+  flake.modules.nixos."desktop/hyprwhspr-rs" =
+    { pkgs, ... }:
+    {
+      services.hyprwhspr-rs.enable = true;
+      environment.systemPackages = [ pkgs.hyprwhspr-rs ];
     };
 }
