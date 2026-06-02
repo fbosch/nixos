@@ -33,74 +33,21 @@ _: {
       config = {
         assertions =
           let
-            tcpPorts = lib.flatten (
-              map
-                (
-                  svc:
-                  map
-                    (port: {
-                      inherit (svc) service;
-                      inherit port;
-                    })
-                    svc.tcpPorts
-                )
-                config.services.exposedPorts
-            );
-
-            udpPorts = lib.flatten (
-              map
-                (
-                  svc:
-                  map
-                    (port: {
-                      inherit (svc) service;
-                      inherit port;
-                    })
-                    svc.udpPorts
-                )
-                config.services.exposedPorts
-            );
-
-            # Helper function to find duplicate ports
-            findDuplicates =
-              portList:
-              let
-                # Group by port number
-                grouped = builtins.groupBy (item: toString item.port) portList;
-
-                # Find groups with more than one entry
-                duplicates = lib.filterAttrs (_port: items: (lib.length items) > 1) grouped;
-              in
-              duplicates;
-
-            tcpDuplicates = findDuplicates tcpPorts;
-            udpDuplicates = findDuplicates udpPorts;
-
-            # Format duplicate port info for error messages
-            formatDuplicates =
-              protocol: dups:
-              lib.concatStringsSep "\n" (
-                lib.mapAttrsToList
-                  (
-                    port: items: "  ${protocol} port ${port}: ${lib.concatMapStringsSep ", " (i: i.service) items}"
-                  )
-                  dups
-              );
-
+            conflicts = config.flake.lib.portConflicts.report config.services.exposedPorts;
           in
           [
             {
-              assertion = tcpDuplicates == { };
+              assertion = !conflicts.tcp.hasConflicts;
               message = ''
                 Services have conflicting TCP ports:
-                ${formatDuplicates "TCP" tcpDuplicates}
+                ${conflicts.tcp.message}
               '';
             }
             {
-              assertion = udpDuplicates == { };
+              assertion = !conflicts.udp.hasConflicts;
               message = ''
                 Services have conflicting UDP ports:
-                ${formatDuplicates "UDP" udpDuplicates}
+                ${conflicts.udp.message}
               '';
             }
           ];

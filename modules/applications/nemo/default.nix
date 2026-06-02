@@ -17,10 +17,10 @@
     };
 
   flake.modules.homeManager.applications =
-    { pkgs, config, ... }:
+    { pkgs, ... }:
     {
       home.sessionVariables = {
-        XDG_DATA_DIRS = "$XDG_DATA_DIRS:${config.home.homeDirectory}/Desktop:${pkgs.nemo-with-extensions}/share/gsettings-schemas";
+        XDG_DATA_DIRS = "$XDG_DATA_DIRS:${pkgs.nemo-with-extensions}/share/gsettings-schemas";
       };
     };
 }

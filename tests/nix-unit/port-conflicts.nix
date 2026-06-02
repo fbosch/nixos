@@ -1,67 +1,121 @@
-{ lib }:
-let
-  findDuplicates =
-    portList:
-    let
-      grouped = builtins.groupBy (item: toString item.port) portList;
-    in
-    lib.filterAttrs (_port: items: (lib.length items) > 1) grouped;
-in
+{ portConflicts }:
 {
-  testNoDuplicatesReturnsEmpty = {
-    expr = findDuplicates [
+  testNoDuplicatesReturnsEmptyReport = {
+    expr = portConflicts.report [
       {
         service = "foo";
-        port = 8080;
+        tcpPorts = [ 8080 ];
       }
       {
         service = "bar";
-        port = 8081;
-      }
-    ];
-    expected = { };
-  };
-
-  testSingleDuplicateDetected = {
-    expr = findDuplicates [
-      {
-        service = "foo";
-        port = 8080;
-      }
-      {
-        service = "bar";
-        port = 8080;
+        tcpPorts = [ 8081 ];
       }
     ];
     expected = {
-      "8080" = [
-        {
-          service = "foo";
-          port = 8080;
-        }
-        {
-          service = "bar";
-          port = 8080;
-        }
-      ];
+      tcp = {
+        duplicates = { };
+        hasConflicts = false;
+        message = "";
+      };
+      udp = {
+        duplicates = { };
+        hasConflicts = false;
+        message = "";
+      };
+      hasConflicts = false;
     };
   };
 
-  testThreeWayConflictDetected = {
-    expr = findDuplicates [
+  testSingleTcpDuplicateDetected = {
+    expr = portConflicts.report [
       {
-        service = "a";
-        port = 53;
+        service = "foo";
+        tcpPorts = [ 8080 ];
       }
       {
-        service = "b";
-        port = 53;
-      }
-      {
-        service = "c";
-        port = 53;
+        service = "bar";
+        tcpPorts = [ 8080 ];
       }
     ];
+    expected = {
+      tcp = {
+        duplicates = {
+          "8080" = [
+            {
+              service = "foo";
+              port = 8080;
+            }
+            {
+              service = "bar";
+              port = 8080;
+            }
+          ];
+        };
+        hasConflicts = true;
+        message = "  TCP port 8080: foo, bar";
+      };
+      udp = {
+        duplicates = { };
+        hasConflicts = false;
+        message = "";
+      };
+      hasConflicts = true;
+    };
+  };
+
+  testSingleUdpDuplicateDetected = {
+    expr = portConflicts.report [
+      {
+        service = "foo";
+        udpPorts = [ 53 ];
+      }
+      {
+        service = "bar";
+        udpPorts = [ 53 ];
+      }
+    ];
+    expected = {
+      tcp = {
+        duplicates = { };
+        hasConflicts = false;
+        message = "";
+      };
+      udp = {
+        duplicates = {
+          "53" = [
+            {
+              service = "foo";
+              port = 53;
+            }
+            {
+              service = "bar";
+              port = 53;
+            }
+          ];
+        };
+        hasConflicts = true;
+        message = "  UDP port 53: foo, bar";
+      };
+      hasConflicts = true;
+    };
+  };
+
+  testThreeWayTcpConflictDetected = {
+    expr =
+      (portConflicts.report [
+        {
+          service = "a";
+          tcpPorts = [ 53 ];
+        }
+        {
+          service = "b";
+          tcpPorts = [ 53 ];
+        }
+        {
+          service = "c";
+          tcpPorts = [ 53 ];
+        }
+      ]).tcp.duplicates;
     expected = {
       "53" = [
         {
@@ -81,20 +135,21 @@ in
   };
 
   testMixedPortsOnlyReturnsDuplicates = {
-    expr = findDuplicates [
-      {
-        service = "foo";
-        port = 8080;
-      }
-      {
-        service = "bar";
-        port = 8080;
-      }
-      {
-        service = "baz";
-        port = 9090;
-      }
-    ];
+    expr =
+      (portConflicts.report [
+        {
+          service = "foo";
+          tcpPorts = [ 8080 ];
+        }
+        {
+          service = "bar";
+          tcpPorts = [ 8080 ];
+        }
+        {
+          service = "baz";
+          tcpPorts = [ 9090 ];
+        }
+      ]).tcp.duplicates;
     expected = {
       "8080" = [
         {
@@ -110,7 +165,19 @@ in
   };
 
   testEmptyListReturnsEmpty = {
-    expr = findDuplicates [ ];
-    expected = { };
+    expr = portConflicts.report [ ];
+    expected = {
+      tcp = {
+        duplicates = { };
+        hasConflicts = false;
+        message = "";
+      };
+      udp = {
+        duplicates = { };
+        hasConflicts = false;
+        message = "";
+      };
+      hasConflicts = false;
+    };
   };
 }

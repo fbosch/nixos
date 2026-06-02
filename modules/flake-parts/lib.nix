@@ -20,6 +20,65 @@
       m: if builtins.isString m then config.flake.modules.darwin.${m} else m
     );
 
+    portConflicts =
+      let
+        portsFor =
+          portsAttr: exposedPorts:
+          lib.flatten (
+            map
+              (
+                svc:
+                map
+                  (port: {
+                    inherit (svc) service;
+                    inherit port;
+                  })
+                  (svc.${portsAttr} or [ ])
+              )
+              exposedPorts
+          );
+
+        findDuplicates =
+          portList:
+          let
+            grouped = builtins.groupBy (item: toString item.port) portList;
+          in
+          lib.filterAttrs (_port: items: (lib.length items) > 1) grouped;
+
+        formatDuplicates =
+          protocol: duplicates:
+          lib.concatStringsSep "\n" (
+            lib.mapAttrsToList
+              (
+                port: items: "  ${protocol} port ${port}: ${lib.concatMapStringsSep ", " (i: i.service) items}"
+              )
+              duplicates
+          );
+
+        reportFor =
+          protocol: portsAttr: exposedPorts:
+          let
+            duplicates = findDuplicates (portsFor portsAttr exposedPorts);
+          in
+          {
+            inherit duplicates;
+            hasConflicts = duplicates != { };
+            message = formatDuplicates protocol duplicates;
+          };
+      in
+      {
+        report =
+          exposedPorts:
+          let
+            tcp = reportFor "TCP" "tcpPorts" exposedPorts;
+            udp = reportFor "UDP" "udpPorts" exposedPorts;
+          in
+          {
+            inherit tcp udp;
+            hasConflicts = tcp.hasConflicts || udp.hasConflicts;
+          };
+      };
+
     sopsHelpers =
       let
         rootOnly = {

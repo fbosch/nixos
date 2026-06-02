@@ -12,7 +12,7 @@
         };
 
         portConflicts = import ../../tests/nix-unit/port-conflicts.nix {
-          inherit (inputs.nixpkgs) lib;
+          inherit (config.flake.lib) portConflicts;
         };
       };
     };
