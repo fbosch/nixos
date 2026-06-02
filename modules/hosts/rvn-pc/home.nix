@@ -14,7 +14,6 @@
       ++ [
         # External Home Manager modules
         inputs.flatpaks.homeManagerModules.nix-flatpak
-        inputs.vicinae.homeManagerModules.default
 
         # User directory configuration
         {
