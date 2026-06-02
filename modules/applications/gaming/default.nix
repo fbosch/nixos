@@ -51,6 +51,7 @@ _: {
       "org.freedesktop.Platform.VulkanLayer.vkBasalt//25.08" # Vulkan post-processing
       "org.freedesktop.Platform.VulkanLayer.MangoHud//25.08" # MangoHud overlay
       "io.mgba.mGBA" # GBA emulator
+      "org.prismlauncher.PrismLauncher"
     ];
 
     xdg.desktopEntries.wowup-cf = {
