@@ -38,7 +38,8 @@
       systemd.user.services.zen-prewarm = {
         Unit = {
           Description = "Prewarm Zen Browser files into page cache";
-          After = [ "graphical-session.target" ];
+          After = [ "default.target" ];
+          StartLimitIntervalSec = 0;
         };
 
         Service = {
@@ -47,15 +48,20 @@
             set -euo pipefail
 
             targets=()
-            zen_app_root="$HOME/.local/share/flatpak/app/app.zen_browser.zen"
+            zen_app_roots=(
+              "$HOME/.local/share/flatpak/app/app.zen_browser.zen"
+              "/var/lib/flatpak/app/app.zen_browser.zen"
+            )
             zen_cache="$HOME/.var/app/app.zen_browser.zen/cache"
             zen_profile_root="$HOME/.var/app/app.zen_browser.zen/.zen"
 
-            if [ -d "$zen_app_root" ]; then
-              while IFS= read -r -d "" path; do
-                targets+=("$path")
-              done < <(${pkgs.findutils}/bin/find "$zen_app_root" -path "*/files/zen" -type d -print0)
-            fi
+            for zen_app_root in "''${zen_app_roots[@]}"; do
+              if [ -d "$zen_app_root" ]; then
+                while IFS= read -r -d "" path; do
+                  targets+=("$path")
+                done < <(${pkgs.findutils}/bin/find "$zen_app_root" -path "*/files/zen" -type d -print0)
+              fi
+            done
 
             if [ -d "$zen_cache" ]; then
               targets+=("$zen_cache")
@@ -78,12 +84,12 @@
             fi
 
             if [ "''${#targets[@]}" -gt 0 ]; then
-              ${pkgs.vmtouch}/bin/vmtouch -q -t "''${targets[@]}"
+              ${pkgs.util-linux}/bin/ionice -c 3 ${pkgs.coreutils}/bin/nice -n 19 ${pkgs.vmtouch}/bin/vmtouch -q -t "''${targets[@]}"
             fi
           ''}";
         };
 
-        Install.WantedBy = [ "graphical-session.target" ];
+        Install.WantedBy = [ "default.target" ];
       };
 
       services.flatpak.overrides."app.zen_browser.zen" = {
