@@ -137,6 +137,13 @@ in
       };
 
       config = {
+        assertions = [
+          {
+            assertion = cfg.port == 8080;
+            message = "glance-container: host networking requires port 8080 because Glance binds directly on the host";
+          }
+        ];
+
         services.glance-container.envFile = lib.mkDefault (
           lib.attrByPath [ "sops" "templates" "glance-env" "path" ] null config
         );
@@ -194,7 +201,7 @@ in
           [Container]
           ContainerName=glance
           Image=glanceapp/glance:${cfg.imageTag}
-          PublishPort=${toString cfg.port}:8080
+          Network=host
           Volume=${configDir}:/app/config
           ${lib.optionalString (!assetsDirIsSubdir) "Volume=${assetsDir}:/app/assets"}
           Volume=/etc/localtime:/etc/localtime:ro
