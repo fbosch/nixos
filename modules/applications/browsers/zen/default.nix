@@ -69,17 +69,34 @@
 
             if [ -d "$zen_profile_root" ]; then
               while IFS= read -r -d "" profile_dir; do
-                if [ -d "$profile_dir/extensions" ]; then
-                  targets+=("$profile_dir/extensions")
-                fi
+                profile_targets=(
+                  "$profile_dir/addons.json"
+                  "$profile_dir/compatibility.ini"
+                  "$profile_dir/content-prefs.sqlite"
+                  "$profile_dir/cookies.sqlite"
+                  "$profile_dir/extension-preferences.json"
+                  "$profile_dir/extensions.json"
+                  "$profile_dir/favicons.sqlite"
+                  "$profile_dir/handlers.json"
+                  "$profile_dir/permissions.sqlite"
+                  "$profile_dir/places.sqlite"
+                  "$profile_dir/prefs.js"
+                  "$profile_dir/search.json.mozlz4"
+                  "$profile_dir/sessionCheckpoints.json"
+                  "$profile_dir/user.js"
+                )
 
-                if [ -f "$profile_dir/extensions.json" ]; then
-                  targets+=("$profile_dir/extensions.json")
-                fi
+                for profile_target in "''${profile_targets[@]}"; do
+                  if [ -e "$profile_target" ]; then
+                    targets+=("$profile_target")
+                  fi
+                done
 
-                if [ -d "$profile_dir/startupCache" ]; then
-                  targets+=("$profile_dir/startupCache")
-                fi
+                for profile_target in browser-extension-data crashes datareporting extensions security_state sessionstore-backups startupCache storage; do
+                  if [ -e "$profile_dir/$profile_target" ]; then
+                    targets+=("$profile_dir/$profile_target")
+                  fi
+                done
               done < <(${pkgs.findutils}/bin/find "$zen_profile_root" -maxdepth 1 -iname "*default*" -type d ! -name "static-*" -print0)
             fi
 
@@ -105,10 +122,6 @@
             "ipc"
           ];
           devices = [ "dri" ];
-          filesystems = [
-            "/etc/localtime:ro"
-            "/etc/zoneinfo:ro"
-          ];
         };
         Environment = {
           MOZ_ENABLE_WAYLAND = "1";
