@@ -26,6 +26,7 @@ _: {
         protonup-qt
         # sgdboop - disabled due to build error in nixpkgs (function signature mismatch)
         nvitop
+        prismlauncher # Minecraft launcher
       ];
 
       hardware.graphics.enable = true;
@@ -51,7 +52,6 @@ _: {
       "org.freedesktop.Platform.VulkanLayer.vkBasalt//25.08" # Vulkan post-processing
       "org.freedesktop.Platform.VulkanLayer.MangoHud//25.08" # MangoHud overlay
       "io.mgba.mGBA" # GBA emulator
-      "org.prismlauncher.PrismLauncher"
     ];
 
     xdg.desktopEntries.wowup-cf = {
