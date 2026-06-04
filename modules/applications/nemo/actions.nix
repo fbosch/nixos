@@ -29,6 +29,19 @@
         text = builtins.readFile ./scripts/convert-image.sh;
       };
 
+      launchWithFaugusScript = pkgs.writeShellApplication {
+        name = "nemo-launch-with-faugus";
+        runtimeInputs = [
+          pkgs.coreutils
+          pkgs.faugus-launcher
+          pkgs.gamemode
+          pkgs.mangohud
+          pkgs.umu-launcher
+          pkgs.zenity
+        ];
+        text = builtins.readFile ./scripts/launch-with-faugus.sh;
+      };
+
       mkConvertAction = ext: label: mimes: ''
         [Nemo Action]
         Active=true
@@ -81,6 +94,19 @@
           Selection=notnone
           Quote=double
           Mimetypes=any;
+          Terminal=false
+        '';
+
+        "nemo/actions/launch-with-faugus.nemo_action".text = ''
+          [Nemo Action]
+          Active=true
+          Name=Launch with Faugus
+          Comment=Choose a Proton runtime and launch this Windows executable with Faugus
+          Exec=${launchWithFaugusScript}/bin/nemo-launch-with-faugus %F
+          Icon-Name=faugus-launcher
+          Selection=single
+          Quote=double
+          Extensions=exe;
           Terminal=false
         '';
 
