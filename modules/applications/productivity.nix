@@ -17,6 +17,7 @@
       services.flatpak.packages = [
         "md.obsidian.Obsidian"
         "io.github.efogdev.mpris-timer"
+        "io.github.tanaybhomia.Whisp"
       ];
     };
 }
