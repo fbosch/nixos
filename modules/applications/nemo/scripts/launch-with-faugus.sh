@@ -11,7 +11,7 @@ fi
 
 config_file="${XDG_CONFIG_HOME:-$HOME/.config}/faugus-launcher/config.ini"
 state_file="${XDG_STATE_HOME:-$HOME/.local/state}/faugus-launcher/nemo-launch-with-faugus.tsv"
-runner_cache_file="${XDG_CACHE_HOME:-$HOME/.cache}/faugus-launcher/nemo-runners.tsv"
+runner_cache_file="${XDG_RUNTIME_DIR:-${TMPDIR:-/tmp}}/faugus-launcher/nemo-runners.tsv"
 compatibility_dir="${XDG_DATA_HOME:-$HOME/.local/share}/Steam/compatibilitytools.d"
 
 file_key="$(realpath -- "$file" 2>/dev/null || printf '%s' "$file")"

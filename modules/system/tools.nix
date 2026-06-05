@@ -13,6 +13,7 @@
         ethtool
         icu
         dig
+        duf
         lazyjournal
         mission-center
       ];
