@@ -54,7 +54,6 @@
           docker-buildx
           bacon
           sqlite
-          azureCli
           units
           astGrep
           keychain
@@ -72,6 +71,9 @@
         ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isLinux [
           pkgs.local.lightpanda
           pkgs.local.limux
+        ]
+        ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isDarwin [
+          azureCli
         ];
     };
 }
