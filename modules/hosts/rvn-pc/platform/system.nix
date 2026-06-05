@@ -27,6 +27,8 @@
 
       system.stateVersion = "25.11";
 
+      powerManagement.cpuFreqGovernor = "performance";
+
       nixpkgs.config.allowUnfree = true;
 
       hardware.bluetooth.enable = false;
