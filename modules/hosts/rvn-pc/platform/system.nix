@@ -27,8 +27,6 @@
 
       system.stateVersion = "25.11";
 
-      powerManagement.cpuFreqGovernor = "performance";
-
       nixpkgs.config.allowUnfree = true;
 
       hardware.bluetooth.enable = false;
@@ -36,6 +34,7 @@
       services = {
         upower.enable = true;
         dbus.enable = true;
+        power-profiles-daemon.enable = true;
         timesyncd.enable = true;
         fstrim.enable = true;
         ananicy = {
