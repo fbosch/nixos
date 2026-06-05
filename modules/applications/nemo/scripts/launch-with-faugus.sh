@@ -10,10 +10,10 @@ if [[ -z $file ]]; then
 fi
 
 config_file="${XDG_CONFIG_HOME:-$HOME/.config}/faugus-launcher/config.ini"
-compatibility_dirs=(
-	"$HOME/.local/share/Steam/compatibilitytools.d"
-	"/usr/share/steam/compatibilitytools.d"
-)
+state_file="${XDG_STATE_HOME:-$HOME/.local/state}/faugus-launcher/nemo-launch-with-faugus.tsv"
+compatibility_dir="${XDG_DATA_HOME:-$HOME/.local/share}/Steam/compatibilitytools.d"
+
+file_key="$(realpath -- "$file" 2>/dev/null || printf '%s' "$file")"
 
 config_value() {
 	local key="$1"
@@ -38,6 +38,40 @@ is_enabled() {
 	[[ $(config_value "$1") == "True" ]]
 }
 
+remembered_selection() {
+	local key selection
+
+	if [[ ! -f $state_file ]]; then
+		return 0
+	fi
+
+	while IFS=$'\t' read -r key selection; do
+		if [[ $key == "$file_key" ]]; then
+			printf '%s' "$selection"
+			return 0
+		fi
+	done <"$state_file"
+}
+
+remember_selection() {
+	local selected="$1"
+	local line state_dir tmp_file
+
+	state_dir="$(dirname "$state_file")"
+	mkdir -p "$state_dir"
+	tmp_file="$(mktemp "$state_dir/.nemo-launch-with-faugus.XXXXXX")"
+
+	if [[ -f $state_file ]]; then
+		while IFS= read -r line; do
+			[[ $line == "$file_key"$'\t'* ]] && continue
+			printf '%s\n' "$line"
+		done <"$state_file" >"$tmp_file"
+	fi
+
+	printf '%s\t%s\n' "$file_key" "$selected" >>"$tmp_file"
+	mv "$tmp_file" "$state_file"
+}
+
 declare -A seen_options=()
 options=()
 
@@ -59,14 +93,13 @@ if [[ -z $default_prefix ]]; then
 	default_prefix="$HOME/Faugus"
 fi
 
-default_runner_label="$default_runner"
-if [[ -z $default_runner_label ]]; then
-	default_runner_label="UMU-Proton Latest"
-elif [[ $default_runner_label == "Proton-GE Latest" ]]; then
-	default_runner_label="GE-Proton Latest (default)"
+selected_default="$default_runner"
+if [[ -z $selected_default ]]; then
+	selected_default="UMU-Proton Latest"
+elif [[ $selected_default == "Proton-GE Latest" ]]; then
+	selected_default="GE-Proton Latest (default)"
 fi
 
-add_option "Faugus default ($default_runner_label)"
 add_option "GE-Proton Latest (default)"
 add_option "UMU-Proton Latest"
 add_option "Proton-EM Latest"
@@ -75,9 +108,7 @@ if [[ -d /usr/share/steam/compatibilitytools.d/proton-cachyos-slr ]] || [[ -d $H
 	add_option "Proton-CachyOS"
 fi
 
-for compatibility_dir in "${compatibility_dirs[@]}"; do
-	[[ -d $compatibility_dir ]] || continue
-
+if [[ -d $compatibility_dir ]]; then
 	while IFS= read -r runtime; do
 		add_option "$runtime"
 	done < <(
@@ -92,24 +123,52 @@ for compatibility_dir in "${compatibility_dirs[@]}"; do
 			printf '%s\n' "$runtime"
 		done
 	)
+fi
+
+saved_selection="$(remembered_selection)"
+has_saved_selection=false
+for option in "${options[@]}"; do
+	if [[ $option == "$saved_selection" ]]; then
+		has_saved_selection=true
+		break
+	fi
 done
 
-selected="$({ printf '%s\n' "${options[@]}"; } | zenity --list \
-	--title="Launch with Faugus" \
-	--text="Select Proton runtime for: $(basename "$file")" \
-	--column="Proton runtime" \
-	--height=420 \
-	--width=560)" || exit 0
+if [[ $has_saved_selection == false ]]; then
+	for option in "${options[@]}"; do
+		if [[ $option == "$selected_default" ]]; then
+			saved_selection="$selected_default"
+			has_saved_selection=true
+			break
+		fi
+	done
+fi
+
+selected="$(
+	for option in "${options[@]}"; do
+		if { [[ $has_saved_selection == true ]] && [[ $option == "$saved_selection" ]]; } || { [[ $has_saved_selection == false ]] && [[ $option == "${options[0]}" ]]; }; then
+			printf 'TRUE\n%s\n' "$option"
+		else
+			printf 'FALSE\n%s\n' "$option"
+		fi
+	done | zenity --list \
+		--radiolist \
+		--title="Launch with Faugus" \
+		--text="Select Proton runtime for: $(basename "$file")" \
+		--column="" \
+		--column="Proton runtime" \
+		--height=420 \
+		--width=560
+)" || exit 0
 
 if [[ -z $selected ]]; then
 	exit 0
 fi
 
+remember_selection "$selected"
+
 runner="$selected"
 case "$selected" in
-	"Faugus default ("*)
-		runner="$default_runner"
-		;;
 	"GE-Proton Latest (default)")
 		runner="Proton-GE Latest"
 		;;
