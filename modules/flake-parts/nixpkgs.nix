@@ -90,12 +90,25 @@
       if overlaySystem == null then
         { }
       else
-        withSystem overlaySystem (
-          { config, ... }:
-          {
-            local = config.packages;
-          }
-        );
+        let
+          localOverlay = withSystem overlaySystem (
+            { config, ... }:
+            {
+              local = config.packages;
+            }
+          );
+          bitwardenDesktopElectronWorkaround = prev.lib.optionalAttrs prev.stdenv.hostPlatform.isLinux {
+            # WORKAROUND: bitwarden-desktop still depends on EOL Electron 39.
+            # Use electron_39-bin to avoid compiling insecure EOL Electron from source.
+            # nixpkgs#521305 tracks Electron 39 EOL; nixpkgs#526914 tracks bitwarden-desktop specifically.
+            # Upstream bump: https://github.com/bitwarden/clients/pull/20448
+            # REMOVAL CONDITION: remove when bitwarden-desktop builds on Electron >= 40 in nixpkgs.
+            bitwarden-desktop = prev.bitwarden-desktop.override {
+              electron_39 = final.electron_39-bin;
+            };
+          };
+        in
+        localOverlay // bitwardenDesktopElectronWorkaround;
 
   };
 }

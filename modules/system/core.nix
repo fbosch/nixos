@@ -80,6 +80,9 @@ in
           name = lib.getName pkg;
         in
         builtins.elem name config.flake.meta.unfree.allowList;
+
+      # See modules/flake-parts/nixpkgs.nix bitwarden-desktop overlay for removal condition.
+      permittedInsecurePackages = [ "electron-39.8.10" ];
     };
 
     nix = {
