@@ -11,6 +11,7 @@ fi
 
 config_file="${XDG_CONFIG_HOME:-$HOME/.config}/faugus-launcher/config.ini"
 state_file="${XDG_STATE_HOME:-$HOME/.local/state}/faugus-launcher/nemo-launch-with-faugus.tsv"
+runner_cache_file="${XDG_CACHE_HOME:-$HOME/.cache}/faugus-launcher/nemo-runners.tsv"
 compatibility_dir="${XDG_DATA_HOME:-$HOME/.local/share}/Steam/compatibilitytools.d"
 
 file_key="$(realpath -- "$file" 2>/dev/null || printf '%s' "$file")"
@@ -86,6 +87,63 @@ add_option() {
 	options+=("$option")
 }
 
+compatibility_dir_mtime() {
+	if [[ -d $compatibility_dir ]]; then
+		stat -c '%Y' "$compatibility_dir"
+		return
+	fi
+
+	printf 'missing'
+}
+
+cache_key() {
+	printf '%s\t%s\n' "$compatibility_dir" "$(compatibility_dir_mtime)"
+}
+
+refresh_runner_cache() {
+	local cache_dir key path runtime tmp_file
+
+	cache_dir="$(dirname "$runner_cache_file")"
+	mkdir -p "$cache_dir"
+	tmp_file="$(mktemp "$cache_dir/.nemo-runners.XXXXXX")"
+	key="$(cache_key)"
+
+	printf '%s\n' "$key" >"$tmp_file"
+
+	if [[ -d $compatibility_dir ]]; then
+		for path in "$compatibility_dir"/*; do
+			[[ -d $path ]] || continue
+			runtime="${path##*/}"
+			case "$runtime" in
+				UMU-Latest|LegacyRuntime|"Proton-GE Latest"*|"Proton-EM Latest"*)
+					continue
+					;;
+			esac
+			printf '%s\n' "$runtime"
+		done >>"$tmp_file"
+	fi
+
+	mv "$tmp_file" "$runner_cache_file"
+}
+
+cached_runners() {
+	local current_key cached_key
+
+	current_key="$(cache_key)"
+	if [[ -f $runner_cache_file ]]; then
+		IFS= read -r cached_key <"$runner_cache_file" || cached_key=""
+		if [[ $cached_key != "$current_key" ]]; then
+			refresh_runner_cache
+		fi
+	else
+		refresh_runner_cache
+	fi
+
+	while IFS= read -r runtime; do
+		add_option "$runtime"
+	done < <(tail -n +2 "$runner_cache_file")
+}
+
 default_prefix="$(config_value default-prefix)"
 default_runner="$(config_value default-runner)"
 
@@ -108,22 +166,7 @@ if [[ -d /usr/share/steam/compatibilitytools.d/proton-cachyos-slr ]] || [[ -d $H
 	add_option "Proton-CachyOS"
 fi
 
-if [[ -d $compatibility_dir ]]; then
-	while IFS= read -r runtime; do
-		add_option "$runtime"
-	done < <(
-		for path in "$compatibility_dir"/*; do
-			[[ -d $path ]] || continue
-			runtime="${path##*/}"
-			case "$runtime" in
-				UMU-Latest|LegacyRuntime|"Proton-GE Latest"*|"Proton-EM Latest"*)
-					continue
-					;;
-			esac
-			printf '%s\n' "$runtime"
-		done
-	)
-fi
+cached_runners
 
 saved_selection="$(remembered_selection)"
 has_saved_selection=false
