@@ -24,6 +24,7 @@ _: {
         wineWow64Packages.stable
         vulkan-tools
         protonup-qt
+        wl-freeze
         # sgdboop - disabled due to build error in nixpkgs (function signature mismatch)
         nvitop
         prismlauncher # Minecraft launcher
