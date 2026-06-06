@@ -66,7 +66,7 @@ in
 
         imageTag = lib.mkOption {
           type = lib.types.str;
-          default = "v0.8.4";
+          default = "v0.8.5";
           description = "Glance container image tag";
         };
 

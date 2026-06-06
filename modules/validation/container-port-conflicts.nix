@@ -1,4 +1,8 @@
-_: {
+{ config, ... }:
+let
+  inherit (config.flake.lib) portConflicts;
+in
+{
   flake.modules.nixos."validation/container-port-conflicts" =
     { config
     , lib
@@ -33,7 +37,7 @@ _: {
       config = {
         assertions =
           let
-            conflicts = config.flake.lib.portConflicts.report config.services.exposedPorts;
+            conflicts = portConflicts.report config.services.exposedPorts;
           in
           [
             {
