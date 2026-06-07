@@ -245,7 +245,14 @@ if is_enabled mangohud; then
 	command_parts+=("mangohud")
 fi
 
-command_parts+=("umu-run" "$file")
+case "${file##*.}" in
+	sh|bash)
+		command_parts+=("$BASH" "$file")
+		;;
+	*)
+		command_parts+=("umu-run" "$file")
+		;;
+esac
 
 printf -v command '%q ' "${command_parts[@]}"
 (cd "$(dirname "$file")" && faugus-run "$command")

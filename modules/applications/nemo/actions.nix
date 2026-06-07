@@ -124,12 +124,12 @@
           [Nemo Action]
           Active=true
           Name=Launch with Faugus
-          Comment=Choose a Proton runtime and launch this Windows executable with Faugus
+          Comment=Choose a Proton runtime and launch this executable or shell script with Faugus
           Exec=${launchWithFaugusScript}/bin/nemo-launch-with-faugus %F
           Icon-Name=faugus-launcher
           Selection=single
           Quote=double
-          Extensions=exe;
+          Extensions=exe;sh;bash;
           Terminal=false
         '';
 
