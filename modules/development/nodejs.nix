@@ -13,7 +13,6 @@
           prettier
           eslint
           npm-check-updates
-          typescript-language-server
           prettierd
           playwright-test
         ];

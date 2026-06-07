@@ -115,9 +115,9 @@ refresh_runner_cache() {
 			[[ -d $path ]] || continue
 			runtime="${path##*/}"
 			case "$runtime" in
-				UMU-Latest|LegacyRuntime|"Proton-GE Latest"*|"Proton-EM Latest"*)
-					continue
-					;;
+			UMU-Latest | LegacyRuntime | "Proton-GE Latest"* | "Proton-EM Latest"*)
+				continue
+				;;
 			esac
 			printf '%s\n' "$runtime"
 		done >>"$tmp_file"
@@ -212,12 +212,12 @@ remember_selection "$selected"
 
 runner="$selected"
 case "$selected" in
-	"GE-Proton Latest (default)")
-		runner="Proton-GE Latest"
-		;;
-	"UMU-Proton Latest")
-		runner=""
-		;;
+"GE-Proton Latest (default)")
+	runner="Proton-GE Latest"
+	;;
+"UMU-Proton Latest")
+	runner=""
+	;;
 esac
 
 command_parts=(
@@ -246,12 +246,12 @@ if is_enabled mangohud; then
 fi
 
 case "${file##*.}" in
-	sh|bash)
-		command_parts+=("$BASH" "$file")
-		;;
-	*)
-		command_parts+=("umu-run" "$file")
-		;;
+sh | bash)
+	command_parts+=("$BASH" "$file")
+	;;
+*)
+	command_parts+=("umu-run" "$file")
+	;;
 esac
 
 printf -v command '%q ' "${command_parts[@]}"
