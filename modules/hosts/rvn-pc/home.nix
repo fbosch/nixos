@@ -6,6 +6,7 @@
         # Desktop preset (includes users, dotfiles, fonts, security, desktop, applications, development, shell)
         "presets/desktop"
         "applications/surge"
+        "windows"
         "worktrunk"
 
         # Shared modules with Home Manager components

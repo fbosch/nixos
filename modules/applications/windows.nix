@@ -54,10 +54,8 @@
         freerdp
       ];
 
-      # Flatpak Windows compatibility applications
-      # Note: Flatpak overrides are centralized in flatpak.nix
       services.flatpak.packages = [
-        "com.usebottles.bottles" # Run Windows applications
+        "com.usebottles.bottles"
       ];
 
       # XDG desktop integration

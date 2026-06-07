@@ -73,9 +73,11 @@ in
             "hardware/usb-automount"
             "hardware/fingerprint"
             "hardware/fancontrol"
+            "hardware"
 
             # desktop features
             "gaming"
+            "windows"
 
             # virtualization
             "virtualization/podman"
