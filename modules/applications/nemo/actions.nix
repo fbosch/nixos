@@ -23,6 +23,16 @@
         text = builtins.readFile ./scripts/shred-files.sh;
       };
 
+      makeExecutableScript = pkgs.writeShellApplication {
+        name = "nemo-make-executable";
+        runtimeInputs = [
+          pkgs.coreutils
+          pkgs.polkit
+          pkgs.zenity
+        ];
+        text = builtins.readFile ./scripts/make-executable.sh;
+      };
+
       convertScript = pkgs.writeShellApplication {
         name = "nemo-convert-image";
         runtimeInputs = [ pkgs.imagemagick ];
@@ -94,6 +104,19 @@
           Selection=notnone
           Quote=double
           Mimetypes=any;
+          Terminal=false
+        '';
+
+        "nemo/actions/make-executable.nemo_action".text = ''
+          [Nemo Action]
+          Active=true
+          Name=Make Executable
+          Comment=Mark selected file(s) as executable using administrator authentication
+          Exec=${makeExecutableScript}/bin/nemo-make-executable %F
+          Icon-Name=system-run
+          Selection=notnone
+          Quote=double
+          Extensions=nodirs;
           Terminal=false
         '';
 
