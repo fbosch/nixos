@@ -4,6 +4,8 @@
 
   perSystem = _: {
     nix-unit = {
+      inputs = builtins.mapAttrs (_name: input: input.outPath) (builtins.removeAttrs inputs [ "self" ]);
+
       tests = {
         sopsHelpers = import ../../tests/nix-unit/sops-helpers.nix {
           inherit (config.flake.lib) sopsHelpers;
