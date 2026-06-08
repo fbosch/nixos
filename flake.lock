@@ -2077,11 +2077,11 @@
         "systems": "systems_3"
       },
       "locked": {
-        "lastModified": 1780793030,
-        "narHash": "sha256-0sbiSfboFg04dVWIo27xchmgLsINslYYuQHHIl9pn0c=",
+        "lastModified": 1780864571,
+        "narHash": "sha256-E/vV5YupekSeatCSMNIOSLWOfuWXRl5hnq+kGW2T+JI=",
         "owner": "vicinaehq",
         "repo": "vicinae",
-        "rev": "28f39cb5288de43d67d6ba0e6c09776f1e2d4654",
+        "rev": "d787abfd3a3f5e1b28720ad38e1a6747beca1122",
         "type": "github"
       },
       "original": {
