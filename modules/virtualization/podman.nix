@@ -55,6 +55,17 @@
     }:
     let
       inherit (pkgs.stdenv.hostPlatform) isDarwin;
+      podmanMachineName = "podman-machine-default";
+      startPodmanMachine = pkgs.writeShellScript "start-podman-machine" ''
+        set -eu
+
+        state="$(${pkgs.podman}/bin/podman machine inspect ${podmanMachineName} --format '{{.State}}' 2>/dev/null || true)"
+        if [ "$state" = "running" ]; then
+          exit 0
+        fi
+
+        exec ${pkgs.podman}/bin/podman machine start ${podmanMachineName}
+      '';
     in
     {
       home.packages = with pkgs; [
@@ -84,15 +95,12 @@
       launchd.agents.podman-machine = lib.mkIf isDarwin {
         enable = true;
         config = {
-          ProgramArguments = [
-            "${pkgs.podman}/bin/podman"
-            "machine"
-            "start"
-          ];
+          ProgramArguments = [ "${startPodmanMachine}" ];
           RunAtLoad = true;
+          StartInterval = 300;
           KeepAlive = false;
-          StandardOutPath = "/tmp/podman-machine.out.log";
-          StandardErrorPath = "/tmp/podman-machine.err.log";
+          StandardOutPath = "${config.home.homeDirectory}/Library/Logs/podman-machine.out.log";
+          StandardErrorPath = "${config.home.homeDirectory}/Library/Logs/podman-machine.err.log";
           EnvironmentVariables.PATH = lib.makeBinPath [ pkgs.podman ] + ":/usr/bin:/bin:/usr/sbin:/sbin";
         };
       };
