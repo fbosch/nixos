@@ -20,7 +20,7 @@ in
   flake.meta.hosts = [ hostMeta ];
 
   flake.modules.nixos."hosts/rvn-vm" =
-    { ... }:
+    { lib, ... }:
     {
       imports = config.flake.lib.resolve [
         # Desktop preset (users, fonts, security, desktop, applications, development, shell, system, vpn)
@@ -52,7 +52,7 @@ in
 
       # VirtualBox-specific environment variables for software rendering
       environment.sessionVariables = {
-        GSK_RENDERER = "cairo";
+        GSK_RENDERER = lib.mkForce "cairo";
         WLR_RENDERER_ALLOW_SOFTWARE = "1";
         TERMINAL = "foot";
       };
