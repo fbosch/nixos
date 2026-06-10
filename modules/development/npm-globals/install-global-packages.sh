@@ -2,7 +2,6 @@
 set -euo pipefail
 
 pnpm_home="${PNPM_HOME_VALUE:?PNPM_HOME_VALUE is required}"
-pnpm_global_bin_dir="$pnpm_home/bin"
 pnpm_store_dir="${PNPM_STORE_DIR_VALUE:?PNPM_STORE_DIR_VALUE is required}"
 state_dir="${STATE_DIR_VALUE:-$HOME/.local/state/pnpm-globals}"
 npm_registry_host="${NPM_REGISTRY_HOST:-registry.npmjs.org}"
@@ -11,15 +10,16 @@ node_bin_dir="${NODE_BIN_DIR:?NODE_BIN_DIR is required}"
 pnpm_bin_dir="${PNPM_BIN_DIR:?PNPM_BIN_DIR is required}"
 bun_bin_dir="${BUN_BIN_DIR:?BUN_BIN_DIR is required}"
 lockfile_path="${LOCKFILE_PATH:?LOCKFILE_PATH is required}"
-yq_bin="${YQ_BIN:?YQ_BIN is required}"
 project_dir="$(dirname "$lockfile_path")"
 non_blocking="${PNPM_GLOBALS_NON_BLOCKING:-0}"
+managed_current_dir="$state_dir/current"
+managed_next_dir="$state_dir/next"
 
-mkdir -p "$pnpm_global_bin_dir" "$pnpm_store_dir" "$state_dir"
+mkdir -p "$pnpm_home/bin" "$pnpm_store_dir" "$state_dir"
 
 export PNPM_HOME="$pnpm_home"
 export PNPM_STORE_DIR="$pnpm_store_dir"
-export PATH="$node_bin_dir:$pnpm_bin_dir:$bun_bin_dir:$pnpm_global_bin_dir:$PATH"
+export PATH="$node_bin_dir:$pnpm_bin_dir:$bun_bin_dir:$managed_current_dir/node_modules/.bin:$PATH"
 
 stale_shim_dir="$state_dir/stale-root-shims"
 for pnpm_root_entry in "$pnpm_home"/*; do
@@ -79,63 +79,33 @@ if [ "$network_ready" -ne 1 ]; then
 	exit 0
 fi
 
-install_failed=0
-declare -a packages=()
-declare -A desired_package_names=()
-
-while IFS=$'\t' read -r dep_name dep_version || [ -n "${dep_name:-}" ]; do
-	if [ -z "${dep_name:-}" ] || [ -z "${dep_version:-}" ]; then
-		continue
+echo "Installing npm global packages from frozen lockfile..."
+rm -rf "$managed_next_dir"
+mkdir -p "$managed_next_dir"
+for required_file in package.json pnpm-lock.yaml pnpm-workspace.yaml; do
+	if [ ! -f "$project_dir/$required_file" ]; then
+		echo "ERROR: $required_file not found in: $project_dir" >&2
+		rm -rf "$managed_next_dir"
+		finish_failed_install
 	fi
-	dep_version="${dep_version%%(*}"
-	packages+=("${dep_name}@${dep_version}")
-	desired_package_names["$dep_name"]=1
-done < <(
-	"$yq_bin" -r '.importers["."].dependencies // {} | to_entries[] | "\(.key)\t\(.value.version)"' "$lockfile_path"
-)
+done
+cp "$project_dir/package.json" "$project_dir/pnpm-lock.yaml" "$project_dir/pnpm-workspace.yaml" "$managed_next_dir/"
 
-current_packages_json="$($pnpm_bin --dir "$project_dir" list -g --depth 0 --json 2>/dev/null || true)"
-declare -a stale_packages=()
-while IFS= read -r package_name || [ -n "${package_name:-}" ]; do
-	if [ -z "${package_name:-}" ]; then
-		continue
+if "$pnpm_bin" --dir "$managed_next_dir" install --frozen-lockfile --prod 2>&1; then
+	rm -rf "$managed_current_dir.previous"
+	if [ -d "$managed_current_dir" ]; then
+		mv "$managed_current_dir" "$managed_current_dir.previous"
 	fi
-	if [ -z "${desired_package_names[$package_name]:-}" ]; then
-		stale_packages+=("$package_name")
+	if ! mv "$managed_next_dir" "$managed_current_dir"; then
+		if [ -d "$managed_current_dir.previous" ]; then
+			mv "$managed_current_dir.previous" "$managed_current_dir"
+		fi
+		finish_failed_install
 	fi
-done < <(
-	printf '%s' "$current_packages_json" | node -e '
-const fs = require("fs")
-const input = fs.readFileSync(0, "utf8").trim()
-if (!input) process.exit(0)
-try {
-  const entries = JSON.parse(input)
-  const dependencies = entries?.[0]?.dependencies ?? {}
-  for (const packageName of Object.keys(dependencies)) console.log(packageName)
-} catch {
-  process.exit(0)
-}
-'
-)
-
-if [ "${#stale_packages[@]}" -gt 0 ]; then
-	echo "Removing npm global packages no longer declared in lockfile..."
-	if ! "$pnpm_bin" --dir "$project_dir" remove -g "${stale_packages[@]}" 2>&1; then
-		install_failed=1
-	fi
-fi
-
-if [ "${#packages[@]}" -gt 0 ]; then
-	echo "Installing npm global packages from lockfile-resolved versions..."
-	if ! "$pnpm_bin" --dir "$project_dir" add -g "${packages[@]}" 2>&1; then
-		install_failed=1
-	fi
-fi
-
-if [ "$install_failed" -eq 0 ]; then
-	pnpm_global_dir="$($pnpm_bin --dir "$project_dir" root -g)"
+	rm -rf "$managed_current_dir.previous"
 	echo ""
-	echo "npm global packages are up to date in: $pnpm_global_dir"
+	echo "npm global packages are up to date in: $managed_current_dir"
 else
+	rm -rf "$managed_next_dir"
 	finish_failed_install
 fi

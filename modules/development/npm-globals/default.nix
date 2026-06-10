@@ -9,9 +9,9 @@
       npmGlobalsRepoDir = "$HOME/nixos/modules/development/npm-globals";
       pnpmPackage = pkgs.local.pnpm;
       pnpmHome = if pkgs.stdenv.isDarwin then "$HOME/Library/pnpm" else "$HOME/.local/share/pnpm";
-      pnpmGlobalBinDir = "${pnpmHome}/bin";
       pnpmStoreDir = "${pnpmHome}/store";
       stateDir = "$HOME/.local/state/pnpm-globals";
+      pnpmGlobalBinDir = "${stateDir}/current/node_modules/.bin";
 
       installNpmGlobalPackagesScript = pkgs.writeShellApplication {
         name = "install-npm-global-packages";
@@ -20,7 +20,6 @@
           pnpmPackage
           pkgs.nodejs_24
           pkgs.bun
-          pkgs.yq-go
         ];
         text = builtins.readFile ./install-global-packages.sh;
       };
@@ -29,13 +28,12 @@
         export PNPM_HOME_VALUE="${pnpmHome}"
         export PNPM_STORE_DIR_VALUE="${pnpmStoreDir}"
         export STATE_DIR_VALUE="${stateDir}"
-            export NPM_REGISTRY_HOST="registry.npmjs.org"
-            export PNPM_BIN="${pnpmPackage}/bin/pnpm"
-            export NODE_BIN_DIR="${pkgs.nodejs_24}/bin"
-            export PNPM_BIN_DIR="${pnpmPackage}/bin"
-            export BUN_BIN_DIR="${pkgs.bun}/bin"
-            export LOCKFILE_PATH="${lockfilePath}"
-        export YQ_BIN="${pkgs.yq-go}/bin/yq"
+        export NPM_REGISTRY_HOST="registry.npmjs.org"
+        export PNPM_BIN="${pnpmPackage}/bin/pnpm"
+        export NODE_BIN_DIR="${pkgs.nodejs_24}/bin"
+        export PNPM_BIN_DIR="${pnpmPackage}/bin"
+        export BUN_BIN_DIR="${pkgs.bun}/bin"
+        export LOCKFILE_PATH="${lockfilePath}"
       '';
 
       mkPnpmGlobalsCommand =
@@ -53,12 +51,11 @@
             pnpmPackage
             pkgs.nodejs_24
             pkgs.bun
-            pkgs.yq-go
           ];
           text = ''
             export PNPM_HOME="${pnpmHome}"
             export PNPM_STORE_DIR="${pnpmStoreDir}"
-            export PATH="${pkgs.nodejs_24}/bin:${pnpmPackage}/bin:${pkgs.bun}/bin:$PNPM_HOME/bin:$PATH"
+            export PATH="${pkgs.nodejs_24}/bin:${pnpmPackage}/bin:${pkgs.bun}/bin:${pnpmGlobalBinDir}:$PATH"
             state_dir="${stateDir}"
             npm_globals_dir="''${NPM_GLOBALS_DIR:-''${1:-${npmGlobalsRepoDir}}}"
 
