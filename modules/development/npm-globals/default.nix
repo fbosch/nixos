@@ -29,12 +29,12 @@
         export PNPM_HOME_VALUE="${pnpmHome}"
         export PNPM_STORE_DIR_VALUE="${pnpmStoreDir}"
         export STATE_DIR_VALUE="${stateDir}"
-        export NPM_REGISTRY_HOST="registry.npmjs.org"
-        export PNPM_BIN="${pnpmPackage}/bin/pnpm"
-        export NODE_BIN_DIR="${pkgs.nodejs_24}/bin"
-        export PNPM_BIN_DIR="${pnpmPackage}/bin"
-        export BUN_BIN_DIR="${pkgs.bun}/bin"
-        export LOCKFILE_PATH="${lockfilePath}"
+            export NPM_REGISTRY_HOST="registry.npmjs.org"
+            export PNPM_BIN="${pnpmPackage}/bin/pnpm"
+            export NODE_BIN_DIR="${pkgs.nodejs_24}/bin"
+            export PNPM_BIN_DIR="${pnpmPackage}/bin"
+            export BUN_BIN_DIR="${pkgs.bun}/bin"
+            export LOCKFILE_PATH="${lockfilePath}"
         export YQ_BIN="${pkgs.yq-go}/bin/yq"
       '';
 
