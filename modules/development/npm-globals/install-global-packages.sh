@@ -21,10 +21,10 @@ export PNPM_STORE_DIR="$pnpm_store_dir"
 export PATH="$node_bin_dir:$pnpm_bin_dir:$bun_bin_dir:$managed_current_dir/node_modules/.bin:$PATH"
 
 stale_shim_dir="$state_dir/stale-root-shims"
-for pnpm_root_entry in "$pnpm_home"/*; do
-	if [ -f "$pnpm_root_entry" ] && [ -x "$pnpm_root_entry" ]; then
+for pnpm_root_entry in "$pnpm_home"/* "$pnpm_home/bin"/*; do
+	if [ -e "$pnpm_root_entry" ] && [ ! -d "$pnpm_root_entry" ]; then
 		mkdir -p "$stale_shim_dir"
-		mv -f "$pnpm_root_entry" "$stale_shim_dir/$(basename "$pnpm_root_entry")"
+		mv -f "$pnpm_root_entry" "$stale_shim_dir/$(basename "$(dirname "$pnpm_root_entry")")-$(basename "$pnpm_root_entry")"
 	fi
 done
 
@@ -97,6 +97,16 @@ done
 cp "$project_dir/package.json" "$project_dir/pnpm-lock.yaml" "$project_dir/pnpm-workspace.yaml" "$managed_current_dir/"
 
 if "$pnpm_bin" --dir "$managed_current_dir" install --frozen-lockfile --prod --ignore-scripts=false 2>&1; then
+	for managed_bin in "$managed_current_dir/node_modules/.bin"/*; do
+		if [ -e "$managed_bin" ]; then
+			wrapper="$pnpm_home/bin/$(basename "$managed_bin")"
+			cat > "$wrapper" << EOF
+#!/usr/bin/env bash
+exec "$managed_bin" "\$@"
+EOF
+			chmod +x "$wrapper"
+		fi
+	done
 	rm -rf "$managed_current_dir.previous"
 	echo ""
 	echo "npm global packages are up to date in: $managed_current_dir"
