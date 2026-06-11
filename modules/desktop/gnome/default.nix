@@ -3,7 +3,12 @@ let
   inherit (zenwritten.css) base bright;
 in
 {
-  flake.modules.nixos.desktop = {
+  flake.modules.nixos.desktop = { pkgs, ... }: {
+    environment.systemPackages = with pkgs; [
+      json-glib
+      libical
+    ];
+
     services.gnome.evolution-data-server.enable = true;
   };
 
