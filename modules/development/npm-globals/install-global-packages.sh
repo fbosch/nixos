@@ -99,7 +99,12 @@ cp "$project_dir/package.json" "$project_dir/pnpm-lock.yaml" "$project_dir/pnpm-
 if "$pnpm_bin" --dir "$managed_current_dir" install --frozen-lockfile --prod --ignore-scripts=false 2>&1; then
 	for managed_bin in "$managed_current_dir/node_modules/.bin"/*; do
 		if [ -e "$managed_bin" ]; then
-			ln -sfn "$managed_bin" "$pnpm_home/bin/$(basename "$managed_bin")"
+			wrapper="$pnpm_home/bin/$(basename "$managed_bin")"
+			cat > "$wrapper" << EOF
+#!/usr/bin/env bash
+exec "$managed_bin" "\$@"
+EOF
+			chmod +x "$wrapper"
 		fi
 	done
 	rm -rf "$managed_current_dir.previous"
