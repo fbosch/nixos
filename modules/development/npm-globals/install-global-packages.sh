@@ -91,7 +91,7 @@ for required_file in package.json pnpm-lock.yaml pnpm-workspace.yaml; do
 done
 cp "$project_dir/package.json" "$project_dir/pnpm-lock.yaml" "$project_dir/pnpm-workspace.yaml" "$managed_next_dir/"
 
-if "$pnpm_bin" --dir "$managed_next_dir" install --frozen-lockfile --prod 2>&1; then
+if "$pnpm_bin" --dir "$managed_next_dir" install --frozen-lockfile --prod --ignore-scripts=false 2>&1; then
 	rm -rf "$managed_current_dir.previous"
 	if [ -d "$managed_current_dir" ]; then
 		mv "$managed_current_dir" "$managed_current_dir.previous"

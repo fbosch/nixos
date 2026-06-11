@@ -50,7 +50,7 @@ jobs:
         working-directory: modules/development/npm-globals
         run: |
           nix shell nixpkgs#nodejs_24 nixpkgs#pnpm --command bash -c "
-            pnpm install --frozen-lockfile --ignore-scripts
+            pnpm install --frozen-lockfile --ignore-scripts=false
           "
 
       - name: Audit production dependencies
