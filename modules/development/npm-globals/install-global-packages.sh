@@ -13,7 +13,6 @@ lockfile_path="${LOCKFILE_PATH:?LOCKFILE_PATH is required}"
 project_dir="$(dirname "$lockfile_path")"
 non_blocking="${PNPM_GLOBALS_NON_BLOCKING:-0}"
 managed_current_dir="$state_dir/current"
-managed_next_dir="$state_dir/next"
 
 mkdir -p "$pnpm_home/bin" "$pnpm_store_dir" "$state_dir"
 
@@ -80,32 +79,31 @@ if [ "$network_ready" -ne 1 ]; then
 fi
 
 echo "Installing npm global packages from frozen lockfile..."
-rm -rf "$managed_next_dir"
-mkdir -p "$managed_next_dir"
+rm -rf "$managed_current_dir.previous"
+if [ -d "$managed_current_dir" ]; then
+	mv "$managed_current_dir" "$managed_current_dir.previous"
+fi
+mkdir -p "$managed_current_dir"
 for required_file in package.json pnpm-lock.yaml pnpm-workspace.yaml; do
 	if [ ! -f "$project_dir/$required_file" ]; then
 		echo "ERROR: $required_file not found in: $project_dir" >&2
-		rm -rf "$managed_next_dir"
-		finish_failed_install
-	fi
-done
-cp "$project_dir/package.json" "$project_dir/pnpm-lock.yaml" "$project_dir/pnpm-workspace.yaml" "$managed_next_dir/"
-
-if "$pnpm_bin" --dir "$managed_next_dir" install --frozen-lockfile --prod --ignore-scripts=false 2>&1; then
-	rm -rf "$managed_current_dir.previous"
-	if [ -d "$managed_current_dir" ]; then
-		mv "$managed_current_dir" "$managed_current_dir.previous"
-	fi
-	if ! mv "$managed_next_dir" "$managed_current_dir"; then
+		rm -rf "$managed_current_dir"
 		if [ -d "$managed_current_dir.previous" ]; then
 			mv "$managed_current_dir.previous" "$managed_current_dir"
 		fi
 		finish_failed_install
 	fi
+done
+cp "$project_dir/package.json" "$project_dir/pnpm-lock.yaml" "$project_dir/pnpm-workspace.yaml" "$managed_current_dir/"
+
+if "$pnpm_bin" --dir "$managed_current_dir" install --frozen-lockfile --prod --ignore-scripts=false 2>&1; then
 	rm -rf "$managed_current_dir.previous"
 	echo ""
 	echo "npm global packages are up to date in: $managed_current_dir"
 else
-	rm -rf "$managed_next_dir"
+	rm -rf "$managed_current_dir"
+	if [ -d "$managed_current_dir.previous" ]; then
+		mv "$managed_current_dir.previous" "$managed_current_dir"
+	fi
 	finish_failed_install
 fi
