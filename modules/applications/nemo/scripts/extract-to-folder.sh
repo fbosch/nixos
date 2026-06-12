@@ -122,6 +122,7 @@ extract_once() {
 	local pass="${1:-}"
 	local top_entries
 	local top_count
+	local top_entry
 	local output_dir
 	local errfile
 	local err_text
@@ -132,7 +133,9 @@ extract_once() {
 		top_count=0
 	fi
 
-	if [[ $top_count -eq 1 ]]; then
+	top_entry="$(printf '%s\n' "$top_entries" | awk 'NF { print; exit }')"
+
+	if [[ $top_count -eq 1 && $top_entry == "$archive_base_name" ]]; then
 		output_dir="$parent"
 	else
 		output_dir="$parent/$archive_base_name"
