@@ -13,8 +13,12 @@
 
         taps = [
           "steipete/tap"
-          "lightpanda-io/browser"
         ];
+
+        extraConfig = ''
+          tap "lightpanda-io/browser", trusted: true
+          brew "lightpanda-io/browser/lightpanda", trusted: true
+        '';
 
         casks = [
           "raycast"
@@ -31,7 +35,7 @@
           "cleanshot"
           "obsidian"
           "codexbar"
-          "linear-linear"
+          "linear"
           "bentobox"
           "bitwarden"
         ];
@@ -40,7 +44,6 @@
           "mas"
           "mole"
           "rtk"
-          "lightpanda"
         ];
       };
     };
