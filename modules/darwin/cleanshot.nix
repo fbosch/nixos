@@ -1,6 +1,6 @@
 { config, ... }:
 {
-  flake.modules.darwin."hosts/rvn-mac/cleanshot" =
+  flake.modules.darwin.cleanshot =
     { lib, ... }:
     let
       username = config.flake.meta.user.username;

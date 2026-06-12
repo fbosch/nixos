@@ -10,65 +10,6 @@
           enableKeyMapping = true;
           remapCapsLockToControl = true;
         };
-        defaults = {
-          dock = {
-            autohide = true;
-            orientation = "bottom";
-            show-recents = false;
-            tilesize = 48;
-            launchanim = false;
-          };
-
-          finder = {
-            AppleShowAllExtensions = true;
-            FXPreferredViewStyle = "Nlsv";
-            ShowPathbar = true;
-          };
-
-          menuExtraClock = {
-            Show24Hour = true;
-            ShowDate = 0;
-            ShowDayOfWeek = true;
-          };
-
-          NSGlobalDomain = {
-            AppleInterfaceStyle = "Dark";
-            AppleShowAllExtensions = true;
-            InitialKeyRepeat = 15;
-            KeyRepeat = 2;
-            NSAutomaticCapitalizationEnabled = false;
-            NSAutomaticPeriodSubstitutionEnabled = false;
-            NSWindowShouldDragOnGesture = true;
-            "com.apple.swipescrolldirection" = false;
-          };
-
-          CustomUserPreferences = {
-            NSGlobalDomain.NSUserKeyEquivalents = {
-              Hide = "@^~$h";
-              "Hide Others" = "@^~$o";
-            };
-
-            "com.knollsoft.Rectangle" = {
-              allowAnyShortcut = 1;
-              alternateDefaultShortcuts = 1;
-              launchOnLogin = 1;
-              windowSnapping = 1;
-            };
-
-            "com.lwouis.alt-tab-macos" = {
-              cursorFollowFocus = 1;
-              cursorFollowFocusEnabled = true;
-              hideAppBadges = false;
-              hideColoredCircles = true;
-              hideSpaceNumberLabels = true;
-              hideStatusIcons = true;
-              hideWindowlessApps = true;
-              previewFocusedWindow = true;
-              showTabsAsWindows = false;
-              vimKeysEnabled = false;
-            };
-          };
-        };
       };
 
       nix.settings = {
@@ -88,13 +29,15 @@
             doCheck = false;
           });
 
-          _1password-gui = prev._1password-gui.overrideAttrs (old:
+          _1password-gui = prev._1password-gui.overrideAttrs (
+            old:
             lib.optionalAttrs (old.version or null == "8.12.21") {
               src = prev.fetchurl {
                 url = "https://downloads.1password.com/mac/1Password-8.12.21-aarch64.zip";
                 hash = "sha256-WrWbGzBK65tVNl9Dc3OnJURiPpfbNLOYUJcVT0ETaAs=";
               };
-            });
+            }
+          );
         })
       ];
 

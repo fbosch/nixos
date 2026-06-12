@@ -39,14 +39,15 @@ in
       imports = config.flake.lib.resolveDarwin [
         "hosts/rvn-mac/platform"
         "hosts/rvn-mac/home"
-        "hosts/rvn-mac/aerospace"
-        "hosts/rvn-mac/cleanshot"
 
         # Darwin core system configuration (Cachix, nix settings, home-manager)
         "system"
 
         # Darwin-specific modules
+        "aerospace"
+        "cleanshot"
         "fonts"
+        "macos-defaults"
         "security"
         "secrets"
         "homebrew"

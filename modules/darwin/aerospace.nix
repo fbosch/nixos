@@ -1,5 +1,5 @@
 {
-  flake.modules.darwin."hosts/rvn-mac-corp/aerospace" = {
+  flake.modules.darwin.aerospace = {
     services.aerospace = {
       enable = true;
       settings = {
