@@ -8,12 +8,10 @@
           # cursor-cli
           # aichat
           tesseract
-          local.no-mistakes
-          local.plannotator
         ])
-        ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
-          pkgs.local.codexbar
-          pkgs.local.rtk
-        ];
+        ++ pkgs.lib.optional (pkgs.local ? no-mistakes) pkgs.local.no-mistakes
+        ++ pkgs.lib.optional (pkgs.local ? plannotator) pkgs.local.plannotator
+        ++ pkgs.lib.optional (pkgs.local ? codexbar) pkgs.local.codexbar
+        ++ pkgs.lib.optional (pkgs.local ? rtk) pkgs.local.rtk;
     };
 }

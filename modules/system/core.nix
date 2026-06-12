@@ -4,19 +4,25 @@
 , ...
 }:
 let
-  # Shared Cachix configuration for both NixOS and Darwin
-  sharedCachixConfig = {
+  flakeConfig = config;
+  mkCachixConfig = isCorporateHost: {
     substituters = [
       "https://cache.nixos.org"
       "https://nix-community.cachix.org"
+    ]
+    ++ lib.optionals (!isCorporateHost) [
       "https://fbosch.cachix.org"
     ];
     trusted-public-keys = [
       "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
       "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
+    ]
+    ++ lib.optionals (!isCorporateHost) [
       "fbosch.cachix.org-1:QGKDLpPb1MY7YtcCvFpDNqQzGsYtDgE3YyC6IXK1nO8="
     ];
   };
+  # Shared Cachix configuration for both NixOS and Darwin
+  sharedCachixConfig = mkCachixConfig false;
 
   # Shared nix settings for both NixOS and Darwin
   sharedNixSettings = {
@@ -110,35 +116,43 @@ in
 
   };
 
-  flake.modules.darwin.system = {
-    # Centralize nixpkgs overlays for Darwin hosts
-    nixpkgs.overlays = [
-      inputs.self.overlays.default
-      inputs.nix-webapps.overlays.lib
-      inputs.nix-webapps.overlays.default
-      inputs.nix-bwrapper.overlays.default
-      inputs.self.overlays.chromium-webapps-hardening
-    ];
-
-    # Allow unfree packages (using simple allowUnfree for Darwin)
-    nixpkgs.config.allowUnfree = true;
-
-    nix = {
-      settings = lib.mkMerge [
-        sharedNixSettingsMerged
-        {
-          trusted-users = [
-            "root"
-            "@admin"
-          ];
-        }
+  flake.modules.darwin.system =
+    { config, ... }:
+    let
+      hosts = flakeConfig.flake.meta.hosts or [ ];
+      currentHost = lib.findFirst (host: host.name == config.networking.hostName) null hosts;
+      isCorporateHost = currentHost != null && (currentHost.corporate or false);
+    in
+    {
+      # Centralize nixpkgs overlays for Darwin hosts
+      nixpkgs.overlays = [
+        inputs.self.overlays.default
+        inputs.nix-webapps.overlays.lib
+        inputs.nix-webapps.overlays.default
+        inputs.nix-bwrapper.overlays.default
+        inputs.self.overlays.chromium-webapps-hardening
       ];
 
-      # Garbage collection is handled by nh
-      gc.automatic = false;
-      optimise.automatic = true;
-    };
+      # Allow unfree packages (using simple allowUnfree for Darwin)
+      nixpkgs.config.allowUnfree = true;
 
-    home-manager = sharedHomeManagerConfig;
-  };
+      nix = {
+        settings = lib.mkMerge [
+          sharedNixSettings
+          (mkCachixConfig isCorporateHost)
+          {
+            trusted-users = [
+              "root"
+              "@admin"
+            ];
+          }
+        ];
+
+        # Garbage collection is handled by nh
+        gc.automatic = false;
+        optimise.automatic = true;
+      };
+
+      home-manager = sharedHomeManagerConfig;
+    };
 }

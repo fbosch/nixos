@@ -131,6 +131,11 @@ in
               default = false;
               description = "Prefer Tailnet IPs when initiating SSH from this host";
             };
+            corporate = lib.mkOption {
+              type = lib.types.bool;
+              default = false;
+              description = "Whether this host avoids personal network, secret, and remote-access integrations.";
+            };
             system = lib.mkOption {
               type = lib.types.nullOr lib.types.str;
               default = null;

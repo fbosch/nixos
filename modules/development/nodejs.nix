@@ -3,19 +3,20 @@
     { pkgs, ... }:
     {
       home = {
-        packages = with pkgs; [
-          fnm
-          bun
-          nodejs_24
-          local.pnpm
-          yarn
-          typescript
-          prettier
-          eslint
-          npm-check-updates
-          prettierd
-          playwright-test
-        ];
+        packages =
+          (with pkgs; [
+            fnm
+            bun
+            nodejs_24
+            yarn
+            typescript
+            prettier
+            eslint
+            npm-check-updates
+            prettierd
+            playwright-test
+          ])
+          ++ [ (pkgs.local.pnpm or pkgs.pnpm) ];
       };
     };
 }

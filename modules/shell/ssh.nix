@@ -16,6 +16,8 @@ in
       # Determine current host to choose Tailnet vs local addresses
       currentHostName = if osConfig != null then osConfig.networking.hostName or null else null;
       currentHost = lib.findFirst (host: host.name == currentHostName) null hosts;
+      isCorporateHost = currentHost != null && (currentHost.corporate or false);
+      managedHosts = if isCorporateHost then [ ] else hosts;
       clientUseTailnet = currentHost != null && (currentHost.useTailnet or false);
       # Helper function to get the appropriate address for a specific host
       getAddress =
@@ -66,7 +68,7 @@ in
       # Collect all SSH public keys from hosts
       allAuthorizedKeys =
         flakeConfig.flake.meta.user.ssh.authorizedKeys
-        ++ (lib.filter (key: key != null && key != "") (map (host: host.sshPublicKey) hosts));
+        ++ (lib.filter (key: key != null && key != "") (map (host: host.sshPublicKey) managedHosts));
 
       publicKeyPath = "${config.home.homeDirectory}/.ssh/id_ed25519.pub";
     in
@@ -76,7 +78,7 @@ in
         enableDefaultConfig = false;
 
         settings = lib.mkMerge [
-          (lib.mkMerge (map mkMatchBlocks hosts))
+          (lib.mkMerge (map mkMatchBlocks managedHosts))
           {
             "ssh.dev.azure.com" = {
               IdentityFile = "~/.ssh/id_rsa";
@@ -91,7 +93,7 @@ in
         ];
       };
 
-      home.file.".ssh/authorized_keys" = {
+      home.file.".ssh/authorized_keys" = lib.mkIf (!isCorporateHost) {
         text = lib.concatStringsSep "\n" allAuthorizedKeys;
       };
 

@@ -1,14 +1,25 @@
+{ config, lib, ... }:
+let
+  flakeConfig = config;
+in
 {
   flake.modules.darwin.homebrew =
-    _:
+    { config, ... }:
+    let
+      hosts = flakeConfig.flake.meta.hosts or [ ];
+      currentHost = lib.findFirst (host: host.name == config.networking.hostName) null hosts;
+      isCorporateHost = currentHost != null && (currentHost.corporate or false);
+    in
     {
       homebrew = {
         enable = true;
         onActivation = {
           autoUpdate = true;
+          upgrade = !isCorporateHost;
+        }
+        // lib.optionalAttrs (!isCorporateHost) {
           cleanup = "zap";
           extraFlags = [ "--force-cleanup" ];
-          upgrade = true;
         };
 
         taps = [

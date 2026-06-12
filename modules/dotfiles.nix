@@ -7,6 +7,7 @@ in
     { config
     , pkgs
     , lib
+    , osConfig ? null
     , ...
     }:
     let
@@ -14,6 +15,11 @@ in
       REPO = lib.escapeShellArg "${hmConfig.home.homeDirectory}/dotfiles";
       DOTFILES_REV = inputs.dotfiles.rev or "master";
       DOTFILES_URL = flakeConfig.flake.meta.dotfiles.url;
+      hosts = flakeConfig.flake.meta.hosts or [ ];
+      currentHostName = if osConfig != null then osConfig.networking.hostName or null else null;
+      currentHost = lib.findFirst (host: host.name == currentHostName) null hosts;
+      isCorporateHost = currentHost != null && (currentHost.corporate or false);
+      stowFlags = if isCorporateHost then "--restow --verbose" else "--restow --adopt --verbose";
     in
     # Manages dotfiles via git clone + GNU Stow.
       # Clones the dotfiles repo (pinned to a flake input revision) on first activation,
@@ -65,7 +71,7 @@ in
           cd ${REPO}
           CURRENT_REV=$(${pkgs.git}/bin/git rev-parse --short HEAD 2>/dev/null || echo "unknown")
           echo "Stowing dotfiles from current revision: $CURRENT_REV"
-          $DRY_RUN_CMD ${pkgs.stow}/bin/stow --restow --adopt --verbose -t "$HOME" .
+          $DRY_RUN_CMD ${pkgs.stow}/bin/stow ${stowFlags} -t "$HOME" .
         '';
       };
     };
