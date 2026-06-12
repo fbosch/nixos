@@ -40,6 +40,7 @@ in
         "hosts/rvn-mac/platform"
         "hosts/rvn-mac/home"
         "hosts/rvn-mac/aerospace"
+        "hosts/rvn-mac/cleanshot"
 
         # Darwin core system configuration (Cachix, nix settings, home-manager)
         "system"

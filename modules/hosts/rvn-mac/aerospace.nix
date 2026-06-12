@@ -14,10 +14,11 @@
 
         mode.main.binding = {
           ctrl-alt-space = "exec-and-forget open -a Raycast";
+          alt-backtick = "exec-and-forget open 'cleanshot://record-screen'";
           ctrl-alt-v = "layout floating tiling";
           ctrl-alt-f = "fullscreen";
-          ctrl-alt-shift-f = "macos-native-fullscreen";
-          ctrl-alt-w = "close";
+          cmd-shift-f = "macos-native-fullscreen";
+          cmd-w = "close";
 
           cmd-h = "focus --boundaries all-monitors-outer-frame left";
           cmd-l = "focus --boundaries all-monitors-outer-frame right";
@@ -39,27 +40,27 @@
           ctrl-alt-shift-up = "move-workspace-to-monitor --wrap-around prev";
           ctrl-alt-shift-down = "move-workspace-to-monitor --wrap-around next";
 
-          ctrl-alt-1 = "workspace 1";
-          ctrl-alt-2 = "workspace 2";
-          ctrl-alt-3 = "workspace 3";
-          ctrl-alt-4 = "workspace 4";
-          ctrl-alt-5 = "workspace 5";
-          ctrl-alt-6 = "workspace 6";
-          ctrl-alt-7 = "workspace 7";
-          ctrl-alt-8 = "workspace 8";
-          ctrl-alt-9 = "workspace 9";
-          ctrl-alt-0 = "workspace 10";
+          cmd-1 = "workspace 1";
+          cmd-2 = "workspace 2";
+          cmd-3 = "workspace 3";
+          cmd-4 = "workspace 4";
+          cmd-5 = "workspace 5";
+          cmd-6 = "workspace 6";
+          cmd-7 = "workspace 7";
+          cmd-8 = "workspace 8";
+          cmd-9 = "workspace 9";
+          cmd-0 = "workspace 10";
 
-          ctrl-alt-shift-1 = "move-node-to-workspace 1";
-          ctrl-alt-shift-2 = "move-node-to-workspace 2";
-          ctrl-alt-shift-3 = "move-node-to-workspace 3";
-          ctrl-alt-shift-4 = "move-node-to-workspace 4";
-          ctrl-alt-shift-5 = "move-node-to-workspace 5";
-          ctrl-alt-shift-6 = "move-node-to-workspace 6";
-          ctrl-alt-shift-7 = "move-node-to-workspace 7";
-          ctrl-alt-shift-8 = "move-node-to-workspace 8";
-          ctrl-alt-shift-9 = "move-node-to-workspace 9";
-          ctrl-alt-shift-0 = "move-node-to-workspace 10";
+          cmd-alt-1 = "move-node-to-workspace 1";
+          cmd-alt-2 = "move-node-to-workspace 2";
+          cmd-alt-3 = "move-node-to-workspace 3";
+          cmd-alt-4 = "move-node-to-workspace 4";
+          cmd-alt-5 = "move-node-to-workspace 5";
+          cmd-alt-6 = "move-node-to-workspace 6";
+          cmd-alt-7 = "move-node-to-workspace 7";
+          cmd-alt-8 = "move-node-to-workspace 8";
+          cmd-alt-9 = "move-node-to-workspace 9";
+          cmd-alt-0 = "move-node-to-workspace 10";
         };
       };
     };
