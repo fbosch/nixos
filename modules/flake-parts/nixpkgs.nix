@@ -68,10 +68,13 @@
       legacyPackages = lib.mkIf enableByNameLegacy (lib.mkForce byNameLegacyPackages);
 
       packages = lib.mkForce (
-        let
-          flatPackages = flattenPkgs "/" [ ] byNameLegacyPackages;
-        in
-        lib.filterAttrs (_: pkg: lib.meta.availableOn pkgs.stdenv.hostPlatform pkg) flatPackages
+        if enableByNameLegacy then
+          let
+            flatPackages = flattenPkgs "/" [ ] byNameLegacyPackages;
+          in
+          lib.filterAttrs (_: pkg: lib.meta.availableOn pkgs.stdenv.hostPlatform pkg) flatPackages
+        else
+          { }
       );
     };
 

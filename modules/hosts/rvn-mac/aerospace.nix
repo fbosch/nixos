@@ -44,6 +44,8 @@
           cmd-j = "focus --boundaries all-monitors-outer-frame down";
           cmd-k = "focus --boundaries all-monitors-outer-frame up";
 
+          # Move the focused window in the tree, crossing monitors at edges.
+          # Re-focus by window id because AeroSpace `move` lacks a focus-follow flag.
           cmd-shift-h = "exec-and-forget id=$(/run/current-system/sw/bin/aerospace list-windows --focused --format '%{window-id}') && /run/current-system/sw/bin/aerospace move --window-id $id --boundaries all-monitors-outer-frame --boundaries-action stop left && /run/current-system/sw/bin/aerospace focus --window-id $id";
           cmd-shift-l = "exec-and-forget id=$(/run/current-system/sw/bin/aerospace list-windows --focused --format '%{window-id}') && /run/current-system/sw/bin/aerospace move --window-id $id --boundaries all-monitors-outer-frame --boundaries-action stop right && /run/current-system/sw/bin/aerospace focus --window-id $id";
           cmd-shift-j = "exec-and-forget id=$(/run/current-system/sw/bin/aerospace list-windows --focused --format '%{window-id}') && /run/current-system/sw/bin/aerospace move --window-id $id --boundaries all-monitors-outer-frame --boundaries-action stop down && /run/current-system/sw/bin/aerospace focus --window-id $id";
@@ -54,6 +56,8 @@
           cmd-up = "resize height +50";
           cmd-down = "resize height -50";
 
+          # Explicit monitor/workspace movement when the target is the display itself,
+          # not a directional position inside the current tiling tree.
           ctrl-alt-shift-right = "move-node-to-monitor --focus-follows-window --wrap-around next";
           ctrl-alt-shift-left = "move-node-to-monitor --focus-follows-window --wrap-around prev";
           ctrl-alt-shift-up = "move-workspace-to-monitor --wrap-around prev";
