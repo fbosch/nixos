@@ -8,6 +8,7 @@
         "applications/surge"
         "windows"
         "worktrunk"
+        "virtualization/podman"
 
         # Shared modules with Home Manager components
         "secrets"
