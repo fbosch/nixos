@@ -1478,6 +1478,29 @@
         "type": "github"
       }
     },
+    "lazy-apps": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ],
+        "pre-commit-hooks": [
+          "pre-commit-hooks"
+        ]
+      },
+      "locked": {
+        "lastModified": 1764660538,
+        "narHash": "sha256-kEWb9Hc2OxdLhJ1pRdW7zRZ57Mul3/Jpy3vyhQ8Yq6o=",
+        "owner": "~rycee",
+        "repo": "lazy-apps",
+        "rev": "4ddc92c77213f8ed3ddef1868f4a19002afa728a",
+        "type": "sourcehut"
+      },
+      "original": {
+        "owner": "~rycee",
+        "repo": "lazy-apps",
+        "type": "sourcehut"
+      }
+    },
     "nix-bwrapper": {
       "inputs": {
         "nixpkgs": [
@@ -1902,6 +1925,7 @@
         "hyprpaper": "hyprpaper",
         "hyprsunset": "hyprsunset",
         "import-tree": "import-tree",
+        "lazy-apps": "lazy-apps",
         "nix-bwrapper": "nix-bwrapper",
         "nix-cachyos-kernel": "nix-cachyos-kernel",
         "nix-darwin": "nix-darwin",

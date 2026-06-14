@@ -61,6 +61,7 @@ in
       inputs.nix-webapps.overlays.lib
       inputs.nix-webapps.overlays.default
       inputs.nix-bwrapper.overlays.default
+      inputs.lazy-apps.overlays.default
       inputs.self.overlays.chromium-webapps-hardening
     ];
     programs.nix-ld.enable = true;
@@ -130,6 +131,7 @@ in
         inputs.nix-webapps.overlays.lib
         inputs.nix-webapps.overlays.default
         inputs.nix-bwrapper.overlays.default
+        inputs.lazy-apps.overlays.default
         inputs.self.overlays.chromium-webapps-hardening
       ];
 

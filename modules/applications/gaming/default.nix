@@ -1,8 +1,11 @@
-_: {
+{ config, ... }:
+{
   # NixOS module: Generic gaming system configuration
   flake.modules.nixos.gaming =
     { pkgs, ... }:
     let
+      inherit (config.flake.lib) lazyApp;
+
       wowup-cf-wayland = pkgs.symlinkJoin {
         name = "wowup-cf-wayland";
         paths = [ pkgs.wowup-cf ];
@@ -26,7 +29,7 @@ _: {
         protonup-qt
         wl-freeze
         # sgdboop - disabled due to build error in nixpkgs (function signature mismatch)
-        nvitop
+        (lazyApp pkgs nvitop)
         prismlauncher # Minecraft launcher
       ];
 

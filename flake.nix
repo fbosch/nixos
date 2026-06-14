@@ -124,6 +124,11 @@
       url = "https://flakehub.com/f/Naxdy/nix-bwrapper/1.*";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    lazy-apps = {
+      url = "sourcehut:~rycee/lazy-apps";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.pre-commit-hooks.follows = "pre-commit-hooks";
+    };
     flatpaks.url = "github:gmodena/nix-flatpak"; # modules/applications/flatpak.nix
     vicinae = {
       # modules/applications/vicinae.nix

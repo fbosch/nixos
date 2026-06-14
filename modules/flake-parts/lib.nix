@@ -20,6 +20,10 @@
       m: if builtins.isString m then config.flake.modules.darwin.${m} else m
     );
 
+    lazyApp =
+      pkgs: pkgOrArgs:
+      pkgs.lazy-app.override (if lib.isDerivation pkgOrArgs then { pkg = pkgOrArgs; } else pkgOrArgs);
+
     portConflicts =
       let
         portsFor =
