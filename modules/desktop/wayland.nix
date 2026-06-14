@@ -30,31 +30,34 @@
         inputs.ags.homeManagerModules.default
       ];
 
-      home.packages = lib.optionals pkgs.stdenv.isLinux [
-        # waycorner
-        # rofi
-        pkgs.xwayland
-        pkgs.xwayland-satellite
-        pkgs.setxkbmap
-        pkgs.wev
-        pkgs.nwg-look
-        pkgs.nwg-displays
-        pkgs.wlr-randr
-        pkgs.wl-clipboard
-        pkgs.xclip
-        pkgs.xsel
-        pkgs.autocutsel
-        pkgs.cliphist
-        pkgs.wl-clip-persist
-        pkgs.wtype
-        pkgs.xdotool
-        waybar
-        pkgs.swaynotificationcenter
-        pkgs.libnotify
-        pkgs.swayosd
-        pkgs.gsettings-desktop-schemas
-        pkgs.awww
-      ];
+      home.packages = lib.optionals pkgs.stdenv.isLinux (
+        with pkgs;
+        [
+          # waycorner
+          # rofi
+          xwayland
+          xwayland-satellite
+          setxkbmap
+          wev
+          nwg-look
+          nwg-displays
+          wlr-randr
+          wl-clipboard
+          xclip
+          xsel
+          autocutsel
+          cliphist
+          wl-clip-persist
+          wtype
+          xdotool
+          waybar
+          swaynotificationcenter
+          libnotify
+          swayosd
+          gsettings-desktop-schemas
+          awww
+        ]
+      );
 
       programs.ags = lib.mkIf pkgs.stdenv.isLinux {
         enable = true;
