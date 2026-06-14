@@ -25,7 +25,14 @@ Do not run `sops` commands directly; they break the TUI. Instruct the user to ru
 - `config.flake.lib.resolve`: resolve NixOS module paths from string names.
 - `config.flake.lib.resolveHm`: resolve Home Manager module paths from string names.
 - `config.flake.lib.resolveDarwin`: resolve Darwin module paths from string names.
+- `config.flake.lib.lazyApp`: wrap rarely used direct package entries for on-demand realization.
 - `config.flake.lib.sopsHelpers`: SOPS helper set with `rootOnly`, `wheelReadable`, `worldReadable`, `mkSecrets`, `mkSecretsWithOpts`, and `mkSecret`.
+
+## Lazy Packages
+
+- Use `config.flake.lib.lazyApp` only for rarely used direct entries in `environment.systemPackages` or `home.packages`.
+- Do not lazify services, libraries, activation-script inputs, desktop/session infrastructure, auth/security tools, or module `package` options.
+- See [ADR 0013](docs/adr/0013-use-lazy-apps-for-rarely-used-packages.md) for tradeoffs and examples.
 
 ## Host Machine Metadata
 

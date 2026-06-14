@@ -1,3 +1,7 @@
+{ config, ... }:
+let
+  inherit (config.flake.lib) lazyApp;
+in
 {
   flake.modules.homeManager.shell =
     { pkgs, lib, ... }:
@@ -7,7 +11,7 @@
         [
           htop
           btop
-          glances
+          (lazyApp pkgs glances)
           dust
           dua
           ncdu
@@ -17,7 +21,7 @@
           # Not available on Darwin
           s-tui
           microfetch
-          below
+          (lazyApp pkgs below)
         ];
     };
 }

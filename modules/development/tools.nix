@@ -1,30 +1,53 @@
+{ config, ... }:
+let
+  inherit (config.flake.lib) lazyApp;
+in
 {
   flake.modules.nixos.development =
     { pkgs, ... }:
+    let
+      lazyEvemu =
+        map
+          (
+            exe:
+            lazyApp pkgs {
+              inherit exe;
+              pkg = pkgs.evemu;
+            }
+          )
+          [
+            "evemu-describe"
+            "evemu-device"
+            "evemu-event"
+            "evemu-play"
+            "evemu-record"
+          ];
+    in
     {
-      environment.systemPackages = with pkgs; [
-        git
-        just
-        uv
-        gcc
-        cmake
-        gnumake
-        sox
-        ffmpeg
-        vips
-        ghostscript
-        tectonic
-        librsvg
-        imagemagick
-        lnav
-        evemu
-        flake-checker
-        statix
-        deadnix
-        nixpkgs-fmt
-        shellcheck
-        luajitPackages.luacheck
-      ];
+      environment.systemPackages =
+        (with pkgs; [
+          git
+          just
+          uv
+          gcc
+          cmake
+          gnumake
+          sox
+          ffmpeg
+          vips
+          ghostscript
+          tectonic
+          librsvg
+          imagemagick
+          lnav
+          flake-checker
+          statix
+          deadnix
+          nixpkgs-fmt
+          shellcheck
+          luajitPackages.luacheck
+        ])
+        ++ lazyEvemu;
     };
 
   flake.modules.homeManager.development =
@@ -63,7 +86,7 @@
           statix
           deadnix
           nixpkgs-fmt
-          posting
+          (lazyApp pkgs posting)
           pastel
           ripsecrets
           shellcheck

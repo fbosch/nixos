@@ -1,10 +1,14 @@
-_: {
+{ config, ... }:
+let
+  inherit (config.flake.lib) lazyApp;
+in
+{
   # NixOS module: Steam-specific gaming configuration
   flake.modules.nixos.gaming =
     { pkgs, ... }:
     {
       environment.systemPackages = with pkgs; [
-        steamcmd
+        (lazyApp pkgs steamcmd)
         steam-run
         steamtinkerlaunch
       ];

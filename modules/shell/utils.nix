@@ -1,3 +1,7 @@
+{ config, ... }:
+let
+  inherit (config.flake.lib) lazyApp;
+in
 {
   flake.modules.nixos.shell =
     { pkgs, ... }:
@@ -42,7 +46,7 @@
         just
 
         grc
-        cloc
+        (lazyApp pkgs cloc)
         xh
         lynx
         jq
@@ -50,7 +54,7 @@
         fd
         hyperfine
         html2text
-        croc
+        (lazyApp pkgs croc)
       ];
     };
 }
