@@ -26,37 +26,43 @@
       });
     in
     {
-      home.packages = lib.optionals pkgs.stdenv.isLinux (
-        let
-          agsPackage = inputs.ags.packages.${system}.default;
-        in
-        [
-          # waycorner
-          # rofi
-          pkgs.xwayland
-          pkgs.xwayland-satellite
-          pkgs.setxkbmap
-          agsPackage
-          pkgs.wev
-          pkgs.nwg-look
-          pkgs.nwg-displays
-          pkgs.wlr-randr
-          pkgs.wl-clipboard
-          pkgs.xclip
-          pkgs.xsel
-          pkgs.autocutsel
-          pkgs.cliphist
-          pkgs.wl-clip-persist
-          pkgs.wtype
-          pkgs.xdotool
-          waybar
-          pkgs.swaynotificationcenter
-          pkgs.libnotify
-          pkgs.swayosd
-          pkgs.gsettings-desktop-schemas
-          pkgs.awww
-        ]
-      );
+      imports = [
+        inputs.ags.homeManagerModules.default
+      ];
+
+      home.packages = lib.optionals pkgs.stdenv.isLinux [
+        # waycorner
+        # rofi
+        pkgs.xwayland
+        pkgs.xwayland-satellite
+        pkgs.setxkbmap
+        pkgs.wev
+        pkgs.nwg-look
+        pkgs.nwg-displays
+        pkgs.wlr-randr
+        pkgs.wl-clipboard
+        pkgs.xclip
+        pkgs.xsel
+        pkgs.autocutsel
+        pkgs.cliphist
+        pkgs.wl-clip-persist
+        pkgs.wtype
+        pkgs.xdotool
+        waybar
+        pkgs.swaynotificationcenter
+        pkgs.libnotify
+        pkgs.swayosd
+        pkgs.gsettings-desktop-schemas
+        pkgs.awww
+      ];
+
+      programs.ags = lib.mkIf pkgs.stdenv.isLinux {
+        enable = true;
+        package = inputs.ags.packages.${system}.default;
+        extraPackages = [
+          pkgs.astal.wireplumber
+        ];
+      };
 
       systemd = {
         user = {
