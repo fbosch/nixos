@@ -2101,11 +2101,11 @@
         "systems": "systems_3"
       },
       "locked": {
-        "lastModified": 1781398607,
-        "narHash": "sha256-kl74ITH+PdBdpTVVlh+OsYBoEPC+baU/VCwj8vW1Uxk=",
+        "lastModified": 1781478272,
+        "narHash": "sha256-T4KMBnBbLmKbnJwb5jymVeBRffNatOx1dAR4SRumJWk=",
         "owner": "vicinaehq",
         "repo": "vicinae",
-        "rev": "4c6fa93ecc6591e7556ab23f423ddf32917f8b13",
+        "rev": "990c7a9129a66047cbae2f1384d1e59ca0592a14",
         "type": "github"
       },
       "original": {
