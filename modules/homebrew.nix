@@ -14,8 +14,8 @@ in
       homebrew = {
         enable = true;
         onActivation = {
-          autoUpdate = true;
-          upgrade = !isCorporateHost;
+          autoUpdate = false;
+          upgrade = false;
         }
         // lib.optionalAttrs (!isCorporateHost) {
           cleanup = "zap";
