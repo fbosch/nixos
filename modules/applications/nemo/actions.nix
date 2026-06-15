@@ -7,7 +7,7 @@
         runtimeInputs = [
           pkgs.coreutils
           pkgs.gawk
-          pkgs.p7zip
+          pkgs._7zz
           pkgs.unrar
           pkgs.zenity
         ];

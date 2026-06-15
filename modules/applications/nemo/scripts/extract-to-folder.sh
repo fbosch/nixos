@@ -53,7 +53,7 @@ list_top_entries() {
 		return
 	fi
 
-	7z l -slt "$pass_arg" "$file" 2>/dev/null |
+	7zz l -slt "$pass_arg" "$file" 2>/dev/null |
 		awk -F' = ' '
 			/^Path = / {
 				path_count++
@@ -79,7 +79,7 @@ extract_archive() {
 		return
 	fi
 
-	7z x -y "$pass_arg" "$file" -o"$output_dir"
+	7zz x -y "$pass_arg" "$file" -o"$output_dir"
 }
 
 extract_with_progress() {
