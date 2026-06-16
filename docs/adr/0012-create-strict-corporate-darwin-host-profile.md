@@ -1,6 +1,6 @@
 # Create strict corporate Darwin host profile
 
-**Status:** proposed
+**Status:** superseded
 **Date:** 2026-06-12
 
 ## Context
@@ -13,7 +13,9 @@ KMD's exact MDM baseline is not known. The local Nix configuration should theref
 
 ## Decision
 
-Create a separate Darwin host profile for the KMD machine, tentatively named `rvn-mac-corp`, instead of overloading the existing personal `rvn-mac` host.
+Superseded: the separate `rvn-mac-corp` host profile was removed in favor of maintaining a single Darwin host profile at `modules/hosts/rvn-mac/`.
+
+Original decision: create a separate Darwin host profile for the KMD machine, tentatively named `rvn-mac-corp`, instead of overloading the existing personal `rvn-mac` host.
 
 The corporate profile will be strict by default:
 

@@ -27,6 +27,9 @@ in
         ];
 
         extraConfig = ''
+          tap "FelixKratz/formulae", "https://github.com/FelixKratz/homebrew-formulae", trusted: true
+          brew "FelixKratz/formulae/borders", trusted: true
+
           tap "lightpanda-io/browser", trusted: true
           brew "lightpanda-io/browser/lightpanda", trusted: true
         '';
@@ -39,6 +42,7 @@ in
           "arc"
           "zen"
           "helium-browser"
+          "hazeover"
           "alt-tab"
           "replacicon"
           "cursor"

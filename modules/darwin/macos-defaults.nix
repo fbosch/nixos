@@ -3,6 +3,9 @@
     system.defaults = {
       dock = {
         autohide = true;
+        autohide-delay = 0.0;
+        autohide-time-modifier = 0.0;
+        expose-animation-duration = 0.1;
         orientation = "bottom";
         show-recents = false;
         tilesize = 48;
@@ -27,7 +30,9 @@
         InitialKeyRepeat = 15;
         KeyRepeat = 2;
         NSAutomaticCapitalizationEnabled = false;
+        NSAutomaticWindowAnimationsEnabled = false;
         NSAutomaticPeriodSubstitutionEnabled = false;
+        NSScrollAnimationEnabled = false;
         NSWindowShouldDragOnGesture = true;
         "com.apple.swipescrolldirection" = false;
       };
@@ -38,11 +43,30 @@
           "Hide Others" = "@^~$o";
         };
 
+        NSGlobalDomain = {
+          NSBrowserColumnAnimationSpeedMultiplier = 0.0;
+          NSDocumentRevisionsWindowTransformAnimation = false;
+          NSScrollViewRubberbanding = false;
+          NSToolbarFullScreenAnimationDuration = 0.0;
+          NSWindowResizeTime = 0.001;
+          QLPanelAnimationDuration = 0.0;
+        };
+
         "com.knollsoft.Rectangle" = {
           allowAnyShortcut = 1;
           alternateDefaultShortcuts = 1;
           launchOnLogin = 1;
           windowSnapping = 1;
+        };
+
+        "com.apple.finder" = {
+          DisableAllAnimations = true;
+        };
+
+        "com.apple.dock" = {
+          springboard-hide-duration = 0.0;
+          springboard-page-duration = 0.0;
+          springboard-show-duration = 0.0;
         };
 
         "com.lwouis.alt-tab-macos" = {
