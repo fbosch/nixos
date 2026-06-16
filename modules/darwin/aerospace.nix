@@ -68,6 +68,10 @@ in
             run = "move-node-to-workspace 1";
           }
           {
+            "if".app-id = "org.whispersystems.signal-desktop";
+            run = "move-node-to-workspace 1";
+          }
+          {
             "if".app-id = "com.github.wez.wezterm";
             run = "move-node-to-workspace 2";
           }
