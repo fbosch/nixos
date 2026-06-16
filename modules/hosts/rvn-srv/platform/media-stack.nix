@@ -1,13 +1,6 @@
-{ lib, ... }:
-{
+_: {
   flake.modules.nixos."hosts/rvn-srv/platform" = {
     services = {
-      # Use Prowlarr as the single indexer manager for *arr services.
-      prowlarr = {
-        enable = true;
-        openFirewall = true;
-      };
-
       plex.nginx.port = 32402;
 
       linkwarden-container = {
@@ -32,12 +25,5 @@
         memory = "4g";
       };
     };
-
-    services.exposedPorts = lib.mkAfter [
-      {
-        service = "prowlarr";
-        tcpPorts = [ 9696 ];
-      }
-    ];
   };
 }

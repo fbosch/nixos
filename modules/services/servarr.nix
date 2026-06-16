@@ -1,20 +1,26 @@
-_:
-{
+_: {
   flake.modules.nixos."services/servarr" =
     { lib, ... }:
     {
       config = {
         users = {
-          groups.media = { };
+          groups = {
+            media = { };
+            prowlarr = { };
+          };
           users = {
             bazarr.extraGroups = [
               "media"
               "users"
             ];
-            jackett.extraGroups = [
-              "media"
-              "users"
-            ];
+            prowlarr = {
+              isSystemUser = true;
+              group = "prowlarr";
+              extraGroups = [
+                "media"
+                "users"
+              ];
+            };
             lidarr.extraGroups = [
               "media"
               "users"
@@ -51,10 +57,19 @@ _:
             openFirewall = lib.mkDefault true;
           };
 
-          jackett = {
+          prowlarr = {
             enable = true;
             openFirewall = lib.mkDefault true;
           };
+
+          jackett.enable = lib.mkDefault false;
+
+          exposedPorts = lib.mkAfter [
+            {
+              service = "prowlarr";
+              tcpPorts = [ 9696 ];
+            }
+          ];
 
           # Ananicy rules for Servarr services - all background downloaders/managers
           ananicy.customRules = [
@@ -74,12 +89,6 @@ _:
               name = "Prowlarr";
               type = "BG_CPUIO";
               nice = 10;
-              ioclass = "idle";
-            }
-            {
-              name = "jackett";
-              type = "BG_CPUIO";
-              nice = 12;
               ioclass = "idle";
             }
           ];
