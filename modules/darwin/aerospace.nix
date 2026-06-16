@@ -1,5 +1,6 @@
 let
   aerospace = "/run/current-system/sw/bin/aerospace";
+  borders = "/opt/homebrew/bin/borders";
 
   exec = command: "exec-and-forget ${command}";
 
@@ -17,8 +18,21 @@ in
       enable = true;
       settings = {
         after-startup-command = [
-          (exec "borders active_color=0xffe1e3e4 inactive_color=0x00000000 width=5.0")
+          (exec "${borders} style=round width=4.0 hidpi=on active_color='glow(0xccffffff)' inactive_color=0x00ffffff")
         ];
+
+        gaps = {
+          inner = {
+            horizontal = 8;
+            vertical = 8;
+          };
+          outer = {
+            left = 10;
+            right = 10;
+            top = 10;
+            bottom = 10;
+          };
+        };
 
         on-focus-changed = [ "move-mouse window-lazy-center" ];
         on-focused-monitor-changed = [ "move-mouse window-lazy-center" ];

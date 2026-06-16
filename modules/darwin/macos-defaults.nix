@@ -27,6 +27,7 @@
         InitialKeyRepeat = 15;
         KeyRepeat = 2;
         NSAutomaticCapitalizationEnabled = false;
+        NSAutomaticWindowAnimationsEnabled = false;
         NSAutomaticPeriodSubstitutionEnabled = false;
         NSWindowShouldDragOnGesture = true;
         "com.apple.swipescrolldirection" = false;
