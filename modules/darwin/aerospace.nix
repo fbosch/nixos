@@ -1,3 +1,16 @@
+let
+  aerospace = "/run/current-system/sw/bin/aerospace";
+
+  exec = command: "exec-and-forget ${command}";
+
+  openZenBlankInCurrentWorkspace = exec "app=app.zen-browser.zen; aerospace=${aerospace}; ws=$($aerospace list-workspaces --focused); before=$($aerospace list-windows --monitor all --app-bundle-id $app --format '%{window-id}'); /usr/bin/open -nb $app --args --new-window about:blank >/dev/null 2>&1; for i in {1..50}; do sleep 0.1; after=$($aerospace list-windows --monitor all --app-bundle-id $app --format '%{window-id}'); for id in $after; do case \" $before \" in *\" $id \"*) ;; *) $aerospace move-node-to-workspace --focus-follows-window --window-id $id $ws; exit 0;; esac; done; done; /usr/bin/open -b $app";
+
+  moveFocusedWindow = direction: exec "id=$(${aerospace} list-windows --focused --format '%{window-id}') && ${aerospace} move --window-id $id --boundaries all-monitors-outer-frame --boundaries-action stop ${direction} && ${aerospace} focus --window-id $id";
+
+  moveNodeToWorkspace = workspace: "move-node-to-workspace --focus-follows-window ${workspace}";
+
+  moveNodeToWorkspaceOnFocusedMonitor = workspace: exec "ws=${workspace}; aerospace=${aerospace}; id=$($aerospace list-windows --focused --format '%{window-id}') && ($aerospace list-workspaces --all --format '%{workspace}' | /usr/bin/grep -Fxq \"$ws\" || $aerospace summon-workspace \"$ws\") && $aerospace move-node-to-workspace --focus-follows-window --window-id $id \"$ws\"";
+in
 {
   flake.modules.darwin.aerospace = {
     services.aerospace = {
@@ -43,12 +56,12 @@
         ];
 
         mode.main.binding = {
-          ctrl-alt-space = "exec-and-forget open -a Raycast";
-          alt-backtick = "exec-and-forget open 'cleanshot://record-screen'";
+          ctrl-alt-space = exec "open -a Raycast";
+          alt-backtick = exec "open 'cleanshot://record-screen'";
           ctrl-alt-v = "layout floating tiling";
           ctrl-alt-f = "fullscreen";
           cmd-shift-f = "macos-native-fullscreen";
-          cmd-b = "exec-and-forget app=app.zen-browser.zen; ws=$(/run/current-system/sw/bin/aerospace list-workspaces --focused); before=$(/run/current-system/sw/bin/aerospace list-windows --monitor all --app-bundle-id $app --format '%{window-id}'); /usr/bin/open -nb $app --args --new-window about:blank >/dev/null 2>&1; for i in {1..50}; do sleep 0.1; after=$(/run/current-system/sw/bin/aerospace list-windows --monitor all --app-bundle-id $app --format '%{window-id}'); for id in $after; do case \" $before \" in *\" $id \"*) ;; *) /run/current-system/sw/bin/aerospace move-node-to-workspace --focus-follows-window --window-id $id $ws; exit 0;; esac; done; done; /usr/bin/open -b $app";
+          cmd-b = openZenBlankInCurrentWorkspace;
 
           cmd-h = "focus --boundaries all-monitors-outer-frame left";
           cmd-l = "focus --boundaries all-monitors-outer-frame right";
@@ -57,10 +70,10 @@
 
           # Move the focused window in the tree, crossing monitors at edges.
           # Re-focus by window id because AeroSpace `move` lacks a focus-follow flag.
-          cmd-shift-h = "exec-and-forget id=$(/run/current-system/sw/bin/aerospace list-windows --focused --format '%{window-id}') && /run/current-system/sw/bin/aerospace move --window-id $id --boundaries all-monitors-outer-frame --boundaries-action stop left && /run/current-system/sw/bin/aerospace focus --window-id $id";
-          cmd-shift-l = "exec-and-forget id=$(/run/current-system/sw/bin/aerospace list-windows --focused --format '%{window-id}') && /run/current-system/sw/bin/aerospace move --window-id $id --boundaries all-monitors-outer-frame --boundaries-action stop right && /run/current-system/sw/bin/aerospace focus --window-id $id";
-          cmd-shift-j = "exec-and-forget id=$(/run/current-system/sw/bin/aerospace list-windows --focused --format '%{window-id}') && /run/current-system/sw/bin/aerospace move --window-id $id --boundaries all-monitors-outer-frame --boundaries-action stop down && /run/current-system/sw/bin/aerospace focus --window-id $id";
-          cmd-shift-k = "exec-and-forget id=$(/run/current-system/sw/bin/aerospace list-windows --focused --format '%{window-id}') && /run/current-system/sw/bin/aerospace move --window-id $id --boundaries all-monitors-outer-frame --boundaries-action stop up && /run/current-system/sw/bin/aerospace focus --window-id $id";
+          cmd-shift-h = moveFocusedWindow "left";
+          cmd-shift-l = moveFocusedWindow "right";
+          cmd-shift-j = moveFocusedWindow "down";
+          cmd-shift-k = moveFocusedWindow "up";
 
           cmd-right = "resize width +50";
           cmd-left = "resize width -50";
@@ -85,16 +98,16 @@
           cmd-9 = "workspace 9";
           cmd-0 = "workspace 10";
 
-          cmd-shift-1 = "move-node-to-workspace --focus-follows-window 1";
-          cmd-shift-2 = "move-node-to-workspace --focus-follows-window 2";
-          cmd-shift-3 = "move-node-to-workspace --focus-follows-window 3";
-          cmd-shift-4 = "move-node-to-workspace --focus-follows-window 4";
-          cmd-shift-5 = "move-node-to-workspace --focus-follows-window 5";
-          cmd-shift-6 = "move-node-to-workspace --focus-follows-window 6";
-          cmd-shift-7 = "move-node-to-workspace --focus-follows-window 7";
-          cmd-shift-8 = "move-node-to-workspace --focus-follows-window 8";
-          cmd-shift-9 = "move-node-to-workspace --focus-follows-window 9";
-          cmd-shift-0 = "move-node-to-workspace --focus-follows-window 10";
+          cmd-shift-1 = moveNodeToWorkspace "1";
+          cmd-shift-2 = moveNodeToWorkspace "2";
+          cmd-shift-3 = moveNodeToWorkspace "3";
+          cmd-shift-4 = moveNodeToWorkspaceOnFocusedMonitor "4";
+          cmd-shift-5 = moveNodeToWorkspaceOnFocusedMonitor "5";
+          cmd-shift-6 = moveNodeToWorkspaceOnFocusedMonitor "6";
+          cmd-shift-7 = moveNodeToWorkspaceOnFocusedMonitor "7";
+          cmd-shift-8 = moveNodeToWorkspaceOnFocusedMonitor "8";
+          cmd-shift-9 = moveNodeToWorkspaceOnFocusedMonitor "9";
+          cmd-shift-0 = moveNodeToWorkspaceOnFocusedMonitor "10";
         };
       };
     };
