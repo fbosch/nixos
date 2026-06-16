@@ -21,6 +21,10 @@ in
           (exec "${borders} style=round width=4.0 hidpi=on active_color=0xccffffff inactive_color=0x00ffffff")
         ];
 
+        # Prefer accordion as a fullscreen-like mode. AeroSpace fullscreen can
+        # visibly fade when hidden/restored during workspace switches.
+        accordion-padding = 0;
+
         gaps = {
           inner = {
             horizontal = 8;
@@ -77,7 +81,7 @@ in
           ctrl-alt-space = exec "open -a Raycast";
           alt-backtick = exec "open 'cleanshot://record-screen'";
           ctrl-alt-v = "layout floating tiling";
-          ctrl-alt-f = "fullscreen";
+          ctrl-alt-f = "layout accordion tiles";
           cmd-shift-f = "macos-native-fullscreen";
           cmd-b = openZenBlankInCurrentWorkspace;
 
