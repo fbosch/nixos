@@ -16,6 +16,10 @@ in
     services.aerospace = {
       enable = true;
       settings = {
+        after-startup-command = [
+          (exec "borders active_color=0xffe1e3e4 inactive_color=0x00000000 width=5.0")
+        ];
+
         on-focus-changed = [ "move-mouse window-lazy-center" ];
         on-focused-monitor-changed = [ "move-mouse window-lazy-center" ];
 

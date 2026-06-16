@@ -23,6 +23,7 @@ in
         };
 
         taps = [
+          "FelixKratz/formulae"
           "steipete/tap"
         ];
 
@@ -52,6 +53,7 @@ in
         ];
 
         brews = [
+          "borders"
           "mas"
           "mole"
           "rtk"
