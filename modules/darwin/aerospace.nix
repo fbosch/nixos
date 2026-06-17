@@ -43,6 +43,7 @@ in
 
         workspace-to-monitor-force-assignment = {
           "1" = [
+            "^P27QD-40$"
             "^DELL U2717D$"
             "built-in"
             "main"
