@@ -10,6 +10,7 @@
   desktopName = "YouTube Music";
   wmClass = "YouTube Music";
   comment = "Music streaming service";
+  icon = ./Youtube_Music_icon.svg;
   faviconHash = "sha256-ViRlq34tVujkLdRWZE3Bg5oLFBJ65dm+Tngq4wvtJYE=";
   profile = "YoutubeMusicProfile";
   profileDirName = "youtubemusic";

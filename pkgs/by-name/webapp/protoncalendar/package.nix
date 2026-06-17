@@ -10,6 +10,7 @@
   desktopName = "Proton Calendar";
   wmClass = "Proton Calendar";
   comment = "Secure encrypted calendar";
+  icon = ./proton-calendar.svg;
   faviconHash = "sha256-IkLdXUeULtu3J8R9yQS8hbj4ZofhvG2uLW1/oDJSw5U=";
   profile = "ProtonCalendarProfile";
   url = "https://calendar.proton.me";
