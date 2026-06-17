@@ -18,6 +18,10 @@ let
     "move-mouse window-lazy-center"
   ];
 
+  resizeFromEdge =
+    probeDirection: axis: signIfNeighbor: signIfEdge:
+    exec "aerospace=${aerospace}; id=$($aerospace list-windows --focused --format '%{window-id}') || exit 0; if $aerospace focus --boundaries workspace --boundaries-action fail ${probeDirection} >/dev/null 2>&1; then $aerospace focus --window-id $id >/dev/null 2>&1; delta=${signIfNeighbor}50; else delta=${signIfEdge}50; fi; $aerospace resize ${axis} $delta";
+
   moveNodeToWorkspace = workspace: "move-node-to-workspace --focus-follows-window ${workspace}";
 
   moveNodeToWorkspaceOnFocusedMonitor = workspace: exec "ws=${workspace}; aerospace=${aerospace}; id=$($aerospace list-windows --focused --format '%{window-id}') && ($aerospace list-workspaces --all --format '%{workspace}' | /usr/bin/grep -Fxq \"$ws\" || $aerospace summon-workspace \"$ws\") && $aerospace move-node-to-workspace --focus-follows-window --window-id $id \"$ws\"";
@@ -112,10 +116,10 @@ in
           cmd-shift-j = moveFocusedWindow "down";
           cmd-shift-k = moveFocusedWindow "up";
 
-          cmd-shift-right = "resize width +50";
-          cmd-shift-left = "resize width -50";
-          cmd-shift-up = "resize height +50";
-          cmd-shift-down = "resize height -50";
+          cmd-shift-right = resizeFromEdge "right" "width" "+" "-";
+          cmd-shift-left = resizeFromEdge "right" "width" "-" "+";
+          cmd-shift-up = resizeFromEdge "down" "height" "-" "+";
+          cmd-shift-down = resizeFromEdge "down" "height" "+" "-";
 
           # Explicit monitor/workspace movement when the target is the display itself,
           # not a directional position inside the current tiling tree.
