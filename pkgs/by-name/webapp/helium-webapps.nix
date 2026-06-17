@@ -34,7 +34,6 @@ let
     "--disable-background-networking"
     "--no-first-run"
     "--no-default-browser-check"
-    "--disable-features=TranslateUI"
     "--disable-crash-reporter"
     "--enable-gpu-rasterization"
     "--enable-zero-copy"
@@ -42,19 +41,15 @@ let
     "--disable-password-generation"
     "--disable-password-saving"
     "--disable-password-manager-reauthentication"
-    "--disable-save-password-bubble"
     "--disable-low-end-device-mode"
-    "--enable-threaded-compositing"
     "--enable-overlay-scrollbar"
     "--disable-component-extensions-with-background-pages"
     "--disable-hang-monitor"
     "--disable-ipc-flooding-protection"
     "--disable-popup-blocking"
     "--disable-prompt-on-repost"
-    "--disable-infobars"
     "--disable-session-crashed-bubble"
     "--disable-component-update"
-    "--enable-features=VizDisplayCompositor"
   ];
 
   hostForUrl =
