@@ -102,10 +102,10 @@ in
           cmd-shift-j = moveFocusedWindow "down";
           cmd-shift-k = moveFocusedWindow "up";
 
-          cmd-right = "resize width +50";
-          cmd-left = "resize width -50";
-          cmd-up = "resize height +50";
-          cmd-down = "resize height -50";
+          cmd-shift-right = "resize width +50";
+          cmd-shift-left = "resize width -50";
+          cmd-shift-up = "resize height +50";
+          cmd-shift-down = "resize height -50";
 
           # Explicit monitor/workspace movement when the target is the display itself,
           # not a directional position inside the current tiling tree.
