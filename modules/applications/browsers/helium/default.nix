@@ -35,19 +35,35 @@ let
 in
 {
   flake.modules.nixos.applications =
-    { pkgs, ... }:
+    { pkgs, lib, ... }:
     let
       heliumPackage = makeHeliumPackage pkgs;
       heliumProfile = pkgs.replaceVars ./helium.profile {
         chromiumProfile = "${pkgs.firejail}/etc/firejail/chromium.profile";
       };
+      heliumWebapps = lib.filterAttrs (name: _: lib.hasPrefix "webapp/" name) pkgs.local;
     in
     {
-      programs.firejail.wrappedBinaries.helium-browser = {
-        executable = "${heliumPackage}/bin/helium-browser";
-        profile = "${heliumProfile}";
-        desktop = "${heliumPackage}/share/applications/helium-browser.desktop";
-      };
+      programs.firejail.wrappedBinaries =
+        lib.mapAttrs'
+          (name: package: {
+            name = package.meta.mainProgram or (builtins.baseNameOf name);
+            value = {
+              executable = lib.getExe package;
+              profile = "${heliumProfile}";
+              desktop = "${package}/share/applications/${
+              package.meta.mainProgram or (builtins.baseNameOf name)
+            }.desktop";
+            };
+          })
+          heliumWebapps
+        // {
+          helium-browser = {
+            executable = "${heliumPackage}/bin/helium-browser";
+            profile = "${heliumProfile}";
+            desktop = "${heliumPackage}/share/applications/helium-browser.desktop";
+          };
+        };
     };
 
   flake.modules.homeManager.applications =

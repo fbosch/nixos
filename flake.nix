@@ -39,12 +39,6 @@
 
     # Package infrastructure (modules/flake-parts/nixpkgs.nix, modules/system/core.nix)
     pkgs-by-name-for-flake-parts.url = "github:drupol/pkgs-by-name-for-flake-parts";
-    nix-webapps = {
-      url = "github:TLATER/nix-webapps";
-      inputs.nixpkgs.follows = "nixpkgs";
-      inputs.systems.follows = "dedupe_systems";
-    };
-
     # Dotfiles (modules/dotfiles.nix)
     dotfiles = {
       url = "github:fbosch/dotfiles";

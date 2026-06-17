@@ -19,11 +19,8 @@
         config.allowUnfree = true;
         overlays = [
           inputs.self.overlays.default
-          inputs.nix-webapps.overlays.lib
-          inputs.nix-webapps.overlays.default
           inputs.nix-bwrapper.overlays.default
           inputs.lazy-apps.overlays.default
-          inputs.self.overlays.chromium-webapps-hardening
         ];
       };
       enableByNameLegacy = pkgs.stdenv.isLinux;

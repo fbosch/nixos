@@ -23,8 +23,8 @@
         loupe # GNOME image viewer
 
         # Media web apps
-        local.chromium-youtubemusic # YouTube Music
-        local.chromium-synologyphotos # Synology Photos
+        local."webapp/youtubemusic" # YouTube Music
+        local."webapp/synologyphotos" # Synology Photos
       ];
 
       # Flatpak media applications
