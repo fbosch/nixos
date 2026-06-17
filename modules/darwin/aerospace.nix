@@ -8,6 +8,16 @@ let
 
   moveFocusedWindow = direction: exec "id=$(${aerospace} list-windows --focused --format '%{window-id}') && ${aerospace} move --window-id $id --boundaries all-monitors-outer-frame --boundaries-action stop ${direction} && ${aerospace} focus --window-id $id";
 
+  focusAndCenterMouse = direction: [
+    "focus --boundaries all-monitors-outer-frame ${direction}"
+    "move-mouse window-lazy-center"
+  ];
+
+  workspaceAndCenterMouse = workspace: [
+    "workspace ${workspace}"
+    "move-mouse window-lazy-center"
+  ];
+
   moveNodeToWorkspace = workspace: "move-node-to-workspace --focus-follows-window ${workspace}";
 
   moveNodeToWorkspaceOnFocusedMonitor = workspace: exec "ws=${workspace}; aerospace=${aerospace}; id=$($aerospace list-windows --focused --format '%{window-id}') && ($aerospace list-workspaces --all --format '%{workspace}' | /usr/bin/grep -Fxq \"$ws\" || $aerospace summon-workspace \"$ws\") && $aerospace move-node-to-workspace --focus-follows-window --window-id $id \"$ws\"";
@@ -38,8 +48,8 @@ in
           };
         };
 
-        on-focus-changed = [ "move-mouse window-lazy-center" ];
-        on-focused-monitor-changed = [ "move-mouse window-lazy-center" ];
+        on-focus-changed = [ ];
+        on-focused-monitor-changed = [ ];
 
         workspace-to-monitor-force-assignment = {
           "1" = [
@@ -90,10 +100,10 @@ in
           cmd-shift-f = "macos-native-fullscreen";
           cmd-b = openZenBlankInCurrentWorkspace;
 
-          cmd-h = "focus --boundaries all-monitors-outer-frame left";
-          cmd-l = "focus --boundaries all-monitors-outer-frame right";
-          cmd-j = "focus --boundaries all-monitors-outer-frame down";
-          cmd-k = "focus --boundaries all-monitors-outer-frame up";
+          cmd-h = focusAndCenterMouse "left";
+          cmd-l = focusAndCenterMouse "right";
+          cmd-j = focusAndCenterMouse "down";
+          cmd-k = focusAndCenterMouse "up";
 
           # Move the focused window in the tree, crossing monitors at edges.
           # Re-focus by window id because AeroSpace `move` lacks a focus-follow flag.
@@ -114,16 +124,16 @@ in
           ctrl-alt-shift-up = "move-workspace-to-monitor --wrap-around prev";
           ctrl-alt-shift-down = "move-workspace-to-monitor --wrap-around next";
 
-          cmd-1 = "workspace 1";
-          cmd-2 = "workspace 2";
-          cmd-3 = "workspace 3";
-          cmd-4 = "workspace 4";
-          cmd-5 = "workspace 5";
-          cmd-6 = "workspace 6";
-          cmd-7 = "workspace 7";
-          cmd-8 = "workspace 8";
-          cmd-9 = "workspace 9";
-          cmd-0 = "workspace 10";
+          cmd-1 = workspaceAndCenterMouse "1";
+          cmd-2 = workspaceAndCenterMouse "2";
+          cmd-3 = workspaceAndCenterMouse "3";
+          cmd-4 = workspaceAndCenterMouse "4";
+          cmd-5 = workspaceAndCenterMouse "5";
+          cmd-6 = workspaceAndCenterMouse "6";
+          cmd-7 = workspaceAndCenterMouse "7";
+          cmd-8 = workspaceAndCenterMouse "8";
+          cmd-9 = workspaceAndCenterMouse "9";
+          cmd-0 = workspaceAndCenterMouse "10";
 
           cmd-shift-1 = moveNodeToWorkspace "1";
           cmd-shift-2 = moveNodeToWorkspace "2";
