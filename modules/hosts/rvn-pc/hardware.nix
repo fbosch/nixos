@@ -75,6 +75,11 @@
           nvidiaSettings = true;
           nvidiaPersistenced = true; # Keep GPU initialized for better performance
           package = config.boot.kernelPackages.nvidiaPackages.stable;
+          moduleParams = {
+            nvidia = {
+              disable_vrr_memclk_switch = 1;
+            };
+          };
         };
 
         keyboard.zsa.enable = true;
