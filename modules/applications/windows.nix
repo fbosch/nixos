@@ -13,7 +13,7 @@
     { pkgs, ... }:
     {
       home.packages = with pkgs; [
-        # winboat  # disabled: go-1.26.1 + binutils-2.44 CGo/mingw cross-compilation regression
+        winboat
         inputs.winapps.packages.${pkgs.stdenv.hostPlatform.system}.winapps
         inputs.winapps.packages.${pkgs.stdenv.hostPlatform.system}.winapps-launcher
         freerdp
