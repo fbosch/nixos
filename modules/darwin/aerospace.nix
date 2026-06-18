@@ -22,6 +22,10 @@ let
     probeDirection: axis: signIfNeighbor: signIfEdge:
     exec "aerospace=${aerospace}; id=$($aerospace list-windows --focused --format '%{window-id}') || exit 0; if $aerospace focus --boundaries workspace --boundaries-action fail ${probeDirection} >/dev/null 2>&1; then $aerospace focus --window-id $id >/dev/null 2>&1; delta=${signIfNeighbor}50; else delta=${signIfEdge}50; fi; $aerospace resize ${axis} $delta";
 
+  setWorkspaceVerticalOnMonitor =
+    workspace: monitor:
+    exec "aerospace=${aerospace}; name=$($aerospace list-workspaces --all --format '%{workspace}%{tab}%{monitor-name}' | while IFS=$'\t' read -r ws monitor; do [ \"$ws\" = \"${workspace}\" ] && printf '%s' \"$monitor\" && exit 0; done); [ \"$name\" = \"${monitor}\" ] && $aerospace layout --workspace ${workspace} --root v_tiles";
+
   moveNodeToWorkspace = workspace: "move-node-to-workspace --focus-follows-window ${workspace}";
 
   moveNodeToWorkspaceOnFocusedMonitor = workspace: exec "ws=${workspace}; aerospace=${aerospace}; id=$($aerospace list-windows --focused --format '%{window-id}') && ($aerospace list-workspaces --all --format '%{workspace}' | /usr/bin/grep -Fxq \"$ws\" || $aerospace summon-workspace \"$ws\") && $aerospace move-node-to-workspace --focus-follows-window --window-id $id \"$ws\"";
@@ -33,11 +37,15 @@ in
       settings = {
         after-startup-command = [
           (exec "${borders} style=round width=4.0 hidpi=on active_color=0xccffffff inactive_color=0x00ffffff")
+          (setWorkspaceVerticalOnMonitor "1" "DELL U2717D")
         ];
 
         # Prefer accordion as a fullscreen-like mode. AeroSpace fullscreen can
         # visibly fade when hidden/restored during workspace switches.
         accordion-padding = 0;
+
+        default-root-container-layout = "tiles";
+        default-root-container-orientation = "auto";
 
         gaps = {
           inner = {
