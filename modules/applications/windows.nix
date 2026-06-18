@@ -11,9 +11,21 @@
 
   flake.modules.homeManager.windows =
     { pkgs, ... }:
+    let
+      winboatWithDockerHost = pkgs.symlinkJoin {
+        name = "winboat-with-docker-host";
+        paths = [ pkgs.winboat ];
+        nativeBuildInputs = [ pkgs.makeWrapper ];
+        postBuild = ''
+          rm $out/bin/winboat
+          makeWrapper ${pkgs.winboat}/bin/winboat $out/bin/winboat \
+            --set DOCKER_HOST unix:///var/run/docker.sock
+        '';
+      };
+    in
     {
       home.packages = with pkgs; [
-        winboat
+        winboatWithDockerHost
         inputs.winapps.packages.${pkgs.stdenv.hostPlatform.system}.winapps
         inputs.winapps.packages.${pkgs.stdenv.hostPlatform.system}.winapps-launcher
         freerdp
