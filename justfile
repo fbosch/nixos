@@ -36,6 +36,18 @@ lint:
 check-service-ports:
     bash ./scripts/check-service-ports.sh
 
+# Recover Plex NAS media mounts after systemd start-limit failures
+recover-plex-mounts:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    test -f modules/services/plex.nix
+    sudo systemctl reset-failed mnt-nas-video.mount mnt-nas-video.automount mnt-nas-LaCie.mount mnt-nas-LaCie.automount
+    sudo systemctl start mnt-nas-video.automount mnt-nas-LaCie.automount
+    sudo systemctl start mnt-nas-video.mount mnt-nas-LaCie.mount
+    for mountpoint in /mnt/nas/video /mnt/nas/LaCie '/var/lib/plex/Plex Media Server/Cache/Transcode'; do
+        findmnt --target "$mountpoint"
+    done
+
 # Format all files
 fmt:
     nix run .#fmt
