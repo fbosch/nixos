@@ -147,10 +147,24 @@ in
       };
       iconExtension = iconExtensionFor resolvedIcon;
       iconDirectory = iconDirectoryFor iconExtension;
-      iconTheme = pkgs.runCommand "${appName}-icons" { } ''
-        install -Dm444 ${resolvedIcon} \
-          "$out/share/icons/hicolor/${iconDirectory}/apps/${appName}.${iconExtension}"
-      '';
+      iconTheme =
+        pkgs.runCommand "${appName}-icons"
+          (lib.optionalAttrs (iconExtension == "png") {
+            nativeBuildInputs = [ pkgs.imagemagick ];
+          })
+          (
+            if iconExtension == "png" then
+              ''
+                install -d "$out/share/icons/hicolor/${iconDirectory}/apps"
+                magick ${resolvedIcon} -resize 512x512 -background none -gravity center -extent 512x512 \
+                  "$out/share/icons/hicolor/${iconDirectory}/apps/${appName}.${iconExtension}"
+              ''
+            else
+              ''
+                install -Dm444 ${resolvedIcon} \
+                  "$out/share/icons/hicolor/${iconDirectory}/apps/${appName}.${iconExtension}"
+              ''
+          );
     in
     pkgs.symlinkJoin {
       name = appName;
