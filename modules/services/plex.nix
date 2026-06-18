@@ -2,10 +2,62 @@ _: {
   flake.modules.nixos."services/plex" =
     { config
     , lib
+    , pkgs
     , ...
     }:
     let
       cfg = config.services.plex;
+      nasRecoveryMountUnits = map (unit: "${unit}.mount") cfg.nasRecovery.mountUnits;
+      nasRecoveryAutomountUnits = map (unit: "${unit}.automount") cfg.nasRecovery.mountUnits;
+      nasRecoveryUnits = nasRecoveryMountUnits ++ nasRecoveryAutomountUnits;
+      nasRecoveryScript = pkgs.writeShellScript "plex-nas-mount-recovery" ''
+        set -euo pipefail
+
+        units=(${lib.escapeShellArgs nasRecoveryUnits})
+        mount_units=(${lib.escapeShellArgs nasRecoveryMountUnits})
+        automount_units=(${lib.escapeShellArgs nasRecoveryAutomountUnits})
+        failed=()
+
+        for unit in "''${units[@]}"; do
+          result=$(${pkgs.systemd}/bin/systemctl show --property=Result --value "$unit")
+          if ${pkgs.systemd}/bin/systemctl is-failed --quiet "$unit" || [ "$result" != success ]; then
+            failed+=("$unit")
+          fi
+        done
+
+        if [ "''${#failed[@]}" -eq 0 ]; then
+          echo "No failed Plex NAS mount units."
+          exit 0
+        fi
+
+        stamp=/run/plex-nas-mount-recovery.last
+        now=$(${pkgs.coreutils}/bin/date +%s)
+        if [ -e "$stamp" ]; then
+          last=$(${pkgs.coreutils}/bin/stat -c %Y "$stamp")
+          elapsed=$((now - last))
+          if [ "$elapsed" -lt ${toString cfg.nasRecovery.minRetryIntervalSeconds} ]; then
+            echo "Skipping Plex NAS mount recovery; last attempt was ''${elapsed}s ago."
+            exit 0
+          fi
+        fi
+
+        if ! ${pkgs.bash}/bin/bash -c 'exec 3<>/dev/tcp/${cfg.nasRecovery.host}/${toString cfg.nasRecovery.port}' 2>/dev/null; then
+          echo "Skipping Plex NAS mount recovery; ${cfg.nasRecovery.host}:${toString cfg.nasRecovery.port} is unreachable."
+          exit 0
+        fi
+
+        ${pkgs.coreutils}/bin/touch "$stamp"
+
+        echo "Recovering failed Plex NAS units: ''${failed[*]}"
+        ${pkgs.systemd}/bin/systemctl reset-failed "''${failed[@]}"
+        ${pkgs.systemd}/bin/systemctl start "''${automount_units[@]}"
+
+        for unit in "''${mount_units[@]}"; do
+          ${pkgs.systemd}/bin/systemctl start "$unit"
+        done
+
+        ${pkgs.systemd}/bin/systemctl --no-pager --full status "''${units[@]}" || true
+      '';
     in
     {
       options.services.plex = {
@@ -51,6 +103,47 @@ _: {
             type = lib.types.str;
             default = "24h";
             description = "Time to cache static content.";
+          };
+        };
+
+        nasRecovery = {
+          enable = lib.mkOption {
+            type = lib.types.bool;
+            default = true;
+            description = "Enable periodic recovery for failed NAS media mounts used by Plex.";
+          };
+
+          host = lib.mkOption {
+            type = lib.types.str;
+            default = "rvn-nas";
+            description = "NAS host checked for SMB reachability before recovery.";
+          };
+
+          port = lib.mkOption {
+            type = lib.types.port;
+            default = 445;
+            description = "NAS SMB port checked before recovery.";
+          };
+
+          interval = lib.mkOption {
+            type = lib.types.str;
+            default = "5m";
+            description = "How often to check for failed Plex NAS mount units.";
+          };
+
+          minRetryIntervalSeconds = lib.mkOption {
+            type = lib.types.ints.positive;
+            default = 300;
+            description = "Minimum seconds between recovery attempts once failed units are detected.";
+          };
+
+          mountUnits = lib.mkOption {
+            type = lib.types.listOf lib.types.str;
+            default = [
+              "mnt-nas-video"
+              "mnt-nas-LaCie"
+            ];
+            description = "Systemd mount unit prefixes to recover, without .mount or .automount suffixes.";
           };
         };
       };
@@ -229,14 +322,41 @@ _: {
 
         users.users.plex.extraGroups = [ "users" ];
 
-        systemd.services.plex.serviceConfig = {
-          Nice = -10;
-          CPUWeight = 1000;
-          IOSchedulingClass = "best-effort";
-          IOSchedulingPriority = 0;
-          IOWeight = 1000;
-          OOMScoreAdjust = -900;
-          MemoryLow = "2G";
+        systemd = {
+          services = {
+            plex.serviceConfig = {
+              Nice = -10;
+              CPUWeight = 1000;
+              IOSchedulingClass = "best-effort";
+              IOSchedulingPriority = 0;
+              IOWeight = 1000;
+              OOMScoreAdjust = -900;
+              MemoryLow = "2G";
+            };
+
+            plex-nas-mount-recovery = lib.mkIf cfg.nasRecovery.enable {
+              description = "Recover failed Plex NAS media mounts";
+              after = [ "network-online.target" ];
+              wants = [ "network-online.target" ];
+              serviceConfig = {
+                Type = "oneshot";
+                ExecStart = nasRecoveryScript;
+              };
+            };
+          };
+
+          timers.plex-nas-mount-recovery = lib.mkIf cfg.nasRecovery.enable {
+            wantedBy = [ "timers.target" ];
+            timerConfig = {
+              OnBootSec = cfg.nasRecovery.interval;
+              OnUnitActiveSec = cfg.nasRecovery.interval;
+              RandomizedDelaySec = "30s";
+            };
+          };
+
+          tmpfiles.rules = lib.mkIf cfg.nginx.enable [
+            "d /var/cache/nginx/plex 0750 nginx nginx -"
+          ];
         };
 
         fileSystems."/var/lib/plex/Plex Media Server/Cache/Transcode" = lib.mkIf cfg.transcodeInRAM {
@@ -250,10 +370,6 @@ _: {
             "gid=plex"
           ];
         };
-
-        systemd.tmpfiles.rules = lib.mkIf cfg.nginx.enable [
-          "d /var/cache/nginx/plex 0750 nginx nginx -"
-        ];
 
         networking.firewall.allowedTCPPorts = lib.mkIf cfg.nginx.enable [
           cfg.nginx.port

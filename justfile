@@ -41,9 +41,8 @@ recover-plex-mounts:
     #!/usr/bin/env bash
     set -euo pipefail
     test -f modules/services/plex.nix
-    sudo systemctl reset-failed mnt-nas-video.mount mnt-nas-video.automount mnt-nas-LaCie.mount mnt-nas-LaCie.automount
-    sudo systemctl start mnt-nas-video.automount mnt-nas-LaCie.automount
-    sudo systemctl start mnt-nas-video.mount mnt-nas-LaCie.mount
+    sudo systemctl start plex-nas-mount-recovery.service
+    systemctl status plex-nas-mount-recovery.service --no-pager || true
     for mountpoint in /mnt/nas/video /mnt/nas/LaCie '/var/lib/plex/Plex Media Server/Cache/Transcode'; do
         findmnt --target "$mountpoint"
     done
