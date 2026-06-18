@@ -100,7 +100,7 @@ if "$pnpm_bin" --dir "$managed_current_dir" install --frozen-lockfile --prod --i
 	for managed_bin in "$managed_current_dir/node_modules/.bin"/*; do
 		if [ -e "$managed_bin" ]; then
 			wrapper="$pnpm_home/bin/$(basename "$managed_bin")"
-			cat > "$wrapper" << EOF
+			cat >"$wrapper" <<EOF
 #!/usr/bin/env bash
 exec "$managed_bin" "\$@"
 EOF

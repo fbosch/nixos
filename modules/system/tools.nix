@@ -11,6 +11,7 @@
         usbutils
         lsof
         ethtool
+        file
         icu
         dig
         duf

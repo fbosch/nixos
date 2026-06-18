@@ -5,13 +5,13 @@
     {
       home.packages = with pkgs; [
         gimp
-        pkgs.local.chromium-chatgpt
-        pkgs.local.chromium-notion
-        pkgs.local.chromium-icloud-notes
-        pkgs.local.chromium-protonmail
-        pkgs.local.chromium-protoncalendar
-        pkgs.local.chromium-linear
-        pkgs.local.chromium-figma
+        pkgs.local."webapp/chatgpt"
+        pkgs.local."webapp/notion"
+        pkgs.local."webapp/icloud-notes"
+        pkgs.local."webapp/protonmail"
+        pkgs.local."webapp/protoncalendar"
+        pkgs.local."webapp/linear"
+        pkgs.local."webapp/figma"
       ];
 
       services.flatpak.packages = [

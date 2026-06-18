@@ -46,7 +46,7 @@ in
     meta.hosts = [ hostMeta ];
 
     modules.nixos."hosts/rvn-pc" =
-      { ... }:
+      { lib, ... }:
       {
         imports =
           config.flake.lib.resolve [
@@ -81,6 +81,7 @@ in
 
             # virtualization
             "virtualization/podman"
+            "virtualization/docker"
 
           ]
           ++ [
@@ -127,6 +128,11 @@ in
         };
 
         time.hardwareClockInLocalTime = true;
+
+        virtualisation.podman = {
+          dockerCompat = lib.mkForce false;
+          dockerSocket.enable = lib.mkForce false;
+        };
 
         environment.sessionVariables = {
           TERMINAL = "wezterm";

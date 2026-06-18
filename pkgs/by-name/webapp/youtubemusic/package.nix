@@ -1,23 +1,30 @@
 { pkgs }:
 
-pkgs.nix-webapps-lib.mkChromiumApp {
-  appName = "chromium-youtubemusic";
+(import ../helium-webapps.nix { inherit pkgs; }).mkHeliumApp {
+  appName = "youtubemusic";
   categories = [
     "Network"
     "AudioVideo"
     "Audio"
   ];
-  class = "YouTube Music";
   desktopName = "YouTube Music";
+  wmClass = "YouTube Music";
   comment = "Music streaming service";
   icon = ./Youtube_Music_icon.svg;
+  faviconHash = "sha256-ViRlq34tVujkLdRWZE3Bg5oLFBJ65dm+Tngq4wvtJYE=";
   profile = "YoutubeMusicProfile";
+  profileDirName = "youtubemusic";
   url = "https://music.youtube.com";
   runtime = {
     extraFlags = [ "--hide-scrollbars" ];
     policyOverrides = {
-      # Allow media streaming for audio playback
       DefaultMediaStreamSetting = 1;
     };
   };
+  keywords = [
+    "music"
+    "youtube"
+    "webapp"
+    "helium"
+  ];
 }

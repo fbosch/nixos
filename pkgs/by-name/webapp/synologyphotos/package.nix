@@ -1,19 +1,17 @@
 { pkgs }:
 
-pkgs.nix-webapps-lib.mkChromiumApp {
-  appName = "chromium-synologyphotos";
+(import ../helium-webapps.nix { inherit pkgs; }).mkHeliumApp {
+  appName = "synologyphotos";
   categories = [
     "Graphics"
     "Photography"
     "Network"
   ];
-  class = "chromium-synologyphotos";
   desktopName = "Synology Photos";
+  wmClass = "Synology Photos";
   comment = "Personal photo management and backup";
   icon = ./synology-photos.png;
   profile = "SynologyPhotosProfile";
   url = "https://photos.corvus-corax.synology.me";
-  runtime = {
-    extraFlags = [ "--hide-scrollbars" ];
-  };
+  runtime.extraFlags = [ "--hide-scrollbars" ];
 }

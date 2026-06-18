@@ -13,7 +13,7 @@
         };
       };
 
-      users.users.${config.flake.meta.user.username}.extraGroups = [ "docker" ];
+      users.groups.docker.members = [ config.flake.meta.user.username ];
 
       environment.systemPackages = with pkgs; [
         docker-compose

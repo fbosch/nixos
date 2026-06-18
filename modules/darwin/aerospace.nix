@@ -8,6 +8,24 @@ let
 
   moveFocusedWindow = direction: exec "id=$(${aerospace} list-windows --focused --format '%{window-id}') && ${aerospace} move --window-id $id --boundaries all-monitors-outer-frame --boundaries-action stop ${direction} && ${aerospace} focus --window-id $id";
 
+  focusAndCenterMouse = direction: [
+    "focus --boundaries all-monitors-outer-frame ${direction}"
+    "move-mouse window-lazy-center"
+  ];
+
+  workspaceAndCenterMouse = workspace: [
+    "workspace ${workspace}"
+    "move-mouse window-lazy-center"
+  ];
+
+  resizeFromEdge =
+    probeDirection: axis: signIfNeighbor: signIfEdge:
+    exec "aerospace=${aerospace}; id=$($aerospace list-windows --focused --format '%{window-id}') || exit 0; if $aerospace focus --boundaries workspace --boundaries-action fail ${probeDirection} >/dev/null 2>&1; then $aerospace focus --window-id $id >/dev/null 2>&1; delta=${signIfNeighbor}50; else delta=${signIfEdge}50; fi; $aerospace resize ${axis} $delta";
+
+  setWorkspaceVerticalOnMonitor =
+    workspace: monitor:
+    exec "aerospace=${aerospace}; name=$($aerospace list-workspaces --all --format '%{workspace}%{tab}%{monitor-name}' | while IFS=$'\t' read -r ws monitor; do [ \"$ws\" = \"${workspace}\" ] && printf '%s' \"$monitor\" && exit 0; done); [ \"$name\" = \"${monitor}\" ] && $aerospace layout --workspace ${workspace} --root v_tiles";
+
   moveNodeToWorkspace = workspace: "move-node-to-workspace --focus-follows-window ${workspace}";
 
   moveNodeToWorkspaceOnFocusedMonitor = workspace: exec "ws=${workspace}; aerospace=${aerospace}; id=$($aerospace list-windows --focused --format '%{window-id}') && ($aerospace list-workspaces --all --format '%{workspace}' | /usr/bin/grep -Fxq \"$ws\" || $aerospace summon-workspace \"$ws\") && $aerospace move-node-to-workspace --focus-follows-window --window-id $id \"$ws\"";
@@ -19,11 +37,15 @@ in
       settings = {
         after-startup-command = [
           (exec "${borders} style=round width=4.0 hidpi=on active_color=0xccffffff inactive_color=0x00ffffff")
+          (setWorkspaceVerticalOnMonitor "1" "DELL U2717D")
         ];
 
         # Prefer accordion as a fullscreen-like mode. AeroSpace fullscreen can
         # visibly fade when hidden/restored during workspace switches.
         accordion-padding = 0;
+
+        default-root-container-layout = "tiles";
+        default-root-container-orientation = "auto";
 
         gaps = {
           inner = {
@@ -38,11 +60,12 @@ in
           };
         };
 
-        on-focus-changed = [ "move-mouse window-lazy-center" ];
-        on-focused-monitor-changed = [ "move-mouse window-lazy-center" ];
+        on-focus-changed = [ ];
+        on-focused-monitor-changed = [ ];
 
         workspace-to-monitor-force-assignment = {
           "1" = [
+            "^P27QD-40$"
             "^DELL U2717D$"
             "built-in"
             "main"
@@ -89,10 +112,10 @@ in
           cmd-shift-f = "macos-native-fullscreen";
           cmd-b = openZenBlankInCurrentWorkspace;
 
-          cmd-h = "focus --boundaries all-monitors-outer-frame left";
-          cmd-l = "focus --boundaries all-monitors-outer-frame right";
-          cmd-j = "focus --boundaries all-monitors-outer-frame down";
-          cmd-k = "focus --boundaries all-monitors-outer-frame up";
+          cmd-h = focusAndCenterMouse "left";
+          cmd-l = focusAndCenterMouse "right";
+          cmd-j = focusAndCenterMouse "down";
+          cmd-k = focusAndCenterMouse "up";
 
           # Move the focused window in the tree, crossing monitors at edges.
           # Re-focus by window id because AeroSpace `move` lacks a focus-follow flag.
@@ -101,10 +124,10 @@ in
           cmd-shift-j = moveFocusedWindow "down";
           cmd-shift-k = moveFocusedWindow "up";
 
-          cmd-right = "resize width +50";
-          cmd-left = "resize width -50";
-          cmd-up = "resize height +50";
-          cmd-down = "resize height -50";
+          cmd-shift-right = resizeFromEdge "right" "width" "+" "-";
+          cmd-shift-left = resizeFromEdge "right" "width" "-" "+";
+          cmd-shift-up = resizeFromEdge "down" "height" "-" "+";
+          cmd-shift-down = resizeFromEdge "down" "height" "+" "-";
 
           # Explicit monitor/workspace movement when the target is the display itself,
           # not a directional position inside the current tiling tree.
@@ -113,16 +136,16 @@ in
           ctrl-alt-shift-up = "move-workspace-to-monitor --wrap-around prev";
           ctrl-alt-shift-down = "move-workspace-to-monitor --wrap-around next";
 
-          cmd-1 = "workspace 1";
-          cmd-2 = "workspace 2";
-          cmd-3 = "workspace 3";
-          cmd-4 = "workspace 4";
-          cmd-5 = "workspace 5";
-          cmd-6 = "workspace 6";
-          cmd-7 = "workspace 7";
-          cmd-8 = "workspace 8";
-          cmd-9 = "workspace 9";
-          cmd-0 = "workspace 10";
+          cmd-1 = workspaceAndCenterMouse "1";
+          cmd-2 = workspaceAndCenterMouse "2";
+          cmd-3 = workspaceAndCenterMouse "3";
+          cmd-4 = workspaceAndCenterMouse "4";
+          cmd-5 = workspaceAndCenterMouse "5";
+          cmd-6 = workspaceAndCenterMouse "6";
+          cmd-7 = workspaceAndCenterMouse "7";
+          cmd-8 = workspaceAndCenterMouse "8";
+          cmd-9 = workspaceAndCenterMouse "9";
+          cmd-0 = workspaceAndCenterMouse "10";
 
           cmd-shift-1 = moveNodeToWorkspace "1";
           cmd-shift-2 = moveNodeToWorkspace "2";

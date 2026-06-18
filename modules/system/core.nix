@@ -58,11 +58,8 @@ in
     # Centralize nixpkgs overlays for all NixOS hosts
     nixpkgs.overlays = [
       inputs.self.overlays.default
-      inputs.nix-webapps.overlays.lib
-      inputs.nix-webapps.overlays.default
       inputs.nix-bwrapper.overlays.default
       inputs.lazy-apps.overlays.default
-      inputs.self.overlays.chromium-webapps-hardening
     ];
     programs.nix-ld.enable = true;
 
@@ -128,11 +125,8 @@ in
       # Centralize nixpkgs overlays for Darwin hosts
       nixpkgs.overlays = [
         inputs.self.overlays.default
-        inputs.nix-webapps.overlays.lib
-        inputs.nix-webapps.overlays.default
         inputs.nix-bwrapper.overlays.default
         inputs.lazy-apps.overlays.default
-        inputs.self.overlays.chromium-webapps-hardening
       ];
 
       # Allow unfree packages (using simple allowUnfree for Darwin)
