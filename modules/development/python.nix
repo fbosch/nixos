@@ -5,7 +5,7 @@
       home.packages =
         with pkgs;
         [
-          python3
+          (python3.withPackages (pythonPackages: [ pythonPackages.pyyaml ]))
           uv
         ]
         ++ lib.optionals pkgs.stdenv.isLinux [
