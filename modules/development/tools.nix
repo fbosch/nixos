@@ -93,6 +93,7 @@ in
           luajitPackages.luacheck
         ])
         ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isLinux [
+          pkgs.local.fff-mcp
           pkgs.local.lightpanda
           pkgs.local.limux
         ]
