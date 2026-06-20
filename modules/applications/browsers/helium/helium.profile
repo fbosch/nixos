@@ -1,3 +1,5 @@
+ignore private-cache
+
 include @chromiumProfile@
 
 # Ensure resolver files remain visible in this custom profile
@@ -24,11 +26,13 @@ noblacklist ${HOME}/.cache/helium-browser
 noblacklist ${HOME}/.cache/helium
 noblacklist ${HOME}/.cache/Helium
 noblacklist ${HOME}/.cache/net.imput.helium
+noblacklist ${HOME}/.cache/com.bitwarden.desktop
 noblacklist ${HOME}/.local/state/net.imput.helium
 
 mkdir ${HOME}/.config/helium-browser
 mkdir ${HOME}/.cache/helium-browser
 mkdir ${HOME}/.config/net.imput.helium
+mkdir ${HOME}/.cache/com.bitwarden.desktop
 whitelist ${HOME}/.config/helium-browser
 whitelist ${HOME}/.config/helium
 whitelist ${HOME}/.config/Helium
@@ -37,6 +41,7 @@ whitelist ${HOME}/.cache/helium-browser
 whitelist ${HOME}/.cache/helium
 whitelist ${HOME}/.cache/Helium
 whitelist ${HOME}/.cache/net.imput.helium
+whitelist ${HOME}/.cache/com.bitwarden.desktop
 whitelist ${HOME}/.local/state/net.imput.helium
 
 # Allow user GTK theme + settings

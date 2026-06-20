@@ -42,8 +42,23 @@ in
         chromiumProfile = "${pkgs.firejail}/etc/firejail/chromium.profile";
       };
       heliumWebapps = lib.filterAttrs (name: _: lib.hasPrefix "webapp/" name) pkgs.local;
+      bitwardenNativeMessagingHost = builtins.toJSON {
+        name = "com.8bit.bitwarden";
+        description = "Bitwarden desktop <-> browser bridge";
+        path = "${pkgs.bitwarden-desktop}/libexec/desktop_proxy";
+        type = "stdio";
+        allowed_origins = [
+          "chrome-extension://nngceckbapebfimnlniiiahkandclblb/"
+          "chrome-extension://hccnnhgbibccigepcmlgppchkpfdophk/"
+          "chrome-extension://jbkfoedolllekgbhcbcoahefnbanhhlh/"
+          "chrome-extension://ccnckbpmaceehanjmeomladnmlffdjgn/"
+        ];
+      };
     in
     {
+      environment.etc."chromium/native-messaging-hosts/com.8bit.bitwarden.json".text =
+        bitwardenNativeMessagingHost;
+
       programs.firejail.wrappedBinaries =
         lib.mapAttrs'
           (name: package: {
