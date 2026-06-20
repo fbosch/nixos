@@ -8,6 +8,8 @@ allowBuilds:
 minimumReleaseAge: 1440
 minimumReleaseAgeExclude:
   - basic-ftp
+  # Renovate security update: @anthropic-ai/claude-code@2.1.163
+  - "@anthropic-ai/claude-code@2.1.163"
 
 overrides:
   '@tootallnate/once@<3.0.1': '>=3.0.1'
