@@ -81,7 +81,6 @@ in
 
             # virtualization
             "virtualization/podman"
-            "virtualization/docker"
 
           ]
           ++ [

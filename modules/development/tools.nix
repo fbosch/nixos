@@ -73,9 +73,6 @@ in
           luarocks
           biome
           deno
-          docker
-          docker-buildx
-          docker-compose-language-service
           bacon
           sqlite
           units
