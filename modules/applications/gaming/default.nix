@@ -119,6 +119,11 @@
         url = "https://launcher.hytale.com/builds/release/linux/amd64/hytale-launcher-latest.flatpak";
         hash = "sha256-ifdUYwD8fn/9Cdjd1/NDQX3k3Sk/0BIO70hHSVsdBgQ=";
       };
+
+      hytaleLauncherIcon = pkgs.fetchurl {
+        url = "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/hytale.png";
+        hash = "sha256-pBATM9a3+b2fRlo0kFGaoWe/YABcEI6X80TrrmNdnio=";
+      };
     in
     {
       # Flatpak gaming applications
@@ -132,6 +137,9 @@
           sha256 = "sha256-ifdUYwD8fn/9Cdjd1/NDQX3k3Sk/0BIO70hHSVsdBgQ=";
         }
       ];
+
+      xdg.dataFile."icons/hicolor/512x512/apps/com.hypixel.HytaleLauncher.png".source =
+        hytaleLauncherIcon;
 
       xdg.desktopEntries.wowup-cf = {
         name = "WowUp-CF";
