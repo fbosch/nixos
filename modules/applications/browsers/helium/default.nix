@@ -23,8 +23,10 @@ in
         ];
       };
       heliumManagedPolicy = builtins.toJSON {
+        BackgroundModeEnabled = false;
         BuiltInDnsClientEnabled = false;
         DnsOverHttpsMode = "off";
+        HardwareAccelerationModeEnabled = true;
       };
     in
     {
