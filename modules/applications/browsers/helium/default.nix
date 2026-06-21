@@ -22,10 +22,16 @@ in
           "chrome-extension://ccnckbpmaceehanjmeomladnmlffdjgn/"
         ];
       };
+      heliumManagedPolicy = builtins.toJSON {
+        BuiltInDnsClientEnabled = false;
+        DnsOverHttpsMode = "off";
+      };
     in
     {
-      environment.etc."chromium/native-messaging-hosts/com.8bit.bitwarden.json".text =
-        bitwardenNativeMessagingHost;
+      environment.etc = {
+        "chromium/native-messaging-hosts/com.8bit.bitwarden.json".text = bitwardenNativeMessagingHost;
+        "chromium/policies/managed/helium-dns.json".text = heliumManagedPolicy;
+      };
 
       programs.firejail.wrappedBinaries =
         lib.mapAttrs'
