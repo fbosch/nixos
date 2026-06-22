@@ -112,25 +112,46 @@
     };
 
   # Home Manager module: Generic gaming user applications
-  flake.modules.homeManager.applications = {
-    # Flatpak gaming applications
-    services.flatpak.packages = [
-      "org.freedesktop.Platform.VulkanLayer.vkBasalt//25.08" # Vulkan post-processing
-      "org.freedesktop.Platform.VulkanLayer.MangoHud//25.08" # MangoHud overlay
-      "io.mgba.mGBA" # GBA emulator
-    ];
+  flake.modules.homeManager.applications =
+    { pkgs, ... }:
+    let
+      hytaleLauncherFlatpak = pkgs.fetchurl {
+        url = "https://launcher.hytale.com/builds/release/linux/amd64/hytale-launcher-latest.flatpak";
+        hash = "sha256-ifdUYwD8fn/9Cdjd1/NDQX3k3Sk/0BIO70hHSVsdBgQ=";
+      };
 
-    xdg.desktopEntries.wowup-cf = {
-      name = "WowUp-CF";
-      exec = "env ELECTRON_OZONE_PLATFORM_HINT=wayland NIXOS_OZONE_WL=1 wowup-cf --no-sandbox --use-gl=angle --use-angle=opengl %U";
-      icon = "wowup-cf";
-      type = "Application";
-      categories = [ "Game" ];
-      terminal = false;
-      settings = {
-        StartupWMClass = "WowUp-CF";
-        X-AppImage-Version = "2.22.0";
+      hytaleLauncherIcon = pkgs.fetchurl {
+        url = "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/hytale.png";
+        hash = "sha256-pBATM9a3+b2fRlo0kFGaoWe/YABcEI6X80TrrmNdnio=";
+      };
+    in
+    {
+      # Flatpak gaming applications
+      services.flatpak.packages = [
+        "org.freedesktop.Platform.VulkanLayer.vkBasalt//25.08" # Vulkan post-processing
+        "org.freedesktop.Platform.VulkanLayer.MangoHud//25.08" # MangoHud overlay
+        "io.mgba.mGBA" # GBA emulator
+        {
+          appId = "com.hypixel.HytaleLauncher";
+          bundle = "${hytaleLauncherFlatpak}";
+          sha256 = "sha256-ifdUYwD8fn/9Cdjd1/NDQX3k3Sk/0BIO70hHSVsdBgQ=";
+        }
+      ];
+
+      xdg.dataFile."icons/hicolor/512x512/apps/com.hypixel.HytaleLauncher.png".source =
+        hytaleLauncherIcon;
+
+      xdg.desktopEntries.wowup-cf = {
+        name = "WowUp-CF";
+        exec = "env ELECTRON_OZONE_PLATFORM_HINT=wayland NIXOS_OZONE_WL=1 wowup-cf --no-sandbox --use-gl=angle --use-angle=opengl %U";
+        icon = "wowup-cf";
+        type = "Application";
+        categories = [ "Game" ];
+        terminal = false;
+        settings = {
+          StartupWMClass = "WowUp-CF";
+          X-AppImage-Version = "2.22.0";
+        };
       };
     };
-  };
 }
