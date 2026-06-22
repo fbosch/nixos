@@ -16,7 +16,7 @@
       defaultFileExplorer = "nemo.desktop";
       defaultImageViewer = "org.gnome.Loupe.desktop";
       defaultExeLauncher = "faugus-launcher.desktop";
-      defaultWebBrowser = "io.github.zen_browser.zen.desktop";
+      defaultWebBrowser = "app.zen_browser.zen.desktop";
     in
     {
       home.packages = with pkgs; [
