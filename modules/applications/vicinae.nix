@@ -8,7 +8,7 @@
       after = [ "graphical-session.target" ];
       requires = [ "dbus.socket" ];
       partOf = [ "graphical-session.target" ];
-      wantedBy = [ "graphical-session.target" ];
+      wantedBy = [ "default.target" ];
 
       serviceConfig = {
         Type = "simple";
