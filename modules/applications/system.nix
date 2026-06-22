@@ -37,6 +37,9 @@ in
       };
     in
     {
-      home.packages = [ lazyHardinfo2 ];
+      home.packages = [
+        lazyHardinfo2
+        pkgs.resources
+      ];
     };
 }
