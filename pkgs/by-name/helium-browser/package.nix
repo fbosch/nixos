@@ -7,11 +7,11 @@
 
 let
   pname = "helium-browser";
-  version = "0.12.5.1";
+  version = "0.13.6.1";
 
   src = fetchurl {
     url = "https://github.com/imputnet/helium-linux/releases/download/${version}/helium-${version}-x86_64.AppImage";
-    hash = "sha256-uUZauNralX6katmnO9VDLEs+d+HIhkjkeV36Dw2eUmM=";
+    hash = "sha256-ZcZo/vFXWrZjuPjIt2MYbsxs4LU7NvpB3I6mrPzAJjE=";
   };
 
   icon = fetchurl {
