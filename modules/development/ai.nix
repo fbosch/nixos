@@ -1,10 +1,20 @@
 {
   flake.modules.homeManager.development =
     { pkgs, ... }:
+    let
+      headroom = pkgs.writeShellApplication {
+        name = "headroom";
+        runtimeInputs = [ pkgs.uv ];
+        text = ''
+          exec uvx --from 'headroom-ai[mcp]==0.27.0' headroom "$@"
+        '';
+      };
+    in
     {
       home.packages =
         (with pkgs; [
           codex
+          headroom
           # cursor-cli
           # aichat
           tesseract
