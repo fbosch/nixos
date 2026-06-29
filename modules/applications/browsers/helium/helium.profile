@@ -1,4 +1,12 @@
 ignore private-cache
+ignore disable-mnt
+
+noblacklist ${DESKTOP}
+noblacklist ${DOCUMENTS}
+noblacklist ${DOWNLOADS}
+noblacklist ${MUSIC}
+noblacklist ${PICTURES}
+noblacklist ${VIDEOS}
 
 include @chromiumProfile@
 
@@ -26,6 +34,13 @@ whitelist /etc/pki
 whitelist /etc/static
 whitelist /etc/static/ssl
 whitelist /etc/static/pki
+
+whitelist ${DESKTOP}
+whitelist ${DOCUMENTS}
+whitelist ${DOWNLOADS}
+whitelist ${MUSIC}
+whitelist ${PICTURES}
+whitelist ${VIDEOS}
 
 noblacklist /etc/chromium
 noblacklist /etc/chromium/native-messaging-hosts
