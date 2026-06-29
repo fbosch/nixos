@@ -26,6 +26,9 @@ importers:
       '@anthropic-ai/claude-code':
         specifier: 2.1.191
         version: 2.1.191
+      '@fbb.sh/pkdx':
+        specifier: 0.5.0
+        version: 0.5.0
       '@fission-ai/openspec':
         specifier: 1.4.1
         version: 1.4.1(@types/node@20.11.0)
@@ -305,6 +308,38 @@ packages:
     engines: {node: '>=18'}
     cpu: [x64]
     os: [win32]
+
+  '@fbb.sh/pkdx-darwin-arm64@0.5.0':
+    resolution: {integrity: sha512-JyK2jBSr6R54SDgRq7KYy1N7uDjQl09o1APdDRmn2jzBvMxvQIfNR/rtjVnNRb3C7VB0ZKkWiJsczGYnPQwwIw==}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@fbb.sh/pkdx-darwin-x64@0.5.0':
+    resolution: {integrity: sha512-UvFrxszkplrFRKwFo4gvzzyu3ujBaZY0fiHQKB7XtpdMlEJsFZbMpqLIMMG6YPy8JzFVRY1cdVXqxRpv4RZEKg==}
+    cpu: [x64]
+    os: [darwin]
+
+  '@fbb.sh/pkdx-linux-arm64@0.5.0':
+    resolution: {integrity: sha512-rGpMZ/N+vj9jbxLZkKaFUsy20two5mnqS5xKmR9pX45EeggGO+aFT/ISVhgYogoHIbi/3emV5DvtTge22bplQA==}
+    cpu: [arm64]
+    os: [linux]
+    libc: [glibc]
+
+  '@fbb.sh/pkdx-linux-x64@0.5.0':
+    resolution: {integrity: sha512-JvMfLJ35oHI5DJR1ejJy90UCSRPvAeGmiJxNHomlhtnntSVIpAUbsYjOmHm37thOKrzH0HdFBCd6ZErt8CZW0A==}
+    cpu: [x64]
+    os: [linux]
+    libc: [glibc]
+
+  '@fbb.sh/pkdx-win32-x64@0.5.0':
+    resolution: {integrity: sha512-EmG1FwS9/iIpaG+Z92Ym7xK1vsSY/82Sn5Lirv5+lr0Gf4Phrc/3s0PzJLrtWuQCJ6kghahxuDXrmU08dRm+zw==}
+    cpu: [x64]
+    os: [win32]
+
+  '@fbb.sh/pkdx@0.5.0':
+    resolution: {integrity: sha512-YMndDdCK6HW0dKSTwpCGZmjyWERJjc19emoK1lETTgl/4reV44W/21ltBMPMTJF5dP/sSWnJnCPcu5IYyYNu3w==}
+    engines: {node: '>=18'}
+    hasBin: true
 
   '@fission-ai/openspec@1.4.1':
     resolution: {integrity: sha512-C/NQsybgjqtSr29QAv4NbO1bZTgozu8GAUSiONthenZ5W4TQ2bvyj8LVmr76qb90iGeTLEFkcdnI+iYYaFLKyA==}
@@ -2520,6 +2555,29 @@ snapshots:
 
   '@esbuild/win32-x64@0.27.0':
     optional: true
+
+  '@fbb.sh/pkdx-darwin-arm64@0.5.0':
+    optional: true
+
+  '@fbb.sh/pkdx-darwin-x64@0.5.0':
+    optional: true
+
+  '@fbb.sh/pkdx-linux-arm64@0.5.0':
+    optional: true
+
+  '@fbb.sh/pkdx-linux-x64@0.5.0':
+    optional: true
+
+  '@fbb.sh/pkdx-win32-x64@0.5.0':
+    optional: true
+
+  '@fbb.sh/pkdx@0.5.0':
+    optionalDependencies:
+      '@fbb.sh/pkdx-darwin-arm64': 0.5.0
+      '@fbb.sh/pkdx-darwin-x64': 0.5.0
+      '@fbb.sh/pkdx-linux-arm64': 0.5.0
+      '@fbb.sh/pkdx-linux-x64': 0.5.0
+      '@fbb.sh/pkdx-win32-x64': 0.5.0
 
   '@fission-ai/openspec@1.4.1(@types/node@20.11.0)':
     dependencies:
