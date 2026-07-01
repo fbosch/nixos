@@ -6,7 +6,7 @@
 
 buildGoModule rec {
   pname = "surge";
-  version = "0.9.0";
+  version = "0.10.0";
 
   src = fetchFromGitHub {
     owner = "surge-downloader";

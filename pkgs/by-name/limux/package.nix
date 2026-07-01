@@ -7,7 +7,7 @@
 
 let
   pname = "limux";
-  version = "0.1.13";
+  version = "0.1.19";
 
   src = fetchurl {
     url = "https://github.com/am-will/limux/releases/download/v${version}/Limux-${version}-x86_64.AppImage";
