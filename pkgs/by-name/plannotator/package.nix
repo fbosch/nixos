@@ -6,7 +6,7 @@
 
 let
   pname = "plannotator";
-  version = "0.19.0";
+  version = "0.21.4";
 
   inherit (stdenvNoCC.hostPlatform) system;
   platformSuffix =
