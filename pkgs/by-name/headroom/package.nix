@@ -1,11 +1,11 @@
 { fetchFromGitHub
 , lib
-, stdenvNoCC
+, stdenv
 , uv
 ,
 }:
 
-stdenvNoCC.mkDerivation rec {
+stdenv.mkDerivation rec {
   pname = "headroom";
   version = "0.30.0";
 
@@ -22,7 +22,10 @@ stdenvNoCC.mkDerivation rec {
     runHook preInstall
     mkdir -p "$out/bin"
     cat > "$out/bin/headroom" <<EOF
-    #!${stdenvNoCC.shell}
+    #!${stdenv.shell}
+    export LD_LIBRARY_PATH="${
+      lib.makeLibraryPath [ stdenv.cc.cc.lib ]
+    }\''${LD_LIBRARY_PATH:+:\$LD_LIBRARY_PATH}"
     exec ${uv}/bin/uvx --from 'headroom-ai[proxy]==${version}' headroom "\$@"
     EOF
     chmod +x "$out/bin/headroom"

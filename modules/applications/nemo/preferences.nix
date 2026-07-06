@@ -1,6 +1,6 @@
 {
   flake.modules.homeManager.applications =
-    { pkgs, ... }:
+    { config, pkgs, ... }:
     let
       weztermForNemo = pkgs.writeShellApplication {
         name = "nemo-wezterm";
@@ -15,6 +15,10 @@
       };
     in
     {
+      xdg.configFile."gtk-3.0/bookmarks".text = ''
+        file://${config.xdg.userDirs.download} Downloads
+      '';
+
       dconf.settings = {
         "org/nemo/sidebar-panels/tree" = {
           sync-bookmarks = true;
@@ -35,6 +39,7 @@
           quick-renames-with-pause-in-between = true;
         };
         "org/nemo/window-state" = {
+          sidebar-bookmark-breakpoint = 1;
           start-with-sidebar = true;
         };
       };

@@ -18,6 +18,15 @@
       ]
     }
   },
+  "provider": {
+    "headroom": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Headroom Proxy",
+      "options": {
+        "baseURL": "http://127.0.0.1:8787/v1"
+      }
+    }
+  },
   "formatter": {
     "nixpkgs-fmt": {
       "command": [
