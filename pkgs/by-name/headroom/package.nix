@@ -7,13 +7,13 @@
 
 stdenvNoCC.mkDerivation rec {
   pname = "headroom";
-  version = "0.27.0";
+  version = "0.30.0";
 
   src = fetchFromGitHub {
     owner = "headroomlabs-ai";
     repo = "headroom";
     rev = "v${version}";
-    hash = "sha256-059AC105XH6BOnHvQjC3EueUL3Z6t1fD29fHqHkkmX0=";
+    hash = "sha256-BxZq6UzmLae7eNrE7iUuunM3hRM4E41i4j6LsKFyFdk=";
   };
 
   dontBuild = true;
