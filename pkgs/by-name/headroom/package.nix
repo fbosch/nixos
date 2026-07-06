@@ -23,7 +23,7 @@ stdenvNoCC.mkDerivation rec {
     mkdir -p "$out/bin"
     cat > "$out/bin/headroom" <<EOF
     #!${stdenvNoCC.shell}
-    exec ${uv}/bin/uvx --from 'headroom-ai[mcp]==${version}' headroom "\$@"
+    exec ${uv}/bin/uvx --from 'headroom-ai[proxy]==${version}' headroom "\$@"
     EOF
     chmod +x "$out/bin/headroom"
     runHook postInstall
