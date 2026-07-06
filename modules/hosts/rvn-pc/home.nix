@@ -33,6 +33,7 @@
             };
           };
 
+          headroom.service.enable = true;
         }
       ];
   };

@@ -101,7 +101,15 @@ fi
 
 echo "Updating .#$package_name via nix-update..."
 before_hash="$(sha256sum "$package_file")"
-nix run nixpkgs#nix-update -- -F "$package_name"
+nix_update_args=(-F "$package_name")
+
+case "$package_name" in
+	rtk)
+		nix_update_args+=(--use-github-releases --version-regex '^v([0-9]+\.[0-9]+\.[0-9]+)$')
+		;;
+esac
+
+nix run nixpkgs#nix-update -- "${nix_update_args[@]}"
 after_hash="$(sha256sum "$package_file")"
 
 if [ "$before_hash" = "$after_hash" ]; then
