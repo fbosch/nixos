@@ -2,18 +2,6 @@
   flake.modules.homeManager.applications =
     { pkgs, ... }:
     let
-      extractScript = pkgs.writeShellApplication {
-        name = "nemo-extract-to-folder";
-        runtimeInputs = [
-          pkgs.coreutils
-          pkgs.gawk
-          pkgs._7zz
-          pkgs.unrar
-          pkgs.zenity
-        ];
-        text = builtins.readFile ./scripts/extract-to-folder.sh;
-      };
-
       shredScript = pkgs.writeShellApplication {
         name = "nemo-shred-files";
         runtimeInputs = [
@@ -76,32 +64,6 @@
     in
     {
       xdg.dataFile = {
-        "nemo/actions/extract-to-folder.nemo_action".text = ''
-          [Nemo Action]
-          Active=true
-          Name=Extract Here (to folder)
-          Comment=Extract archive into a folder named after the file
-          Exec=${extractScript}/bin/nemo-extract-to-folder %F
-          Icon-Name=package-x-generic
-          Selection=single
-          Quote=double
-          Extensions=zip;7z;rar;tar;gz;bz2;xz;zst;cab;iso;tgz;tbz2;txz;
-          Terminal=false
-        '';
-
-        "nemo/actions/extract-to-folder-with-password.nemo_action".text = ''
-          [Nemo Action]
-          Active=true
-          Name=Extract Here (with password)
-          Comment=Extract password-protected archive into a folder named after the file
-          Exec=${extractScript}/bin/nemo-extract-to-folder --password %F
-          Icon-Name=dialog-password
-          Selection=single
-          Quote=double
-          Extensions=zip;7z;rar;tar;gz;bz2;xz;zst;cab;iso;tgz;tbz2;txz;
-          Terminal=false
-        '';
-
         "nemo/actions/shred-files.nemo_action".text = ''
           [Nemo Action]
           Active=true
@@ -135,9 +97,22 @@
           Comment=Copy the selected item path to the clipboard
           Exec=${copyPathScript}/bin/nemo-copy-path %F
           Icon-Name=edit-copy
-          Selection=single
+          Selection=s
           Quote=double
-          Mimetypes=any;
+          Extensions=any;
+          Terminal=false
+        '';
+
+        "nemo/actions/copy-directory-path.nemo_action".text = ''
+          [Nemo Action]
+          Active=true
+          Name=Copy Path
+          Comment=Copy the current directory path to the clipboard
+          Exec=${copyPathScript}/bin/nemo-copy-path %P
+          Icon-Name=edit-copy
+          Selection=none
+          Quote=double
+          Extensions=any;
           Terminal=false
         '';
 
