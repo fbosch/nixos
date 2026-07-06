@@ -33,6 +33,14 @@
         text = builtins.readFile ./scripts/make-executable.sh;
       };
 
+      copyPathScript = pkgs.writeShellApplication {
+        name = "nemo-copy-path";
+        runtimeInputs = [ pkgs.wl-clipboard ];
+        text = ''
+          printf '%s' "$1" | wl-copy
+        '';
+      };
+
       convertScript = pkgs.writeShellApplication {
         name = "nemo-convert-image";
         runtimeInputs = [ pkgs.imagemagick ];
@@ -117,6 +125,19 @@
           Selection=notnone
           Quote=double
           Extensions=nodirs;
+          Terminal=false
+        '';
+
+        "nemo/actions/copy-path.nemo_action".text = ''
+          [Nemo Action]
+          Active=true
+          Name=Copy Path
+          Comment=Copy the selected item path to the clipboard
+          Exec=${copyPathScript}/bin/nemo-copy-path %F
+          Icon-Name=edit-copy
+          Selection=single
+          Quote=double
+          Mimetypes=any;
           Terminal=false
         '';
 

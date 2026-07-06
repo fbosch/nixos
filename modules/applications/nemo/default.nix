@@ -6,10 +6,12 @@
         (nemo-with-extensions.override {
           extensions = [
             local.nemo-image-converter
+            pkgs.nemo-fileroller
             pkgs.nemo-preview
           ];
         })
 
+        file-roller
         zip
         p7zip
         unrar
