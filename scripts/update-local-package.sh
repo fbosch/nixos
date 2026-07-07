@@ -104,7 +104,7 @@ before_hash="$(sha256sum "$package_file")"
 nix_update_args=(-F "$package_name")
 
 case "$package_name" in
-	rtk)
+	rtk | fff-mcp)
 		nix_update_args+=(--use-github-releases --version-regex '^v([0-9]+\.[0-9]+\.[0-9]+)$')
 		;;
 esac

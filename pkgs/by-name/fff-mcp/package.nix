@@ -7,12 +7,14 @@
 let
   sources = {
     x86_64-linux = {
-      url = "https://github.com/dmtrKovalenko/fff.nvim/releases/download/v0.9.5/fff-mcp-x86_64-unknown-linux-musl";
-      hash = "sha256-jhsN+7O1sF1XsIbDt1yDjSg7SJtMrbhjbGsETym75Ac=";
+      url = "https://github.com/dmtrKovalenko/fff.nvim/releases/download/v0.9.6/fff-mcp-x86_64-unknown-linux-musl";
+      hash = "sha256-ECzq8XPvd2vsszIiFun2tcrvmXxADF0V8RLOTeQKH1o=";
     };
   };
 
-  source = sources.${stdenvNoCC.hostPlatform.system} or (throw "fff-mcp is not packaged for ${stdenvNoCC.hostPlatform.system}");
+  source =
+    sources.${stdenvNoCC.hostPlatform.system}
+      or (throw "fff-mcp is not packaged for ${stdenvNoCC.hostPlatform.system}");
 in
 stdenvNoCC.mkDerivation rec {
   pname = "fff-mcp";
