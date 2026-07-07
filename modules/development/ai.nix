@@ -49,6 +49,7 @@
           };
 
           Service = {
+            Environment = "HEADROOM_OUTPUT_SHAPER=1";
             ExecStart = "${headroomPackage}/bin/headroom proxy --host 127.0.0.1 --port 8787";
             Restart = "on-failure";
             RestartSec = 5;
