@@ -74,6 +74,10 @@ in
         enable = true;
         settings.Resolve.DNSStubListener = "no";
       };
+
+      nextdns = {
+        enable = true;
+      };
     };
 
     services.exposedPorts = lib.mkAfter [
