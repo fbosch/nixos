@@ -37,13 +37,30 @@ jobs:
           cachix-name: fbosch
           cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
+      - name: Install devenv
+        run: nix profile add nixpkgs#devenv
+
+      - name: Devenv checks
+        run: devenv test
+
+  flake-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - uses: ./.github/actions/setup-nix
+        with:
+          cachix-name: fbosch
+          cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
       - name: Flake checks
         run: nix flake check --print-build-logs --keep-going
 
   discover-hosts:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: lint
+    needs: flake-check
     outputs:
       nixos-hosts: ${{ steps.discover.outputs.nixos-hosts }}
       darwin-hosts: ${{ steps.discover.outputs.darwin-hosts }}
@@ -66,7 +83,7 @@ jobs:
   build-nixos:
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    needs: [lint, discover-hosts]
+    needs: [flake-check, discover-hosts]
     if: needs.discover-hosts.outputs.has-nixos == 'true'
     strategy:
       matrix:
@@ -87,7 +104,7 @@ jobs:
   eval-darwin:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: [lint, discover-hosts]
+    needs: [flake-check, discover-hosts]
     if: needs.discover-hosts.outputs.has-darwin == 'true'
     strategy:
       matrix:

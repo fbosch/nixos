@@ -41,11 +41,6 @@ in
           imagemagick
           lnav
           flake-checker
-          statix
-          deadnix
-          nixpkgs-fmt
-          shfmt
-          shellcheck
           luajitPackages.luacheck
         ])
         ++ lazyEvemu;
@@ -81,14 +76,9 @@ in
           keychain
           openssl
           devenv
-          statix
-          deadnix
-          nixpkgs-fmt
-          shfmt
           (lazyApp pkgs posting)
           pastel
           ripsecrets
-          shellcheck
           luajitPackages.luacheck
         ])
         ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isLinux [
