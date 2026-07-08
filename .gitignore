@@ -21,7 +21,7 @@ secrets/*.asc
 # System state
 .direnv/
 **/.envrc  # Ignore .envrc in subdirectories (may contain secrets)
-!.envrc    # But allow root .envrc (safe, only contains "use flake")
+!.envrc    # But allow root .envrc (safe project activation)
 
 # Editor/IDE
 .vscode/
@@ -32,6 +32,7 @@ secrets/*.asc
 *~
 
 # Nix
+.devenv/
 .nix-*
 .cache
 result

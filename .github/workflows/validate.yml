@@ -30,7 +30,24 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+
+      - uses: ./.github/actions/setup-nix
+        with:
+          cachix-name: fbosch
+          cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
+      - name: Install devenv
+        run: nix profile add nixpkgs#devenv
+
+      - name: Devenv checks
+        run: devenv test
+
+  flake-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - uses: ./.github/actions/setup-nix
         with:
@@ -43,14 +60,14 @@ jobs:
   discover-hosts:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: lint
+    needs: flake-check
     outputs:
       nixos-hosts: ${{ steps.discover.outputs.nixos-hosts }}
       darwin-hosts: ${{ steps.discover.outputs.darwin-hosts }}
       has-nixos: ${{ steps.discover.outputs.has-nixos }}
       has-darwin: ${{ steps.discover.outputs.has-darwin }}
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           fetch-depth: 0
 
@@ -66,14 +83,14 @@ jobs:
   build-nixos:
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    needs: [lint, discover-hosts]
+    needs: [flake-check, discover-hosts]
     if: needs.discover-hosts.outputs.has-nixos == 'true'
     strategy:
       matrix:
         host: ${{ fromJson(needs.discover-hosts.outputs.nixos-hosts) }}
       fail-fast: false
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
 
       - uses: ./.github/actions/setup-nix
         with:
@@ -87,14 +104,14 @@ jobs:
   eval-darwin:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: [lint, discover-hosts]
+    needs: [flake-check, discover-hosts]
     if: needs.discover-hosts.outputs.has-darwin == 'true'
     strategy:
       matrix:
         host: ${{ fromJson(needs.discover-hosts.outputs.darwin-hosts) }}
       fail-fast: false
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
 
       - uses: ./.github/actions/setup-nix
         with:

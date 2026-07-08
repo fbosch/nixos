@@ -30,7 +30,7 @@ push-attic target='' jobs='3':
 
 # Run linter (statix, deadnix, treefmt, actionlint, shellcheck)
 lint:
-    nix run .#lint
+    lint
 
 # Validate documented service ports against rvn-srv declarations
 check-service-ports:
@@ -49,7 +49,7 @@ recover-plex-mounts:
 
 # Format all files
 fmt:
-    nix run .#fmt
+    fmt
 
 # Re-encrypt all secrets with current .sops.yaml recipients
 update-sops-keys:
@@ -87,9 +87,6 @@ rotate-gpg-gist:
 rotate-gpg-gist-dry:
     nix run .#rotate-gpg-gist -- --dry-run
 
-# Install the pre-commit hook
+# Install devenv-managed pre-commit hooks
 install-hooks:
-    mkdir -p .git/hooks
-    printf '#!/usr/bin/env bash\nexec nix run .#pre-commit-wrapper "$@"\n' > .git/hooks/pre-commit
-    chmod +x .git/hooks/pre-commit
-    @echo "Installed pre-commit hook"
+    devenv shell true

@@ -1,6 +1,6 @@
-@-moz-document regexp("^https?://.*") {
-  html,
-  body {
+@-moz-document regexp("^https?://.*")
+{
+  :where(html, body) {
     background-color: #fff;
   }
 }

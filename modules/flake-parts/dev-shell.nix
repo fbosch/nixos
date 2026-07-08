@@ -1,7 +1,7 @@
 { inputs, ... }:
 {
   # We keep pre-commit-hooks integration for flake checks.
-  # Local git hook installation is handled by a custom gum-based wrapper.
+  # Local git hook installation is handled by devenv.
   imports = [
     inputs.pre-commit-hooks.flakeModule
   ];
@@ -36,22 +36,6 @@
         '';
       };
 
-      precommitWrapper = pkgs.writeShellApplication {
-        name = "pre-commit-wrapper";
-        runtimeInputs = with pkgs; [
-          git
-          treefmt
-          nixpkgs-fmt
-          shfmt
-          statix
-          deadnix
-          actionlint
-          shellcheck
-          gum
-        ];
-        text = builtins.readFile ../../scripts/pre-commit-wrapper.sh;
-      };
-
       installScript = pkgs.writeShellApplication {
         name = "bootstrap-machine";
         runtimeInputs = with pkgs; [
@@ -70,14 +54,6 @@
           xkcdpass
         ];
         text = builtins.readFile ../../scripts/rotate-gpg-gist.sh;
-      };
-
-      installPreCommitHookScript = pkgs.writeShellApplication {
-        name = "install-pre-commit-hook";
-        runtimeInputs = with pkgs; [
-          gum
-        ];
-        text = builtins.readFile ../../scripts/install-pre-commit-hook.sh;
       };
     in
     {
@@ -129,11 +105,6 @@
           program = "${formatScript}/bin/fmt";
           meta.description = "Format files via treefmt";
         };
-        pre-commit-wrapper = {
-          type = "app";
-          program = "${precommitWrapper}/bin/pre-commit-wrapper";
-          meta.description = "Run staged pre-commit checks with treefmt and linters";
-        };
         install = {
           type = "app";
           program = "${installScript}/bin/bootstrap-machine";
@@ -147,9 +118,6 @@
       };
 
       devShells.default = pkgs.mkShell {
-        shellHook = ''
-          ${installPreCommitHookScript}/bin/install-pre-commit-hook
-        '';
         packages = with pkgs; [
           just
           statix
