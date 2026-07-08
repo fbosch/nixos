@@ -12,8 +12,7 @@ let
     sshPublicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJl/WCQsXEkE7em5A6d2Du2JAWngIPfA8sVuJP/9cuyq fbb@nixos";
     useTailnet = false;
     dnsServers = [
-      "192.168.1.46"
-      "192.168.1.202"
+      "127.0.0.1"
     ];
     system = "x86_64-linux";
     platform = {
