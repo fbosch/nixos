@@ -28,6 +28,12 @@ in
         "LaCie"
       ];
 
+      persistentShares = [
+        "web"
+        "video"
+        "LaCie"
+      ];
+
       # Common CIFS mount options
       cifsOptions = "credentials=${nixosConfig.sops.templates.smbcredentials.path},uid=${flakeConfig.flake.meta.user.username},gid=users,forceuid,forcegid,iocharset=utf8,file_mode=0664,dir_mode=0775,vers=3.0";
 
@@ -59,7 +65,7 @@ in
           ConditionPathExists = encryptedConditionPath;
         };
         automountConfig = {
-          TimeoutIdleSec = if share == "web" then "0" else "30s";
+          TimeoutIdleSec = if lib.elem share persistentShares then "0" else "30s";
         };
       };
     in
