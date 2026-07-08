@@ -22,8 +22,7 @@
     "nixpkgs-fmt": {
       "command": [
         "nixpkgs-fmt",
-        "--run",
-        "nixpkgs-fmt $FILE"
+        "$FILE"
       ],
       "extensions": [
         ".nix"
@@ -32,8 +31,8 @@
     "statix": {
       "command": [
         "statix",
-        "--run",
-        "statix check $FILE"
+        "check",
+        "$FILE"
       ],
       "extensions": [
         ".nix"
