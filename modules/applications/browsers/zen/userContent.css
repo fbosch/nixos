@@ -1,6 +1,6 @@
 @-moz-document regexp("^https?://.*")
 {
-  :root {
+  html {
     background-color: Canvas;
   }
 }
