@@ -16,9 +16,8 @@
     nixpkgs-stable.url = "github:nixos/nixpkgs/nixos-24.11";
     flake-parts = {
       url = "github:hercules-ci/flake-parts";
-      inputs.nixpkgs-lib.follows = "nixpkgs-lib";
+      inputs.nixpkgs-lib.follows = "nixpkgs";
     };
-    nixpkgs-lib.url = "github:nix-community/nixpkgs.lib";
     import-tree.url = "github:vic/import-tree";
     home-manager = {
       url = "github:nix-community/home-manager";
@@ -35,7 +34,10 @@
     nixos-hardware.url = "github:nixos/nixos-hardware/master";
 
     # Alternative kernel variants (hosts/rvn-pc)
-    nix-cachyos-kernel.url = "github:xddxdd/nix-cachyos-kernel/release";
+    nix-cachyos-kernel = {
+      url = "github:xddxdd/nix-cachyos-kernel/release";
+      inputs.flake-parts.follows = "flake-parts";
+    };
 
     # Package infrastructure (modules/flake-parts/nixpkgs.nix, modules/system/core.nix)
     pkgs-by-name-for-flake-parts.url = "github:drupol/pkgs-by-name-for-flake-parts";
@@ -99,6 +101,7 @@
     pre-commit-hooks = {
       url = "github:cachix/pre-commit-hooks.nix";
       inputs.nixpkgs.follows = "nixpkgs";
+      inputs.flake-compat.follows = "dedupe_flake-compat";
     };
 
     # Nix expression tests (modules/flake-parts/nix-unit.nix)
@@ -128,6 +131,7 @@
       # modules/applications/vicinae.nix
       url = "github:vicinaehq/vicinae";
       inputs.nixpkgs.follows = "nixpkgs";
+      inputs.systems.follows = "dedupe_systems";
     };
     winapps = {
       # modules/applications/windows.nix
