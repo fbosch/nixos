@@ -4,6 +4,7 @@
 }:
 let
   hostMeta = lib.findFirst (host: host.name == "rvn-srv") null config.flake.meta.hosts;
+  fallbackDns = "127.0.0.1";
 in
 {
   flake.modules.nixos."hosts/rvn-srv/platform" = {
@@ -72,7 +73,10 @@ in
 
       resolved = {
         enable = true;
-        settings.Resolve.DNSStubListener = "no";
+        settings.Resolve = {
+          DNSStubListener = "no";
+          FallbackDNS = fallbackDns;
+        };
       };
 
       nextdns = {

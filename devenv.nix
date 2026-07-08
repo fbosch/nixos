@@ -52,7 +52,7 @@ in
     '';
 
     pre-commit-wrapper.exec = ''
-      bash ./scripts/pre-commit-wrapper.sh
+      ${preCommitWrapper}/bin/pre-commit-wrapper
     '';
   };
 
