@@ -44,6 +44,7 @@ in
           statix
           deadnix
           nixpkgs-fmt
+          shfmt
           shellcheck
           luajitPackages.luacheck
         ])
@@ -83,6 +84,7 @@ in
           statix
           deadnix
           nixpkgs-fmt
+          shfmt
           (lazyApp pkgs posting)
           pastel
           ripsecrets
