@@ -8,6 +8,7 @@
         "applications/surge"
         "windows"
         "worktrunk"
+        "development/services/headroom"
         "virtualization/podman"
 
         # Shared modules with Home Manager components
@@ -32,8 +33,6 @@
               network.proxy_url = "http://192.168.1.46:8889";
             };
           };
-
-          headroom.service.enable = true;
         }
       ];
   };

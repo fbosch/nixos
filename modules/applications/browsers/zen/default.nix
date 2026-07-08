@@ -14,6 +14,9 @@
             ${pkgs.coreutils}/bin/install -m 0644 ${./user.js} "$PROFILE_DIR/user.js"
             echo "Zen user.js installed at $PROFILE_DIR/user.js"
 
+            ${pkgs.coreutils}/bin/install -D -m 0644 ${./userContent.css} "$PROFILE_DIR/chrome/userContent.css"
+            echo "Zen userContent.css installed at $PROFILE_DIR/chrome/userContent.css"
+
             CACHE_DIR="$PROFILE_DIR/cache2"
             RAM_CACHE="/run/user/$(${pkgs.coreutils}/bin/id -u)/zen-cache"
 

@@ -50,36 +50,38 @@
           tmpfsSize = "16G"; # ~50% of RAM for temporary files
         };
 
-        loader = {
-          timeout = 1;
+        loader = lib.mkMerge [
+          {
+            timeout = 1;
 
-          grub = {
-            enable = true;
-            device = "nodev";
-            efiSupport = true;
-            useOSProber = true;
-            configurationLimit = 42;
-            extraConfig = ''
-              # Use maximum supported resolution (1080p)
-              set gfxmode=1920x1080
-              insmod all_video
-              insmod gfxterm
-              terminal_output gfxterm
-            '';
-          };
+            grub = {
+              enable = true;
+              device = "nodev";
+              efiSupport = true;
+              useOSProber = true;
+              configurationLimit = 42;
+              extraConfig = ''
+                # Use maximum supported resolution (1080p)
+                set gfxmode=1920x1080
+                insmod all_video
+                insmod gfxterm
+                terminal_output gfxterm
+              '';
+            };
 
-          efi.canTouchEfiVariables = true;
-        }
-        // lib.optionalAttrs (options.boot.loader ? "grub2-theme") {
-          grub2-theme = {
-            enable = true;
-            theme = "whitesur";
-            icon = "white";
-            screen = "1080p";
-            footer = true;
-            splashImage = ./../../../assets/grub-backgrounds/black.jpg;
-          };
-        };
+            efi.canTouchEfiVariables = true;
+          }
+          (lib.mkIf (options.boot.loader ? "grub2-theme") {
+            grub2-theme = {
+              enable = true;
+              theme = "whitesur";
+              icon = "white";
+              screen = "1080p";
+              footer = true;
+              splashImage = ./../../../assets/grub-backgrounds/black.jpg;
+            };
+          })
+        ];
 
         plymouth = {
           enable = true;
