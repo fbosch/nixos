@@ -1,7 +1,7 @@
 {
   "name": "nixos-npm-globals",
   "private": true,
-  "packageManager": "pnpm@11.5.1",
+  "packageManager": "pnpm@11.8.0",
   "dependencies": {
     "@anthropic-ai/claude-code": "2.1.201",
     "@fbb.sh/pkdx": "0.6.0",
