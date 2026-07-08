@@ -75,8 +75,25 @@ in
         settings.Resolve.DNSStubListener = "no";
       };
 
+      dnsmasq = {
+        enable = true;
+        resolveLocalQueries = false;
+        settings = {
+          no-resolv = true;
+          strict-order = true;
+          listen-address = "127.0.0.1";
+          bind-interfaces = true;
+          server = [
+            "192.168.1.46"
+            "192.168.1.202"
+            "127.0.0.1#5553"
+          ];
+        };
+      };
+
       nextdns = {
         enable = true;
+        listenAddress = "127.0.0.1:5553";
       };
     };
 
