@@ -18,21 +18,11 @@
       ]
     }
   },
-  "provider": {
-    "headroom": {
-      "npm": "@ai-sdk/openai-compatible",
-      "name": "Headroom Proxy",
-      "options": {
-        "baseURL": "http://127.0.0.1:8787/v1"
-      }
-    }
-  },
   "formatter": {
     "nixpkgs-fmt": {
       "command": [
         "nixpkgs-fmt",
-        "--run",
-        "nixpkgs-fmt $FILE"
+        "$FILE"
       ],
       "extensions": [
         ".nix"
@@ -41,8 +31,8 @@
     "statix": {
       "command": [
         "statix",
-        "--run",
-        "statix check $FILE"
+        "check",
+        "$FILE"
       ],
       "extensions": [
         ".nix"

@@ -104,9 +104,9 @@ before_hash="$(sha256sum "$package_file")"
 nix_update_args=(-F "$package_name")
 
 case "$package_name" in
-	rtk | fff-mcp)
-		nix_update_args+=(--use-github-releases --version-regex '^v([0-9]+\.[0-9]+\.[0-9]+)$')
-		;;
+rtk | fff-mcp)
+	nix_update_args+=(--use-github-releases --version-regex '^v([0-9]+\.[0-9]+\.[0-9]+)$')
+	;;
 esac
 
 nix run nixpkgs#nix-update -- "${nix_update_args[@]}"

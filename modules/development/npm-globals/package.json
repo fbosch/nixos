@@ -12,9 +12,9 @@
     "corepack": "0.35.0",
     "jiti": "2.7.0",
     "neovim": "5.4.0",
-    "opencode-ai": "1.17.13",
+    "opencode-ai": "1.17.14",
     "opencode-claude-auth": "1.5.4",
     "pokemonshow": "4.0.0",
-    "vercel": "54.20.1"
+    "vercel": "54.21.1"
   }
 }
