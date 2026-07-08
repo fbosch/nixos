@@ -117,7 +117,7 @@
     let
       hytaleLauncherFlatpak = pkgs.fetchurl {
         url = "https://launcher.hytale.com/builds/release/linux/amd64/hytale-launcher-latest.flatpak";
-        hash = "sha256-ifdUYwD8fn/9Cdjd1/NDQX3k3Sk/0BIO70hHSVsdBgQ=";
+        hash = "sha256-HKFviXyp08JsHrSbX14E1egmXX+KEN2WUT2GpeZ5XkY=";
       };
 
       hytaleLauncherIcon = pkgs.fetchurl {
@@ -134,7 +134,7 @@
         {
           appId = "com.hypixel.HytaleLauncher";
           bundle = "${hytaleLauncherFlatpak}";
-          sha256 = "sha256-ifdUYwD8fn/9Cdjd1/NDQX3k3Sk/0BIO70hHSVsdBgQ=";
+          sha256 = "sha256-HKFviXyp08JsHrSbX14E1egmXX+KEN2WUT2GpeZ5XkY=";
         }
       ];
 
