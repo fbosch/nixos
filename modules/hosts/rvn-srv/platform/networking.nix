@@ -18,8 +18,6 @@ in
       hostName = "rvn-srv";
       networkmanager.enable = false;
 
-      # Open port for uptime-kuma
-      firewall.allowedTCPPorts = [ 3001 ];
       firewall.allowedUDPPorts = [ 40000 ];
 
       # Enable systemd-networkd for bonding support
@@ -30,13 +28,48 @@ in
 
     services.exposedPorts = lib.mkAfter [
       {
-        service = "uptime-kuma";
-        tcpPorts = [ 3001 ];
-      }
-      {
         service = "tailscale-relay";
         udpPorts = [ 40000 ];
       }
     ];
+
+    systemd.network = {
+      enable = true;
+
+      netdevs."10-bond0" = {
+        netdevConfig = {
+          Kind = "bond";
+          Name = "bond0";
+        };
+        bondConfig = {
+          Mode = "balance-xor";
+          TransmitHashPolicy = "layer3+4";
+          MIIMonitorSec = "100ms";
+        };
+      };
+
+      networks = {
+        "30-enp2s0" = {
+          matchConfig.Name = "enp2s0";
+          networkConfig.Bond = "bond0";
+        };
+
+        "30-enp3s0" = {
+          matchConfig.Name = "enp3s0";
+          networkConfig.Bond = "bond0";
+        };
+
+        "40-bond0" = {
+          matchConfig.Name = "bond0";
+          linkConfig.RequiredForOnline = "carrier";
+          networkConfig = {
+            Address = "192.168.1.46/24";
+            Gateway = "192.168.1.1";
+            DNS = hostMeta.dnsServers;
+            LinkLocalAddressing = "no";
+          };
+        };
+      };
+    };
   };
 }

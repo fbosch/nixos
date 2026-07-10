@@ -99,9 +99,15 @@ in
 
     services.exposedPorts = lib.mkAfter [
       {
+        service = "uptime-kuma";
+        tcpPorts = [ 3001 ];
+      }
+      {
         service = "glances";
         tcpPorts = [ 61208 ];
       }
     ];
+
+    networking.firewall.allowedTCPPorts = [ 3001 ];
   };
 }
