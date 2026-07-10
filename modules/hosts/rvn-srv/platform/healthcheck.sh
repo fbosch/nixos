@@ -105,10 +105,10 @@ check_path_mounted() {
 		return
 	fi
 
-	if findmnt -T "$path" >/dev/null; then
-		pass "$path has a backing mount"
+	if findmnt --mountpoint "$path" >/dev/null; then
+		pass "$path is a mountpoint"
 	else
-		fail "$path has no backing mount"
+		fail "$path is not a mountpoint"
 	fi
 }
 
