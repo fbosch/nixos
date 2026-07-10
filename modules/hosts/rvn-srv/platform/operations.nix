@@ -58,7 +58,11 @@ in
       glances = {
         enable = true;
         openFirewall = true;
-        extraArgs = [ "-w" ];
+        extraArgs = [
+          "-w"
+          "-C"
+          "/etc/glances/glances.conf"
+        ];
       };
 
       speedtest-tracker = {
@@ -109,5 +113,15 @@ in
     ];
 
     networking.firewall.allowedTCPPorts = [ 3001 ];
+
+    systemd.services.glances = {
+      unitConfig.RequiresMountsFor = [ "/mnt/nas/LaCie" ];
+      serviceConfig.BindReadOnlyPaths = [ "/mnt/nas/LaCie:/mnt/LaCie" ];
+    };
+
+    environment.etc."glances/glances.conf".text = ''
+      [fs]
+      allow=cifs
+    '';
   };
 }
