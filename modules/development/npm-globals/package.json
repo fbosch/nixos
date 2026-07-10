@@ -3,7 +3,7 @@
   "private": true,
   "packageManager": "pnpm@11.5.1",
   "dependencies": {
-    "@anthropic-ai/claude-code": "2.1.204",
+    "@anthropic-ai/claude-code": "2.1.205",
     "@fbb.sh/pkdx": "0.7.0",
     "@fission-ai/openspec": "1.5.0",
     "@github/copilot": "1.0.69",
@@ -12,8 +12,8 @@
     "corepack": "0.35.0",
     "jiti": "2.7.0",
     "neovim": "5.4.0",
-    "opencode-ai": "1.17.15",
-    "opencode-claude-auth": "1.5.4",
+    "opencode-ai": "1.17.16",
+    "opencode-claude-auth": "2.0.0",
     "pokemonshow": "4.0.0",
     "typescript": "7.0.2",
     "vercel": "54.21.1"
