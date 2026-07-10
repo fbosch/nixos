@@ -1537,11 +1537,11 @@
         "treefmt-nix": "treefmt-nix_2"
       },
       "locked": {
-        "lastModified": 1783610564,
-        "narHash": "sha256-XUgPlbtvuqxJHqaiVtwwxPxGa4seC/7XqZP2k0m3RXo=",
+        "lastModified": 1783657646,
+        "narHash": "sha256-q2vSdTzjD1T7TcT/9X3886FqWssnXRDiWdmuZy3qN94=",
         "owner": "nix-community",
         "repo": "nix-unit",
-        "rev": "e7a6b9428e99886edb16fbcd75b9e7c50cfb7445",
+        "rev": "dd2e1b8cfdb941c7690a23d766a7d26c706e5506",
         "type": "github"
       },
       "original": {
@@ -1911,11 +1911,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1783617537,
-        "narHash": "sha256-r5dYr8czEhCV5FbLrepPrFr/2cM5tQnpJv4yWEylPPc=",
+        "lastModified": 1783639275,
+        "narHash": "sha256-qFDb6I9w9F/KfRVHmwezykv7y/Tb8BjJQD2v5AxlEfU=",
         "owner": "vicinaehq",
         "repo": "vicinae",
-        "rev": "efb88407898eb791436c084e570d128ecc193643",
+        "rev": "81d9a9b50b19d1b90ed682d5fd24a192e56c1b4b",
         "type": "github"
       },
       "original": {
@@ -1963,11 +1963,11 @@
         "rust-overlay": "rust-overlay"
       },
       "locked": {
-        "lastModified": 1783614156,
-        "narHash": "sha256-b15wmAzQJQTvClmnwXykVLTrXdPv1FLWt1wEu9HNF8Q=",
+        "lastModified": 1783664980,
+        "narHash": "sha256-c31bMg5WMZpobF+oD6Z855qSlxGe/jaZ4+AJ5YATv8s=",
         "owner": "max-sixty",
         "repo": "worktrunk",
-        "rev": "b4aba5c4a38a45fae67e6d9d084279c8a419f48c",
+        "rev": "57b303fda253dc80340133807f6d8833f6b47ec0",
         "type": "github"
       },
       "original": {
