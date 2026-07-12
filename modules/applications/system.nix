@@ -14,7 +14,8 @@ in
             exec = "hardinfo2";
             desktopName = "Hardinfo2";
             comment = "System Information and Benchmark";
-            icon = "hardinfo2";
+            # Context-free path avoids realizing Hardinfo2 during rebuild.
+            icon = builtins.unsafeDiscardStringContext "${pkgs.hardinfo2}/share/icons/hicolor/scalable/apps/hardinfo2.svg";
             terminal = false;
             startupNotify = true;
             categories = [
