@@ -21,7 +21,10 @@
   "formatter": {
     "nixpkgs-fmt": {
       "command": [
-        "nixpkgs-fmt",
+        "nix",
+        "run",
+        "nixpkgs#nixpkgs-fmt",
+        "--",
         "$FILE"
       ],
       "extensions": [
@@ -30,7 +33,10 @@
     },
     "statix": {
       "command": [
-        "statix",
+        "nix",
+        "run",
+        "nixpkgs#statix",
+        "--",
         "check",
         "$FILE"
       ],
