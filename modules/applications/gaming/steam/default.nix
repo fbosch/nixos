@@ -56,7 +56,6 @@ in
               "Baldur's Gate 3" = {
                 id = 1086940;
                 launchOptions = {
-                  env.SDL_VIDEODRIVER = "wayland";
                   wrappers = [ "gamemoderun" ];
                   args = [ "--vulkan" ];
                 };

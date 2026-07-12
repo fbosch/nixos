@@ -58,7 +58,8 @@
             desktopName = "ProtonUp-Qt";
             comment = "Install Wine and Proton-based Compatibility Tools";
             terminal = false;
-            icon = "protonup-qt";
+            # Context-free path avoids realizing ProtonUp-Qt during rebuild.
+            icon = builtins.unsafeDiscardStringContext "${pkgs.protonup-qt}/share/pixmaps/protonup-qt.png";
             categories = [
               "Game"
               "Utility"
