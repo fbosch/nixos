@@ -30,7 +30,7 @@ push-attic target='' jobs='3':
 
 # Run linter (statix, deadnix, treefmt, actionlint, shellcheck)
 lint:
-    lint
+    nix run .#lint
 
 # Validate documented service ports against rvn-srv declarations
 check-service-ports:
