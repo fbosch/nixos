@@ -1,4 +1,4 @@
-{ config, ... }:
+{ inputs, config, ... }:
 let
   inherit (config.flake.lib) lazyApp;
 in
@@ -39,6 +39,33 @@ in
           };
         };
       };
+
+      home-manager.sharedModules = [
+        inputs.steam-config-nix.homeModules.default
+        ({ lib, osConfig, ... }: {
+          programs.steam.config = lib.mkIf osConfig.programs.steam.enable {
+            enable = true;
+            onSteamRunning = "wait";
+
+            apps = {
+              Noita = {
+                id = 881100;
+                launchOptions.wrappers = [ "gamemoderun" ];
+              };
+
+              "Baldur's Gate 3" = {
+                id = 1086940;
+                launchOptions = {
+                  env.SDL_VIDEODRIVER = "wayland";
+                  wrappers = [ "gamemoderun" ];
+                  args = [ "--vulkan" ];
+                };
+              };
+            };
+          };
+        })
+      ];
+
     };
 
   # Home Manager module: Apply Adwaita theme to Steam
