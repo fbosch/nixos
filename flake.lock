@@ -1990,11 +1990,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1783794047,
-        "narHash": "sha256-TOV9S62H66hItUcsjaGcmjknCqZJ/gN7EPRmwS7jh9w=",
+        "lastModified": 1783876087,
+        "narHash": "sha256-O81yeZEeGcVmS5u12w+P3gMkZKLEfRP5Bc8HyJ7XL14=",
         "owner": "vicinaehq",
         "repo": "vicinae",
-        "rev": "e7e34695371737b371d6488c7f680b436d82093e",
+        "rev": "8802754abf1c1db7db3a70004df0ea8783bed582",
         "type": "github"
       },
       "original": {
