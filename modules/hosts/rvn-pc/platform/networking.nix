@@ -15,20 +15,18 @@ in
     ];
     networking = {
       hostName = "rvn-pc";
-      networkmanager.enable = true;
+      networkmanager = {
+        enable = true;
+        # Keep DHCP-provided DNS out of resolv.conf so all lookups use dnsmasq.
+        dns = "none";
+      };
       nameservers = [ "127.0.0.1" ];
-      networkmanager.insertNameservers = [ "127.0.0.1" ];
       timeServers = [ "time.nist.gov" ];
     };
 
     services.tailscale.extraSetFlags = [ "--accept-dns=false" ];
 
     services = {
-      resolved = {
-        enable = true;
-        settings.Resolve.DNSStubListener = "no";
-      };
-
       dnsmasq = {
         enable = true;
         resolveLocalQueries = false;

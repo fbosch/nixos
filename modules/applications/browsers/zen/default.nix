@@ -4,6 +4,23 @@
     , pkgs
     , ...
     }:
+    let
+      zenLauncher = pkgs.writeShellApplication {
+        name = "zen-launch";
+        runtimeInputs = [
+          pkgs.flatpak
+          pkgs.gnugrep
+          pkgs.mullvad-vpn
+        ];
+        text = ''
+          if mullvad status 2>/dev/null | grep -qx "Connected"; then
+            exec mullvad-exclude flatpak run --env=MOZ_ENABLE_WAYLAND=1 app.zen_browser.zen "$@"
+          fi
+
+          exec flatpak run --env=MOZ_ENABLE_WAYLAND=1 app.zen_browser.zen "$@"
+        '';
+      };
+    in
     {
       home.activation.zenProfileSetup = config.lib.dag.entryAfter [ "writeBoundary" ] ''
         ZEN_PROFILE="$HOME/.var/app/app.zen_browser.zen/.zen"
@@ -134,7 +151,7 @@
 
       xdg.desktopEntries."app.zen_browser.zen" = {
         name = "Zen Browser";
-        exec = "mullvad-exclude flatpak run --env=MOZ_ENABLE_WAYLAND=1 app.zen_browser.zen %U";
+        exec = "${zenLauncher}/bin/zen-launch %U";
         icon = "app.zen_browser.zen";
         type = "Application";
         categories = [
