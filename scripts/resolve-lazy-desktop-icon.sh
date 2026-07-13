@@ -106,9 +106,20 @@ else
 		if [ "${#scalable_icons[@]}" -eq 1 ]; then
 			icon_path="${scalable_icons[0]}"
 		else
-		printf 'Icon %q has multiple candidates; choose one explicitly:\n' "$icon_name" >&2
-		printf '%s\n' "${icon_paths[@]}" >&2
-		exit 1
+			large_icons=()
+			for candidate in "${icon_paths[@]}"; do
+				case "$candidate" in
+					*/256x256/*) large_icons+=("$candidate") ;;
+				esac
+			done
+
+			if [ "${#large_icons[@]}" -eq 1 ]; then
+				icon_path="${large_icons[0]}"
+			else
+				printf 'Icon %q has multiple candidates; choose one explicitly:\n' "$icon_name" >&2
+				printf '%s\n' "${icon_paths[@]}" >&2
+				exit 1
+			fi
 		fi
 	else
 		icon_path="${icon_paths[0]}"

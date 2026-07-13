@@ -1,4 +1,6 @@
+{ config, ... }:
 let
+  flakeConfig = config;
   zenwritten = import ../../../assets/themes/zenwritten.nix;
   inherit (zenwritten.css) base bright;
 in
@@ -15,6 +17,32 @@ in
   flake.modules.homeManager.desktop =
     { config, pkgs, ... }:
     let
+      inherit (flakeConfig.flake.lib) lazyApp;
+
+      lazyGucharmap = lazyApp pkgs {
+        pkg = pkgs.gucharmap;
+        desktopItems = [
+          (pkgs.makeDesktopItem {
+            name = "gucharmap";
+            exec = "gucharmap";
+            desktopName = "Character Map";
+            comment = "Insert special characters into documents";
+            icon = "accessories-character-map";
+            terminal = false;
+            startupNotify = true;
+            categories = [
+              "GNOME"
+              "GTK"
+              "Utility"
+            ];
+            keywords = [
+              "font"
+              "unicode"
+            ];
+          })
+        ];
+      };
+
       denmarkHolidaysSource = pkgs.writeText "denmark-holidays.source" ''
         [Data Source]
         DisplayName=Denmark Holidays
@@ -61,7 +89,7 @@ in
         gnomeExtensions.appindicator
         gnomeExtensions.blur-my-shell
         gnomeExtensions.mock-tray
-        gucharmap
+        lazyGucharmap
         networkmanagerapplet
       ];
 

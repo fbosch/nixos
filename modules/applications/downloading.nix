@@ -19,11 +19,31 @@ in
             "speedtest"
             "speedtest-cli"
           ];
+
+      lazyMegasync = lazyApp pkgs {
+        pkg = pkgs.megasync;
+        desktopItems = [
+          (pkgs.makeDesktopItem {
+            name = "megasync";
+            exec = "megasync";
+            desktopName = "MEGAsync";
+            genericName = "File Synchronizer";
+            comment = "Easy automated syncing between your computers and your MEGA cloud drive";
+            icon = ../../assets/icons/megasync.png;
+            terminal = false;
+            startupNotify = false;
+            categories = [
+              "Network"
+              "System"
+            ];
+          })
+        ];
+      };
     in
     {
       home.packages =
         (with pkgs; [
-          megasync
+          lazyMegasync
           p7zip
         ])
         ++ lazySpeedtestCli;

@@ -12,10 +12,6 @@
     { pkgs, ... }:
     {
       home.packages = with pkgs; [
-        # YouTube players
-        freetube
-        grayjay
-
         # Video players
         vlc
 
