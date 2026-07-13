@@ -25,6 +25,7 @@
             "headroom"
             "no-mistakes"
             "plannotator"
+            "pxpipe"
             "codexbar"
             "rtk"
           ];
