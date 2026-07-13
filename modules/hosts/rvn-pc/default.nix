@@ -64,6 +64,7 @@ in
             "nas"
             "services/attic-client"
             "services/comfyui"
+            "services/nextdns"
 
             # files
             "files/wakatime"
