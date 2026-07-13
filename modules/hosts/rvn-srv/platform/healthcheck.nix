@@ -2,8 +2,8 @@
   flake.modules.nixos."hosts/rvn-srv/platform" =
     { pkgs, ... }:
     let
-      rvnSrvHealthcheck = pkgs.writeShellApplication {
-        name = "rvn-srv-healthcheck";
+      systemHealthcheck = pkgs.writeShellApplication {
+        name = "system-healthcheck";
         runtimeInputs = with pkgs; [
           bash
           coreutils
@@ -19,6 +19,6 @@
       };
     in
     {
-      environment.systemPackages = [ rvnSrvHealthcheck ];
+      environment.systemPackages = [ systemHealthcheck ];
     };
 }
