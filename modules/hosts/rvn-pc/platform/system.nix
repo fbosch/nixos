@@ -1,6 +1,27 @@
+{ config, ... }:
 {
   flake.modules.nixos."hosts/rvn-pc/platform" =
     { pkgs, ... }:
+    let
+      inherit (config.flake.lib) lazyApp;
+
+      lazyKeymapp = lazyApp pkgs {
+        pkg = pkgs.keymapp;
+        desktopItems = [
+          (pkgs.makeDesktopItem {
+            name = "keymapp";
+            exec = "keymapp";
+            desktopName = "Keymapp";
+            icon = ../../../../assets/icons/keymapp.png;
+            terminal = false;
+            categories = [
+              "Settings"
+              "HardwareSettings"
+            ];
+          })
+        ];
+      };
+    in
     {
       environment.etc."xdg/weston/weston.ini".text = ''
         [core]
@@ -57,6 +78,7 @@
         wget
         vim
         neovim
+        lazyKeymapp
       ];
     };
 }

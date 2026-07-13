@@ -3,17 +3,18 @@
 set -euo pipefail
 
 usage() {
-	printf 'Usage: %s <pkgs attribute> [desktop file]\n' "$0" >&2
-	printf 'Example: %s protonup-qt protonup-qt.desktop\n' "$0" >&2
+	printf 'Usage: %s <pkgs attribute> [desktop file] [asset path]\n' "$0" >&2
+	printf 'Example: %s protonup-qt protonup-qt.desktop assets/icons/protonup-qt.png\n' "$0" >&2
 }
 
-if [ "$#" -lt 1 ] || [ "$#" -gt 2 ]; then
+if [ "$#" -lt 1 ] || [ "$#" -gt 3 ]; then
 	usage
 	exit 1
 fi
 
 package_attr="$1"
 desktop_file_name="${2:-}"
+asset_path="${3:-}"
 
 if [[ ! $package_attr =~ ^[[:alpha:]_][[:alnum:]_-]*(\.[[:alpha:]_][[:alnum:]_-]*)*$ ]]; then
 	printf 'Invalid pkgs attribute: %s\n' "$package_attr" >&2
@@ -95,17 +96,41 @@ else
 	fi
 
 	if [ "${#icon_paths[@]}" -gt 1 ]; then
+		scalable_icons=()
+		for candidate in "${icon_paths[@]}"; do
+			case "$candidate" in
+				*/scalable/*) scalable_icons+=("$candidate") ;;
+			esac
+		done
+
+		if [ "${#scalable_icons[@]}" -eq 1 ]; then
+			icon_path="${scalable_icons[0]}"
+		else
 		printf 'Icon %q has multiple candidates; choose one explicitly:\n' "$icon_name" >&2
 		printf '%s\n' "${icon_paths[@]}" >&2
 		exit 1
+		fi
+	else
+		icon_path="${icon_paths[0]}"
 	fi
-
-	icon_path="${icon_paths[0]}"
 fi
 
 if [[ $icon_path != "$package_path"/* ]]; then
 	printf 'Icon is outside the package output: %s\n' "$icon_path" >&2
 	exit 1
+fi
+
+if [ -n "$asset_path" ]; then
+	case "$asset_path" in
+		/* | ../* | */../* | ..)
+			printf 'Asset path must be relative to the repository: %s\n' "$asset_path" >&2
+			exit 1
+			;;
+	esac
+
+	asset_path="$repo_root/$asset_path"
+	install -Dm644 "$icon_path" "$asset_path"
+	icon_path="$asset_path"
 fi
 
 printf '%s\n' "$icon_path"

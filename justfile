@@ -40,9 +40,9 @@ check-service-ports:
 fmt:
     fmt
 
-# Locate the original package icon for a lazy desktop item
-resolve-lazy-icon package desktop_file='':
-    bash ./scripts/resolve-lazy-desktop-icon.sh "{{package}}" "{{desktop_file}}"
+# Locate or copy the original package icon for a lazy desktop item
+resolve-lazy-icon package desktop_file='' asset_path='':
+    bash ./scripts/resolve-lazy-desktop-icon.sh "{{package}}" "{{desktop_file}}" "{{asset_path}}"
 
 # Re-encrypt all secrets with current .sops.yaml recipients
 update-sops-keys:
