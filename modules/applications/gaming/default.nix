@@ -4,72 +4,66 @@
   flake.modules.nixos.gaming =
     { pkgs, ... }:
     let
-      inherit (config.flake.lib) lazyApp;
+      inherit (config.flake.lib) lazyApp lazyDesktopApp;
 
       protonupQtIcon = pkgs.fetchurl {
         url = "https://raw.githubusercontent.com/DavidoTek/ProtonUp-Qt/v2.15.1/pupgui2/resources/img/appicon256.png";
         hash = "sha256-yCT3XxDDErvTehrgL9/6t7h8VCH/DB7kzp780var9ao=";
       };
 
-      lazyProtontricks = lazyApp pkgs {
+      lazyProtontricks = lazyDesktopApp pkgs {
         pkg = pkgs.protontricks;
         exe = "protontricks";
-        desktopItems = [
-          (pkgs.makeDesktopItem {
-            name = "protontricks";
-            exec = "protontricks --no-term --gui";
-            desktopName = "Protontricks";
-            comment = "A simple wrapper that does winetricks things for Proton enabled games";
-            terminal = false;
-            categories = [ "Utility" ];
-            icon = "wine";
-            keywords = [
-              "Steam"
-              "Proton"
-              "Wine"
-              "Winetricks"
-            ];
-          })
-        ];
+        desktopItem = {
+          name = "protontricks";
+          exec = "protontricks --no-term --gui";
+          desktopName = "Protontricks";
+          comment = "A simple wrapper that does winetricks things for Proton enabled games";
+          terminal = false;
+          categories = [ "Utility" ];
+          icon = "wine";
+          keywords = [
+            "Steam"
+            "Proton"
+            "Wine"
+            "Winetricks"
+          ];
+        };
       };
 
-      lazyProtontricksLaunch = lazyApp pkgs {
+      lazyProtontricksLaunch = lazyDesktopApp pkgs {
         pkg = pkgs.protontricks;
         exe = "protontricks-launch";
-        desktopItems = [
-          (pkgs.makeDesktopItem {
-            name = "protontricks-launch";
-            exec = "protontricks-launch --no-term %f";
-            desktopName = "Protontricks Launcher";
-            terminal = false;
-            noDisplay = true;
-            categories = [ "Utility" ];
-            icon = "wine";
-            mimeTypes = [
-              "application/x-ms-dos-executable"
-              "application/x-msi"
-              "application/x-ms-shortcut"
-            ];
-          })
-        ];
+        desktopItem = {
+          name = "protontricks-launch";
+          exec = "protontricks-launch --no-term %f";
+          desktopName = "Protontricks Launcher";
+          terminal = false;
+          noDisplay = true;
+          categories = [ "Utility" ];
+          icon = "wine";
+          mimeTypes = [
+            "application/x-ms-dos-executable"
+            "application/x-msi"
+            "application/x-ms-shortcut"
+          ];
+        };
       };
 
-      lazyProtonupQt = lazyApp pkgs {
+      lazyProtonupQt = lazyDesktopApp pkgs {
         pkg = pkgs.protonup-qt;
-        desktopItems = [
-          (pkgs.makeDesktopItem {
-            name = "protonup-qt";
-            exec = "protonup-qt";
-            desktopName = "ProtonUp-Qt";
-            comment = "Install Wine and Proton-based Compatibility Tools";
-            terminal = false;
-            icon = protonupQtIcon;
-            categories = [
-              "Game"
-              "Utility"
-            ];
-          })
-        ];
+        desktopItem = {
+          name = "protonup-qt";
+          exec = "protonup-qt";
+          desktopName = "ProtonUp-Qt";
+          comment = "Install Wine and Proton-based Compatibility Tools";
+          terminal = false;
+          icon = protonupQtIcon;
+          categories = [
+            "Game"
+            "Utility"
+          ];
+        };
       };
 
       wowup-cf-wayland = pkgs.symlinkJoin {

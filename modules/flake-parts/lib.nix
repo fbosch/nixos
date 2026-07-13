@@ -24,6 +24,21 @@
       pkgs: pkgOrArgs:
       pkgs.lazy-app.override (if lib.isDerivation pkgOrArgs then { pkg = pkgOrArgs; } else pkgOrArgs);
 
+    lazyDesktopApp =
+      pkgs:
+      { pkg
+      , desktopItem
+      , exe ? null
+      ,
+      }:
+      config.flake.lib.lazyApp pkgs (
+        {
+          inherit pkg;
+          desktopItems = [ (pkgs.makeDesktopItem desktopItem) ];
+        }
+        // lib.optionalAttrs (exe != null) { inherit exe; }
+      );
+
     portConflicts =
       let
         portsFor =

@@ -1,6 +1,6 @@
 { config, ... }:
 let
-  inherit (config.flake.lib) lazyApp;
+  inherit (config.flake.lib) lazyApp lazyDesktopApp;
 in
 {
   flake.modules.homeManager.applications =
@@ -20,24 +20,22 @@ in
             "speedtest-cli"
           ];
 
-      lazyMegasync = lazyApp pkgs {
+      lazyMegasync = lazyDesktopApp pkgs {
         pkg = pkgs.megasync;
-        desktopItems = [
-          (pkgs.makeDesktopItem {
-            name = "megasync";
-            exec = "megasync";
-            desktopName = "MEGAsync";
-            genericName = "File Synchronizer";
-            comment = "Easy automated syncing between your computers and your MEGA cloud drive";
-            icon = ../../assets/icons/megasync.png;
-            terminal = false;
-            startupNotify = false;
-            categories = [
-              "Network"
-              "System"
-            ];
-          })
-        ];
+        desktopItem = {
+          name = "megasync";
+          exec = "megasync";
+          desktopName = "MEGAsync";
+          genericName = "File Synchronizer";
+          comment = "Easy automated syncing between your computers and your MEGA cloud drive";
+          icon = ../../assets/icons/megasync.png;
+          terminal = false;
+          startupNotify = false;
+          categories = [
+            "Network"
+            "System"
+          ];
+        };
       };
     in
     {

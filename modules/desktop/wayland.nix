@@ -1,4 +1,4 @@
-{ inputs, ... }:
+{ config, inputs, ... }:
 {
   flake.modules.nixos.desktop =
     { pkgs, ... }:
@@ -15,6 +15,59 @@
   flake.modules.homeManager.desktop =
     { pkgs, lib, ... }:
     let
+      inherit (config.flake.lib) lazyDesktopApp;
+
+      lazyNwgLook = lazyDesktopApp pkgs {
+        pkg = pkgs.nwg-look;
+        desktopItem = {
+          name = "nwg-look";
+          exec = "nwg-look";
+          desktopName = "GTK Settings";
+          genericName = "Adjust Look and Feel";
+          comment = "Customizes GTK3 look and feel settings";
+          icon = ../../assets/icons/nwg-look.svg;
+          terminal = false;
+          notShowIn = [
+            "GNOME"
+            "KDE"
+            "XFCE"
+            "MATE"
+          ];
+          startupNotify = true;
+          categories = [
+            "GTK"
+            "Settings"
+            "DesktopSettings"
+          ];
+          keywords = [
+            "windows"
+            "preferences"
+            "settings"
+            "theme"
+            "style"
+            "appearance"
+            "look"
+          ];
+        };
+      };
+
+      lazyNwgDisplays = lazyDesktopApp pkgs {
+        pkg = pkgs.nwg-displays;
+        desktopItem = {
+          name = "nwg-displays";
+          exec = "nwg-displays";
+          desktopName = "Displays Settings";
+          genericName = "Output configuration utility";
+          comment = "nwg-shell tool to configure outputs";
+          icon = ../../assets/icons/nwg-displays.svg;
+          terminal = false;
+          categories = [
+            "Settings"
+            "DesktopSettings"
+          ];
+        };
+      };
+
       inherit (pkgs.stdenv.hostPlatform) system;
       waybar = pkgs.waybar.overrideAttrs (old: {
         postPatch = (old.postPatch or "") + ''
@@ -39,8 +92,8 @@
           xwayland-satellite
           setxkbmap
           wev
-          nwg-look
-          nwg-displays
+          lazyNwgLook
+          lazyNwgDisplays
           wlr-randr
           wl-clipboard
           xclip

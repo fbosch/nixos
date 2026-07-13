@@ -3,23 +3,21 @@
   flake.modules.nixos."hosts/rvn-pc/platform" =
     { pkgs, ... }:
     let
-      inherit (config.flake.lib) lazyApp;
+      inherit (config.flake.lib) lazyDesktopApp;
 
-      lazyKeymapp = lazyApp pkgs {
+      lazyKeymapp = lazyDesktopApp pkgs {
         pkg = pkgs.keymapp;
-        desktopItems = [
-          (pkgs.makeDesktopItem {
-            name = "keymapp";
-            exec = "keymapp";
-            desktopName = "Keymapp";
-            icon = ../../../../assets/icons/keymapp.png;
-            terminal = false;
-            categories = [
-              "Settings"
-              "HardwareSettings"
-            ];
-          })
-        ];
+        desktopItem = {
+          name = "keymapp";
+          exec = "keymapp";
+          desktopName = "Keymapp";
+          icon = ../../../../assets/icons/keymapp.png;
+          terminal = false;
+          categories = [
+            "Settings"
+            "HardwareSettings"
+          ];
+        };
       };
     in
     {

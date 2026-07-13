@@ -17,30 +17,61 @@ in
   flake.modules.homeManager.desktop =
     { config, pkgs, ... }:
     let
-      inherit (flakeConfig.flake.lib) lazyApp;
+      inherit (flakeConfig.flake.lib) lazyDesktopApp;
 
-      lazyGucharmap = lazyApp pkgs {
+      lazyGucharmap = lazyDesktopApp pkgs {
         pkg = pkgs.gucharmap;
-        desktopItems = [
-          (pkgs.makeDesktopItem {
-            name = "gucharmap";
-            exec = "gucharmap";
-            desktopName = "Character Map";
-            comment = "Insert special characters into documents";
-            icon = "accessories-character-map";
-            terminal = false;
-            startupNotify = true;
-            categories = [
-              "GNOME"
-              "GTK"
-              "Utility"
-            ];
-            keywords = [
-              "font"
-              "unicode"
-            ];
-          })
-        ];
+        desktopItem = {
+          name = "gucharmap";
+          exec = "gucharmap";
+          desktopName = "Character Map";
+          comment = "Insert special characters into documents";
+          icon = "accessories-character-map";
+          terminal = false;
+          startupNotify = true;
+          categories = [
+            "GNOME"
+            "GTK"
+            "Utility"
+          ];
+          keywords = [
+            "font"
+            "unicode"
+          ];
+        };
+      };
+
+      lazyGnomeTweaks = lazyDesktopApp pkgs {
+        pkg = pkgs.gnome-tweaks;
+        exe = "gnome-tweaks";
+        desktopItem = {
+          name = "org.gnome.tweaks";
+          exec = "gnome-tweaks";
+          desktopName = "Tweaks";
+          comment = "Tweak advanced GNOME settings";
+          icon = ../../../assets/icons/gnome-tweaks.svg;
+          terminal = false;
+          onlyShowIn = [
+            "GNOME"
+            "Unity"
+            "Pantheon"
+          ];
+          startupNotify = true;
+          startupWMClass = "gnome-tweaks";
+          categories = [
+            "GNOME"
+            "GTK"
+            "Utility"
+          ];
+          keywords = [
+            "Settings"
+            "Advanced"
+            "Preferences"
+            "Fonts"
+            "Theme"
+            "Keyboard"
+          ];
+        };
       };
 
       denmarkHolidaysSource = pkgs.writeText "denmark-holidays.source" ''
@@ -82,7 +113,7 @@ in
         gtk4
         gtk4-layer-shell
         gnome-keyring
-        gnome-tweaks
+        lazyGnomeTweaks
         gnome-themes-extra
         gnome-calculator
         gnome-calendar

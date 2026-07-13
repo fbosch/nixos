@@ -1,6 +1,6 @@
 { config, ... }:
 let
-  inherit (config.flake.lib) lazyApp;
+  inherit (config.flake.lib) lazyDesktopApp;
 in
 {
   flake.modules.homeManager.applications =
@@ -11,40 +11,62 @@ in
         hash = "sha256-YD++5DwetKeOUHmCVW/57MBfKW94/dwRp/T/CPh0eo8=";
       };
 
-      lazyHardinfo2 = lazyApp pkgs {
+      lazyHardinfo2 = lazyDesktopApp pkgs {
         pkg = pkgs.hardinfo2;
-        desktopItems = [
-          (pkgs.makeDesktopItem {
-            name = "hardinfo2";
-            exec = "hardinfo2";
-            desktopName = "Hardinfo2";
-            comment = "System Information and Benchmark";
-            icon = hardinfo2Icon;
-            terminal = false;
-            startupNotify = true;
-            categories = [
-              "System"
-              "Utility"
-            ];
-            keywords = [
-              "linux"
-              "kernel"
-              "system"
-              "hardware"
-              "cpu"
-              "processor"
-              "memory"
-              "benchmark"
-              "test"
-            ];
-          })
-        ];
+        desktopItem = {
+          name = "hardinfo2";
+          exec = "hardinfo2";
+          desktopName = "Hardinfo2";
+          comment = "System Information and Benchmark";
+          icon = hardinfo2Icon;
+          terminal = false;
+          startupNotify = true;
+          categories = [
+            "System"
+            "Utility"
+          ];
+          keywords = [
+            "linux"
+            "kernel"
+            "system"
+            "hardware"
+            "cpu"
+            "processor"
+            "memory"
+            "benchmark"
+            "test"
+          ];
+        };
+      };
+
+      lazyResources = lazyDesktopApp pkgs {
+        pkg = pkgs.resources;
+        desktopItem = {
+          name = "net.nokyan.Resources";
+          exec = "resources";
+          desktopName = "Resources";
+          comment = "Keep an eye on system resources";
+          icon = ../../assets/icons/resources.svg;
+          terminal = false;
+          startupNotify = true;
+          categories = [ "System" ];
+          keywords = [
+            "System"
+            "Resources"
+            "Monitor"
+            "Processes"
+            "CPU"
+            "RAM"
+            "GPU"
+            "Performance"
+          ];
+        };
       };
     in
     {
       home.packages = [
         lazyHardinfo2
-        pkgs.resources
+        lazyResources
       ];
     };
 }
