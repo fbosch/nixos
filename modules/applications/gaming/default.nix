@@ -6,6 +6,11 @@
     let
       inherit (config.flake.lib) lazyApp;
 
+      protonupQtIcon = pkgs.fetchurl {
+        url = "https://raw.githubusercontent.com/DavidoTek/ProtonUp-Qt/v2.15.1/pupgui2/resources/img/appicon256.png";
+        hash = "sha256-yCT3XxDDErvTehrgL9/6t7h8VCH/DB7kzp780var9ao=";
+      };
+
       lazyProtontricks = lazyApp pkgs {
         pkg = pkgs.protontricks;
         exe = "protontricks";
@@ -58,8 +63,7 @@
             desktopName = "ProtonUp-Qt";
             comment = "Install Wine and Proton-based Compatibility Tools";
             terminal = false;
-            # Context-free path avoids realizing ProtonUp-Qt during rebuild.
-            icon = builtins.unsafeDiscardStringContext "${pkgs.protonup-qt}/share/pixmaps/protonup-qt.png";
+            icon = protonupQtIcon;
             categories = [
               "Game"
               "Utility"

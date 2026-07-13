@@ -108,5 +108,4 @@ if [[ $icon_path != "$package_path"/* ]]; then
 	exit 1
 fi
 
-icon_suffix="${icon_path#"$package_path"}"
-printf "icon = builtins.unsafeDiscardStringContext \"\${pkgs.%s}%s\";\n" "$package_attr" "$icon_suffix"
+printf '%s\n' "$icon_path"

@@ -51,7 +51,7 @@ recover-plex-mounts:
 fmt:
     fmt
 
-# Print the original package icon for a lazy desktop item
+# Locate the original package icon for a lazy desktop item
 resolve-lazy-icon package desktop_file='':
     bash ./scripts/resolve-lazy-desktop-icon.sh "{{package}}" "{{desktop_file}}"
 

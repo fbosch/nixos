@@ -6,6 +6,11 @@ in
   flake.modules.homeManager.applications =
     { pkgs, ... }:
     let
+      hardinfo2Icon = pkgs.fetchurl {
+        url = "https://raw.githubusercontent.com/hardinfo2/hardinfo2/ebc19f3e5e3bbe7a806ff9384fbb226e767ddf0a/pixmaps/hardinfo2.svg";
+        hash = "sha256-YD++5DwetKeOUHmCVW/57MBfKW94/dwRp/T/CPh0eo8=";
+      };
+
       lazyHardinfo2 = lazyApp pkgs {
         pkg = pkgs.hardinfo2;
         desktopItems = [
@@ -14,8 +19,7 @@ in
             exec = "hardinfo2";
             desktopName = "Hardinfo2";
             comment = "System Information and Benchmark";
-            # Context-free path avoids realizing Hardinfo2 during rebuild.
-            icon = builtins.unsafeDiscardStringContext "${pkgs.hardinfo2}/share/icons/hicolor/scalable/apps/hardinfo2.svg";
+            icon = hardinfo2Icon;
             terminal = false;
             startupNotify = true;
             categories = [

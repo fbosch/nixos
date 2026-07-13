@@ -32,6 +32,7 @@ Do not run `sops` commands directly; they break the TUI. Instruct the user to ru
 
 - Use `config.flake.lib.lazyApp` only for rarely used direct entries in `environment.systemPackages` or `home.packages`.
 - Do not lazify services, libraries, activation-script inputs, desktop/session infrastructure, auth/security tools, or module `package` options.
+- For `lazyApp` desktop entries, do not point `Icon` at `${pkg}` using `unsafeDiscardStringContext`; garbage collection can remove it. Use a separately rooted, pinned icon asset or an already-installed theme icon.
 - See [ADR 0013](docs/adr/0013-use-lazy-apps-for-rarely-used-packages.md) for tradeoffs and examples.
 
 ## Host Machine Metadata
