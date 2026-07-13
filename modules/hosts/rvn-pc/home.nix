@@ -9,7 +9,6 @@
         "windows"
         "worktrunk"
         "development/services/headroom"
-        "development/services/pxpipe"
         "virtualization/podman"
 
         # Shared modules with Home Manager components
