@@ -1,18 +1,33 @@
 {
-  flake.modules.nixos.vpn = { pkgs, ... }: {
-    services.mullvad-vpn = {
-      enable = true;
-      package = pkgs.mullvad-vpn;
-    };
+  flake.modules.nixos.vpn =
+    { pkgs, ... }:
+    let
+      mullvadExcludeIfConnected = pkgs.writeShellApplication {
+        name = "mullvad-exclude-if-connected";
+        text = ''
+          if ${pkgs.mullvad-vpn}/bin/mullvad status 2>/dev/null | ${pkgs.gnugrep}/bin/grep -qx "Connected"; then
+            exec ${pkgs.mullvad-vpn}/bin/mullvad-exclude "$@"
+          fi
 
-    services.tailscale = {
-      enable = true;
-      useRoutingFeatures = "client";
-    };
+          exec "$@"
+        '';
+      };
+    in
+    {
+      services.mullvad-vpn = {
+        enable = true;
+        package = pkgs.mullvad-vpn;
+      };
 
-    environment.systemPackages = with pkgs; [
-      tailscale
-      proton-vpn
-    ];
-  };
+      services.tailscale = {
+        enable = true;
+        useRoutingFeatures = "client";
+      };
+
+      environment.systemPackages = with pkgs; [
+        tailscale
+        proton-vpn
+        mullvadExcludeIfConnected
+      ];
+    };
 }
