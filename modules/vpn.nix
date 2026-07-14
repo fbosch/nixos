@@ -5,8 +5,14 @@
       mullvadExcludeIfConnected = pkgs.writeShellApplication {
         name = "mullvad-exclude-if-connected";
         text = ''
-          if ${pkgs.mullvad-vpn}/bin/mullvad status 2>/dev/null | ${pkgs.gnugrep}/bin/grep -qx "Connected"; then
-            exec ${pkgs.mullvad-vpn}/bin/mullvad-exclude "$@"
+          connectivity="$(
+            ${pkgs.coreutils}/bin/timeout 0.1s \
+              ${pkgs.networkmanager}/bin/nmcli \
+              --get-values CONNECTIVITY general 2>/dev/null || true
+          )"
+
+          if [ "$connectivity" = "full" ]; then
+            exec /run/wrappers/bin/mullvad-exclude "$@"
           fi
 
           exec "$@"
