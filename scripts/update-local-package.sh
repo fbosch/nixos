@@ -136,6 +136,9 @@ if [ ! -d "$packages_dir" ]; then
 fi
 
 declare -A package_update_prs=()
+update_cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/nixos/update-local-package"
+update_cache_ttl=3600
+update_cache_available=false
 
 package_is_at_version() {
 	local package_name="$1"
@@ -148,30 +151,85 @@ package_is_at_version() {
 	[[ $package_contents == *"version = \"$version\";"* ]]
 }
 
-load_pending_update_prs() {
-	local path
-	local pr_number
+record_pending_update() {
+	local path="$1"
+	local old_version="$2"
+	local new_version="$3"
 	local package_name
+
+	[ -n "$old_version" ] && [ -n "$new_version" ] || return
+	package_name="${path#pkgs/by-name/}"
+	package_name="${package_name%/package.nix}"
+	if package_is_at_version "$package_name" "$new_version"; then
+		return
+	fi
+	package_update_prs["$package_name"]="$old_version"$'\t'"$new_version"
+}
+
+read_pending_updates() {
+	local path
 	local old_version
 	local new_version
+
+	while IFS=$'\t' read -r path old_version new_version; do
+		record_pending_update "$path" "$old_version" "$new_version"
+	done <"$1"
+}
+
+fetch_pr_updates() {
+	local pr_number="$1"
+
+	cd "$repo_root"
+	gh api "repos/{owner}/{repo}/pulls/$pr_number/files?per_page=100" --paginate \
+		--jq '.[] | select(.filename | test("^pkgs/by-name/[^/]+/package\\.nix$")) | .filename as $file | ([.patch | split("\n")[] | select(test("^-\\s*version\\s*=")) | capture("^-\\s*version\\s*=\\s*\\\"(?<version>[^\\\"]+)\\\";").version][0]) as $old | ([.patch | split("\n")[] | select(test("^\\+\\s*version\\s*=")) | capture("^\\+\\s*version\\s*=\\s*\\\"(?<version>[^\\\"]+)\\\";").version][0]) as $new | "\($file)\t\($old)\t\($new)"' 2>/dev/null
+}
+
+load_pr_updates() {
+	local pr_number="$1"
+	local cache_file="$update_cache_dir/renovate-pr-$pr_number.tsv"
+	local cache_modified
+	local cache_tmp
+	local path
+	local old_version
+	local new_version
+	local updates
+
+	if "$update_cache_available"; then
+		cache_modified="$(stat -c %Y "$cache_file" 2>/dev/null || true)"
+		if [ -n "$cache_modified" ] && [ "$(($(date +%s) - cache_modified))" -lt "$update_cache_ttl" ]; then
+			read_pending_updates "$cache_file"
+			return
+		fi
+
+		if cache_tmp="$(mktemp "$update_cache_dir/.renovate-pr-$pr_number.XXXXXX")"; then
+			if fetch_pr_updates "$pr_number" >"$cache_tmp"; then
+				mv "$cache_tmp" "$cache_file"
+				read_pending_updates "$cache_file"
+			else
+				rm -f "$cache_tmp"
+			fi
+			return
+		fi
+	fi
+
+	updates="$(fetch_pr_updates "$pr_number")" || return
+	while IFS=$'\t' read -r path old_version new_version; do
+		record_pending_update "$path" "$old_version" "$new_version"
+	done <<<"$updates"
+}
+
+load_pending_update_prs() {
+	local pr_number
 
 	if ! command -v gh >/dev/null 2>&1; then
 		return
 	fi
+	if mkdir -p "$update_cache_dir" 2>/dev/null; then
+		update_cache_available=true
+	fi
 
 	while IFS= read -r pr_number; do
-		while IFS=$'\t' read -r path old_version new_version; do
-			package_name="${path#pkgs/by-name/}"
-			package_name="${package_name%/package.nix}"
-			if package_is_at_version "$package_name" "$new_version"; then
-				continue
-			fi
-			package_update_prs["$package_name"]="$old_version"$'\t'"$new_version"
-		done < <(
-			cd "$repo_root"
-			gh api "repos/{owner}/{repo}/pulls/$pr_number/files?per_page=100" --paginate \
-				--jq '.[] | select(.filename | test("^pkgs/by-name/[^/]+/package\\.nix$")) | .filename as $file | ([.patch | split("\n")[] | select(test("^-\\s*version\\s*=")) | capture("^-\\s*version\\s*=\\s*\\\"(?<version>[^\\\"]+)\\\";").version][0]) as $old | ([.patch | split("\n")[] | select(test("^\\+\\s*version\\s*=")) | capture("^\\+\\s*version\\s*=\\s*\\\"(?<version>[^\\\"]+)\\\";").version][0]) as $new | "\($file)\t\($old)\t\($new)"' 2>/dev/null
-		)
+		load_pr_updates "$pr_number"
 	done < <(
 		cd "$repo_root"
 		gh pr list --state open --label custom-packages --json number --jq '.[].number' 2>/dev/null
