@@ -8,11 +8,11 @@
 
 stdenvNoCC.mkDerivation rec {
   pname = "pnpm";
-  version = "11.10.0";
+  version = "11.13.0";
 
   src = fetchurl {
     url = "https://registry.npmjs.org/pnpm/-/pnpm-${version}.tgz";
-    hash = "sha256-YgtmBepPYvxWptCphzP0eQcdAyHgPkhrUix+mnRhdDE=";
+    hash = "sha256-hlx2vZERpFykH27u1AZ/8Ozf7p6sg6rSQXnIP/6+dZk=";
   };
 
   nativeBuildInputs = [ makeWrapper ];

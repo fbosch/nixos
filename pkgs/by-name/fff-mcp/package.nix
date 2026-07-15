@@ -1,5 +1,6 @@
 { fetchurl
 , lib
+, nix-update-script
 , stdenvNoCC
 ,
 }:
@@ -23,6 +24,14 @@ stdenvNoCC.mkDerivation rec {
   src = fetchurl source;
 
   dontUnpack = true;
+
+  passthru.updateScript = nix-update-script {
+    extraArgs = [
+      "--flake"
+      "--use-github-releases"
+      "--version-regex=^v([0-9]+\\.[0-9]+\\.[0-9]+)$"
+    ];
+  };
 
   installPhase = ''
     runHook preInstall

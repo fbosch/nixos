@@ -60,7 +60,7 @@ update-avatar:
 sync-wallpaper config="$HOME/.config/hypr/hyprpaper.conf" output="assets/wallpaper.png" monitor="DP-2":
     bash ./scripts/sync-wallpaper.sh "{{config}}" "{{output}}" "{{monitor}}"
 
-# Update a local by-name package (optionally pass package=surge)
+# Update a local by-name package (optionally pass surge)
 update-local-package package='':
     if [ -n "{{package}}" ]; then bash ./scripts/update-local-package.sh "{{package}}"; else bash ./scripts/update-local-package.sh; fi
 

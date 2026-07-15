@@ -2,6 +2,95 @@
 
 set -euo pipefail
 
+has_gum=false
+if command -v gum >/dev/null 2>&1; then
+	has_gum=true
+fi
+
+status() {
+	local color="$1"
+	local label="$2"
+	local message="$3"
+
+	if "$has_gum"; then
+		printf '%s %s\n' "$(gum style --foreground "$color" "[$label]")" "$message"
+	else
+		printf '[%s] %s\n' "$label" "$message"
+	fi
+}
+
+error() {
+	status 1 ERROR "$*"
+}
+
+run_step() {
+	local title="$1"
+	shift
+
+	if "$has_gum"; then
+		gum style --foreground 244 "$title..."
+	else
+		printf '%s...\n' "$title"
+	fi
+
+	"$@"
+}
+
+render_update_output() {
+	local output="$1"
+	local line
+	local instantiated=false
+	local label
+
+	while IFS= read -r line || [ -n "$line" ]; do
+		case "$line" in
+		'$ nix-instantiate '*)
+			if "$instantiated"; then
+				label="Re-evaluate package"
+			else
+				label="Instantiate package"
+				instantiated=true
+			fi
+			;;
+		'$ nix build '*) label="Resolve update script" ;;
+		'$ nix develop '*) label="Run update script" ;;
+		'$ git -C '*) label="Review package changes" ;;
+		*)
+			printf '%s\n' "$line"
+			continue
+			;;
+		esac
+
+		printf '%s\n' "$(gum style --foreground 6 --bold "$label")"
+		printf '  %s\n' "$(gum style --foreground 244 "$line")"
+	done <"$output"
+}
+
+run_update() {
+	local title="$1"
+	local output
+	local exit_code
+	shift
+
+	if ! "$has_gum"; then
+		run_step "$title" "$@"
+		return
+	fi
+
+	output="$(mktemp)"
+	gum style --foreground 244 "$title..."
+	if "$@" >"$output" 2>&1; then
+		render_update_output "$output"
+	else
+		exit_code=$?
+		cat "$output" >&2
+		rm -f "$output"
+		return "$exit_code"
+	fi
+
+	rm -f "$output"
+}
+
 usage() {
 	echo "Usage: $0 [package-name]" >&2
 	echo "Example: $0 surge" >&2
@@ -28,7 +117,7 @@ repo_root="$(dirname "$script_dir")"
 packages_dir="$repo_root/pkgs/by-name"
 
 if [ ! -d "$packages_dir" ]; then
-	echo "Error: expected directory not found at $packages_dir" >&2
+	error "expected directory not found at $packages_dir" >&2
 	exit 1
 fi
 
@@ -36,7 +125,7 @@ select_package_with_gum() {
 	local selection
 
 	if ! command -v gum >/dev/null 2>&1; then
-		echo "Error: no package argument provided and 'gum' is not installed." >&2
+		error "no package argument provided and 'gum' is not installed" >&2
 		echo "Pass a package name explicitly, for example: $0 surge" >&2
 		exit 1
 	fi
@@ -50,17 +139,17 @@ select_package_with_gum() {
 	)
 
 	if [ "${#package_names[@]}" -eq 0 ]; then
-		echo "Error: no updatable by-name packages found under $packages_dir" >&2
+		error "no updatable by-name packages found under $packages_dir" >&2
 		exit 1
 	fi
 
 	if ! selection="$(printf '%s\n' "${package_names[@]}" | gum filter --placeholder "Select package to update")"; then
-		echo "Cancelled."
+		status 3 SKIP "cancelled"
 		exit 0
 	fi
 
 	if [ -z "$selection" ]; then
-		echo "Cancelled."
+		status 3 SKIP "cancelled"
 		exit 0
 	fi
 
@@ -74,19 +163,19 @@ else
 fi
 
 if [[ $package_name == *"/"* ]]; then
-	echo "Error: package name must be a by-name key (for example: surge), not a path." >&2
+	error "package name must be a by-name key (for example: surge), not a path" >&2
 	exit 1
 fi
 
 package_file="$packages_dir/$package_name/package.nix"
 
 if [ ! -f "$package_file" ]; then
-	echo "Error: package file not found at $package_file" >&2
+	error "package file not found at $package_file" >&2
 	exit 1
 fi
 
 if ! is_update_candidate "$package_file"; then
-	echo "Done: .#$package_name has no versioned upstream source for nix-update."
+	status 3 SKIP ".#$package_name has no versioned upstream source for nix-update"
 	exit 0
 fi
 
@@ -95,29 +184,27 @@ cd "$repo_root"
 if nix eval --raw ".#$package_name.name" >/dev/null 2>&1; then
 	:
 else
-	echo "Error: flake package '.#$package_name' does not exist on this system." >&2
+	error "flake package '.#$package_name' does not exist on this system" >&2
 	exit 1
 fi
 
-echo "Updating .#$package_name via nix-update..."
+if "$has_gum"; then
+	printf '\n'
+	printf '%s\n' "$(gum style --foreground 212 --bold "Update .#$package_name")"
+	printf '%s\n' "$(gum style --foreground 244 "$package_file")"
+fi
+
 before_hash="$(sha256sum "$package_file")"
-nix_update_args=(-F "$package_name")
+nix_update_args=(-F -u "$package_name")
 
-case "$package_name" in
-rtk | fff-mcp)
-	nix_update_args+=(--use-github-releases --version-regex '^v([0-9]+\.[0-9]+\.[0-9]+)$')
-	;;
-esac
-
-nix run nixpkgs#nix-update -- "${nix_update_args[@]}"
+run_update "Updating .#$package_name" nix run nixpkgs#nix-update -- "${nix_update_args[@]}"
 after_hash="$(sha256sum "$package_file")"
 
 if [ "$before_hash" = "$after_hash" ]; then
-	echo "Done: .#$package_name already matches upstream; no changes to build."
+	status 3 SKIP ".#$package_name already matches upstream; no changes to build"
 	exit 0
 fi
 
-echo "Building .#$package_name to verify update..."
-nix build ".#$package_name"
+run_step "Building .#$package_name" nix build ".#$package_name"
 
-echo "Done: .#$package_name is updated and builds successfully."
+status 2 DONE ".#$package_name is updated and builds successfully"

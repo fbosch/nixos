@@ -1,6 +1,7 @@
 { lib
 , buildGoModule
 , fetchFromGitHub
+, nix-update-script
 ,
 }:
 
@@ -31,6 +32,14 @@ buildGoModule rec {
 
   env = {
     CGO_ENABLED = 0;
+  };
+
+  passthru.updateScript = nix-update-script {
+    extraArgs = [
+      "--flake"
+      "--use-github-releases"
+      "--version-regex=^v([0-9]+\\.[0-9]+\\.[0-9]+)$"
+    ];
   };
 
   postInstall = ''

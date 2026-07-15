@@ -1,5 +1,6 @@
 { fetchFromGitHub
 , lib
+, nix-update-script
 , rustPlatform
 ,
 }:
@@ -18,6 +19,14 @@ rustPlatform.buildRustPackage rec {
   cargoHash = "sha256-XKUKdhxfnwUCOx9slqx4oUFa09HcosPLVh5Xkh87oSk=";
 
   doCheck = false;
+
+  passthru.updateScript = nix-update-script {
+    extraArgs = [
+      "--flake"
+      "--use-github-releases"
+      "--version-regex=^v([0-9]+\\.[0-9]+\\.[0-9]+)$"
+    ];
+  };
 
   meta = with lib; {
     description = "CLI proxy that reduces LLM token consumption by 60-90%";
