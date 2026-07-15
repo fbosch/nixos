@@ -13,7 +13,7 @@ status() {
 	local message="$3"
 
 	if "$has_gum"; then
-		printf '%s %s\n' "$(gum style --foreground "$color" "[$label]")" "$message"
+		printf '%s %s\n' "$(CLICOLOR_FORCE=1 gum style --foreground "$color" "[$label]")" "$message"
 	else
 		printf '[%s] %s\n' "$label" "$message"
 	fi
@@ -34,6 +34,20 @@ run_step() {
 	fi
 
 	"$@"
+}
+
+render_version_update() {
+	local old_version="${1%%$'\t'*}"
+	local new_version="${1#*$'\t'}"
+
+	if "$has_gum"; then
+		printf '%s %s %s' \
+			"$(CLICOLOR_FORCE=1 gum style --foreground 1 --bold "$old_version")" \
+			"$(CLICOLOR_FORCE=1 gum style --foreground 7 --bold "→")" \
+			"$(CLICOLOR_FORCE=1 gum style --foreground 2 --bold "$new_version")"
+	else
+		printf '%s → %s' "$old_version" "$new_version"
+	fi
 }
 
 render_update_output() {
@@ -61,8 +75,8 @@ render_update_output() {
 			;;
 		esac
 
-		printf '%s\n' "$(gum style --foreground 6 --bold "$label")"
-		printf '  %s\n' "$(gum style --foreground 244 "$line")"
+		printf '%s\n' "$(CLICOLOR_FORCE=1 gum style --foreground 6 --bold "$label")"
+		printf '  %s\n' "$(CLICOLOR_FORCE=1 gum style --foreground 244 "$line")"
 	done <"$output"
 }
 
@@ -121,8 +135,52 @@ if [ ! -d "$packages_dir" ]; then
 	exit 1
 fi
 
+declare -A package_update_prs=()
+
+package_is_at_version() {
+	local package_name="$1"
+	local version="$2"
+	local package_file="$packages_dir/$package_name/package.nix"
+	local package_contents
+
+	[ -f "$package_file" ] || return 1
+	package_contents="$(<"$package_file")"
+	[[ $package_contents == *"version = \"$version\";"* ]]
+}
+
+load_pending_update_prs() {
+	local path
+	local pr_number
+	local package_name
+	local old_version
+	local new_version
+
+	if ! command -v gh >/dev/null 2>&1; then
+		return
+	fi
+
+	while IFS= read -r pr_number; do
+		while IFS=$'\t' read -r path old_version new_version; do
+			package_name="${path#pkgs/by-name/}"
+			package_name="${package_name%/package.nix}"
+			if package_is_at_version "$package_name" "$new_version"; then
+				continue
+			fi
+			package_update_prs["$package_name"]="$old_version"$'\t'"$new_version"
+		done < <(
+			cd "$repo_root"
+			gh api "repos/{owner}/{repo}/pulls/$pr_number/files?per_page=100" --paginate \
+				--jq '.[] | select(.filename | test("^pkgs/by-name/[^/]+/package\\.nix$")) | .filename as $file | ([.patch | split("\n")[] | select(test("^-\\s*version\\s*=")) | capture("^-\\s*version\\s*=\\s*\\\"(?<version>[^\\\"]+)\\\";").version][0]) as $old | ([.patch | split("\n")[] | select(test("^\\+\\s*version\\s*=")) | capture("^\\+\\s*version\\s*=\\s*\\\"(?<version>[^\\\"]+)\\\";").version][0]) as $new | "\($file)\t\($old)\t\($new)"' 2>/dev/null
+		)
+	done < <(
+		cd "$repo_root"
+		gh pr list --state open --label custom-packages --json number --jq '.[].number' 2>/dev/null
+	)
+}
+
 select_package_with_gum() {
 	local selection
+	local package_name
 
 	if ! command -v gum >/dev/null 2>&1; then
 		error "no package argument provided and 'gum' is not installed" >&2
@@ -143,23 +201,39 @@ select_package_with_gum() {
 		exit 1
 	fi
 
-	if ! selection="$(printf '%s\n' "${package_names[@]}" | gum filter --placeholder "Select package to update")"; then
-		status 3 SKIP "cancelled"
-		exit 0
+	if ! selection="$(
+		for package_name in "${package_names[@]}"; do
+			if [ -n "${package_update_prs[$package_name]:-}" ]; then
+				printf '%s  %s\n' "$package_name" "$(render_version_update "${package_update_prs[$package_name]}")"
+			else
+				printf '%s\n' "$package_name"
+			fi
+		done | gum filter --no-strip-ansi --placeholder "Select package to update"
+	)"; then
+		status 3 SKIP "cancelled" >&2
+		return 2
 	fi
 
 	if [ -z "$selection" ]; then
-		status 3 SKIP "cancelled"
-		exit 0
+		status 3 SKIP "cancelled" >&2
+		return 2
 	fi
 
-	printf '%s\n' "$selection"
+	printf '%s\n' "${selection%%  *}"
 }
+
+load_pending_update_prs
 
 if [ "$#" -eq 1 ]; then
 	package_name="$1"
+elif package_name="$(select_package_with_gum)"; then
+	:
 else
-	package_name="$(select_package_with_gum)"
+	selection_exit_code=$?
+	if [ "$selection_exit_code" -eq 2 ]; then
+		exit 0
+	fi
+	exit "$selection_exit_code"
 fi
 
 if [[ $package_name == *"/"* ]]; then
@@ -179,6 +253,10 @@ if ! is_update_candidate "$package_file"; then
 	exit 0
 fi
 
+if [ -n "${package_update_prs[$package_name]:-}" ]; then
+	status 2 UPDATE ".#$package_name $(render_version_update "${package_update_prs[$package_name]}")"
+fi
+
 cd "$repo_root"
 
 if nix eval --raw ".#$package_name.name" >/dev/null 2>&1; then
@@ -190,8 +268,8 @@ fi
 
 if "$has_gum"; then
 	printf '\n'
-	printf '%s\n' "$(gum style --foreground 212 --bold "Update .#$package_name")"
-	printf '%s\n' "$(gum style --foreground 244 "$package_file")"
+	printf '%s\n' "$(CLICOLOR_FORCE=1 gum style --foreground 212 --bold "Update .#$package_name")"
+	printf '%s\n' "$(CLICOLOR_FORCE=1 gum style --foreground 244 "$package_file")"
 fi
 
 before_hash="$(sha256sum "$package_file")"
