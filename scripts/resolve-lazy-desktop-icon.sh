@@ -55,19 +55,19 @@ fi
 icon_name=""
 while IFS= read -r line; do
 	case "$line" in
-		Icon=*)
-			icon_name="${line#Icon=}"
-			break
-			;;
+	Icon=*)
+		icon_name="${line#Icon=}"
+		break
+		;;
 	esac
-done < "$desktop_file"
+done <"$desktop_file"
 
 if [ -z "$icon_name" ]; then
 	printf 'Desktop entry has no Icon field: %s\n' "$desktop_file" >&2
 	exit 1
 fi
 
-if [[ $icon_name = /* ]]; then
+if [[ $icon_name == /* ]]; then
 	icon_path="$icon_name"
 else
 	icon_paths=()
@@ -79,9 +79,9 @@ else
 		while IFS= read -r -d '' candidate; do
 			candidate_name="${candidate##*/}"
 			case "$candidate_name" in
-				"$icon_name" | "$icon_name".png | "$icon_name".svg | "$icon_name".xpm)
-					icon_paths+=("$candidate")
-					;;
+			"$icon_name" | "$icon_name".png | "$icon_name".svg | "$icon_name".xpm)
+				icon_paths+=("$candidate")
+				;;
 			esac
 		done < <(find "$icon_dir" -type f -print0)
 
@@ -99,7 +99,7 @@ else
 		scalable_icons=()
 		for candidate in "${icon_paths[@]}"; do
 			case "$candidate" in
-				*/scalable/*) scalable_icons+=("$candidate") ;;
+			*/scalable/*) scalable_icons+=("$candidate") ;;
 			esac
 		done
 
@@ -109,7 +109,7 @@ else
 			large_icons=()
 			for candidate in "${icon_paths[@]}"; do
 				case "$candidate" in
-					*/256x256/*) large_icons+=("$candidate") ;;
+				*/256x256/*) large_icons+=("$candidate") ;;
 				esac
 			done
 
@@ -133,10 +133,10 @@ fi
 
 if [ -n "$asset_path" ]; then
 	case "$asset_path" in
-		/* | ../* | */../* | ..)
-			printf 'Asset path must be relative to the repository: %s\n' "$asset_path" >&2
-			exit 1
-			;;
+	/* | ../* | */../* | ..)
+		printf 'Asset path must be relative to the repository: %s\n' "$asset_path" >&2
+		exit 1
+		;;
 	esac
 
 	asset_path="$repo_root/$asset_path"

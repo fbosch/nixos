@@ -1,5 +1,4 @@
-_:
-{
+_: {
   flake.modules.nixos.gaming = {
     networking.firewall.allowedUDPPorts = [
       # Baldur's Gate 3 LAN lobby discovery and connections.
@@ -9,8 +8,8 @@ _:
 
   flake.modules.homeManager.applications =
     { lib, osConfig, ... }:
-    {
-      programs.steam.config = lib.mkIf osConfig.programs.steam.enable {
+    lib.optionalAttrs osConfig.programs.steam.enable {
+      programs.steam.config = {
         enable = true;
         onSteamRunning = "wait";
 

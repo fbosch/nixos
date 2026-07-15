@@ -180,6 +180,8 @@ fetch_pr_updates() {
 	local pr_number="$1"
 
 	cd "$repo_root"
+	# The jq expression deliberately contains jq interpolation syntax.
+	# shellcheck disable=SC2016
 	gh api "repos/{owner}/{repo}/pulls/$pr_number/files?per_page=100" --paginate \
 		--jq '.[] | select(.filename | test("^pkgs/by-name/[^/]+/package\\.nix$")) | .filename as $file | ([.patch | split("\n")[] | select(test("^-\\s*version\\s*=")) | capture("^-\\s*version\\s*=\\s*\\\"(?<version>[^\\\"]+)\\\";").version][0]) as $old | ([.patch | split("\n")[] | select(test("^\\+\\s*version\\s*=")) | capture("^\\+\\s*version\\s*=\\s*\\\"(?<version>[^\\\"]+)\\\";").version][0]) as $new | "\($file)\t\($old)\t\($new)"' 2>/dev/null
 }
