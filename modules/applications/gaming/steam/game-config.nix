@@ -24,7 +24,7 @@ _:
             id = 1086940;
             launchOptions = {
               wrappers = [ "gamemoderun" ];
-              args = [ "--vulkan" ];
+              args = [ "--vulkan --skip-launcher" ];
             };
           };
         };

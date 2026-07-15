@@ -18,6 +18,35 @@ _: {
           "PROTON_NO_WM_DECORATION=1 PROTON_USE_NTSYNC=1 PROTON_ENABLE_WAYLAND=1 PROTON_ENABLE_NVAPI=1 mullvad-exclude gamemoderun gamescope -f -W 3440 -H 1440 -r 165"
         ]
       );
+      launcherSettings = pkgs.writeText "faugus-launcher-settings" ''
+        default-prefix="${config.home.homeDirectory}/Faugus"
+        mangohud=False
+        gamemode=True
+        disable-hidraw=False
+        prevent-sleep=False
+        default-runner=""
+        lossless-location=${config.home.homeDirectory}/.steam/steam/steamapps/common/Lossless Scaling/Lossless.dll
+        discrete-gpu=False
+        splash-disable=False
+        system-tray=True
+        start-boot=False
+        mono-icon=True
+        interface-mode=List
+        show-labels=False
+        enable-logging=False
+        wayland-driver=True
+        enable-wow64=False
+        language=en_US
+        show-hidden=False
+        disable-updates=False
+        gamepad-navigation=False
+        start-minimized=False
+        show-categories=False
+      '';
+      globalEnvironment = pkgs.writeText "faugus-launcher-environment" ''
+        TZ=:/etc/localtime
+        TZDIR=/usr/share/zoneinfo
+      '';
     in
     {
       xdg.desktopEntries.faugus-launcher = {
@@ -34,6 +63,22 @@ _: {
         target="${config.xdg.configHome}/faugus-launcher/presets.json"
         if [[ ! -e "$target" ]]; then
           ${pkgs.coreutils}/bin/install -Dm644 ${battleNetPreset} "$target"
+        fi
+      '';
+
+      home.activation.seedFaugusLauncherConfiguration = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+        config_file="${config.xdg.configHome}/faugus-launcher/config.ini"
+        if [[ ! -e "$config_file" ]]; then
+          ${pkgs.coreutils}/bin/install -dm755 "${config.xdg.configHome}/faugus-launcher"
+
+          while IFS= read -r setting; do
+            printf '%s\n' "$setting" >> "$config_file"
+          done < ${launcherSettings}
+        fi
+
+        environment_file="${config.xdg.configHome}/faugus-launcher/envar.txt"
+        if [[ ! -e "$environment_file" ]]; then
+          ${pkgs.coreutils}/bin/install -Dm644 ${globalEnvironment} "$environment_file"
         fi
       '';
     };
