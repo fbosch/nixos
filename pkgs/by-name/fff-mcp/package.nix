@@ -25,6 +25,12 @@ stdenvNoCC.mkDerivation rec {
 
   dontUnpack = true;
 
+  doInstallCheck = true;
+
+  installCheckPhase = ''
+    $out/bin/fff-mcp --help >/dev/null
+  '';
+
   passthru.updateScript = nix-update-script {
     extraArgs = [
       "--flake"

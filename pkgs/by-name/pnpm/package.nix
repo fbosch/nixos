@@ -17,6 +17,15 @@ stdenvNoCC.mkDerivation rec {
 
   nativeBuildInputs = [ makeWrapper ];
 
+  doInstallCheck = true;
+
+  installCheckPhase = ''
+    $out/bin/pnpm --version >/dev/null
+    $out/bin/pnpx --help >/dev/null
+    $out/bin/pn --version >/dev/null
+    $out/bin/pnx --help >/dev/null
+  '';
+
   installPhase = ''
     runHook preInstall
 

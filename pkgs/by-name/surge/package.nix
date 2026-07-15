@@ -34,6 +34,12 @@ buildGoModule rec {
     CGO_ENABLED = 0;
   };
 
+  doInstallCheck = true;
+
+  installCheckPhase = ''
+    $out/bin/surge --version >/dev/null
+  '';
+
   passthru.updateScript = nix-update-script {
     extraArgs = [
       "--flake"

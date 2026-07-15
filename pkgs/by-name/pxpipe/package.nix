@@ -35,6 +35,12 @@ stdenvNoCC.mkDerivation (finalAttrs: {
     pnpmConfigHook
   ];
 
+  doInstallCheck = true;
+
+  installCheckPhase = ''
+    $out/bin/pxpipe --help >/dev/null
+  '';
+
   buildPhase = ''
     runHook preBuild
     pnpm run build
