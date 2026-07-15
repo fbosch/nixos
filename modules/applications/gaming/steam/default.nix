@@ -8,7 +8,6 @@ in
     {
       environment.systemPackages = with pkgs; [
         (lazyApp pkgs steamcmd)
-        steam-run
         steamtinkerlaunch
       ];
 
