@@ -10,7 +10,7 @@ in
     }:
     let
       cfg = config.services.nextdns;
-      containersFile = ../../secrets/containers.yaml;
+      commonFile = ../../secrets/common.yaml;
     in
     {
       options.services.nextdns.listenAddress = lib.mkOption {
@@ -26,7 +26,7 @@ in
         ];
 
         sops.secrets."nextdns-profile-id" = lib.mkDefault (
-          sopsHelpers.mkSecret containersFile sopsHelpers.rootOnly
+          sopsHelpers.mkSecret commonFile sopsHelpers.rootOnly
         );
 
         systemd.services.nextdns = {

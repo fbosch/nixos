@@ -125,7 +125,7 @@ else
 	exit 1
 fi
 
-if gpg --batch --yes --pinentry-mode loopback --passphrase "$gpg_backup_passphrase" --import "$tmp_decrypted" 2>&1; then
+if gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 --import "$tmp_decrypted" <<<"$gpg_backup_passphrase" 2>&1; then
 	printf "GPG key imported successfully.\n"
 else
 	printf "Error: Failed to decrypt or import GPG key from gist.\n"

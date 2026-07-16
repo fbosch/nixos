@@ -17,14 +17,36 @@ creation_rules:
           - *rvn-srv
           - *rvn-vm
           - *fbb-user
-  - path_regex: secrets/(common|apis|containers|development)\.yaml$
+  - path_regex: secrets/common\.yaml$
     key_groups:
       - pgp:
           - *admin
         age:
           - *rvn-pc
-          - *Frederiks-Macbook-Pro
           - *Frederiks-Macbook-Pro-system
           - *rvn-srv
-          - *rvn-vm
+          - *fbb-user
+  - path_regex: secrets/apis\.yaml$
+    key_groups:
+      - pgp:
+          - *admin
+        age:
+          - *rvn-pc
+          - *Frederiks-Macbook-Pro-system
+          - *rvn-srv
+          - *fbb-user
+  - path_regex: secrets/containers\.yaml$
+    key_groups:
+      - pgp:
+          - *admin
+        age:
+          - *rvn-srv
+  - path_regex: secrets/development\.yaml$
+    key_groups:
+      - pgp:
+          - *admin
+        age:
+          - *rvn-pc
+          - *Frederiks-Macbook-Pro-system
+          - *rvn-srv
           - *fbb-user

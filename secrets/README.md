@@ -5,19 +5,13 @@
 1. **Import GPG key** (for manual secret editing):
 
    - Retrieve your GPG private key from Bitwarden
-   - Save it to a temporary file:
-   
-   ```bash
-   # Copy GPG private key from Bitwarden to clipboard, then:
-   pbpaste > /tmp/private.key  # macOS
-   # or
-   xclip -o > /tmp/private.key  # Linux
-   
-   # Import the key
-   gpg --import /tmp/private.key
-   
-   # Clean up
-   rm /tmp/private.key
+    - Import it directly from the clipboard:
+
+    ```bash
+    # Copy GPG private key from Bitwarden to clipboard, then:
+    pbpaste | gpg --import  # macOS
+    # or
+    xclip -o | gpg --import  # Linux
    ```
 
 2. **Build system** (auto-generates age key):
@@ -81,9 +75,34 @@ sops -d secrets/common.yaml
   - NixOS: `/var/lib/sops-nix/key.txt`
   - Darwin: `~/.config/sops/age/keys.txt`
   - Used for automated decryption during system activation
-  - Backed up in `secrets/<hostname>-age-key.txt` (gitignored)
+   - Keep recovery copies outside this repository in an encrypted backup system
   
 - **GPG key**: Stored in Bitwarden
   - Used for manual secret editing with `sops`
   - Disaster recovery if all machines are lost
-  - Both keys can decrypt the repository secrets files
+   - Recovery recipient for the repository secrets files
+
+## Recipient changes
+
+Recipient rules are separated by secret class. After changing `.sops.yaml`, run
+`./scripts/update-sops-keys.sh` from a machine that can decrypt every affected
+file. The script updates temporary copies first and replaces the repository
+files only after every update succeeds.
+
+Current runtime recipients are derived from host imports:
+
+- `common.yaml` and `apis.yaml`: `rvn-pc`, `rvn-srv`, and the Mac system key.
+- `containers.yaml`: `rvn-srv`.
+- `development.yaml`: `rvn-pc`, `rvn-srv`, and the Mac system key.
+
+`fbb-user` is retained for Home Manager decryption. Verify its private key is
+installed at the configured Home Manager age-key path before removing it. The
+`admin` GPG key is retained as the offline/manual recovery recipient.
+
+## Moving NextDNS
+
+`nextdns-profile-id` belongs in `common.yaml` because both the PC and server
+consume it. Before activating this configuration, use SOPS to copy the value
+from `containers.yaml` into `common.yaml`, then remove it from
+`containers.yaml`. Run `./scripts/update-sops-keys.sh` afterwards to apply the
+recipient rules.

@@ -17,7 +17,6 @@ in
     services = {
       openmemory-container = {
         buildImages = true;
-        dashboardApiUrl = "https://memory.corvus-corax.synology.me";
       };
 
       pihole-container = {

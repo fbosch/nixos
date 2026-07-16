@@ -16,7 +16,7 @@
 # Alternatively, run this script BEFORE first build to set up
 # a specific key.
 
-set -e
+set -euo pipefail
 
 if [ -r /dev/tty ]; then
 	export GPG_TTY=/dev/tty
@@ -101,16 +101,6 @@ else
 	echo
 fi
 
-# Keep Home Manager sops-nix key in sync with system key on NixOS.
-if [[ $PLATFORM == "NixOS" ]]; then
-	mkdir -p "$(dirname "$HM_AGE_KEY_FILE")"
-	sudo install -Dm600 "$AGE_KEY_FILE" "$HM_AGE_KEY_FILE"
-	sudo chown "$USER:$(id -gn "$USER")" "$HM_AGE_KEY_FILE"
-	chmod 600 "$HM_AGE_KEY_FILE"
-	echo "Synced user age key: $HM_AGE_KEY_FILE"
-	echo
-fi
-
 # Extract public key
 if [[ $PLATFORM == "NixOS" ]]; then
 	AGE_PUBLIC_KEY=$(sudo age-keygen -y "$AGE_KEY_FILE")
@@ -120,27 +110,28 @@ fi
 echo "Age public key: $AGE_PUBLIC_KEY"
 echo
 
-# Backup age key to secrets directory
-BACKUP_KEY_FILE="secrets/${HOSTNAME}-age-key.txt"
-if [ ! -f "$BACKUP_KEY_FILE" ]; then
-	echo "Creating backup at $BACKUP_KEY_FILE (gitignored)..."
-	if [[ $PLATFORM == "NixOS" ]]; then
-		sudo cp "$AGE_KEY_FILE" "$BACKUP_KEY_FILE"
-		sudo chown "$USER":users "$BACKUP_KEY_FILE"
-	else
-		cp "$AGE_KEY_FILE" "$BACKUP_KEY_FILE"
-	fi
-	chmod 600 "$BACKUP_KEY_FILE"
-	echo "Backup created!"
-	echo
-fi
-
 # Check if .sops.yaml exists
 if [ ! -f .sops.yaml ]; then
 	echo "Error: .sops.yaml not found in current directory"
 	echo "Run this script from your NixOS configuration directory"
 	exit 1
 fi
+
+# Preserve the repository state until every secret accepts the new recipient set.
+rollback_dir=$(mktemp -d)
+success=false
+cleanup() {
+	if [ "$success" = "false" ]; then
+		cp "$rollback_dir/.sops.yaml" .sops.yaml
+		cp "$rollback_dir"/secrets/*.yaml secrets/
+		echo "Rolled back incomplete recipient update."
+	fi
+	rm -rf "$rollback_dir"
+}
+cp .sops.yaml "$rollback_dir/.sops.yaml"
+mkdir "$rollback_dir/secrets"
+cp secrets/*.yaml "$rollback_dir/secrets/"
+trap cleanup EXIT
 
 # Detect key drift between local age key and .sops.yaml host entry
 EXISTING_HOST_KEY=$(awk -v host="$HOSTNAME" '
@@ -252,7 +243,6 @@ echo "=== Bootstrap Complete ==="
 echo
 echo "Age key for '$HOSTNAME' has been:"
 echo "  ✓ Found at $AGE_KEY_FILE"
-echo "  ✓ Backed up to $BACKUP_KEY_FILE"
 echo "  ✓ Added to .sops.yaml"
 echo "  ✓ Used to re-encrypt secrets"
 echo
@@ -263,3 +253,5 @@ echo "2. Commit the updated .sops.yaml (private keys are gitignored):"
 echo "   git add .sops.yaml && git commit -m 'Add age key for $HOSTNAME'"
 echo "3. Rebuild your system to activate secrets:"
 echo "   $REBUILD_CMD"
+
+success=true

@@ -74,11 +74,6 @@ in
                 "exa-api-key"
               ])
 
-              # Container-backed API secrets used by local tools
-              (mkSecrets containersFile [
-                "openmemory-api-key"
-              ])
-
               # Special cases with custom options
               {
                 ssh-private-key = mkSecret commonFile {

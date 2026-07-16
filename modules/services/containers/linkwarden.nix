@@ -53,24 +53,6 @@ in
           description = "Base directory for Linkwarden data";
         };
 
-        postgresPassword = lib.mkOption {
-          type = lib.types.nullOr lib.types.str;
-          default = null;
-          description = "PostgreSQL password (leave null to use SOPS template via envFile)";
-        };
-
-        nextauthSecret = lib.mkOption {
-          type = lib.types.nullOr lib.types.str;
-          default = null;
-          description = "NextAuth secret (leave null to use SOPS template via envFile)";
-        };
-
-        meiliMasterKey = lib.mkOption {
-          type = lib.types.nullOr lib.types.str;
-          default = null;
-          description = "Meilisearch master key (leave null to use SOPS template via envFile)";
-        };
-
         envFile = lib.mkOption {
           type = lib.types.nullOr lib.types.str;
           default = null;
@@ -182,13 +164,6 @@ in
           lib.attrByPath [ "sops" "templates" "linkwarden-env" "path" ] null config
         );
 
-        assertions = [
-          {
-            assertion = cfg.envFile != null || cfg.postgresPassword != null;
-            message = "linkwarden-container: Either envFile or postgresPassword must be set";
-          }
-        ];
-
         services.exposedPorts = lib.mkAfter [
           {
             service = "linkwarden-container";
@@ -216,10 +191,7 @@ in
             ContainerName=linkwarden-postgres
             Image=docker.io/library/postgres:16-alpine
             Network=linkwarden.network
-            ${lib.optionalString (cfg.envFile != null) "EnvironmentFile=${cfg.envFile}"}
-            ${lib.optionalString (
-              cfg.postgresPassword != null
-            ) "Environment=POSTGRES_PASSWORD=${cfg.postgresPassword}"}
+            EnvironmentFile=${cfg.envFile}
             Environment=POSTGRES_DB=postgres
             Environment=POSTGRES_USER=postgres
             Volume=${cfg.dataDir}/pgdata:/var/lib/postgresql/data
@@ -252,10 +224,7 @@ in
             Image=docker.io/getmeili/meilisearch:v1.49.0
             Network=linkwarden.network
             PodmanArgs=--network-alias=meilisearch
-            ${lib.optionalString (cfg.envFile != null) "EnvironmentFile=${cfg.envFile}"}
-            ${lib.optionalString (
-              cfg.meiliMasterKey != null
-            ) "Environment=MEILI_MASTER_KEY=${cfg.meiliMasterKey}"}
+            EnvironmentFile=${cfg.envFile}
             Volume=${cfg.dataDir}/meili_data:/meili_data
             ${lib.optionalString (cfg.meilisearch.cpus != null) "PodmanArgs=--cpus=${cfg.meilisearch.cpus}"}
             ${lib.optionalString (cfg.meilisearch.memory != null) "Memory=${cfg.meilisearch.memory}"}
@@ -287,16 +256,10 @@ in
             Network=linkwarden.network
             PublishPort=${toString cfg.port}:3000
             Volume=${cfg.dataDir}/data:/data/data
-            ${lib.optionalString (cfg.envFile != null) "EnvironmentFile=${cfg.envFile}"}
+            EnvironmentFile=${cfg.envFile}
             Environment=DATABASE_URL=postgresql://postgres:$POSTGRES_PASSWORD@linkwarden-postgres:5432/postgres
-            ${lib.optionalString (
-              cfg.nextauthSecret != null
-            ) "Environment=NEXTAUTH_SECRET=${cfg.nextauthSecret}"}
             Environment=NEXTAUTH_URL=${cfg.nextauthUrl}
             Environment=MEILI_ADDR=http://linkwarden-meilisearch:7700
-            ${lib.optionalString (
-              cfg.envFile == null && cfg.meiliMasterKey != null
-            ) "Environment=MEILI_MASTER_KEY=${cfg.meiliMasterKey}"}
             Environment=NEXT_PUBLIC_DISABLE_REGISTRATION=${if cfg.disableRegistration then "true" else "false"}
             Environment=PAGINATION_TAKE_COUNT=${toString cfg.paginationTakeCount}
             Environment=AUTOSCROLL_TIMEOUT=${toString cfg.autoscrollTimeout}

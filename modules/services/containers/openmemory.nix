@@ -22,7 +22,7 @@ in
 
       # Script to build images using podman build (wraps existing Dockerfiles)
       mkBuildImagesScript =
-        dashboardApiUrl: dashboardApiKeyPath: imageTag:
+        imageTag:
         pkgs.writeShellScriptBin "build-openmemory-images" ''
           set -euo pipefail
 
@@ -47,76 +47,6 @@ in
             exit 1
           fi
 
-          if [ ! -d "$TEMP_DIR/dashboard" ]; then
-            echo "Missing dashboard in build context"
-            ls -la "$TEMP_DIR"
-            exit 1
-          fi
-
-          cat > "$TEMP_DIR/dashboard/Dockerfile" <<'EOF'
-          # ===== BUILD STAGE =====
-          FROM node:20-alpine AS builder
-
-          WORKDIR /app
-
-          ARG NEXT_PUBLIC_API_URL
-          ARG NEXT_PUBLIC_API_KEY
-          ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
-          ENV NEXT_PUBLIC_API_KEY=$NEXT_PUBLIC_API_KEY
-
-          # Install dependencies
-          COPY package*.json ./
-          RUN npm install
-
-          # Copy source code
-          COPY . .
-
-          # Ensure the API URL is baked into the build
-          RUN echo "NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL" > .env.production \
-           && echo "NEXT_PUBLIC_API_KEY=$NEXT_PUBLIC_API_KEY" >> .env.production
-
-          # Build the Next.js application
-          RUN npm run build
-
-          # ===== PRODUCTION STAGE =====
-          FROM node:20-alpine AS production
-
-          WORKDIR /app
-
-          # Install only production dependencies
-          COPY package*.json ./
-          RUN npm install --omit=dev
-
-          # Ensure TypeScript is available to load next.config.ts at runtime
-          RUN npm install --no-save typescript
-
-          ARG NEXT_PUBLIC_API_URL
-          ARG NEXT_PUBLIC_API_KEY
-          ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
-          ENV NEXT_PUBLIC_API_KEY=$NEXT_PUBLIC_API_KEY
-
-          # Copy built assets from builder
-          COPY --from=builder /app/.next ./.next
-          COPY --from=builder /app/public ./public
-          COPY --from=builder /app/next.config.ts ./next.config.ts
-
-          # Create a dedicated non-root user for security
-          RUN addgroup -g 1001 -S nodejs \
-           && adduser -u 1001 -S nextjs -G nodejs \
-           && chown -R nextjs:nodejs /app
-
-          USER nextjs
-
-          # Expose the application port
-          EXPOSE 3000
-
-          # Set environment to production
-          ENV NODE_ENV=production
-
-          # Start the Next.js application
-          CMD ["npm", "start"]
-          EOF
-
           cd "$TEMP_DIR"
 
           echo "==> Building API server image..."
@@ -126,23 +56,8 @@ in
             backend/
 
           echo ""
-          echo "==> Building dashboard image..."
-          DASHBOARD_API_URL=${lib.escapeShellArg dashboardApiUrl}
-          DASHBOARD_API_KEY=$(cat ${lib.escapeShellArg dashboardApiKeyPath})
-
-          ${pkgs.podman}/bin/podman build --format docker \
-            -t localhost/openmemory-dashboard:$OPENMEMORY_TAG \
-            --build-arg NEXT_PUBLIC_API_URL="$DASHBOARD_API_URL" \
-            --build-arg NEXT_PUBLIC_API_KEY="$DASHBOARD_API_KEY" \
-            -f dashboard/Dockerfile \
-            dashboard/
-
-          echo ""
           echo "✓ Images built and loaded successfully!"
-            echo "  localhost/openmemory:$OPENMEMORY_TAG"
           echo "  localhost/openmemory:$OPENMEMORY_TAG"
-            echo "  localhost/openmemory-dashboard:$OPENMEMORY_TAG"
-          echo "  localhost/openmemory-dashboard:$OPENMEMORY_TAG"
           echo ""
           echo "You can now rebuild your system to start the containers."
         '';
@@ -154,12 +69,6 @@ in
           type = lib.types.port;
           default = 8380;
           description = "Port for OpenMemory API server";
-        };
-
-        dashboardPort = lib.mkOption {
-          type = lib.types.port;
-          default = 3380;
-          description = "Port for OpenMemory dashboard";
         };
 
         imageTag = lib.mkOption {
@@ -242,19 +151,6 @@ in
           description = "Vector dimension for embeddings";
         };
 
-        # Provider API Keys
-        openaiApiKey = lib.mkOption {
-          type = lib.types.str;
-          default = "";
-          description = "OpenAI API key (leave empty to disable)";
-        };
-
-        geminiApiKey = lib.mkOption {
-          type = lib.types.str;
-          default = "";
-          description = "Gemini API key (leave empty to disable)";
-        };
-
         ollamaUrl = lib.mkOption {
           type = lib.types.str;
           default = "http://localhost:11434";
@@ -313,26 +209,12 @@ in
           description = "Maximum requests per window";
         };
 
-        # Dashboard
-        enableDashboard = lib.mkOption {
-          type = lib.types.bool;
-          default = true;
-          description = "Enable the web dashboard";
-        };
-
-        dashboardApiUrl = lib.mkOption {
-          type = lib.types.str;
-          default = "http://localhost:8380";
-          description = "API URL for dashboard to connect to";
-        };
       };
 
       config =
         let
           cfg = config.services.openmemory-container;
-          buildImagesScript =
-            mkBuildImagesScript cfg.dashboardApiUrl config.sops.secrets.openmemory-api-key.path
-              cfg.imageTag;
+          buildImagesScript = mkBuildImagesScript cfg.imageTag;
           hostUser =
             if cfg.runAsUser == null then
               null
@@ -364,16 +246,12 @@ in
               missing=1
             fi
 
-            if ${lib.boolToString cfg.enableDashboard} && ! ${pkgs.podman}/bin/podman image exists localhost/openmemory-dashboard:${cfg.imageTag}; then
-              missing=1
-            fi
-
             stamp_rev=""
             if [ -f "$stamp_file" ]; then
               stamp_rev=$(cat "$stamp_file")
             fi
 
-            desired_stamp="${openmemoryRev}|${cfg.dashboardApiUrl}"
+            desired_stamp="${openmemoryRev}"
 
             if [ "$missing" -eq 1 ] || [ "$stamp_rev" != "$desired_stamp" ]; then
               echo "OpenMemory images missing or out of date; building..." | tee -a "$log_file"
@@ -385,7 +263,7 @@ in
           services.exposedPorts = lib.mkAfter [
             {
               service = "openmemory-container";
-              tcpPorts = [ cfg.port ] ++ lib.optional cfg.enableDashboard cfg.dashboardPort;
+              tcpPorts = [ cfg.port ];
             }
           ];
 
@@ -398,7 +276,7 @@ in
             templates."openmemory-api-key-env" = {
               content = ''
                 OM_API_KEY=${config.sops.placeholder.openmemory-api-key}
-                NEXT_PUBLIC_API_KEY=${config.sops.placeholder.openmemory-api-key}
+                OM_OPENAI_API_KEY=${config.sops.placeholder.openai-api-key}
               '';
               mode = "0400";
             };
@@ -442,12 +320,6 @@ in
                 Environment=OM_EMBEDDING_FALLBACK=${lib.escapeShellArg cfg.embeddingFallback}
                 Environment=OM_VEC_DIM=${toString cfg.vectorDim}
 
-                ${lib.optionalString (cfg.openaiApiKey != "") ''
-                  Environment=OM_OPENAI_API_KEY=${lib.escapeShellArg cfg.openaiApiKey}
-                ''}
-                ${lib.optionalString (cfg.geminiApiKey != "") ''
-                  Environment=OM_GEMINI_API_KEY=${lib.escapeShellArg cfg.geminiApiKey}
-                ''}
                 Environment=OM_OLLAMA_URL=${lib.escapeShellArg cfg.ollamaUrl}
 
                 # Memory & Search
@@ -496,55 +368,11 @@ in
                 VolumeName=openmemory-data
               '';
             })
-
-            (lib.mkIf cfg.enableDashboard {
-              "containers/systemd/openmemory-dashboard.container".text = ''
-                [Unit]
-                Description=OpenMemory Dashboard
-                After=network-online.target openmemory.service
-                Wants=network-online.target
-                Requires=openmemory.service
-
-                [Container]
-                ContainerName=openmemory-dashboard
-                Image=localhost/openmemory-dashboard:${cfg.imageTag}
-                Pull=never
-                PublishPort=${toString cfg.dashboardPort}:3000
-                Environment=NEXT_PUBLIC_API_URL=${lib.escapeShellArg cfg.dashboardApiUrl}
-                EnvironmentFile=${config.sops.templates."openmemory-api-key-env".path}
-
-                Memory=512m
-                PidsLimit=300
-                Ulimit=nofile=2048:4096
-
-                # Health Check
-                HealthCmd=wget --no-verbose --tries=1 --spider http://localhost:3000 || exit 1
-                HealthInterval=30s
-                HealthTimeout=10s
-                HealthStartPeriod=30s
-                HealthRetries=3
-
-                LogDriver=journald
-                LogOpt=tag=openmemory-dashboard
-
-                [Service]
-                RestrictAddressFamilies=~AF_ALG
-                SystemCallArchitectures=native
-                Restart=always
-                RestartSec=10
-                CPUQuota=100%
-                TimeoutStartSec=300
-
-                [Install]
-                WantedBy=multi-user.target
-              '';
-            })
           ];
 
           networking.firewall.allowedTCPPorts = [
             cfg.port
-          ]
-          ++ lib.optional cfg.enableDashboard cfg.dashboardPort;
+          ];
         };
     };
 }
