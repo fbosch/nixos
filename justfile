@@ -44,6 +44,18 @@ dns-status domain='example.com':
 network-status domain='example.com':
     bash ./scripts/network-status.sh "{{domain}}"
 
+# Compare public Cloudflare DNS against the system resolver
+network-recovery-check domain='example.com':
+    bash ./scripts/network-recovery-check.sh "{{domain}}"
+
+# Restart local DNS services, then verify public and system DNS
+network-restart-dns domain='example.com':
+    sudo bash ./scripts/network-recover.sh dns "{{domain}}"
+
+# Restart NetworkManager and local DNS services, then verify connectivity
+network-reset domain='example.com':
+    sudo bash ./scripts/network-recover.sh full "{{domain}}"
+
 # Format all files
 fmt:
     fmt
