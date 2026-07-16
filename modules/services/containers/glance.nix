@@ -156,7 +156,6 @@ in
               "synology-api-password"
               "linkwarden-access-token"
               "tailscale-api-key"
-              "nextdns-profile-id"
               "nextdns-api-key"
               "speedtest-tracker-api-token"
               "prowlarr-api-key"
