@@ -30,6 +30,7 @@
           inherit (pkgs.stdenv.hostPlatform) system;
 
           hyprlandPackage = inputs.hyprland.packages.${system}.hyprland;
+          hyprfocusPlugin = inputs.hyprland-plugins.packages.${system}.hyprfocus;
           xdgDesktopPortalHyprlandPackage =
             inputs.hyprland.packages.${system}.xdg-desktop-portal-hyprland.override
               {
@@ -83,6 +84,7 @@
             __JAVA_AWT_WM_NONREPARENTING = "1";
             MOZ_ENABLE_WAYLAND = "1";
             XDG_SESSION_TYPE = "wayland";
+            HYPRFOCUS_PLUGIN = "${hyprfocusPlugin}/lib/libhyprfocus.so";
           };
 
           environment.systemPackages = [

@@ -36,6 +36,14 @@ lint:
 check-service-ports:
     bash ./scripts/check-service-ports.sh
 
+# Show local DNS resolver and service diagnostics
+dns-status domain='example.com':
+    bash ./scripts/dns-status.sh "{{domain}}"
+
+# Show network, DNS, and VPN health diagnostics
+network-status domain='example.com':
+    bash ./scripts/network-status.sh "{{domain}}"
+
 # Format all files
 fmt:
     fmt
