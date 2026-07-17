@@ -5,7 +5,7 @@ set -uo pipefail
 domain="${1:-example.com}"
 
 section() {
-	printf '\n== %s ==\n' "$1"
+  printf '\n== %s ==\n' "$1"
 }
 
 section "Resolver configuration"

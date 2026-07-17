@@ -57,7 +57,7 @@
 
     # Hyprland desktop environment (modules/desktop/hyprland.nix)
     hyprland = {
-      url = "github:hyprwm/Hyprland?submodules=1";
+      url = "github:hyprwm/Hyprland";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.systems.follows = "dedupe_systems";
     };

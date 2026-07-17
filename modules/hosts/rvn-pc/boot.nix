@@ -17,6 +17,7 @@
           "nvidia"
           "nvidia_modeset"
           "nvidia_drm"
+          "ntsync"
           "rtc_cmos"
         ];
         kernelParams = [

@@ -68,7 +68,10 @@
           ];
           hooks = {
             nixpkgs-fmt.enable = true;
-            shfmt.enable = true;
+            shfmt = {
+              enable = true;
+              settings.indent = 2;
+            };
             statix = {
               enable = true;
               settings.ignore = [ "{.agents,.opencode/skills,.github/skills}/**" ];

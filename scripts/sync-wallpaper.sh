@@ -6,12 +6,12 @@ output_path="${2:-assets/wallpaper.png}"
 monitor_name="${3:-DP-2}"
 
 if [ ! -f "$config_path" ]; then
-	printf 'Config not found: %s\n' "$config_path" >&2
-	exit 1
+  printf 'Config not found: %s\n' "$config_path" >&2
+  exit 1
 fi
 
 wallpaper_path="$(
-	python3 - "$config_path" "$monitor_name" <<'PY'
+  python3 - "$config_path" "$monitor_name" <<'PY'
 import sys
 
 config_path = sys.argv[1]
@@ -59,17 +59,17 @@ PY
 )"
 
 if [ -z "$wallpaper_path" ]; then
-	printf 'No wallpaper path found in %s\n' "$config_path" >&2
-	exit 1
+  printf 'No wallpaper path found in %s\n' "$config_path" >&2
+  exit 1
 fi
 
 if [ "${wallpaper_path#~}" != "$wallpaper_path" ]; then
-	wallpaper_path="$HOME${wallpaper_path#~}"
+  wallpaper_path="$HOME${wallpaper_path#~}"
 fi
 
 if [ ! -f "$wallpaper_path" ]; then
-	printf 'Wallpaper file not found: %s\n' "$wallpaper_path" >&2
-	exit 1
+  printf 'Wallpaper file not found: %s\n' "$wallpaper_path" >&2
+  exit 1
 fi
 
 mkdir -p "$(dirname "$output_path")"

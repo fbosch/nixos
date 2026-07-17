@@ -4,16 +4,17 @@
 set -euo pipefail
 
 if [ ! -f .sops.yaml ]; then
-	echo "Error: .sops.yaml not found. Run from repository root." >&2
-	exit 1
+  echo "Error: .sops.yaml not found. Run from repository root." >&2
+  exit 1
 fi
 
 if [ -z "${SOPS_AGE_KEY_FILE:-}" ] && [ -r "$HOME/.config/sops/age/keys.txt" ]; then
-	export SOPS_AGE_KEY_FILE="$HOME/.config/sops/age/keys.txt"
+  export SOPS_AGE_KEY_FILE="$HOME/.config/sops/age/keys.txt"
 fi
 
 if [ -r /dev/tty ]; then
-	export GPG_TTY="$(tty)"
+  GPG_TTY="$(tty)"
+  export GPG_TTY
 fi
 
 shopt -s nullglob
@@ -21,13 +22,13 @@ secret_files=(secrets/*.yaml)
 shopt -u nullglob
 
 if [ ${#secret_files[@]} -eq 0 ]; then
-	echo "No secret YAML files found under secrets/."
-	exit 0
+  echo "No secret YAML files found under secrets/."
+  exit 0
 fi
 
 temporary_root=$(mktemp -d)
 cleanup() {
-	rm -rf "$temporary_root"
+  rm -rf "$temporary_root"
 }
 trap cleanup EXIT
 
@@ -37,9 +38,9 @@ cp "${secret_files[@]}" "$temporary_root/secrets/"
 
 echo "Updating SOPS keys for ${#secret_files[@]} files..."
 for file in "${secret_files[@]}"; do
-	temporary_file="$temporary_root/$file"
-	echo "  - $file"
-	SOPS_CONFIG="$temporary_root/.sops.yaml" sops updatekeys --yes "$temporary_file"
+  temporary_file="$temporary_root/$file"
+  echo "  - $file"
+  SOPS_CONFIG="$temporary_root/.sops.yaml" sops updatekeys --yes "$temporary_file"
 done
 
 cp "$temporary_root"/secrets/*.yaml secrets/

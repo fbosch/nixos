@@ -11,7 +11,6 @@ let
   # Secret file paths
   commonFile = ../secrets/common.yaml;
   apisFile = ../secrets/apis.yaml;
-  containersFile = ../secrets/containers.yaml;
 
   # Permission presets
   inherit (sopsHelpers)

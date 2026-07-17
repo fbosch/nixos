@@ -19,7 +19,7 @@
 set -euo pipefail
 
 if [ -r /dev/tty ]; then
-	export GPG_TTY=/dev/tty
+  export GPG_TTY=/dev/tty
 fi
 SOPS_GPG_EXEC="$(command -v gpg || true)"
 export SOPS_GPG_EXEC
@@ -29,18 +29,17 @@ echo
 
 # Detect platform and set key location
 if [[ $OSTYPE == "darwin"* ]]; then
-	PLATFORM="Darwin"
-	AGE_KEY_FILE="$HOME/.config/sops/age/keys.txt"
-	# shellcheck disable=SC2016
-	REBUILD_CMD='darwin-rebuild switch --flake .#$(hostname -s)'
-	SED_INPLACE=(-i '')
+  PLATFORM="Darwin"
+  AGE_KEY_FILE="$HOME/.config/sops/age/keys.txt"
+  # shellcheck disable=SC2016
+  REBUILD_CMD='darwin-rebuild switch --flake .#$(hostname -s)'
+  SED_INPLACE=(-i '')
 else
-	PLATFORM="NixOS"
-	AGE_KEY_FILE="/var/lib/sops-nix/key.txt"
-	HM_AGE_KEY_FILE="$HOME/.config/sops/age/keys.txt"
-	# shellcheck disable=SC2016
-	REBUILD_CMD='sudo nixos-rebuild switch --flake .#$(hostname)'
-	SED_INPLACE=(-i)
+  PLATFORM="NixOS"
+  AGE_KEY_FILE="/var/lib/sops-nix/key.txt"
+  # shellcheck disable=SC2016
+  REBUILD_CMD='sudo nixos-rebuild switch --flake .#$(hostname)'
+  SED_INPLACE=(-i)
 fi
 
 # Detect hostname
@@ -52,81 +51,81 @@ echo
 
 # Check if sops is installed
 if ! command -v sops &>/dev/null; then
-	echo "Error: sops not found. Install it first:"
-	echo "  nix-shell -p sops age"
-	exit 1
+  echo "Error: sops not found. Install it first:"
+  echo "  nix-shell -p sops age"
+  exit 1
 fi
 
 # Check if GPG key is available for decryption
 if ! gpg --list-secret-keys 5E0FEC74518ED5FEAA5EA33E5C49A562D850322A &>/dev/null; then
-	echo "Warning: GPG key not found in keyring."
-	echo "You should run bootstrap-gpg.sh first if you need to edit secrets manually."
-	echo
+  echo "Warning: GPG key not found in keyring."
+  echo "You should run bootstrap-gpg.sh first if you need to edit secrets manually."
+  echo
 fi
 
 # Check if age key already exists
 if [ -f "$AGE_KEY_FILE" ] && [ -s "$AGE_KEY_FILE" ]; then
-	echo "Age key already exists at $AGE_KEY_FILE"
-	echo
-	if [[ $PLATFORM == "NixOS" ]]; then
-		AGE_PUBLIC_KEY=$(sudo age-keygen -y "$AGE_KEY_FILE" 2>/dev/null || true)
-	else
-		AGE_PUBLIC_KEY=$(age-keygen -y "$AGE_KEY_FILE" 2>/dev/null || true)
-	fi
-	if [ -n "$AGE_PUBLIC_KEY" ]; then
-		echo "Public key: $AGE_PUBLIC_KEY"
-		echo
-	fi
+  echo "Age key already exists at $AGE_KEY_FILE"
+  echo
+  if [[ $PLATFORM == "NixOS" ]]; then
+    AGE_PUBLIC_KEY=$(sudo age-keygen -y "$AGE_KEY_FILE" 2>/dev/null || true)
+  else
+    AGE_PUBLIC_KEY=$(age-keygen -y "$AGE_KEY_FILE" 2>/dev/null || true)
+  fi
+  if [ -n "$AGE_PUBLIC_KEY" ]; then
+    echo "Public key: $AGE_PUBLIC_KEY"
+    echo
+  fi
 else
-	echo "No age key found at $AGE_KEY_FILE"
-	echo
-	read -p "Generate a new age key now? (Y/n): " -n 1 -r
-	echo
-	if [[ $REPLY =~ ^[Nn]$ ]]; then
-		echo "Skipping age key bootstrap."
-		exit 1
-	fi
+  echo "No age key found at $AGE_KEY_FILE"
+  echo
+  read -p "Generate a new age key now? (Y/n): " -n 1 -r
+  echo
+  if [[ $REPLY =~ ^[Nn]$ ]]; then
+    echo "Skipping age key bootstrap."
+    exit 1
+  fi
 
-	if [[ $PLATFORM == "NixOS" ]]; then
-		sudo mkdir -p "$(dirname "$AGE_KEY_FILE")"
-		sudo age-keygen -o "$AGE_KEY_FILE"
-		sudo chmod 600 "$AGE_KEY_FILE"
-		sudo chown root:root "$AGE_KEY_FILE"
-	else
-		mkdir -p "$(dirname "$AGE_KEY_FILE")"
-		age-keygen -o "$AGE_KEY_FILE"
-		chmod 600 "$AGE_KEY_FILE"
-	fi
-	echo "Generated age key at $AGE_KEY_FILE"
-	echo
+  if [[ $PLATFORM == "NixOS" ]]; then
+    sudo mkdir -p "$(dirname "$AGE_KEY_FILE")"
+    sudo age-keygen -o "$AGE_KEY_FILE"
+    sudo chmod 600 "$AGE_KEY_FILE"
+    sudo chown root:root "$AGE_KEY_FILE"
+  else
+    mkdir -p "$(dirname "$AGE_KEY_FILE")"
+    age-keygen -o "$AGE_KEY_FILE"
+    chmod 600 "$AGE_KEY_FILE"
+  fi
+  echo "Generated age key at $AGE_KEY_FILE"
+  echo
 fi
 
 # Extract public key
 if [[ $PLATFORM == "NixOS" ]]; then
-	AGE_PUBLIC_KEY=$(sudo age-keygen -y "$AGE_KEY_FILE")
+  AGE_PUBLIC_KEY=$(sudo age-keygen -y "$AGE_KEY_FILE")
 else
-	AGE_PUBLIC_KEY=$(age-keygen -y "$AGE_KEY_FILE")
+  AGE_PUBLIC_KEY=$(age-keygen -y "$AGE_KEY_FILE")
 fi
 echo "Age public key: $AGE_PUBLIC_KEY"
 echo
 
 # Check if .sops.yaml exists
 if [ ! -f .sops.yaml ]; then
-	echo "Error: .sops.yaml not found in current directory"
-	echo "Run this script from your NixOS configuration directory"
-	exit 1
+  echo "Error: .sops.yaml not found in current directory"
+  echo "Run this script from your NixOS configuration directory"
+  exit 1
 fi
 
 # Preserve the repository state until every secret accepts the new recipient set.
 rollback_dir=$(mktemp -d)
 success=false
 cleanup() {
-	if [ "$success" = "false" ]; then
-		cp "$rollback_dir/.sops.yaml" .sops.yaml
-		cp "$rollback_dir"/secrets/*.yaml secrets/
-		echo "Rolled back incomplete recipient update."
-	fi
-	rm -rf "$rollback_dir"
+  if [ "$success" = "false" ]; then
+    cp "$rollback_dir/.sops.yaml" .sops.yaml
+    cp "$rollback_dir"/secrets/*.yaml secrets/
+    echo "Rolled back incomplete recipient update."
+  fi
+  rm -rf "$rollback_dir"
 }
 cp .sops.yaml "$rollback_dir/.sops.yaml"
 mkdir "$rollback_dir/secrets"
@@ -147,39 +146,39 @@ EXISTING_HOST_KEY=$(awk -v host="$HOSTNAME" '
 
 DRIFT_DETECTED=false
 if [ -n "$EXISTING_HOST_KEY" ] && [ "$EXISTING_HOST_KEY" != "$AGE_PUBLIC_KEY" ]; then
-	DRIFT_DETECTED=true
-	echo "WARNING: age key drift detected for host '$HOSTNAME'"
-	echo "  Local age key:     $AGE_PUBLIC_KEY"
-	echo "  .sops.yaml key:    $EXISTING_HOST_KEY"
-	echo
-	echo "If this key is not updated and secrets re-encrypted, activation may fail to decrypt secrets."
-	echo
-	read -p "Continue and auto-fix now? (Y/n): " -n 1 -r
-	echo
-	if [[ $REPLY =~ ^[Nn]$ ]]; then
-		echo "Aborting. No changes made."
-		exit 1
-	fi
+  DRIFT_DETECTED=true
+  echo "WARNING: age key drift detected for host '$HOSTNAME'"
+  echo "  Local age key:     $AGE_PUBLIC_KEY"
+  echo "  .sops.yaml key:    $EXISTING_HOST_KEY"
+  echo
+  echo "If this key is not updated and secrets re-encrypted, activation may fail to decrypt secrets."
+  echo
+  read -p "Continue and auto-fix now? (Y/n): " -n 1 -r
+  echo
+  if [[ $REPLY =~ ^[Nn]$ ]]; then
+    echo "Aborting. No changes made."
+    exit 1
+  fi
 fi
 
 # Check if this hostname key already exists in .sops.yaml
 if grep -q "&${HOSTNAME}" .sops.yaml; then
-	echo "Age key for '$HOSTNAME' already exists in .sops.yaml"
-	echo
-	if [ "$DRIFT_DETECTED" != "true" ]; then
-		read -p "Do you want to update it with the current key? (y/N): " -n 1 -r
-		echo
-		if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-			echo "Keeping existing .sops.yaml entry. Exiting."
-			exit 0
-		fi
-	else
-		echo "Proceeding with update due to detected key drift."
-	fi
-	# Remove old key reference (macOS compatible)
-	sed "${SED_INPLACE[@]}" "/&${HOSTNAME}/d" .sops.yaml
-	# Remove old age reference in creation_rules (macOS compatible)
-	sed "${SED_INPLACE[@]}" "/\*${HOSTNAME}/d" .sops.yaml
+  echo "Age key for '$HOSTNAME' already exists in .sops.yaml"
+  echo
+  if [ "$DRIFT_DETECTED" != "true" ]; then
+    read -p "Do you want to update it with the current key? (y/N): " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+      echo "Keeping existing .sops.yaml entry. Exiting."
+      exit 0
+    fi
+  else
+    echo "Proceeding with update due to detected key drift."
+  fi
+  # Remove old key reference (macOS compatible)
+  sed "${SED_INPLACE[@]}" "/&${HOSTNAME}/d" .sops.yaml
+  # Remove old age reference in creation_rules (macOS compatible)
+  sed "${SED_INPLACE[@]}" "/\*${HOSTNAME}/d" .sops.yaml
 fi
 
 # Add new age key to .sops.yaml
@@ -195,15 +194,15 @@ sed "${SED_INPLACE[@]}" "${KEYS_LINE}a\\
 
 # Add to creation_rules age section
 if grep -q "age:" .sops.yaml; then
-	# Add to existing age list
-	AGE_SECTION_LINE=$(grep -n "^\s*age:" .sops.yaml | tail -1 | cut -d: -f1)
-	sed "${SED_INPLACE[@]}" "${AGE_SECTION_LINE}a\\
+  # Add to existing age list
+  AGE_SECTION_LINE=$(grep -n "^\s*age:" .sops.yaml | tail -1 | cut -d: -f1)
+  sed "${SED_INPLACE[@]}" "${AGE_SECTION_LINE}a\\
           - *${HOSTNAME}
 " .sops.yaml
 else
-	echo "Error: No 'age:' section found in .sops.yaml creation_rules"
-	echo "Please manually add the age key reference to your creation_rules"
-	exit 1
+  echo "Error: No 'age:' section found in .sops.yaml creation_rules"
+  echo "Please manually add the age key reference to your creation_rules"
+  exit 1
 fi
 
 echo "Updated .sops.yaml successfully!"
@@ -215,26 +214,26 @@ shopt -s nullglob
 SECRET_FILES=(secrets/*.yaml)
 failed_updates=0
 if [ ${#SECRET_FILES[@]} -gt 0 ]; then
-	for secret_file in "${SECRET_FILES[@]}"; do
-		echo "  Updating keys in $secret_file"
-		if sops updatekeys --yes "$secret_file"; then
-			:
-		else
-			failed_updates=1
-			echo "  Failed to update keys in $secret_file"
-		fi
-	done
-	if [ "$failed_updates" -eq 0 ]; then
-		echo "Secrets re-encrypted successfully!"
-	else
-		echo
-		echo "One or more secrets could not be re-encrypted."
-		echo "This usually means the current machine still has no key that can decrypt the existing file recipients."
-		echo "Use a machine that can already decrypt current secrets, add this host key there, run updatekeys, then sync changes."
-		exit 1
-	fi
+  for secret_file in "${SECRET_FILES[@]}"; do
+    echo "  Updating keys in $secret_file"
+    if sops updatekeys --yes "$secret_file"; then
+      :
+    else
+      failed_updates=1
+      echo "  Failed to update keys in $secret_file"
+    fi
+  done
+  if [ "$failed_updates" -eq 0 ]; then
+    echo "Secrets re-encrypted successfully!"
+  else
+    echo
+    echo "One or more secrets could not be re-encrypted."
+    echo "This usually means the current machine still has no key that can decrypt the existing file recipients."
+    echo "Use a machine that can already decrypt current secrets, add this host key there, run updatekeys, then sync changes."
+    exit 1
+  fi
 else
-	echo "Warning: no secrets YAML files found in secrets/"
+  echo "Warning: no secrets YAML files found in secrets/"
 fi
 shopt -u nullglob
 echo
