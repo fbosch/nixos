@@ -16,6 +16,7 @@
     "opencode-claude-auth": "2.0.0",
     "pokemonshow": "4.0.0",
     "typescript": "7.0.2",
-    "vercel": "56.2.1"
+    "vercel": "56.2.1",
+    "docs-cache": "0.7.0"
   }
 }
