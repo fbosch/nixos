@@ -1,5 +1,4 @@
-_:
-{
+_: {
   flake.modules.homeManager.applications =
     { pkgs
     , lib
@@ -19,7 +18,7 @@ _:
             if [[ -f "$custom" ]]; then
               rm -f "$custom"
             fi
-            ${lib.getExe pkgs.adwsteamgtk} -i
+            ${lib.getExe pkgs.adwsteamgtk} -u
           '';
         in
         {

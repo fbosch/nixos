@@ -235,13 +235,16 @@
           lib.hm.dag.entryAfter [ "linkGeneration" ] ''
             set -euo pipefail
 
-            if [ -n "''${oldGenPath:-}" ] && [ "''${oldGenPath}" = "''${newGenPath:-}" ]; then
-              echo "Home Manager generation unchanged, skipping font cache refresh"
+            cache_marker="''${XDG_CACHE_HOME:-$HOME/.cache}/fontconfig/.home-manager-${builtins.baseNameOf (toString proprietaryFontsPackage)}"
+            if [ -e "$cache_marker" ]; then
+              echo "Font cache already initialized, skipping refresh"
               exit 0
             fi
 
             fonts_dir="''${XDG_DATA_HOME:-$HOME/.local/share}/fonts"
             ${pkgs.fontconfig}/bin/fc-cache -f "$fonts_dir"
+            mkdir -p "$(dirname "$cache_marker")"
+            touch "$cache_marker"
           ''
         );
       };

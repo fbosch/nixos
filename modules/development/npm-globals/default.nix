@@ -122,6 +122,9 @@
           echo "Review dependency build scripts..."
           (
             cd "$npm_globals_dir"
+            # pnpm stores pending-build metadata in node_modules/.modules.yaml.
+            trap 'rm -rf node_modules' EXIT
+            pnpm install --frozen-lockfile --prod --ignore-scripts=false
             pnpm approve-builds
           )
         '';
