@@ -158,7 +158,7 @@
               IFS=', ' read -r -a selections <<<"$selection"
               for selection_item in "''${selections[@]}"; do
                 if [[ "$selection_item" =~ ^([0-9]+)-([0-9]+)$ ]]; then
-                  for ((index = ''${BASH_REMATCH[1]}; index <= ''${BASH_REMATCH[2]}; index++)); do
+                  for ((index = BASH_REMATCH[1]; index <= BASH_REMATCH[2]; index++)); do
                     add_package "$index"
                   done
                 elif [[ "$selection_item" =~ ^[0-9]+$ ]]; then
