@@ -39,9 +39,10 @@ finish_failed_install() {
 	exit 1
 }
 
-# Only run installs when a new Home Manager generation is activated
-# (e.g. via `home-manager switch`), not on every subsequent activation.
-if [ -n "${oldGenPath:-}" ] && [ "${oldGenPath}" = "${newGenPath:-}" ]; then
+# Only skip unchanged Home Manager generations during activation.
+if [ "${PNPM_GLOBALS_ACTIVATION:-0}" = 1 ] \
+	&& [ -n "${oldGenPath:-}" ] \
+	&& [ "${oldGenPath}" = "${newGenPath:-}" ]; then
 	echo "Home Manager generation unchanged, skipping npm global update"
 	exit 0
 fi

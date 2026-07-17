@@ -163,6 +163,7 @@
 
         activation.installNpmGlobalPackages = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
           ${installEnv "${config.home.homeDirectory}/nixos/modules/development/npm-globals/pnpm-lock.yaml"}
+          export PNPM_GLOBALS_ACTIVATION=1
           export PNPM_GLOBALS_NON_BLOCKING=1
           ${installNpmGlobalPackagesScript}/bin/install-npm-global-packages || echo "WARNING: Failed to install/update npm global packages." >&2
         '';
