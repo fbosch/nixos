@@ -4,23 +4,6 @@
     , pkgs
     , ...
     }:
-    let
-      zenLauncher = pkgs.writeShellApplication {
-        name = "zen-launch";
-        runtimeInputs = [
-          pkgs.flatpak
-          pkgs.gnugrep
-          pkgs.mullvad-vpn
-        ];
-        text = ''
-          if mullvad status 2>/dev/null | grep -qx "Connected"; then
-            exec mullvad-exclude flatpak run --env=MOZ_ENABLE_WAYLAND=1 app.zen_browser.zen "$@"
-          fi
-
-          exec flatpak run --env=MOZ_ENABLE_WAYLAND=1 app.zen_browser.zen "$@"
-        '';
-      };
-    in
     {
       home.activation.zenProfileSetup = config.lib.dag.entryAfter [ "writeBoundary" ] ''
         ZEN_PROFILE="$HOME/.var/app/app.zen_browser.zen/.zen"
@@ -70,7 +53,6 @@
               "$HOME/.local/share/flatpak/app/app.zen_browser.zen"
               "/var/lib/flatpak/app/app.zen_browser.zen"
             )
-            zen_cache="$HOME/.var/app/app.zen_browser.zen/cache"
             zen_profile_root="$HOME/.var/app/app.zen_browser.zen/.zen"
 
             for zen_app_root in "''${zen_app_roots[@]}"; do
@@ -80,10 +62,6 @@
                 done < <(${pkgs.findutils}/bin/find "$zen_app_root" -path "*/files/zen" -type d -print0)
               fi
             done
-
-            if [ -d "$zen_cache" ]; then
-              targets+=("$zen_cache")
-            fi
 
             if [ -d "$zen_profile_root" ]; then
               while IFS= read -r -d "" profile_dir; do
@@ -110,7 +88,7 @@
                   fi
                 done
 
-                for profile_target in browser-extension-data crashes datareporting extensions security_state sessionstore-backups startupCache storage; do
+                for profile_target in browser-extension-data cache2 crashes datareporting extensions security_state sessionstore-backups startupCache storage; do
                   if [ -e "$profile_dir/$profile_target" ]; then
                     targets+=("$profile_dir/$profile_target")
                   fi
@@ -151,7 +129,7 @@
 
       xdg.desktopEntries."app.zen_browser.zen" = {
         name = "Zen Browser";
-        exec = "${zenLauncher}/bin/zen-launch %U";
+        exec = "mullvad-exclude-if-connected flatpak run app.zen_browser.zen %U";
         icon = "app.zen_browser.zen";
         type = "Application";
         categories = [

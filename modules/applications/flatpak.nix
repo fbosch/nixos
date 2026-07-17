@@ -9,7 +9,7 @@
       enable = true;
       uninstallUnmanaged = true;
       update = {
-        onActivation = true;
+        onActivation = false;
         auto = {
           enable = true;
           onCalendar = "weekly";
