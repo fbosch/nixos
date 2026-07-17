@@ -9,6 +9,7 @@
       "/mnt/storage" = {
         device = "/dev/disk/by-uuid/AC7674097673D316";
         fsType = "ntfs";
+        noCheck = true;
         options = [
           "rw" # Read-write access
           "uid=1000" # Owner UID (your user)
