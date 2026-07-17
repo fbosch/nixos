@@ -11,13 +11,13 @@
 
 stdenvNoCC.mkDerivation (finalAttrs: {
   pname = "pxpipe";
-  version = "0.7.1";
+  version = "0.9.0";
 
   src = fetchFromGitHub {
     owner = "teamchong";
     repo = "pxpipe";
     rev = "v${finalAttrs.version}";
-    hash = "sha256-T/ygIrnpnCg5TuCpHAlJGzO2soA6WNRje9pUDWTq4bQ=";
+    hash = "sha256-YZVwypOrAubP1Qtvb25axITQUCwm4fT4PE131z8zDac=";
   };
 
   pnpmDeps = fetchPnpmDeps {
