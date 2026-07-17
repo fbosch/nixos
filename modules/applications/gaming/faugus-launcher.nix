@@ -13,7 +13,7 @@ _: {
     }:
     let
       battleNetLaunchArguments =
-        "PROTON_NO_WM_DECORATION=1 PROTON_USE_NTSYNC=1 PROTON_ENABLE_NVAPI=1 mullvad-exclude gamemoderun";
+        "PROTON_NO_WM_DECORATION=1 PROTON_USE_NTSYNC=1 PROTON_ENABLE_NVAPI=1 DXVK_HUD=0 DXVK_ALL_CORES=1 mullvad-exclude gamemoderun";
       battleNetPreset = pkgs.writeText "faugus-launch-presets.json" (
         builtins.toJSON [
           # Battle.net / World of Warcraft
@@ -53,7 +53,7 @@ _: {
     {
       xdg.desktopEntries.faugus-launcher = {
         name = "Faugus Launcher";
-        exec = "gamemoderun env WINEFSYNC=1 WINEESYNC=1 DXVK_STATE_CACHE=1 faugus-launcher %U";
+        exec = "gamemoderun env WINEFSYNC=1 WINEESYNC=1 DXVK_HUD=0 DXVK_STATE_CACHE=1 faugus-launcher %U";
         icon = "faugus-launcher";
         type = "Application";
         categories = [ "Game" ];
