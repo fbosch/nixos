@@ -24,13 +24,10 @@ user_pref("browser.places.speculativeConnect.enabled", false);
 
 // 4. Memory & Caching
 user_pref("javascript.options.mem.high_water_mark", 128);
-user_pref("browser.cache.disk.enable", false);
-user_pref("browser.cache.disk.capacity", 0);
+user_pref("browser.cache.disk.enable", true);
 user_pref("browser.cache.memory.capacity", 131072);
-user_pref("browser.cache.disk.smart_size.enabled", false);
+user_pref("browser.cache.disk.smart_size.enabled", true);
 user_pref("browser.cache.memory.max_entry_size", 32768);
-user_pref("browser.cache.disk.metadata_memory_limit", 16384);
-user_pref("browser.cache.max_shutdown_io_lag", 100);
 user_pref("image.mem.max_decoded_image_kb", 512000);
 user_pref("image.cache.size", 10485760);
 user_pref("image.mem.decode_bytes_at_a_time", 65536);

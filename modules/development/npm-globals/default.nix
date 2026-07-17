@@ -102,15 +102,80 @@
         requiredFile = "package.json";
         missingHint = "Pass an explicit directory: pnpm-global-upgrade /path/to/modules/development/npm-globals";
         beforeInstall = ''
-          echo "Choose upgrades interactively (including majors) ..."
+          echo "Checking npm package versions..."
           (
             cd "$npm_globals_dir"
-            pnpm update --interactive --latest
+
+            mapfile -t dependencies < <(
+              node -e 'const { dependencies = {} } = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")); for (const [name, version] of Object.entries(dependencies)) console.log(name + "\t" + version);' package.json
+            )
+
+            package_names=()
+            latest_versions=()
+            for dependency in "''${dependencies[@]}"; do
+              package_name="''${dependency%%$'\t'*}"
+              latest_version="$(pnpm view "$package_name@latest" version --silent)"
+              package_names+=("$package_name")
+              latest_versions+=("$latest_version")
+            done
+
+            echo ""
+            printf '%-4s %-32s %-12s %s\n' "No." "Package" "Current" "Latest"
+            for index in "''${!dependencies[@]}"; do
+              dependency="''${dependencies[$index]}"
+              package_name="''${dependency%%$'\t'*}"
+              current_version="''${dependency#*$'\t'}"
+              printf '%-4s %-32s %-12s %s\n' "$((index + 1))" "$package_name" "$current_version" "''${latest_versions[$index]}"
+            done
+
+            if ! read -r -p "Packages to upgrade (numbers, ranges, all, or blank to cancel): " selection; then
+              exit 0
+            fi
+            if [ -z "$selection" ]; then
+              exit 0
+            fi
+
+            selected_packages=()
+            declare -A selected_indices=()
+            add_package() {
+              local index="$1"
+              if ((index < 1 || index > ''${#package_names[@]})); then
+                echo "ERROR: package number $index is out of range" >&2
+                exit 1
+              fi
+              if [ -n "''${selected_indices[$index]:-}" ]; then
+                return
+              fi
+              selected_indices[$index]=1
+              selected_packages+=("''${package_names[$((index - 1))]}")
+            }
+
+            if [ "$selection" = "all" ]; then
+              for ((index = 1; index <= ''${#package_names[@]}; index++)); do
+                add_package "$index"
+              done
+            else
+              IFS=', ' read -r -a selections <<<"$selection"
+              for selection_item in "''${selections[@]}"; do
+                if [[ "$selection_item" =~ ^([0-9]+)-([0-9]+)$ ]]; then
+                  for ((index = ''${BASH_REMATCH[1]}; index <= ''${BASH_REMATCH[2]}; index++)); do
+                    add_package "$index"
+                  done
+                elif [[ "$selection_item" =~ ^[0-9]+$ ]]; then
+                  add_package "$selection_item"
+                else
+                  echo "ERROR: invalid selection: $selection_item" >&2
+                  exit 1
+                fi
+              done
+            fi
+
+            pnpm --reporter=append-only update --latest "''${selected_packages[@]}"
           )
         '';
         successMessage = ''
           echo ""
-          echo "Interactive upgrade complete. Review and commit package.json + pnpm-lock.yaml in: $npm_globals_dir"
+          echo "Package upgrade complete. Review and commit package.json + pnpm-lock.yaml in: $npm_globals_dir"
         '';
       };
 

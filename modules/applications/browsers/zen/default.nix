@@ -15,19 +15,12 @@
             ${pkgs.coreutils}/bin/install -D -m 0644 ${./userContent.css} "$PROFILE_DIR/chrome/userContent.css"
             echo "Zen userContent.css installed at $PROFILE_DIR/chrome/userContent.css"
 
-            CACHE_DIR="$PROFILE_DIR/cache2"
-            RAM_CACHE="/run/user/$(${pkgs.coreutils}/bin/id -u)/zen-cache"
-
-            ${pkgs.coreutils}/bin/mkdir -p "$RAM_CACHE"
-
-            if [ -d "$CACHE_DIR" ] && [ ! -L "$CACHE_DIR" ]; then
-              ${pkgs.coreutils}/bin/rm -rf "$CACHE_DIR"
+            if [ -L "$PROFILE_DIR/cache2" ]; then
+              ${pkgs.coreutils}/bin/rm "$PROFILE_DIR/cache2"
+              ${pkgs.coreutils}/bin/mkdir -p "$PROFILE_DIR/cache2"
+              echo "Zen browser cache restored to persistent storage"
             fi
 
-            if [ ! -L "$CACHE_DIR" ]; then
-              ${pkgs.coreutils}/bin/ln -sf "$RAM_CACHE" "$CACHE_DIR"
-              echo "Zen browser cache symlinked to RAM at $RAM_CACHE"
-            fi
           done
         fi
       '';
@@ -88,7 +81,7 @@
                   fi
                 done
 
-                for profile_target in browser-extension-data cache2 crashes datareporting extensions security_state sessionstore-backups startupCache storage; do
+                for profile_target in browser-extension-data crashes datareporting extensions security_state sessionstore-backups startupCache storage; do
                   if [ -e "$profile_dir/$profile_target" ]; then
                     targets+=("$profile_dir/$profile_target")
                   fi
