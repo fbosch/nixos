@@ -12,7 +12,7 @@
     "corepack": "0.35.0",
     "jiti": "2.7.0",
     "neovim": "5.4.0",
-    "opencode-ai": "1.18.2",
+    "opencode-ai": "1.18.3",
     "opencode-claude-auth": "2.0.0",
     "pokemonshow": "4.0.0",
     "typescript": "7.0.2",
