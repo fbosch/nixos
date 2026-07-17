@@ -39,6 +39,7 @@ result
 nixpkgs
 .nix-cache
 .nix-state
+.ruff-cache
 
 .pre-commit-config.yaml
 

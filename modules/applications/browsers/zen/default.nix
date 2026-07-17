@@ -15,12 +15,6 @@
             ${pkgs.coreutils}/bin/install -D -m 0644 ${./userContent.css} "$PROFILE_DIR/chrome/userContent.css"
             echo "Zen userContent.css installed at $PROFILE_DIR/chrome/userContent.css"
 
-            if [ -L "$PROFILE_DIR/cache2" ]; then
-              ${pkgs.coreutils}/bin/rm "$PROFILE_DIR/cache2"
-              ${pkgs.coreutils}/bin/mkdir -p "$PROFILE_DIR/cache2"
-              echo "Zen browser cache restored to persistent storage"
-            fi
-
           done
         fi
       '';
@@ -46,6 +40,7 @@
               "$HOME/.local/share/flatpak/app/app.zen_browser.zen"
               "/var/lib/flatpak/app/app.zen_browser.zen"
             )
+            zen_cache="$HOME/.var/app/app.zen_browser.zen/cache"
             zen_profile_root="$HOME/.var/app/app.zen_browser.zen/.zen"
 
             for zen_app_root in "''${zen_app_roots[@]}"; do
@@ -55,6 +50,10 @@
                 done < <(${pkgs.findutils}/bin/find "$zen_app_root" -path "*/files/zen" -type d -print0)
               fi
             done
+
+            if [ -d "$zen_cache" ]; then
+              targets+=("$zen_cache")
+            fi
 
             if [ -d "$zen_profile_root" ]; then
               while IFS= read -r -d "" profile_dir; do

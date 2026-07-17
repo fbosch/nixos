@@ -6,6 +6,12 @@
       "/nix/store/**": "allow"
     }
   },
+  "references": {
+    "dotfiles": {
+      "path": "~/dotfiles",
+      "description": "Personal dotfiles configuration"
+    }
+  },
   "mcp": {
     "nixos": {
       "type": "local",
