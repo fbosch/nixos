@@ -8,7 +8,7 @@ in
     {
       environment.systemPackages = with pkgs; [
         (lazyApp pkgs steamcmd)
-        steamtinkerlaunch
+        (lazyApp pkgs steamtinkerlaunch)
       ];
 
       # Enable Steam with proper system support
@@ -27,7 +27,6 @@ in
         package = pkgs.steam.override {
           extraArgs = "-system-composer";
           extraEnv = {
-            DXVK_ASYNC = "1";
             DXVK_HUD = "0";
             PROTON_HIDE_NVIDIA_GPU = "0";
             PROTON_ENABLE_NVAPI = "1";
