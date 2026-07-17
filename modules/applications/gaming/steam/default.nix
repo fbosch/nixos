@@ -30,6 +30,7 @@ in
             DXVK_ASYNC = "1";
             PROTON_HIDE_NVIDIA_GPU = "0";
             PROTON_ENABLE_NVAPI = "1";
+            PROTON_USE_NTSYNC = "1";
             GAMEMODERUN = "1";
             PROTON_LOCAL_SHADER_CACHE = "1";
             TZ = ":/etc/localtime";

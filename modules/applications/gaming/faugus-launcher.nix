@@ -12,10 +12,12 @@ _: {
     , ...
     }:
     let
+      battleNetLaunchArguments =
+        "PROTON_NO_WM_DECORATION=1 PROTON_USE_NTSYNC=1 PROTON_ENABLE_NVAPI=1 mullvad-exclude gamemoderun";
       battleNetPreset = pkgs.writeText "faugus-launch-presets.json" (
         builtins.toJSON [
           # Battle.net / World of Warcraft
-          "PROTON_NO_WM_DECORATION=1 PROTON_USE_NTSYNC=1 PROTON_ENABLE_WAYLAND=1 PROTON_ENABLE_NVAPI=1 mullvad-exclude gamemoderun gamescope -f -W 3440 -H 1440 -r 165"
+          battleNetLaunchArguments
         ]
       );
       launcherSettings = pkgs.writeText "faugus-launcher-settings" ''
