@@ -28,6 +28,7 @@ in
           extraArgs = "-system-composer";
           extraEnv = {
             DXVK_ASYNC = "1";
+            DXVK_HUD = "0";
             PROTON_HIDE_NVIDIA_GPU = "0";
             PROTON_ENABLE_NVAPI = "1";
             PROTON_USE_NTSYNC = "1";
