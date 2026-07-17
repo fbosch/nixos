@@ -7,7 +7,8 @@ The workflow here is lockfile-based, not pure Nix-built: Home Manager activation
 Commands:
 
 - `pnpm-global-update`: refresh lockfile from pinned `package.json` versions, then install globals
-- `pnpm-global-upgrade`: choose upgrades from a numbered list, then install pinned globals
+- `pnpm-global-upgrade`: interactive upgrades, then install pinned globals
+- `pnpm-global-approve-builds`: review and approve new dependency build scripts, then install globals
 - `pnpm-global-install`: install directly from current lockfile
 
 Home Manager activation also installs from the committed lockfile into `$HOME/.local/state/pnpm-globals/current` and exposes its `node_modules/.bin` on PATH. Activation is non-blocking: failed installs warn and can be retried with `home-manager switch` or `pnpm-global-install`.

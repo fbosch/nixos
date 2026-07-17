@@ -13,6 +13,7 @@ lockfile_path="${LOCKFILE_PATH:?LOCKFILE_PATH is required}"
 project_dir="$(dirname "$lockfile_path")"
 non_blocking="${PNPM_GLOBALS_NON_BLOCKING:-0}"
 managed_current_dir="$state_dir/current"
+input_fingerprint_file="$state_dir/input-fingerprint"
 
 mkdir -p "$pnpm_home/bin" "$pnpm_store_dir" "$state_dir"
 
@@ -42,6 +43,27 @@ finish_failed_install() {
 # (e.g. via `home-manager switch`), not on every subsequent activation.
 if [ -n "${oldGenPath:-}" ] && [ "${oldGenPath}" = "${newGenPath:-}" ]; then
 	echo "Home Manager generation unchanged, skipping npm global update"
+	exit 0
+fi
+
+for required_file in package.json pnpm-lock.yaml pnpm-workspace.yaml; do
+	if [ ! -f "$project_dir/$required_file" ]; then
+		echo "ERROR: $required_file not found in: $project_dir" >&2
+		finish_failed_install
+	fi
+done
+
+input_fingerprint="$(
+	{
+		printf '%s\0' "$pnpm_bin" "$node_bin_dir" "$bun_bin_dir" "$0"
+		sha256sum "$project_dir/package.json" "$project_dir/pnpm-lock.yaml" "$project_dir/pnpm-workspace.yaml"
+	} | sha256sum | cut -d ' ' -f 1
+)"
+
+if [ -d "$managed_current_dir/node_modules" ] \
+	&& [ -f "$input_fingerprint_file" ] \
+	&& [ "$(<"$input_fingerprint_file")" = "$input_fingerprint" ]; then
+	echo "npm global package inputs unchanged, skipping install"
 	exit 0
 fi
 
@@ -84,16 +106,6 @@ if [ -d "$managed_current_dir" ]; then
 	mv "$managed_current_dir" "$managed_current_dir.previous"
 fi
 mkdir -p "$managed_current_dir"
-for required_file in package.json pnpm-lock.yaml pnpm-workspace.yaml; do
-	if [ ! -f "$project_dir/$required_file" ]; then
-		echo "ERROR: $required_file not found in: $project_dir" >&2
-		rm -rf "$managed_current_dir"
-		if [ -d "$managed_current_dir.previous" ]; then
-			mv "$managed_current_dir.previous" "$managed_current_dir"
-		fi
-		finish_failed_install
-	fi
-done
 cp "$project_dir/package.json" "$project_dir/pnpm-lock.yaml" "$project_dir/pnpm-workspace.yaml" "$managed_current_dir/"
 
 if "$pnpm_bin" --dir "$managed_current_dir" install --frozen-lockfile --prod --ignore-scripts=false 2>&1; then
@@ -104,9 +116,10 @@ if "$pnpm_bin" --dir "$managed_current_dir" install --frozen-lockfile --prod --i
 #!/usr/bin/env bash
 exec "$managed_bin" "\$@"
 EOF
-			chmod +x "$wrapper"
+		chmod +x "$wrapper"
 		fi
 	done
+	printf '%s\n' "$input_fingerprint" >"$input_fingerprint_file"
 	rm -rf "$managed_current_dir.previous"
 	echo ""
 	echo "npm global packages are up to date in: $managed_current_dir"
