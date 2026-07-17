@@ -121,7 +121,7 @@
 
       xdg.desktopEntries."app.zen_browser.zen" = {
         name = "Zen Browser";
-        exec = "mullvad-exclude-if-connected flatpak run app.zen_browser.zen %U";
+        exec = "mullvad-exclude flatpak run app.zen_browser.zen %U";
         icon = "app.zen_browser.zen";
         type = "Application";
         categories = [
