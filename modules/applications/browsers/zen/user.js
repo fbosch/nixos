@@ -32,8 +32,8 @@ user_pref("image.mem.max_decoded_image_kb", 512000);
 user_pref("image.cache.size", 10485760);
 user_pref("image.mem.decode_bytes_at_a_time", 65536);
 user_pref("image.mem.shared.unmap.min_expiration_ms", 90000);
-user_pref("media.memory_cache_max_size", 1048576);
-user_pref("media.memory_caches_combined_limit_kb", 4194304);
+user_pref("media.memory_cache_max_size", 8192);
+user_pref("media.memory_caches_combined_limit_kb", 524288);
 user_pref("media.cache_readahead_limit", 600);
 user_pref("media.cache_resume_threshold", 300);
 user_pref("dom.storage.default_quota", 20480);
@@ -61,6 +61,7 @@ user_pref("gfx.webrender.enabled", true);
 user_pref("gfx.webrender.compositor", true);
 user_pref("gfx.webrender.precache-shaders", true);
 user_pref("gfx.webrender.software", false);
+user_pref("layers.force-synchronous-resize", false);
 user_pref("gfx.canvas.accelerated.cache-items", 32768);
 user_pref("gfx.canvas.accelerated.cache-size", 4096);
 user_pref("gfx.canvas.max-size", 16384);
@@ -97,6 +98,7 @@ user_pref(
   true
 );
 user_pref("media.ffmpeg.vaapi.enabled", true);
+user_pref("media.hardware-video-decoding.force-enabled", true);
 
 // 10. Security & Privacy
 user_pref("privacy.trackingprotection.enabled", false);
