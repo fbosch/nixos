@@ -117,6 +117,7 @@
         package = inputs.ags.packages.${system}.default;
         extraPackages = [
           pkgs.astal.wireplumber
+          pkgs.webkitgtk_6_0
         ];
       };
 
