@@ -3,20 +3,20 @@
   "private": true,
   "packageManager": "pnpm@11.5.1",
   "dependencies": {
-    "@anthropic-ai/claude-code": "2.1.211",
+    "@anthropic-ai/claude-code": "2.1.212",
     "@fbb.sh/pkdx": "0.7.0",
     "@fission-ai/openspec": "1.6.0",
     "@github/copilot": "1.0.71",
     "@schpet/linear-cli": "2.0.0",
-    "agent-browser": "0.32.0",
+    "agent-browser": "0.32.1",
     "corepack": "0.35.0",
+    "docs-cache": "0.7.0",
     "jiti": "2.7.0",
     "neovim": "5.4.0",
-    "opencode-ai": "1.18.2",
+    "opencode-ai": "1.18.3",
     "opencode-claude-auth": "2.0.0",
     "pokemonshow": "4.0.0",
     "typescript": "7.0.2",
-    "vercel": "56.2.1",
-    "docs-cache": "0.7.0"
+    "vercel": "56.3.1"
   }
 }
