@@ -11,9 +11,6 @@
         "development/services/headroom"
         "virtualization/podman"
 
-        # Local icon assets
-        "files/icons"
-
         # Shared modules with Home Manager components
         "secrets"
       ]
