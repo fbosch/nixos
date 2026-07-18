@@ -12,13 +12,15 @@ _: {
     , ...
     }:
     let
-      battleNetLaunchArguments =
-        "PROTON_NO_WM_DECORATION=1 PROTON_USE_NTSYNC=1 PROTON_ENABLE_NVAPI=1 DXVK_HUD=0 mullvad-exclude gamemoderun";
-      battleNetPreset = pkgs.writeText "faugus-launch-presets.json" (
-        builtins.toJSON [
-          # Battle.net / World of Warcraft
-          battleNetLaunchArguments
-        ]
+      faugusLaunchArguments = [
+        # Battle.net / World of Warcraft
+        "GAMEID=umu-worldofwarcraft mullvad-exclude"
+        "GAMEID=umu-infinitefusion mullvad-exclude"
+        "GAMEID=umu-infinitefusionkanto"
+        "GAMEID=umu-pokemonnova"
+      ];
+      faugusLaunchPresets = pkgs.writeText "faugus-launch-presets.json" (
+        builtins.toJSON faugusLaunchArguments
       );
       launcherSettings = pkgs.writeText "faugus-launcher-settings" ''
         default-prefix="${config.home.homeDirectory}/Faugus"
@@ -48,6 +50,10 @@ _: {
       globalEnvironment = pkgs.writeText "faugus-launcher-environment" ''
         TZ=:/etc/localtime
         TZDIR=/usr/share/zoneinfo
+        PROTON_NO_WM_DECORATION=1
+        PROTON_USE_NTSYNC=1
+        PROTON_ENABLE_NVAPI=1
+        DXVK_HUD=0
       '';
     in
     {
@@ -64,7 +70,7 @@ _: {
       home.activation.seedFaugusLaunchPresets = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
         target="${config.xdg.configHome}/faugus-launcher/presets.json"
         if [[ ! -e "$target" ]]; then
-          ${pkgs.coreutils}/bin/install -Dm644 ${battleNetPreset} "$target"
+          ${pkgs.coreutils}/bin/install -Dm644 ${faugusLaunchPresets} "$target"
         fi
       '';
 
