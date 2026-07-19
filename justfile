@@ -9,6 +9,12 @@ default:
 build:
     nh os test
 
+build-pc:
+    nh os build .#rvn-pc
+
+build-srv:
+    nh os build .#rvn-srv
+
 # Build custom container images for helium
 build-helium:
     sudo build-helium-images
