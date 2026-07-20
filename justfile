@@ -5,9 +5,8 @@
 default:
     @just --list
 
-# Build without switching (dry run)
-build:
-    nh os test
+# Run recipes in devenv when the current shell has not already activated it.
+set shell := ["bash", "-eu", "-o", "pipefail", "-c", "[ -n \"${DEVENV_ROOT:-}\" ] || exec devenv shell -- bash -eu -o pipefail -c \"$0\"; exec bash -eu -o pipefail -c \"$0\""]
 
 build-pc:
     nh os build .#rvn-pc
