@@ -3,7 +3,7 @@
   "private": true,
   "packageManager": "pnpm@11.5.1",
   "dependencies": {
-    "@anthropic-ai/claude-code": "2.1.212",
+    "@anthropic-ai/claude-code": "2.1.215",
     "@fbb.sh/pkdx": "0.7.0",
     "@fission-ai/openspec": "1.6.0",
     "@github/copilot": "1.0.71",
