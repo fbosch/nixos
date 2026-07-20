@@ -47,3 +47,4 @@ nixpkgs
 .config/nix/nix.conf
 modules/desktop/ocr/.venv
 uv-workspaces/*/.venv
+.docs/
