@@ -103,6 +103,11 @@ in
             LoadCredential = [ "attic-admin-token:${tokenFile}" ];
             Restart = "always";
             RestartSec = "10s";
+            Nice = 19;
+            CPUWeight = 10;
+            CPUQuota = "20%";
+            IOSchedulingClass = "idle";
+            IOWeight = 10;
             PrivateTmp = true;
             ProtectHome = true;
             ProtectSystem = "strict";
