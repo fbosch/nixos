@@ -14,24 +14,28 @@ in
       endpoint = lib.removeSuffix "/" cfg.endpoint;
       cacheUrl = "${endpoint}/${cfg.cacheName}";
       tokenFile = config.sops.secrets.attic-admin-token.path;
-      queueDirectory = "/var/lib/attic/queue";
-      postBuildHookScript = pkgs.writeShellScript "attic-post-build-hook" (
-        builtins.readFile (
+      queueDir = "/var/lib/attic-upload";
+      postBuildHook = pkgs.writeShellApplication {
+        name = "attic-post-build-hook";
+        runtimeInputs = [ pkgs.coreutils ];
+        text = builtins.readFile (
           pkgs.replaceVars ./post-build-hook.sh {
-            inherit queueDirectory;
+            inherit queueDir;
           }
-        )
-      );
-      uploadQueueScript = pkgs.writeShellScript "attic-upload-queue" (
-        builtins.readFile (
-          pkgs.replaceVars ./upload-queue.sh {
+        );
+      };
+      uploadWorker = pkgs.writeShellApplication {
+        name = "attic-upload";
+        runtimeInputs = [ pkgs.coreutils ];
+        text = builtins.readFile (
+          pkgs.replaceVars ./upload-worker.sh {
             atticClient = pkgs.attic-client;
-            inherit tokenFile queueDirectory;
+            inherit queueDir;
             inherit (cfg) cacheName;
             inherit endpoint;
           }
-        )
-      );
+        );
+      };
       synologyDomain = lib.attrByPath [
         "flake"
         "meta"
@@ -82,48 +86,28 @@ in
             trusted-public-keys = [ cfg.publicKey ];
           })
           (lib.mkIf cfg.watchStore.enable {
-            post-build-hook = postBuildHookScript;
+            post-build-hook = "${postBuildHook}/bin/attic-post-build-hook";
           })
         ];
 
-        systemd = lib.mkIf cfg.watchStore.enable {
-          tmpfiles.rules = [ "d ${queueDirectory} 0700 root root -" ];
-
-          paths.attic-upload-queue = {
-            wantedBy = [ "multi-user.target" ];
-            pathConfig.PathChanged = queueDirectory;
+        systemd.services.attic-upload = lib.mkIf cfg.watchStore.enable {
+          description = "Upload Nix build outputs to Attic";
+          wantedBy = [ "multi-user.target" ];
+          after = [ "network-online.target" ];
+          wants = [ "network-online.target" ];
+          environment.XDG_CONFIG_HOME = "${queueDir}/config";
+          serviceConfig = {
+            DynamicUser = true;
+            StateDirectory = "attic-upload";
+            StateDirectoryMode = "0750";
+            LoadCredential = [ "attic-admin-token:${tokenFile}" ];
+            Restart = "always";
+            RestartSec = "10s";
+            PrivateTmp = true;
+            ProtectHome = true;
+            ProtectSystem = "strict";
           };
-
-          services.attic-upload-queue = {
-            description = "Upload queued Nix build outputs to Attic";
-            after = [
-              "network-online.target"
-              "sops-install-secrets.service"
-            ];
-            wants = [
-              "network-online.target"
-              "sops-install-secrets.service"
-            ];
-            serviceConfig = {
-              Type = "oneshot";
-              StateDirectory = "attic";
-              StateDirectoryMode = "0700";
-              TimeoutStartSec = "30m";
-              UMask = "0077";
-            };
-            script = ''
-              exec ${uploadQueueScript}
-            '';
-          };
-
-          timers.attic-upload-queue = {
-            wantedBy = [ "timers.target" ];
-            timerConfig = {
-              OnBootSec = "5m";
-              OnUnitInactiveSec = "5m";
-              Persistent = true;
-            };
-          };
+          script = "exec ${uploadWorker}/bin/attic-upload";
         };
 
         sops.secrets.attic-admin-token = lib.mkIf cfg.watchStore.enable (

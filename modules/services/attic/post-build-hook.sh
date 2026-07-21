@@ -1,16 +1,15 @@
 #!/usr/bin/env bash
-set -u
+set -eu
 
-queue_directory="@queueDirectory@"
+queue_dir="@queueDir@"
 
 if [ -z "${OUT_PATHS:-}" ]; then
   exit 0
 fi
 
-mkdir -p -m 0700 "$queue_directory"
-queue_file="$(mktemp "$queue_directory/.pending.XXXXXX")"
-IFS=' ' read -r -a out_paths <<<"${OUT_PATHS}"
-printf '%s\n' "${out_paths[@]}" >"$queue_file"
-mv "$queue_file" "$queue_directory/${queue_file##*.pending.}.paths"
+mkdir -p "$queue_dir"
+queue_file="$(mktemp "$queue_dir/.pending.XXXXXX")"
+printf '%s\n' "${OUT_PATHS}" >"$queue_file"
+mv "$queue_file" "${queue_file}.paths"
 
 exit 0
