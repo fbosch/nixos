@@ -31,6 +31,7 @@
         # "com.obsproject.Studio" # Video recording/streaming
         # "com.obsproject.Studio.Plugin.OBSVkCapture" # OBS plugin
         "be.alexandervanhee.gradia" # image editor
+        "org.kde.iconexplorer" # Icon Explorer
       ];
     };
 }

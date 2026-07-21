@@ -3,14 +3,14 @@ let
   inherit (config.flake.lib) sopsHelpers;
 in
 {
-  flake.modules.nixos."services/attic-client" =
+  flake.modules.nixos."services/attic" =
     { config
     , lib
     , pkgs
     , ...
     }:
     let
-      cfg = config.services.attic-client;
+      cfg = config.services.attic;
       endpoint = lib.removeSuffix "/" cfg.endpoint;
       cacheUrl = "${endpoint}/${cfg.cacheName}";
       tokenFile = config.sops.secrets.attic-admin-token.path;
@@ -19,7 +19,7 @@ in
         name = "attic-post-build-hook";
         runtimeInputs = [ pkgs.coreutils ];
         text = builtins.readFile (
-          pkgs.replaceVars ../../scripts/attic/post-build-hook.sh {
+          pkgs.replaceVars ./post-build-hook.sh {
             inherit queueDir;
           }
         );
@@ -28,7 +28,7 @@ in
         name = "attic-upload";
         runtimeInputs = [ pkgs.coreutils ];
         text = builtins.readFile (
-          pkgs.replaceVars ../../scripts/attic/upload-worker.sh {
+          pkgs.replaceVars ./upload-worker.sh {
             atticClient = pkgs.attic-client;
             inherit queueDir;
             inherit (cfg) cacheName;
@@ -45,7 +45,7 @@ in
         config;
     in
     {
-      options.services.attic-client = {
+      options.services.attic = {
         endpoint = lib.mkOption {
           type = lib.types.str;
           default = "https://attic.${synologyDomain}/";
@@ -74,7 +74,7 @@ in
           enable = lib.mkOption {
             type = lib.types.bool;
             default = true;
-            description = "Whether to push new build outputs to Attic via Nix post-build hook.";
+            description = "Whether to queue new build outputs for asynchronous upload to Attic.";
           };
         };
       };
@@ -111,7 +111,7 @@ in
         };
 
         sops.secrets.attic-admin-token = lib.mkIf cfg.watchStore.enable (
-          sopsHelpers.mkSecret ../../secrets/development.yaml sopsHelpers.rootOnly
+          sopsHelpers.mkSecret ../../../secrets/development.yaml sopsHelpers.rootOnly
         );
       };
     };

@@ -73,7 +73,7 @@ in
             "services/atuin"
             "services/home-assistant"
             "services/atticd"
-            "services/attic-client"
+            "services/attic"
             "services/plex"
             "services/servarr"
             "services/tinyproxy"

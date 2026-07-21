@@ -62,7 +62,7 @@ in
             # system
             "secrets"
             "nas"
-            "services/attic-client"
+            "services/attic"
             "services/comfyui"
             "services/nextdns"
 
