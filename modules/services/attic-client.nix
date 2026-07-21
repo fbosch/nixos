@@ -14,16 +14,28 @@ in
       endpoint = lib.removeSuffix "/" cfg.endpoint;
       cacheUrl = "${endpoint}/${cfg.cacheName}";
       tokenFile = config.sops.secrets.attic-admin-token.path;
-      postBuildHookScript = pkgs.writeShellScript "attic-post-build-hook" (
-        builtins.readFile (
+      queueDir = "/var/lib/attic-upload";
+      postBuildHook = pkgs.writeShellApplication {
+        name = "attic-post-build-hook";
+        runtimeInputs = [ pkgs.coreutils ];
+        text = builtins.readFile (
           pkgs.replaceVars ../../scripts/attic/post-build-hook.sh {
+            inherit queueDir;
+          }
+        );
+      };
+      uploadWorker = pkgs.writeShellApplication {
+        name = "attic-upload";
+        runtimeInputs = [ pkgs.coreutils ];
+        text = builtins.readFile (
+          pkgs.replaceVars ../../scripts/attic/upload-worker.sh {
             atticClient = pkgs.attic-client;
-            inherit tokenFile;
+            inherit queueDir;
             inherit (cfg) cacheName;
             inherit endpoint;
           }
-        )
-      );
+        );
+      };
       synologyDomain = lib.attrByPath [
         "flake"
         "meta"
@@ -74,9 +86,29 @@ in
             trusted-public-keys = [ cfg.publicKey ];
           })
           (lib.mkIf cfg.watchStore.enable {
-            post-build-hook = postBuildHookScript;
+            post-build-hook = "${postBuildHook}/bin/attic-post-build-hook";
           })
         ];
+
+        systemd.services.attic-upload = lib.mkIf cfg.watchStore.enable {
+          description = "Upload Nix build outputs to Attic";
+          wantedBy = [ "multi-user.target" ];
+          after = [ "network-online.target" ];
+          wants = [ "network-online.target" ];
+          environment.XDG_CONFIG_HOME = "${queueDir}/config";
+          serviceConfig = {
+            DynamicUser = true;
+            StateDirectory = "attic-upload";
+            StateDirectoryMode = "0750";
+            LoadCredential = [ "attic-admin-token:${tokenFile}" ];
+            Restart = "always";
+            RestartSec = "10s";
+            PrivateTmp = true;
+            ProtectHome = true;
+            ProtectSystem = "strict";
+          };
+          script = "exec ${uploadWorker}/bin/attic-upload";
+        };
 
         sops.secrets.attic-admin-token = lib.mkIf cfg.watchStore.enable (
           sopsHelpers.mkSecret ../../secrets/development.yaml sopsHelpers.rootOnly
