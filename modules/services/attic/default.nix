@@ -3,22 +3,30 @@ let
   inherit (config.flake.lib) sopsHelpers;
 in
 {
-  flake.modules.nixos."services/attic-client" =
+  flake.modules.nixos."services/attic" =
     { config
     , lib
     , pkgs
     , ...
     }:
     let
-      cfg = config.services.attic-client;
+      cfg = config.services.attic;
       endpoint = lib.removeSuffix "/" cfg.endpoint;
       cacheUrl = "${endpoint}/${cfg.cacheName}";
       tokenFile = config.sops.secrets.attic-admin-token.path;
+      queueDirectory = "/var/lib/attic/queue";
       postBuildHookScript = pkgs.writeShellScript "attic-post-build-hook" (
         builtins.readFile (
-          pkgs.replaceVars ../../scripts/attic/post-build-hook.sh {
+          pkgs.replaceVars ./post-build-hook.sh {
+            inherit queueDirectory;
+          }
+        )
+      );
+      uploadQueueScript = pkgs.writeShellScript "attic-upload-queue" (
+        builtins.readFile (
+          pkgs.replaceVars ./upload-queue.sh {
             atticClient = pkgs.attic-client;
-            inherit tokenFile;
+            inherit tokenFile queueDirectory;
             inherit (cfg) cacheName;
             inherit endpoint;
           }
@@ -33,7 +41,7 @@ in
         config;
     in
     {
-      options.services.attic-client = {
+      options.services.attic = {
         endpoint = lib.mkOption {
           type = lib.types.str;
           default = "https://attic.${synologyDomain}/";
@@ -62,7 +70,7 @@ in
           enable = lib.mkOption {
             type = lib.types.bool;
             default = true;
-            description = "Whether to push new build outputs to Attic via Nix post-build hook.";
+            description = "Whether to queue new build outputs for asynchronous upload to Attic.";
           };
         };
       };
@@ -78,8 +86,48 @@ in
           })
         ];
 
+        systemd = lib.mkIf cfg.watchStore.enable {
+          tmpfiles.rules = [ "d ${queueDirectory} 0700 root root -" ];
+
+          paths.attic-upload-queue = {
+            wantedBy = [ "multi-user.target" ];
+            pathConfig.PathChanged = queueDirectory;
+          };
+
+          services.attic-upload-queue = {
+            description = "Upload queued Nix build outputs to Attic";
+            after = [
+              "network-online.target"
+              "sops-install-secrets.service"
+            ];
+            wants = [
+              "network-online.target"
+              "sops-install-secrets.service"
+            ];
+            serviceConfig = {
+              Type = "oneshot";
+              StateDirectory = "attic";
+              StateDirectoryMode = "0700";
+              TimeoutStartSec = "30m";
+              UMask = "0077";
+            };
+            script = ''
+              exec ${uploadQueueScript}
+            '';
+          };
+
+          timers.attic-upload-queue = {
+            wantedBy = [ "timers.target" ];
+            timerConfig = {
+              OnBootSec = "5m";
+              OnUnitInactiveSec = "5m";
+              Persistent = true;
+            };
+          };
+        };
+
         sops.secrets.attic-admin-token = lib.mkIf cfg.watchStore.enable (
-          sopsHelpers.mkSecret ../../secrets/development.yaml sopsHelpers.rootOnly
+          sopsHelpers.mkSecret ../../../secrets/development.yaml sopsHelpers.rootOnly
         );
       };
     };

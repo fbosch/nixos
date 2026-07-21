@@ -8,7 +8,7 @@
       }:
       let
         inherit (pkgs.stdenv.hostPlatform) system;
-        luaWithSocket = pkgs.lua5_2.withPackages (ps: [ ps.luasocket ]);
+        luaWithSocket = pkgs.luajit.withPackages (ps: [ ps.luasocket ]);
       in
       {
         home.packages = lib.optionals pkgs.stdenv.isLinux [

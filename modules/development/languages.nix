@@ -2,7 +2,7 @@
   flake.modules.homeManager.development =
     { pkgs, ... }:
     let
-      luaWithSocket = pkgs.lua5_2.withPackages (ps: [ ps.luasocket ]);
+      luaWithSocket = pkgs.luajit.withPackages (ps: [ ps.luasocket ]);
     in
     {
       home.packages = with pkgs; [
