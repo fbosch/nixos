@@ -72,7 +72,7 @@
           open = false;
           nvidiaSettings = true;
           nvidiaPersistenced = true; # Keep GPU initialized for better performance
-          package = config.boot.kernelPackages.nvidiaPackages.stable;
+          package = config.boot.kernelPackages.nvidiaPackages.new_feature;
           moduleParams = {
             nvidia = {
               disable_vrr_memclk_switch = 1;
