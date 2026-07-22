@@ -5,6 +5,14 @@
       nemo = pkgs.nemo.overrideAttrs (old: {
         buildInputs = old.buildInputs ++ [ pkgs.tinysparql ];
         mesonFlags = old.mesonFlags ++ [ "-Dtracker=true" ];
+        # Nemo's Tracker backend otherwise treats filename searches as case-sensitive.
+        postPatch = (old.postPatch or "") + ''
+          substituteInPlace libnemo-private/nemo-search-engine-tracker.c \
+            --replace-fail \
+            ' FILTER (contains(?fileName,' \
+            ' FILTER (contains(lcase(?fileName), lcase('
+          sed -i '0,/g_string_append (sparql, ")");/s//g_string_append (sparql, "))");/' libnemo-private/nemo-search-engine-tracker.c
+        '';
       });
     in
     {

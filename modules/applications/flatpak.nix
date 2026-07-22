@@ -4,7 +4,7 @@
     imports = [ inputs.flatpaks.nixosModules.nix-flatpak ];
     services.flatpak.enable = true;
   };
-  flake.modules.homeManager.applications = _: {
+  flake.modules.homeManager.applications = { lib, ... }: {
     services.flatpak = {
       enable = true;
       uninstallUnmanaged = true;
@@ -45,5 +45,12 @@
         };
       };
     };
+
+    # sd-switch starts the inactive, wanted one-shot service during activation.
+    home.activation.flatpak-managed-install = lib.mkForce (
+      lib.hm.dag.entryAfter [ "reloadSystemd" ] ''
+        :
+      ''
+    );
   };
 }
