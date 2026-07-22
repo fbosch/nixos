@@ -152,6 +152,7 @@ in
           templates."linkwarden-env" = {
             content = ''
               POSTGRES_PASSWORD=${config.sops.placeholder.linkwarden-postgres-password}
+              DATABASE_URL=postgresql://postgres:${config.sops.placeholder.linkwarden-postgres-password}@linkwarden-postgres:5432/postgres
               NEXTAUTH_SECRET=${config.sops.placeholder.linkwarden-nextauth-secret}
               MEILI_MASTER_KEY=${config.sops.placeholder.linkwarden-meili-master-key}
               DISABLE_PRESERVATION=true
@@ -257,7 +258,6 @@ in
             PublishPort=${toString cfg.port}:3000
             Volume=${cfg.dataDir}/data:/data/data
             EnvironmentFile=${cfg.envFile}
-            Environment=DATABASE_URL=postgresql://postgres:$POSTGRES_PASSWORD@linkwarden-postgres:5432/postgres
             Environment=NEXTAUTH_URL=${cfg.nextauthUrl}
             Environment=MEILI_ADDR=http://linkwarden-meilisearch:7700
             Environment=NEXT_PUBLIC_DISABLE_REGISTRATION=${if cfg.disableRegistration then "true" else "false"}
