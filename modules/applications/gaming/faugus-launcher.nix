@@ -18,6 +18,7 @@ _: {
         "GAMEID=umu-infinitefusion mullvad-exclude"
         "GAMEID=umu-infinitefusionkanto"
         "GAMEID=umu-pokemonnova"
+        "GAMEID=umu-elderscrollsonline mullvad-exclude"
       ];
       faugusLaunchPresets = pkgs.writeText "faugus-launch-presets.json" (
         builtins.toJSON faugusLaunchArguments
@@ -67,11 +68,9 @@ _: {
         terminal = false;
       };
 
-      home.activation.seedFaugusLaunchPresets = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+      home.activation.refreshFaugusLaunchPresets = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
         target="${config.xdg.configHome}/faugus-launcher/presets.json"
-        if [[ ! -e "$target" ]]; then
-          ${pkgs.coreutils}/bin/install -Dm644 ${faugusLaunchPresets} "$target"
-        fi
+        ${pkgs.coreutils}/bin/install -Dm644 ${faugusLaunchPresets} "$target"
       '';
 
       home.activation.seedFaugusLauncherConfiguration = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
