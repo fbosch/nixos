@@ -23,8 +23,8 @@ in
     {
       config = lib.mkMerge [
         {
-          services.startupPolicy.applications.attic = {
-            tier = lib.mkDefault "background";
+          services.startupPolicy.applications.atticd = {
+            tier = lib.mkDefault "standard";
             units = [
               {
                 name = "atticd.service";
