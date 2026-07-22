@@ -1,6 +1,6 @@
 { config, ... }:
 let
-  inherit (config.flake.lib) sopsHelpers;
+  inherit (config.flake.lib) sopsHelpers startupPolicy;
 in
 {
   flake.modules.nixos."services/containers/speedtest-tracker" =
@@ -98,14 +98,7 @@ in
             TimeoutStartSec=300
 
             [Install]
-            WantedBy=${
-              lib.attrByPath [
-                "services"
-                "startupPolicy"
-                "quadletTargets"
-                "speedtest-tracker.service"
-              ] "multi-user.target" config
-            }
+            WantedBy=${(startupPolicy.quadlet config "speedtest-tracker.service").target}
           '';
 
           "containers/systemd/speedtest-tracker-data.volume".text = ''

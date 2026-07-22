@@ -1,4 +1,8 @@
-_: {
+{ config, ... }:
+let
+  inherit (config.flake.lib) startupPolicy;
+in
+{
   flake.modules.nixos."services/containers/termix" =
     { config
     , lib
@@ -57,14 +61,7 @@ _: {
           TimeoutStartSec=300
 
           [Install]
-            WantedBy=${
-              lib.attrByPath [
-                "services"
-                "startupPolicy"
-                "quadletTargets"
-                "termix.service"
-              ] "multi-user.target" config
-            }
+            WantedBy=${(startupPolicy.quadlet config "termix.service").target}
         '';
 
         environment.etc."containers/systemd/termix-data.volume".text = ''

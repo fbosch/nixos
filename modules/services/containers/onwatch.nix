@@ -1,6 +1,6 @@
 { config, ... }:
 let
-  inherit (config.flake.lib) sopsHelpers;
+  inherit (config.flake.lib) sopsHelpers startupPolicy;
   inherit (config.flake.meta.user) username;
 in
 {
@@ -232,14 +232,7 @@ in
           TimeoutStartSec=120
 
           [Install]
-            WantedBy=${
-              lib.attrByPath [
-                "services"
-                "startupPolicy"
-                "quadletTargets"
-                "onwatch.service"
-              ] "multi-user.target" config
-            }
+            WantedBy=${(startupPolicy.quadlet config "onwatch.service").target}
         '';
 
         networking.firewall.allowedTCPPorts = [ cfg.port ];

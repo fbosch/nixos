@@ -1,4 +1,8 @@
-_: {
+{ config, ... }:
+let
+  inherit (config.flake.lib) startupPolicy;
+in
+{
   flake.modules.nixos."services/containers/dozzle" =
     { config
     , lib
@@ -116,43 +120,36 @@ _: {
               );
             in
             ''
-              [Unit]
-              Description=Dozzle - Real-time container log viewer
-              After=network-online.target podman.socket
-              Wants=network-online.target
-              Requires=podman.socket
+                [Unit]
+                Description=Dozzle - Real-time container log viewer
+                After=network-online.target podman.socket
+                Wants=network-online.target
+                Requires=podman.socket
 
-              [Container]
-              ContainerName=dozzle
-              Image=docker.io/amir20/dozzle:v10.6.11
-              PublishPort=${toString cfg.port}:8080
-              Volume=/run/podman/podman.sock:/var/run/docker.sock:ro
-              Volume=/var/lib/docker/engine-id:/var/lib/docker/engine-id:ro
-              HealthCmd=none
-              ${envVars}
-              Memory=256m
-              PidsLimit=200
-              Ulimit=nofile=2048:4096
-              LogDriver=journald
-              LogOpt=tag=dozzle
+                [Container]
+                ContainerName=dozzle
+                Image=docker.io/amir20/dozzle:v10.6.11
+                PublishPort=${toString cfg.port}:8080
+                Volume=/run/podman/podman.sock:/var/run/docker.sock:ro
+                Volume=/var/lib/docker/engine-id:/var/lib/docker/engine-id:ro
+                HealthCmd=none
+                ${envVars}
+                Memory=256m
+                PidsLimit=200
+                Ulimit=nofile=2048:4096
+                LogDriver=journald
+                LogOpt=tag=dozzle
 
-              [Service]
-              RestrictAddressFamilies=~AF_ALG
-              SystemCallArchitectures=native
-              Restart=always
-              RestartSec=10
-              CPUQuota=50%
-              TimeoutStartSec=60
+                [Service]
+                RestrictAddressFamilies=~AF_ALG
+                SystemCallArchitectures=native
+                Restart=always
+                RestartSec=10
+                CPUQuota=50%
+                TimeoutStartSec=60
 
-              [Install]
-              WantedBy=${
-                lib.attrByPath [
-                  "services"
-                  "startupPolicy"
-                  "quadletTargets"
-                  "dozzle.service"
-                ] "multi-user.target" config
-              }
+                [Install]
+              WantedBy=${(startupPolicy.quadlet config "dozzle.service").target}
             '';
         };
 

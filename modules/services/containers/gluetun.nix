@@ -1,6 +1,6 @@
 { config, ... }:
 let
-  inherit (config.flake.lib) sopsHelpers;
+  inherit (config.flake.lib) sopsHelpers startupPolicy;
 in
 {
   flake.modules.nixos."services/containers/gluetun" =
@@ -192,14 +192,7 @@ in
           TimeoutStartSec=120
 
           [Install]
-            WantedBy=${
-              lib.attrByPath [
-                "services"
-                "startupPolicy"
-                "quadletTargets"
-                "gluetun.service"
-              ] "multi-user.target" config
-            }
+            WantedBy=${(startupPolicy.quadlet config "gluetun.service").target}
         '';
 
         networking.firewall.allowedTCPPorts = [

@@ -1,4 +1,8 @@
-_: {
+{ config, ... }:
+let
+  inherit (config.flake.lib) startupPolicy;
+in
+{
   flake.modules.nixos."services/containers/flaresolverr" =
     { config
     , lib
@@ -82,14 +86,7 @@ _: {
           TimeoutStartSec=120
 
           [Install]
-            WantedBy=${
-              lib.attrByPath [
-                "services"
-                "startupPolicy"
-                "quadletTargets"
-                "flaresolverr.service"
-              ] "multi-user.target" config
-            }
+            WantedBy=${(startupPolicy.quadlet config "flaresolverr.service").target}
         '';
 
         networking.firewall.allowedTCPPorts = [ cfg.port ];

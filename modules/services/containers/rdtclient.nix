@@ -1,4 +1,8 @@
-_: {
+{ config, ... }:
+let
+  inherit (config.flake.lib) startupPolicy;
+in
+{
   flake.modules.nixos."services/containers/rdtclient" =
     { config
     , lib
@@ -126,14 +130,7 @@ _: {
           TimeoutStopSec=30
 
           [Install]
-            WantedBy=${
-              lib.attrByPath [
-                "services"
-                "startupPolicy"
-                "quadletTargets"
-                "rdtclient.service"
-              ] "multi-user.target" config
-            }
+            WantedBy=${(startupPolicy.quadlet config "rdtclient.service").target}
         '';
 
         networking.firewall.allowedTCPPorts = [ cfg.port ];

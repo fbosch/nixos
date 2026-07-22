@@ -1,6 +1,6 @@
 { config, ... }:
 let
-  inherit (config.flake.lib) sopsHelpers;
+  inherit (config.flake.lib) sopsHelpers startupPolicy;
 in
 {
   flake.modules.nixos."services/containers/glance" =
@@ -238,14 +238,7 @@ in
           TimeoutStartSec=60
 
           [Install]
-            WantedBy=${
-              lib.attrByPath [
-                "services"
-                "startupPolicy"
-                "quadletTargets"
-                "glance.service"
-              ] "multi-user.target" config
-            }
+            WantedBy=${(startupPolicy.quadlet config "glance.service").target}
         '';
 
         networking.firewall.allowedTCPPorts = [ cfg.port ];

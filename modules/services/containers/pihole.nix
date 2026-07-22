@@ -1,6 +1,6 @@
 { config, ... }:
 let
-  inherit (config.flake.lib) sopsHelpers;
+  inherit (config.flake.lib) sopsHelpers startupPolicy;
 in
 {
   flake.modules.nixos."services/containers/pihole" =
@@ -154,14 +154,7 @@ in
               TimeoutStartSec=300
 
               [Install]
-            WantedBy=${
-              lib.attrByPath [
-                "services"
-                "startupPolicy"
-                "quadletTargets"
-                "pihole.service"
-              ] "multi-user.target" config
-            }
+            WantedBy=${(startupPolicy.quadlet config "pihole.service").target}
           '';
 
           "containers/systemd/pihole-data.volume".text = ''
