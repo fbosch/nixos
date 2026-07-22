@@ -238,13 +238,12 @@
             cache_marker="''${XDG_CACHE_HOME:-$HOME/.cache}/fontconfig/.home-manager-${builtins.baseNameOf (toString proprietaryFontsPackage)}"
             if [ -e "$cache_marker" ]; then
               echo "Font cache already initialized, skipping refresh"
-              exit 0
+            else
+              fonts_dir="''${XDG_DATA_HOME:-$HOME/.local/share}/fonts"
+              ${pkgs.fontconfig}/bin/fc-cache -f "$fonts_dir"
+              mkdir -p "$(dirname "$cache_marker")"
+              touch "$cache_marker"
             fi
-
-            fonts_dir="''${XDG_DATA_HOME:-$HOME/.local/share}/fonts"
-            ${pkgs.fontconfig}/bin/fc-cache -f "$fonts_dir"
-            mkdir -p "$(dirname "$cache_marker")"
-            touch "$cache_marker"
           ''
         );
       };

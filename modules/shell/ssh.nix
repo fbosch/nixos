@@ -101,22 +101,21 @@ in
         syncSshPublicKey = lib.hm.dag.entryAfter [ "sopsInstallSecrets" "writeBoundary" ] ''
           if [ -n "''${oldGenPath:-}" ] && [ "''${oldGenPath}" = "''${newGenPath:-}" ]; then
             echo "Home Manager generation unchanged, skipping SSH public key sync"
-            exit 0
-          fi
+          else
+            if [ -r ${privateKeyPath} ]; then
+              $DRY_RUN_CMD ${lib.getExe' pkgs.coreutils "mkdir"} -p ${config.home.homeDirectory}/.ssh
 
-          if [ -r ${privateKeyPath} ]; then
-            $DRY_RUN_CMD ${lib.getExe' pkgs.coreutils "mkdir"} -p ${config.home.homeDirectory}/.ssh
+              generated_pub="$(${lib.getExe' pkgs.openssh "ssh-keygen"} -y -f ${privateKeyPath})"
+              current_pub=""
 
-            generated_pub="$(${lib.getExe' pkgs.openssh "ssh-keygen"} -y -f ${privateKeyPath})"
-            current_pub=""
+              if [ -r ${publicKeyPath} ]; then
+                current_pub="$(${lib.getExe' pkgs.coreutils "cat"} ${publicKeyPath})"
+              fi
 
-            if [ -r ${publicKeyPath} ]; then
-              current_pub="$(${lib.getExe' pkgs.coreutils "cat"} ${publicKeyPath})"
-            fi
-
-            if [ "$generated_pub" != "$current_pub" ]; then
-              $DRY_RUN_CMD ${lib.getExe' pkgs.bash "bash"} -c 'printf "%s\n" "$1" > "$2"' _ "$generated_pub" ${publicKeyPath}
-              $DRY_RUN_CMD ${lib.getExe' pkgs.coreutils "chmod"} 644 ${publicKeyPath}
+              if [ "$generated_pub" != "$current_pub" ]; then
+                $DRY_RUN_CMD ${lib.getExe' pkgs.bash "bash"} -c 'printf "%s\n" "$1" > "$2"' _ "$generated_pub" ${publicKeyPath}
+                $DRY_RUN_CMD ${lib.getExe' pkgs.coreutils "chmod"} 644 ${publicKeyPath}
+              fi
             fi
           fi
         '';

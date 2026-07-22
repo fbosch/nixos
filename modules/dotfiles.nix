@@ -37,23 +37,22 @@ in
 
           if [ -n "''${oldGenPath:-}" ] && [ "''${oldGenPath}" = "''${newGenPath:-}" ]; then
             echo "Home Manager generation unchanged, skipping dotfiles setup"
-            exit 0
-          fi
-
-          if [ ! -d ${REPO}/.git ]; then
-            echo "Cloning dotfiles repository at revision ${DOTFILES_REV}..."
-            $DRY_RUN_CMD ${pkgs.git}/bin/git clone ${DOTFILES_URL} ${REPO}
-            $DRY_RUN_CMD ${pkgs.git}/bin/git -C ${REPO} checkout ${DOTFILES_REV}
           else
-            echo "Dotfiles repository already exists, skipping checkout to preserve local changes..."
-          fi
+            if [ ! -d ${REPO}/.git ]; then
+              echo "Cloning dotfiles repository at revision ${DOTFILES_REV}..."
+              $DRY_RUN_CMD ${pkgs.git}/bin/git clone ${DOTFILES_URL} ${REPO}
+              $DRY_RUN_CMD ${pkgs.git}/bin/git -C ${REPO} checkout ${DOTFILES_REV}
+            else
+              echo "Dotfiles repository already exists, skipping checkout to preserve local changes..."
+            fi
 
-          # Ensure remote uses SSH instead of HTTPS
-          CURRENT_URL=$(${pkgs.git}/bin/git -C ${REPO} remote get-url origin 2>/dev/null || echo "")
-          if [[ "$CURRENT_URL" == https://github.com/* ]]; then
-            SSH_URL=$(echo "$CURRENT_URL" | sed 's|https://github.com/|git@github.com:|')
-            echo "Switching remote from HTTPS to SSH: $SSH_URL"
-            $DRY_RUN_CMD ${pkgs.git}/bin/git -C ${REPO} remote set-url origin "$SSH_URL"
+            # Ensure remote uses SSH instead of HTTPS
+            CURRENT_URL=$(${pkgs.git}/bin/git -C ${REPO} remote get-url origin 2>/dev/null || echo "")
+            if [[ "$CURRENT_URL" == https://github.com/* ]]; then
+              SSH_URL=$(echo "$CURRENT_URL" | sed 's|https://github.com/|git@github.com:|')
+              echo "Switching remote from HTTPS to SSH: $SSH_URL"
+              $DRY_RUN_CMD ${pkgs.git}/bin/git -C ${REPO} remote set-url origin "$SSH_URL"
+            fi
           fi
         '';
 
@@ -65,13 +64,12 @@ in
 
           if [ -n "''${oldGenPath:-}" ] && [ "''${oldGenPath}" = "''${newGenPath:-}" ]; then
             echo "Home Manager generation unchanged, skipping dotfiles stow"
-            exit 0
+          else
+            cd ${REPO}
+            CURRENT_REV=$(${pkgs.git}/bin/git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+            echo "Stowing dotfiles from current revision: $CURRENT_REV"
+            $DRY_RUN_CMD ${pkgs.stow}/bin/stow ${stowFlags} -t "$HOME" .
           fi
-
-          cd ${REPO}
-          CURRENT_REV=$(${pkgs.git}/bin/git rev-parse --short HEAD 2>/dev/null || echo "unknown")
-          echo "Stowing dotfiles from current revision: $CURRENT_REV"
-          $DRY_RUN_CMD ${pkgs.stow}/bin/stow ${stowFlags} -t "$HOME" .
         '';
       };
     };

@@ -31,10 +31,26 @@
       , exe ? null
       ,
       }:
+      let
+        desktopItem' =
+          if
+            desktopItem ? icon
+            && builtins.isPath desktopItem.icon
+            && lib.hasSuffix ".svg" (toString desktopItem.icon)
+          then
+            desktopItem
+            // {
+              icon = pkgs.runCommand "${desktopItem.name}-icon.png" { nativeBuildInputs = [ pkgs.librsvg ]; } ''
+                rsvg-convert --width 256 --height 256 ${desktopItem.icon} > "$out"
+              '';
+            }
+          else
+            desktopItem;
+      in
       config.flake.lib.lazyApp pkgs (
         {
           inherit pkg;
-          desktopItems = [ (pkgs.makeDesktopItem desktopItem) ];
+          desktopItems = [ (pkgs.makeDesktopItem desktopItem') ];
         }
         // lib.optionalAttrs (exe != null) { inherit exe; }
       );

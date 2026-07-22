@@ -116,7 +116,7 @@ in
         buildImages = lib.mkOption {
           type = lib.types.bool;
           default = true;
-          description = "Build patched local PriceGhost images with DKK currency support";
+          description = "Add the build-priceghost-images command for patched local PriceGhost images with DKK currency support";
         };
 
         postgresImageTag = lib.mkOption {
@@ -152,34 +152,6 @@ in
 
       config = {
         environment.systemPackages = lib.mkIf cfg.buildImages [ buildImagesScript ];
-
-        system.activationScripts.priceghostBuildImages = lib.mkIf cfg.buildImages ''
-          log_file=/var/log/priceghost-build.log
-          stamp_file="/var/lib/priceghost/.image-rev"
-          desired_stamp="${priceghostRev}|dkk2|${cfg.backendImageTag}|${cfg.frontendImageTag}"
-
-          mkdir -p /var/log /var/lib/priceghost
-          echo "==> $(date -Iseconds) activation: checking PriceGhost images" >> "$log_file"
-
-          missing=0
-          if ! ${pkgs.podman}/bin/podman image exists localhost/priceghost-backend:${cfg.backendImageTag}; then
-            missing=1
-          fi
-          if ! ${pkgs.podman}/bin/podman image exists localhost/priceghost-frontend:${cfg.frontendImageTag}; then
-            missing=1
-          fi
-
-          stamp_rev=""
-          if [ -f "$stamp_file" ]; then
-            stamp_rev=$(cat "$stamp_file")
-          fi
-
-          if [ "$missing" -eq 1 ] || [ "$stamp_rev" != "$desired_stamp" ]; then
-            echo "PriceGhost images missing or out of date; building..." | tee -a "$log_file"
-            ${buildImagesScript}/bin/build-priceghost-images >> "$log_file" 2>&1
-            echo "$desired_stamp" > "$stamp_file"
-          fi
-        '';
 
         services.exposedPorts = lib.mkAfter [
           {

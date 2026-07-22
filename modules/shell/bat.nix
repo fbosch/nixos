@@ -35,16 +35,15 @@
 
           if [ -r "$cache_marker" ] && [ "$(<"$cache_marker")" = "$cache_input" ]; then
             verboseEcho "Bat cache inputs unchanged, skipping rebuild"
-            exit 0
+          else
+            mkdir -p "$(dirname "$cache_marker")"
+            verboseEcho "Rebuilding bat theme cache"
+            (
+              cd ${pkgs.emptyDirectory}
+              run ${lib.getExe config.programs.bat.package} cache --build
+            )
+            printf '%s\n' "$cache_input" > "$cache_marker"
           fi
-
-          mkdir -p "$(dirname "$cache_marker")"
-          verboseEcho "Rebuilding bat theme cache"
-          (
-            cd ${pkgs.emptyDirectory}
-            run ${lib.getExe config.programs.bat.package} cache --build
-          )
-          printf '%s\n' "$cache_input" > "$cache_marker"
         ''
       );
     };

@@ -86,11 +86,12 @@ in
           type = lib.types.bool;
           default = false;
           description = ''
-            Add 'build-openmemory-images' command to system packages.
+            Add the 'build-openmemory-images' command to system packages.
 
-            This builds OCI images using Nix and loads them into Podman.
-            Run once before enabling the service:
-              build-openmemory-images
+            Run 'sudo build-openmemory-images' before the first activation and after
+            changing imageTag.
+            This command builds OCI images and loads them into Podman.
+            Rebuilding does not build images automatically.
               sudo nixos-rebuild switch
           '';
         };
@@ -233,32 +234,6 @@ in
         {
           # Make build script available if enabled
           environment.systemPackages = lib.mkIf cfg.buildImages [ buildImagesScript ];
-
-          system.activationScripts.openmemoryBuildImages = lib.mkIf cfg.buildImages ''
-            log_file=/var/log/openmemory-build.log
-            mkdir -p /var/log
-            stamp_file="${cfg.dataDir}/.openmemory-image-rev"
-            mkdir -p "${cfg.dataDir}"
-            echo "==> $(date -Iseconds) activation: checking images" >> "$log_file"
-
-            missing=0
-            if ! ${pkgs.podman}/bin/podman image exists localhost/openmemory:${cfg.imageTag}; then
-              missing=1
-            fi
-
-            stamp_rev=""
-            if [ -f "$stamp_file" ]; then
-              stamp_rev=$(cat "$stamp_file")
-            fi
-
-            desired_stamp="${openmemoryRev}"
-
-            if [ "$missing" -eq 1 ] || [ "$stamp_rev" != "$desired_stamp" ]; then
-              echo "OpenMemory images missing or out of date; building..." | tee -a "$log_file"
-              ${buildImagesScript}/bin/build-openmemory-images >> "$log_file" 2>&1
-              echo "$desired_stamp" > "$stamp_file"
-            fi
-          '';
 
           services.exposedPorts = lib.mkAfter [
             {

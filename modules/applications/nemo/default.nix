@@ -1,9 +1,18 @@
 {
   flake.modules.nixos.applications =
     { pkgs, ... }:
+    let
+      nemo = pkgs.nemo.overrideAttrs (old: {
+        buildInputs = old.buildInputs ++ [ pkgs.tinysparql ];
+        mesonFlags = old.mesonFlags ++ [ "-Dtracker=true" ];
+      });
+    in
     {
+      services.gnome.localsearch.enable = true;
+
       environment.systemPackages = with pkgs; [
         (nemo-with-extensions.override {
+          inherit nemo;
           extensions = [
             local.nemo-image-converter
             pkgs.nemo-fileroller
