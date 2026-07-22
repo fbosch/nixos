@@ -30,6 +30,7 @@ let
       "nix-command"
       "flakes"
     ];
+    fallback = true;
   };
 
   sharedNixSettingsMerged = lib.mkMerge [
