@@ -25,6 +25,10 @@ build-openmemory:
 # Build all custom container images
 build-images: build-helium build-openmemory
 
+# Pre-pull the pinned PriceGhost PostgreSQL image before a server switch
+pull-priceghost-postgres:
+    sudo podman pull "$(nix eval --raw --impure --expr 'let flake = builtins.getFlake (toString ./.); in flake.nixosConfigurations.rvn-srv.config.services."priceghost-container".postgresImage')"
+
 # Push a Nix closure to Attic (defaults to current host system)
 push-attic target='' jobs='3':
     if [ -n "{{target}}" ]; then nix path-info -r "{{target}}" | attic push --jobs "{{jobs}}" --no-closure nix-cache --stdin; else nix path-info -r ".#nixosConfigurations.$(hostname).config.system.build.toplevel" | attic push --jobs "{{jobs}}" --no-closure nix-cache --stdin; fi

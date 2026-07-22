@@ -119,10 +119,10 @@ in
           description = "Add the build-priceghost-images command for patched local PriceGhost images with DKK currency support";
         };
 
-        postgresImageTag = lib.mkOption {
+        postgresImage = lib.mkOption {
           type = lib.types.str;
-          default = "16-alpine";
-          description = "PostgreSQL container image tag";
+          default = "docker.io/library/postgres:16-alpine@sha256:57c72fd2a128e416c7fcc499958864df5301e940bca0a56f58fddf30ffc07777";
+          description = "Pinned PostgreSQL container image; pre-pull it with just pull-priceghost-postgres before switching";
         };
 
         postgresMemory = lib.mkOption {
@@ -308,7 +308,8 @@ in
 
             [Container]
             ContainerName=priceghost-postgres
-            Image=docker.io/library/postgres:${cfg.postgresImageTag}
+            Image=${cfg.postgresImage}
+            Pull=never
             Network=priceghost.network
             PodmanArgs=--network-alias=postgres
             Environment=POSTGRES_USER=postgres
@@ -342,6 +343,7 @@ in
             [Container]
             ContainerName=priceghost-backend
             Image=localhost/priceghost-backend:${cfg.backendImageTag}
+            Pull=never
             Network=priceghost.network
             PodmanArgs=--network-alias=backend
             Environment=PORT=3001
@@ -375,6 +377,7 @@ in
             [Container]
             ContainerName=priceghost
             Image=localhost/priceghost-frontend:${cfg.frontendImageTag}
+            Pull=never
             Network=priceghost.network
             PublishPort=${toString cfg.port}:80
             Memory=${cfg.frontendMemory}
