@@ -29,6 +29,19 @@ for pnpm_root_entry in "$pnpm_home"/* "$pnpm_home/bin"/*; do
   fi
 done
 
+install_managed_shims() {
+  for managed_bin in "$managed_current_dir/node_modules/.bin"/*; do
+    if [ -e "$managed_bin" ]; then
+      wrapper="$pnpm_home/bin/$(basename "$managed_bin")"
+      cat >"$wrapper" <<EOF
+#!/usr/bin/env bash
+exec "$managed_bin" "\$@"
+EOF
+      chmod +x "$wrapper"
+    fi
+  done
+}
+
 finish_failed_install() {
   echo ""
   echo "WARNING: Failed to install/update npm global packages." >&2
@@ -61,9 +74,11 @@ input_fingerprint="$(
   } | sha256sum | cut -d ' ' -f 1
 )"
 
-if [ -d "$managed_current_dir/node_modules" ] &&
+if [ "${PNPM_GLOBALS_ACTIVATION:-0}" = 1 ] &&
+  [ -d "$managed_current_dir/node_modules" ] &&
   [ -f "$input_fingerprint_file" ] &&
   [ "$(<"$input_fingerprint_file")" = "$input_fingerprint" ]; then
+  install_managed_shims
   echo "npm global package inputs unchanged, skipping install"
   exit 0
 fi
@@ -110,16 +125,7 @@ mkdir -p "$managed_current_dir"
 cp "$project_dir/package.json" "$project_dir/pnpm-lock.yaml" "$project_dir/pnpm-workspace.yaml" "$managed_current_dir/"
 
 if "$pnpm_bin" --dir "$managed_current_dir" install --frozen-lockfile --prod --ignore-scripts=false 2>&1; then
-  for managed_bin in "$managed_current_dir/node_modules/.bin"/*; do
-    if [ -e "$managed_bin" ]; then
-      wrapper="$pnpm_home/bin/$(basename "$managed_bin")"
-      cat >"$wrapper" <<EOF
-#!/usr/bin/env bash
-exec "$managed_bin" "\$@"
-EOF
-      chmod +x "$wrapper"
-    fi
-  done
+  install_managed_shims
   printf '%s\n' "$input_fingerprint" >"$input_fingerprint_file"
   rm -rf "$managed_current_dir.previous"
   echo ""
