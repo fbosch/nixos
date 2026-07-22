@@ -14,7 +14,7 @@ in
           desktopName = "VSCodium";
           genericName = "Code Editor";
           comment = "Free and open-source distribution of VS Code";
-          icon = ../../assets/icons/vscodium.svg;
+          icon = "vscodium";
           terminal = false;
           categories = [
             "Development"

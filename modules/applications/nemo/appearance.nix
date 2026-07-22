@@ -6,19 +6,42 @@
         # Nemo transparency for Hyprland compositor blur
         "gtk-3.0/nemo-transparency.css".text = ''
           /* Nemo transparency for compositor blur */
-          .nemo-window,
-          .nemo-window .background {
+          window.nemo-window,
+          window.nemo-window .background {
+            background: transparent;
+          }
+
+          /* Paint the content area once to avoid nested alpha compositing. */
+          window.nemo-window > grid > paned.horizontal {
+            background: rgba(37, 37, 37, 0.82);
+          }
+
+          window.nemo-window .sidebar {
+            background: transparent;
+            border: none;
+            box-shadow: none;
+          }
+
+          window.nemo-window .nemo-window-pane,
+          window.nemo-window scrolledwindow,
+          window.nemo-window viewport,
+          window.nemo-window .view,
+          window.nemo-window treeview,
+          window.nemo-window iconview {
+            background: transparent;
+          }
+
+          .nemo-window .primary-toolbar,
+          .nemo-window toolbar {
             background-color: rgba(37, 37, 37, 0.82);
           }
 
-          .nemo-window .view,
-          .nemo-window treeview,
-          .nemo-window scrolledwindow {
-            background-color: rgba(37, 37, 37, 0.82);
-          }
-
-          .nemo-window .sidebar {
-            background-color: rgba(37, 37, 37, 0.82);
+          window.nemo-window > grid > paned.horizontal > separator {
+            background: transparent;
+            border: none;
+            box-shadow: none;
+            min-width: 1px;
+            -gtk-icon-source: none;
           }
 
           /* Windows 11-style blue selection color */
@@ -41,7 +64,7 @@
           /* Address bar — less transparent than window body */
           .nemo-window .primary-toolbar entry,
           .nemo-window toolbar entry {
-            background-color: rgba(37, 37, 37, 0.90);
+            background-color: rgba(37, 37, 37, 0.70);
             -gtk-secondary-caret-color: transparent;
           }
         '';

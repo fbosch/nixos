@@ -13,7 +13,6 @@
   inputs = {
     # Core infrastructure
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
-    nixpkgs-stable.url = "github:nixos/nixpkgs/nixos-24.11";
     flake-parts = {
       url = "github:hercules-ci/flake-parts";
       inputs.nixpkgs-lib.follows = "nixpkgs";
@@ -47,8 +46,6 @@
       inputs.flake-parts.follows = "flake-parts";
     };
 
-    # Package infrastructure (modules/flake-parts/nixpkgs.nix, modules/system/core.nix)
-    pkgs-by-name-for-flake-parts.url = "github:drupol/pkgs-by-name-for-flake-parts";
     # Dotfiles (modules/dotfiles.nix)
     dotfiles = {
       url = "github:fbosch/dotfiles";
@@ -58,7 +55,6 @@
     # Hyprland desktop environment (modules/desktop/hyprland.nix)
     hyprland = {
       url = "github:hyprwm/Hyprland";
-      inputs.nixpkgs.follows = "nixpkgs";
       inputs.systems.follows = "dedupe_systems";
     };
     # split-monitor-workspaces = {
@@ -71,22 +67,18 @@
     };
     hyprlock = {
       url = "github:hyprwm/hyprlock";
-      inputs.nixpkgs.follows = "nixpkgs";
       inputs.systems.follows = "dedupe_systems";
     };
     hypridle = {
       url = "github:hyprwm/hypridle";
-      inputs.nixpkgs.follows = "nixpkgs";
       inputs.systems.follows = "dedupe_systems";
     };
     hyprsunset = {
       url = "github:hyprwm/hyprsunset";
-      inputs.nixpkgs.follows = "nixpkgs";
       inputs.systems.follows = "dedupe_systems";
     };
     hyprpaper = {
       url = "github:hyprwm/hyprpaper";
-      inputs.nixpkgs.follows = "nixpkgs";
     };
 
     # SDDM theme
@@ -131,12 +123,6 @@
       inputs.pre-commit-hooks.follows = "pre-commit-hooks";
     };
     flatpaks.url = "github:gmodena/nix-flatpak"; # modules/applications/flatpak.nix
-    vicinae = {
-      # modules/applications/vicinae.nix
-      url = "github:vicinaehq/vicinae";
-      inputs.nixpkgs.follows = "nixpkgs";
-      inputs.systems.follows = "dedupe_systems";
-    };
     winapps = {
       # modules/applications/windows.nix
       url = "github:winapps-org/winapps";
