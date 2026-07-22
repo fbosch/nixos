@@ -9,11 +9,15 @@
         ZEN_PROFILE="$HOME/.var/app/app.zen_browser.zen/.zen"
         if [ -d "$ZEN_PROFILE" ]; then
           ${pkgs.findutils}/bin/find "$ZEN_PROFILE" -maxdepth 1 -iname "*default*" -type d ! -name "static-*" | while IFS= read -r PROFILE_DIR; do
-            ${pkgs.coreutils}/bin/install -m 0644 ${./user.js} "$PROFILE_DIR/user.js"
-            echo "Zen user.js installed at $PROFILE_DIR/user.js"
+            if ! ${pkgs.coreutils}/bin/cmp -s ${./user.js} "$PROFILE_DIR/user.js"; then
+              ${pkgs.coreutils}/bin/install -m 0644 ${./user.js} "$PROFILE_DIR/user.js"
+              echo "Zen user.js installed at $PROFILE_DIR/user.js"
+            fi
 
-            ${pkgs.coreutils}/bin/install -D -m 0644 ${./userContent.css} "$PROFILE_DIR/chrome/userContent.css"
-            echo "Zen userContent.css installed at $PROFILE_DIR/chrome/userContent.css"
+            if ! ${pkgs.coreutils}/bin/cmp -s ${./userContent.css} "$PROFILE_DIR/chrome/userContent.css"; then
+              ${pkgs.coreutils}/bin/install -D -m 0644 ${./userContent.css} "$PROFILE_DIR/chrome/userContent.css"
+              echo "Zen userContent.css installed at $PROFILE_DIR/chrome/userContent.css"
+            fi
 
           done
         fi
