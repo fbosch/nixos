@@ -89,7 +89,6 @@ in
             inputs.grub2-themes.nixosModules.default
           ];
 
-        # Keep rebuilds fast while reserving CPU headroom for desktop responsiveness.
         nixpkgs.overlays = [ inputs.nix-cachyos-kernel.overlays.default ];
 
         nix = {
@@ -109,11 +108,6 @@ in
         };
 
         time.hardwareClockInLocalTime = true;
-
-        virtualisation.podman = {
-          dockerCompat = lib.mkForce false;
-          dockerSocket.enable = lib.mkForce false;
-        };
 
         environment.sessionVariables = {
           TERMINAL = "wezterm";
