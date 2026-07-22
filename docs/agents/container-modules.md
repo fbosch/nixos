@@ -122,6 +122,10 @@ Use native Quadlet/systemd fields. Only use `PodmanArgs=` for things with no nat
 
 Do **not** use `PodmanArgs=--memory=` or `PodmanArgs=--pids-limit=` — use the native fields above.
 
+### Startup policy
+
+Containers that participate in the tiered startup policy declare their logical application and default tier in the owning module. Capture `config.flake.lib.startupPolicy` at the flake-module scope, then use `startupPolicy.quadlet config "myapp.service"` for the generated `Slice=` and `WantedBy=` values. The helper falls back to `system.slice` and `multi-user.target` on hosts without a policy.
+
 ### Renovate compatibility
 
 Use option names that end in `imageTag` or `ImageTag` so Renovate can detect updates for interpolated image references. Examples: `imageTag`, `redisImageTag`, `core.imageTag`.
@@ -230,7 +234,7 @@ Requires=myapp-db.service
 - [ ] Resource limits use native Quadlet fields
 - [ ] `LogDriver=journald` + `LogOpt=tag=<name>` on every container
 - [ ] `[Service]` has `Restart=always`, `RestartSec=10`, `TimeoutStartSec=`
-- [ ] `[Install]` has `WantedBy=multi-user.target`
+- [ ] `[Install]` resolves `WantedBy` through `startupPolicy.quadlet`
 - [ ] Secrets wired via `sops.templates`, not inline in container env
 - [ ] Named volumes have a `.volume` file with `VolumeName=`
 - [ ] Multi-container networks have a `.network` file with `NetworkName=`

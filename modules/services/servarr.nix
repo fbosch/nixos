@@ -3,6 +3,23 @@ _: {
     { lib, ... }:
     {
       config = {
+        services.startupPolicy.applications.servarr = {
+          tier = lib.mkDefault "background";
+          units =
+            map
+              (name: {
+                inherit name;
+                provider = "nixos";
+              })
+              [
+                "bazarr.service"
+                "lidarr.service"
+                "prowlarr.service"
+                "radarr.service"
+                "sonarr.service"
+              ];
+        };
+
         users = {
           groups = {
             media = { };

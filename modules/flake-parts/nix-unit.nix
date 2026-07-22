@@ -14,6 +14,10 @@
         portConflicts = import ../../tests/nix-unit/port-conflicts.nix {
           inherit (config.flake.lib) portConflicts;
         };
+
+        startupPolicy = import ../../tests/nix-unit/startup-policy.nix {
+          inherit (config.flake.lib) startupPolicy;
+        };
       };
     };
   };

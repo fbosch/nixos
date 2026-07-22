@@ -1,4 +1,8 @@
-_: {
+{ config, ... }:
+let
+  inherit (config.flake.lib) startupPolicy;
+in
+{
   flake.modules.nixos."services/containers/rsshub" =
     { config
     , lib
@@ -38,6 +42,20 @@ _: {
       };
 
       config = {
+        services.startupPolicy.applications.rsshub = {
+          tier = lib.mkDefault "background";
+          units =
+            map
+              (name: {
+                inherit name;
+                provider = "quadlet";
+              })
+              [
+                "rsshub-redis.service"
+                "rsshub.service"
+              ];
+        };
+
         services.exposedPorts = lib.mkAfter [
           {
             service = "rsshub-container";
@@ -72,7 +90,7 @@ _: {
             TimeoutStartSec=120
 
             [Install]
-            WantedBy=multi-user.target
+            WantedBy=${(startupPolicy.quadlet config "rsshub-redis.service").target}
           '';
 
           "containers/systemd/rsshub-redis.container".text = ''
@@ -98,7 +116,7 @@ _: {
             TimeoutStartSec=60
 
             [Install]
-            WantedBy=multi-user.target
+            WantedBy=${(startupPolicy.quadlet config "rsshub.service").target}
           '';
 
           "containers/systemd/rsshub-redis-data.volume".text = ''

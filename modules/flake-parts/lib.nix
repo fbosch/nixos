@@ -55,6 +55,17 @@
         // lib.optionalAttrs (exe != null) { inherit exe; }
       );
 
+    startupPolicy.quadlet =
+      nixosConfig: unit:
+      lib.attrByPath [
+        "services"
+        "startupPolicy"
+        "quadletUnitSettings"
+        unit
+      ]
+        (throw "startupPolicy Quadlet unit `${unit}` is not registered")
+        nixosConfig;
+
     portConflicts =
       let
         portsFor =

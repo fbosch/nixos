@@ -57,6 +57,20 @@ _: {
       };
 
       config = {
+        services.startupPolicy.applications.plex = {
+          tier = lib.mkDefault "background";
+          units =
+            map
+              (name: {
+                inherit name;
+                provider = "nixos";
+              })
+              [
+                "plex.service"
+                "nginx.service"
+              ];
+        };
+
         services = {
           plex = {
             enable = lib.mkDefault true;

@@ -7,6 +7,16 @@ _: {
     }:
     {
       config = {
+        services.startupPolicy.applications.home-assistant = {
+          tier = lib.mkDefault "background";
+          units = [
+            {
+              name = "home-assistant.service";
+              provider = "nixos";
+            }
+          ];
+        };
+
         services = {
           home-assistant = {
             enable = lib.mkDefault true;

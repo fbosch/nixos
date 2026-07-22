@@ -72,6 +72,16 @@ _: {
       };
 
       config = {
+        services.startupPolicy.applications.rdtclient = {
+          tier = lib.mkDefault "background";
+          units = [
+            {
+              name = "rdtclient.service";
+              provider = "quadlet";
+            }
+          ];
+        };
+
         services.exposedPorts = lib.mkAfter [
           {
             service = "rdtclient";
@@ -116,7 +126,14 @@ _: {
           TimeoutStopSec=30
 
           [Install]
-          WantedBy=multi-user.target
+            WantedBy=${
+              lib.attrByPath [
+                "services"
+                "startupPolicy"
+                "quadletTargets"
+                "rdtclient.service"
+              ] "multi-user.target" config
+            }
         '';
 
         networking.firewall.allowedTCPPorts = [ cfg.port ];

@@ -137,16 +137,35 @@ in
       };
 
       config = {
+        services = {
+          startupPolicy.applications.glance = {
+            tier = lib.mkDefault "background";
+            units = [
+              {
+                name = "glance.service";
+                provider = "quadlet";
+              }
+            ];
+          };
+
+          glance-container.envFile = lib.mkDefault (
+            lib.attrByPath [ "sops" "templates" "glance-env" "path" ] null config
+          );
+
+          exposedPorts = lib.mkAfter [
+            {
+              service = "glance-container";
+              tcpPorts = [ cfg.port ];
+            }
+          ];
+        };
+
         assertions = [
           {
             assertion = cfg.port == 8080;
             message = "glance-container: host networking requires port 8080 because Glance binds directly on the host";
           }
         ];
-
-        services.glance-container.envFile = lib.mkDefault (
-          lib.attrByPath [ "sops" "templates" "glance-env" "path" ] null config
-        );
 
         sops = {
           secrets = lib.mkMerge [
@@ -180,12 +199,6 @@ in
           };
         };
 
-        services.exposedPorts = lib.mkAfter [
-          {
-            service = "glance-container";
-            tcpPorts = [ cfg.port ];
-          }
-        ];
         systemd.tmpfiles.rules = [
           "d ${cfg.dataDir} 0755 root root -"
           "d ${configDir} 0755 root root -"
@@ -225,7 +238,14 @@ in
           TimeoutStartSec=60
 
           [Install]
-          WantedBy=multi-user.target
+            WantedBy=${
+              lib.attrByPath [
+                "services"
+                "startupPolicy"
+                "quadletTargets"
+                "glance.service"
+              ] "multi-user.target" config
+            }
         '';
 
         networking.firewall.allowedTCPPorts = [ cfg.port ];

@@ -1,6 +1,6 @@
 { config, ... }:
 let
-  inherit (config.flake.lib) sopsHelpers;
+  inherit (config.flake.lib) sopsHelpers startupPolicy;
 in
 {
   flake.modules.nixos."services/containers/openmemory" =
@@ -232,6 +232,16 @@ in
             if cfg.useHostStorage != null then cfg.useHostStorage else cfg.dataDir != "/var/lib/openmemory";
         in
         {
+          services.startupPolicy.applications.openmemory = {
+            tier = lib.mkDefault "background";
+            units = [
+              {
+                name = "openmemory.service";
+                provider = "quadlet";
+              }
+            ];
+          };
+
           # Make build script available if enabled
           environment.systemPackages = lib.mkIf cfg.buildImages [ buildImagesScript ];
 
@@ -332,7 +342,7 @@ in
                 TimeoutStartSec=300
 
                 [Install]
-                WantedBy=multi-user.target
+                WantedBy=${(startupPolicy.quadlet config "openmemory.service").target}
               '';
 
             }

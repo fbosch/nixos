@@ -15,6 +15,38 @@ in
     ];
 
     services = {
+      startupPolicy.applications = {
+        dns = {
+          tier = lib.mkDefault "essential";
+          units = [
+            {
+              name = "dnsmasq.service";
+              provider = "nixos";
+            }
+          ];
+        };
+
+        uptime-kuma = {
+          tier = lib.mkDefault "background";
+          units = [
+            {
+              name = "uptime-kuma.service";
+              provider = "nixos";
+            }
+          ];
+        };
+
+        glances = {
+          tier = lib.mkDefault "background";
+          units = [
+            {
+              name = "glances.service";
+              provider = "nixos";
+            }
+          ];
+        };
+      };
+
       openmemory-container = {
         buildImages = true;
       };

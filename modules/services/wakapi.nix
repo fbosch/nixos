@@ -14,6 +14,17 @@ in
     {
       config = lib.mkMerge [
         {
+          services.startupPolicy.applications.wakapi = {
+            tier = lib.mkDefault "background";
+            units = [
+              {
+                name = "wakapi.service";
+                provider = "nixos";
+              }
+            ];
+          };
+        }
+        {
           services.wakapi = {
             enable = lib.mkDefault true;
             stateDir = lib.mkDefault "/var/lib/wakapi";

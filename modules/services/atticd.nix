@@ -23,6 +23,17 @@ in
     {
       config = lib.mkMerge [
         {
+          services.startupPolicy.applications.attic = {
+            tier = lib.mkDefault "background";
+            units = [
+              {
+                name = "atticd.service";
+                provider = "nixos";
+              }
+            ];
+          };
+        }
+        {
           services.atticd.enable = lib.mkDefault true;
         }
         (lib.mkIf cfg.enable {

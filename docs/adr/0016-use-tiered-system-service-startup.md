@@ -9,7 +9,7 @@
 
 ## Decision
 
-Use three startup tiers for explicitly registered server applications. Essential services start during boot; Standard services start after `multi-user.target` without gating it; Background services start later in a deterministic, staggered order. The initial policy keeps DNS, VPN, and Helium Essential; places the media stack, Linkwarden, and OpenMemory in Standard; and assigns remaining application services to Background.
+Use three startup tiers declared by the modules that own each application. Essential services start during boot; Standard services start after `multi-user.target` without gating it; Background application groups start sequentially after Standard settles and receive lower CPU and I/O weights. The initial policy keeps DNS, VPN, and Helium Essential; places the media stack, Linkwarden, and OpenMemory in Standard; and assigns remaining application services to Background.
 
 ## Alternatives Considered
 
@@ -17,4 +17,4 @@ Starting every service from `multi-user.target` was rejected because it makes al
 
 ## Consequences
 
-`multi-user.target` can complete without waiting for nonessential applications, while DNS, VPN, and Helium remain available early. Standard and Background services become available later, and Background failures must be observable without blocking later applications. The flake needs a shared host-facing startup-policy module and container modules must resolve their install targets through that policy.
+`multi-user.target` can complete without waiting for nonessential applications, while DNS, VPN, and Helium remain available early. Standard and Background services become available later, and Background failures must be observable without blocking later applications. The flake needs a shared collector/dispatcher, and service modules must declare their owned units and default tier.

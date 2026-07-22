@@ -80,6 +80,16 @@ in
       };
 
       config = {
+        services.startupPolicy.applications.attic = {
+          tier = lib.mkDefault "background";
+          units = [
+            {
+              name = "attic-upload.service";
+              provider = "nixos";
+            }
+          ];
+        };
+
         nix.settings = lib.mkMerge [
           (lib.mkIf cfg.enableSubstituter {
             substituters = lib.mkBefore [ cacheUrl ];

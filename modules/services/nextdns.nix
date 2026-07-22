@@ -20,6 +20,16 @@ in
       };
 
       config = lib.mkIf cfg.enable {
+        services.startupPolicy.applications.dns = {
+          tier = lib.mkDefault "essential";
+          units = [
+            {
+              name = "nextdns.service";
+              provider = "nixos";
+            }
+          ];
+        };
+
         services.nextdns.arguments = lib.mkDefault [
           "-config-file"
           "/run/nextdns/nextdns.conf"

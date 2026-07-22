@@ -157,6 +157,16 @@ in
       };
 
       config = {
+        services.startupPolicy.applications.onwatch = {
+          tier = lib.mkDefault "background";
+          units = [
+            {
+              name = "onwatch.service";
+              provider = "quadlet";
+            }
+          ];
+        };
+
         services = {
           onwatch-container.opencodeAuthFile = lib.mkDefault "/home/${username}/.local/share/opencode/auth.json";
           onwatch-container.codexAuthFile = lib.mkDefault "/home/${username}/.codex/auth.json";
@@ -222,7 +232,14 @@ in
           TimeoutStartSec=120
 
           [Install]
-          WantedBy=multi-user.target
+            WantedBy=${
+              lib.attrByPath [
+                "services"
+                "startupPolicy"
+                "quadletTargets"
+                "onwatch.service"
+              ] "multi-user.target" config
+            }
         '';
 
         networking.firewall.allowedTCPPorts = [ cfg.port ];

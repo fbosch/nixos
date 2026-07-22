@@ -45,6 +45,16 @@ in
       };
 
       config = {
+        services.startupPolicy.applications.speedtest-tracker = {
+          tier = lib.mkDefault "background";
+          units = [
+            {
+              name = "speedtest-tracker.service";
+              provider = "quadlet";
+            }
+          ];
+        };
+
         services.exposedPorts = lib.mkAfter [
           {
             service = "speedtest-tracker";
@@ -88,7 +98,14 @@ in
             TimeoutStartSec=300
 
             [Install]
-            WantedBy=multi-user.target
+            WantedBy=${
+              lib.attrByPath [
+                "services"
+                "startupPolicy"
+                "quadletTargets"
+                "speedtest-tracker.service"
+              ] "multi-user.target" config
+            }
           '';
 
           "containers/systemd/speedtest-tracker-data.volume".text = ''

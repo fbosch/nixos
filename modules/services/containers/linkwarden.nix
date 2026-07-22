@@ -1,6 +1,6 @@
 { config, ... }:
 let
-  inherit (config.flake.lib) sopsHelpers;
+  inherit (config.flake.lib) sopsHelpers startupPolicy;
 in
 {
   # Linkwarden - Self-hosted collaborative bookmark manager
@@ -142,6 +142,34 @@ in
       };
 
       config = {
+        services = {
+          startupPolicy.applications.linkwarden = {
+            tier = lib.mkDefault "background";
+            units =
+              map
+                (name: {
+                  inherit name;
+                  provider = "quadlet";
+                })
+                [
+                  "linkwarden-postgres.service"
+                  "linkwarden-meilisearch.service"
+                  "linkwarden.service"
+                ];
+          };
+
+          linkwarden-container.envFile = lib.mkDefault (
+            lib.attrByPath [ "sops" "templates" "linkwarden-env" "path" ] null config
+          );
+
+          exposedPorts = lib.mkAfter [
+            {
+              service = "linkwarden-container";
+              tcpPorts = [ cfg.port ];
+            }
+          ];
+        };
+
         sops = {
           secrets = sopsHelpers.mkSecretsWithOpts containersFile sopsHelpers.rootOnly [
             "linkwarden-postgres-password"
@@ -160,17 +188,6 @@ in
             mode = "0400";
           };
         };
-
-        services.linkwarden-container.envFile = lib.mkDefault (
-          lib.attrByPath [ "sops" "templates" "linkwarden-env" "path" ] null config
-        );
-
-        services.exposedPorts = lib.mkAfter [
-          {
-            service = "linkwarden-container";
-            tcpPorts = [ cfg.port ];
-          }
-        ];
 
         systemd.tmpfiles.rules = [
           "d ${cfg.dataDir} 0755 root root -"
@@ -202,6 +219,7 @@ in
             LogOpt=tag=linkwarden-postgres
 
             [Service]
+            Slice=${(startupPolicy.quadlet config "linkwarden-postgres.service").slice}
             RestrictAddressFamilies=~AF_ALG
             SystemCallArchitectures=native
             Restart=always
@@ -209,7 +227,7 @@ in
             TimeoutStartSec=60
 
             [Install]
-            WantedBy=multi-user.target
+            WantedBy=${(startupPolicy.quadlet config "linkwarden-postgres.service").target}
           '';
 
           # Meilisearch container
@@ -233,6 +251,7 @@ in
             LogOpt=tag=linkwarden-meilisearch
 
             [Service]
+            Slice=${(startupPolicy.quadlet config "linkwarden-meilisearch.service").slice}
             RestrictAddressFamilies=~AF_ALG
             SystemCallArchitectures=native
             Restart=always
@@ -240,7 +259,7 @@ in
             TimeoutStartSec=60
 
             [Install]
-            WantedBy=multi-user.target
+            WantedBy=${(startupPolicy.quadlet config "linkwarden-meilisearch.service").target}
           '';
 
           # Linkwarden main container
@@ -275,6 +294,7 @@ in
             LogOpt=tag=linkwarden
 
             [Service]
+            Slice=${(startupPolicy.quadlet config "linkwarden.service").slice}
             RestrictAddressFamilies=~AF_ALG
             SystemCallArchitectures=native
             Restart=always
@@ -282,7 +302,7 @@ in
             TimeoutStartSec=120
 
             [Install]
-            WantedBy=multi-user.target
+            WantedBy=${(startupPolicy.quadlet config "linkwarden.service").target}
           '';
 
           # Podman network definition

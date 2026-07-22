@@ -60,6 +60,16 @@ _: {
       };
 
       config = {
+        services.startupPolicy.applications.dozzle = {
+          tier = lib.mkDefault "background";
+          units = [
+            {
+              name = "dozzle.service";
+              provider = "quadlet";
+            }
+          ];
+        };
+
         services.exposedPorts = lib.mkAfter [
           {
             service = "dozzle";
@@ -135,7 +145,14 @@ _: {
               TimeoutStartSec=60
 
               [Install]
-              WantedBy=multi-user.target
+              WantedBy=${
+                lib.attrByPath [
+                  "services"
+                  "startupPolicy"
+                  "quadletTargets"
+                  "dozzle.service"
+                ] "multi-user.target" config
+              }
             '';
         };
 

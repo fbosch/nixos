@@ -10,6 +10,17 @@ _: {
     {
       config = lib.mkMerge [
         {
+          services.startupPolicy.applications.atuin = {
+            tier = lib.mkDefault "background";
+            units = [
+              {
+                name = "atuin.service";
+                provider = "nixos";
+              }
+            ];
+          };
+        }
+        {
           services.atuin = {
             enable = lib.mkDefault true;
             host = lib.mkDefault "0.0.0.0";

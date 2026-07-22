@@ -18,6 +18,7 @@
 
       # NixOS-specific
       "system"
+      "system/tiered-service-startup"
       "vpn"
     ];
   };

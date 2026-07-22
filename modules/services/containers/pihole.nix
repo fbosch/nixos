@@ -69,12 +69,35 @@ in
       };
 
       config = {
+        services = {
+          startupPolicy.applications.dns = {
+            tier = lib.mkDefault "essential";
+            units = [
+              {
+                name = "pihole.service";
+                provider = "quadlet";
+              }
+            ];
+          };
+
+          pihole-container.webPasswordFile = lib.mkDefault (
+            lib.attrByPath [ "sops" "templates" "pihole-webpassword" "path" ] null config
+          );
+
+          exposedPorts = lib.mkAfter [
+            {
+              service = "pihole-container";
+              tcpPorts = [
+                cfg.webPort
+                cfg.dnsPort
+              ];
+              udpPorts = [ cfg.dnsPort ];
+            }
+          ];
+        };
+
         sops.secrets."pihole-default-password" =
           sopsHelpers.mkSecret ../../../secrets/containers.yaml sopsHelpers.rootOnly;
-
-        services.pihole-container.webPasswordFile = lib.mkDefault (
-          lib.attrByPath [ "sops" "templates" "pihole-webpassword" "path" ] null config
-        );
 
         sops.templates."pihole-webpassword" = {
           content = ''
@@ -82,17 +105,6 @@ in
           '';
           mode = "0400";
         };
-
-        services.exposedPorts = lib.mkAfter [
-          {
-            service = "pihole-container";
-            tcpPorts = [
-              cfg.webPort
-              cfg.dnsPort
-            ];
-            udpPorts = [ cfg.dnsPort ];
-          }
-        ];
 
         environment.etc = {
           "containers/systemd/pihole.container".text = ''
@@ -142,7 +154,14 @@ in
               TimeoutStartSec=300
 
               [Install]
-              WantedBy=multi-user.target
+            WantedBy=${
+              lib.attrByPath [
+                "services"
+                "startupPolicy"
+                "quadletTargets"
+                "pihole.service"
+              ] "multi-user.target" config
+            }
           '';
 
           "containers/systemd/pihole-data.volume".text = ''

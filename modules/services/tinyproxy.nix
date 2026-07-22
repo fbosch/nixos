@@ -66,6 +66,16 @@ _: {
       };
 
       config = {
+        services.startupPolicy.applications.tinyproxy = {
+          tier = lib.mkDefault "background";
+          units = [
+            {
+              name = "tinyproxy.service";
+              provider = "nixos";
+            }
+          ];
+        };
+
         services.tinyproxy = {
           enable = lib.mkDefault true;
           settings = lib.mkMerge [

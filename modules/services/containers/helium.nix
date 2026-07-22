@@ -1,4 +1,8 @@
-_: {
+{ config, ... }:
+let
+  inherit (config.flake.lib) startupPolicy;
+in
+{
   flake.modules.nixos."services/containers/helium" =
     { config
     , lib
@@ -261,6 +265,28 @@ _: {
           '';
         in
         {
+          services.startupPolicy.applications.helium = {
+            tier = lib.mkDefault "essential";
+            units =
+              map
+                (name: {
+                  inherit name;
+                  provider = "quadlet";
+                })
+                [
+                  "helium-ubo-proxy.service"
+                  "helium-ext-proxy.service"
+                  "helium-ext-proxy-backup.service"
+                  "helium-nginx.service"
+                ]
+              ++ [
+                {
+                  name = "helium-services-env.service";
+                  provider = "nixos";
+                }
+              ];
+          };
+
           services.exposedPorts = lib.mkAfter [
             {
               service = "helium-services-container";
@@ -343,7 +369,7 @@ _: {
               CPUQuota=50%
 
               [Install]
-              WantedBy=multi-user.target
+              WantedBy=${(startupPolicy.quadlet config "helium-ubo-proxy.service").target}
             '';
 
             "containers/systemd/helium-ext-proxy.container".text = ''
@@ -373,7 +399,7 @@ _: {
               CPUQuota=50%
 
               [Install]
-              WantedBy=multi-user.target
+              WantedBy=${(startupPolicy.quadlet config "helium-ext-proxy.service").target}
             '';
 
             "containers/systemd/helium-ext-proxy-backup.container".text = ''
@@ -403,7 +429,7 @@ _: {
               CPUQuota=50%
 
               [Install]
-              WantedBy=multi-user.target
+              WantedBy=${(startupPolicy.quadlet config "helium-ext-proxy-backup.service").target}
             '';
 
             "containers/systemd/helium.network".text = ''
@@ -442,7 +468,7 @@ _: {
               CPUQuota=100%
 
               [Install]
-              WantedBy=multi-user.target
+              WantedBy=${(startupPolicy.quadlet config "helium-nginx.service").target}
             '';
           };
 

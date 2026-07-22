@@ -1,6 +1,6 @@
 { config, ... }:
 let
-  inherit (config.flake.lib) sopsHelpers;
+  inherit (config.flake.lib) sopsHelpers startupPolicy;
   containersFile = ../../../secrets/containers.yaml;
 in
 {
@@ -151,6 +151,21 @@ in
       };
 
       config = {
+        services.startupPolicy.applications.priceghost = {
+          tier = lib.mkDefault "background";
+          units =
+            map
+              (name: {
+                inherit name;
+                provider = "quadlet";
+              })
+              [
+                "priceghost-postgres.service"
+                "priceghost-backend.service"
+                "priceghost.service"
+              ];
+        };
+
         environment.systemPackages = lib.mkIf cfg.buildImages [ buildImagesScript ];
 
         services.exposedPorts = lib.mkAfter [
@@ -323,6 +338,7 @@ in
             LogOpt=tag=priceghost-postgres
 
             [Service]
+            Slice=${(startupPolicy.quadlet config "priceghost-postgres.service").slice}
             RestrictAddressFamilies=~AF_ALG
             SystemCallArchitectures=native
             Restart=always
@@ -330,7 +346,7 @@ in
             TimeoutStartSec=120
 
             [Install]
-            WantedBy=multi-user.target
+            WantedBy=${(startupPolicy.quadlet config "priceghost-postgres.service").target}
           '';
 
           "containers/systemd/priceghost-backend.container".text = ''
@@ -356,6 +372,7 @@ in
             LogOpt=tag=priceghost-backend
 
             [Service]
+            Slice=${(startupPolicy.quadlet config "priceghost-backend.service").slice}
             RestrictAddressFamilies=~AF_ALG
             SystemCallArchitectures=native
             ExecStartPre=${backendEnvScript}
@@ -364,7 +381,7 @@ in
             TimeoutStartSec=120
 
             [Install]
-            WantedBy=multi-user.target
+            WantedBy=${(startupPolicy.quadlet config "priceghost-backend.service").target}
           '';
 
           "containers/systemd/priceghost.container".text = ''
@@ -386,6 +403,7 @@ in
             LogOpt=tag=priceghost
 
             [Service]
+            Slice=${(startupPolicy.quadlet config "priceghost.service").slice}
             RestrictAddressFamilies=~AF_ALG
             SystemCallArchitectures=native
             Restart=always
@@ -393,7 +411,7 @@ in
             TimeoutStartSec=120
 
             [Install]
-            WantedBy=multi-user.target
+            WantedBy=${(startupPolicy.quadlet config "priceghost.service").target}
           '';
 
           "containers/systemd/priceghost-postgres-data.volume".text = ''

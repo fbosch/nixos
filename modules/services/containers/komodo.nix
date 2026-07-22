@@ -1,4 +1,8 @@
-_: {
+{ config, ... }:
+let
+  inherit (config.flake.lib) startupPolicy;
+in
+{
   flake.modules.nixos."services/containers/komodo" =
     { config
     , lib
@@ -103,6 +107,21 @@ _: {
       };
 
       config = {
+        services.startupPolicy.applications.komodo = {
+          tier = lib.mkDefault "background";
+          units =
+            map
+              (name: {
+                inherit name;
+                provider = "quadlet";
+              })
+              [
+                "komodo-mongo.service"
+                "komodo-core.service"
+                "komodo-periphery.service"
+              ];
+        };
+
         # Disable Docker since komodo-periphery enables it by default
         # We use Podman with docker-compat instead (from virtualization/podman.nix)
         virtualisation.docker.enable = lib.mkForce false;
@@ -141,113 +160,113 @@ _: {
 
           "containers/systemd/komodo-mongo.container" = lib.mkIf cfg.core.enable {
             text = ''
-              [Unit]
-              After=network-online.target
-              Wants=network-online.target
+                [Unit]
+                After=network-online.target
+                Wants=network-online.target
 
-              [Container]
-              ContainerName=komodo-mongo
-              Image=mongo:8.3.4
-              Exec=--quiet --wiredTigerCacheSizeGB 0.25
-              Network=komodo.network
-              EnvironmentFile=${composeEnvPath}
-              Volume=komodo-mongo-data.volume:/data/db
-              Volume=komodo-mongo-config.volume:/data/configdb
-              Memory=2g
-              PidsLimit=1000
-              Ulimit=nofile=2048:4096
-              LogDriver=journald
-              LogOpt=tag=komodo-mongo
+                [Container]
+                ContainerName=komodo-mongo
+                Image=mongo:8.3.4
+                Exec=--quiet --wiredTigerCacheSizeGB 0.25
+                Network=komodo.network
+                EnvironmentFile=${composeEnvPath}
+                Volume=komodo-mongo-data.volume:/data/db
+                Volume=komodo-mongo-config.volume:/data/configdb
+                Memory=2g
+                PidsLimit=1000
+                Ulimit=nofile=2048:4096
+                LogDriver=journald
+                LogOpt=tag=komodo-mongo
 
-              [Service]
-              RestrictAddressFamilies=~AF_ALG
-              SystemCallArchitectures=native
-              Restart=always
-              RestartSec=10
-              CPUQuota=200%
-              TimeoutStartSec=300
+                [Service]
+                RestrictAddressFamilies=~AF_ALG
+                SystemCallArchitectures=native
+                Restart=always
+                RestartSec=10
+                CPUQuota=200%
+                TimeoutStartSec=300
 
-              [Install]
-              WantedBy=multi-user.target
+                [Install]
+              WantedBy=${(startupPolicy.quadlet config "komodo-mongo.service").target}
             '';
           };
 
           "containers/systemd/komodo-core.container" = lib.mkIf cfg.core.enable {
             text = ''
-              [Unit]
-              After=network-online.target komodo-mongo.service
-              Wants=network-online.target
-              Requires=komodo-mongo.service
+                [Unit]
+                After=network-online.target komodo-mongo.service
+                Wants=network-online.target
+                Requires=komodo-mongo.service
 
-              [Container]
-              ContainerName=komodo-core
-              Image=docker.io/moghtech/komodo-core:${cfg.core.imageTag}
-              Network=komodo.network
-              PublishPort=${toString cfg.core.port}:9120
-              EnvironmentFile=${composeEnvPath}
-              Environment=KOMODO_DATABASE_ADDRESS=komodo-mongo:27017
-              Volume=/var/lib/komodo/backups:/backups
-              ${lib.optionalString (effectivePasskeyFile != null) ''
-                Volume=${effectivePasskeyFile}:${effectivePasskeyFile}:ro
-              ''}
-              Memory=512m
-              PidsLimit=500
-              Ulimit=nofile=2048:4096
-              LogDriver=journald
-              LogOpt=tag=komodo-core
+                [Container]
+                ContainerName=komodo-core
+                Image=docker.io/moghtech/komodo-core:${cfg.core.imageTag}
+                Network=komodo.network
+                PublishPort=${toString cfg.core.port}:9120
+                EnvironmentFile=${composeEnvPath}
+                Environment=KOMODO_DATABASE_ADDRESS=komodo-mongo:27017
+                Volume=/var/lib/komodo/backups:/backups
+                ${lib.optionalString (effectivePasskeyFile != null) ''
+                  Volume=${effectivePasskeyFile}:${effectivePasskeyFile}:ro
+                ''}
+                Memory=512m
+                PidsLimit=500
+                Ulimit=nofile=2048:4096
+                LogDriver=journald
+                LogOpt=tag=komodo-core
 
-              [Service]
-              RestrictAddressFamilies=~AF_ALG
-              SystemCallArchitectures=native
-              Restart=always
-              RestartSec=10
-              CPUQuota=100%
-              TimeoutStartSec=300
+                [Service]
+                RestrictAddressFamilies=~AF_ALG
+                SystemCallArchitectures=native
+                Restart=always
+                RestartSec=10
+                CPUQuota=100%
+                TimeoutStartSec=300
 
-              [Install]
-              WantedBy=multi-user.target
+                [Install]
+              WantedBy=${(startupPolicy.quadlet config "komodo-core.service").target}
             '';
           };
 
           "containers/systemd/komodo-periphery.container" = lib.mkIf cfg.core.enable {
             text = ''
-              [Unit]
-              After=network-online.target
-              Wants=network-online.target
+                [Unit]
+                After=network-online.target
+                Wants=network-online.target
 
-              [Container]
-              ContainerName=komodo-periphery
-              Image=docker.io/moghtech/komodo-periphery:${cfg.core.imageTag}
-              Network=komodo.network
-              PublishPort=8120:8120
-              GroupAdd=991
-              Exec=periphery --config-path ${peripheryConfigPath}
-              Environment=DOCKER_HOST=unix:///run/podman/podman.sock
-              ${lib.optionalString usePasskey ''
-                Environment=PERIPHERY_PASSKEYS_FILE=${effectivePasskeyFile}
-              ''}
-              Volume=/run/podman/podman.sock:/run/podman/podman.sock
-              Volume=/var/lib/komodo-periphery:/var/lib/komodo-periphery
-              Volume=${peripheryConfigPath}:${peripheryConfigPath}:ro
-              ${lib.optionalString (effectivePasskeyFile != null) ''
-                Volume=${effectivePasskeyFile}:${effectivePasskeyFile}:ro
-              ''}
-              Memory=512m
-              PidsLimit=500
-              Ulimit=nofile=2048:4096
-              LogDriver=journald
-              LogOpt=tag=komodo-periphery
+                [Container]
+                ContainerName=komodo-periphery
+                Image=docker.io/moghtech/komodo-periphery:${cfg.core.imageTag}
+                Network=komodo.network
+                PublishPort=8120:8120
+                GroupAdd=991
+                Exec=periphery --config-path ${peripheryConfigPath}
+                Environment=DOCKER_HOST=unix:///run/podman/podman.sock
+                ${lib.optionalString usePasskey ''
+                  Environment=PERIPHERY_PASSKEYS_FILE=${effectivePasskeyFile}
+                ''}
+                Volume=/run/podman/podman.sock:/run/podman/podman.sock
+                Volume=/var/lib/komodo-periphery:/var/lib/komodo-periphery
+                Volume=${peripheryConfigPath}:${peripheryConfigPath}:ro
+                ${lib.optionalString (effectivePasskeyFile != null) ''
+                  Volume=${effectivePasskeyFile}:${effectivePasskeyFile}:ro
+                ''}
+                Memory=512m
+                PidsLimit=500
+                Ulimit=nofile=2048:4096
+                LogDriver=journald
+                LogOpt=tag=komodo-periphery
 
-              [Service]
-              RestrictAddressFamilies=~AF_ALG
-              SystemCallArchitectures=native
-              Restart=always
-              RestartSec=10
-              CPUQuota=100%
-              TimeoutStartSec=300
+                [Service]
+                RestrictAddressFamilies=~AF_ALG
+                SystemCallArchitectures=native
+                Restart=always
+                RestartSec=10
+                CPUQuota=100%
+                TimeoutStartSec=300
 
-              [Install]
-              WantedBy=multi-user.target
+                [Install]
+              WantedBy=${(startupPolicy.quadlet config "komodo-periphery.service").target}
             '';
           };
 

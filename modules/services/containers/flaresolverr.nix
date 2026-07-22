@@ -40,6 +40,16 @@ _: {
       };
 
       config = {
+        services.startupPolicy.applications.flaresolverr = {
+          tier = lib.mkDefault "background";
+          units = [
+            {
+              name = "flaresolverr.service";
+              provider = "quadlet";
+            }
+          ];
+        };
+
         services.exposedPorts = lib.mkAfter [
           {
             service = "flaresolverr-container";
@@ -72,7 +82,14 @@ _: {
           TimeoutStartSec=120
 
           [Install]
-          WantedBy=multi-user.target
+            WantedBy=${
+              lib.attrByPath [
+                "services"
+                "startupPolicy"
+                "quadletTargets"
+                "flaresolverr.service"
+              ] "multi-user.target" config
+            }
         '';
 
         networking.firewall.allowedTCPPorts = [ cfg.port ];

@@ -57,6 +57,22 @@ in
       };
 
       config = lib.mkMerge [
+        {
+          services.startupPolicy.applications.freshrss = {
+            tier = lib.mkDefault "background";
+            units =
+              map
+                (name: {
+                  inherit name;
+                  provider = "nixos";
+                })
+                [
+                  "freshrss-config.service"
+                  "phpfpm-freshrss.service"
+                ];
+          };
+        }
+
         # SOPS secret configuration (only if sops is available)
         (lib.mkIf (config ? sops) {
           sops.secrets.freshrss-admin-password = sopsHelpers.mkSecret ../../secrets/containers.yaml {

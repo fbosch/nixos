@@ -106,6 +106,29 @@ in
       };
 
       config = {
+        services = {
+          startupPolicy.applications.vpn = {
+            tier = lib.mkDefault "essential";
+            units = [
+              {
+                name = "gluetun.service";
+                provider = "quadlet";
+              }
+            ];
+          };
+
+          gluetun-container.envFile = lib.mkDefault (
+            lib.attrByPath [ "sops" "templates" "gluetun-env" "path" ] null config
+          );
+
+          exposedPorts = lib.mkAfter [
+            {
+              service = "gluetun-container";
+              tcpPorts = [ cfg.port ] ++ lib.optional cfg.controlServer.enable cfg.controlServer.port;
+            }
+          ];
+        };
+
         sops = {
           secrets = sopsHelpers.mkSecretsWithOpts containersFile sopsHelpers.rootOnly [
             "mullvad-wireguard-private-key"
@@ -123,10 +146,6 @@ in
           };
         };
 
-        services.gluetun-container.envFile = lib.mkDefault (
-          lib.attrByPath [ "sops" "templates" "gluetun-env" "path" ] null config
-        );
-
         assertions = [
           {
             assertion = cfg.envFile != null;
@@ -135,13 +154,6 @@ in
           {
             assertion = cfg.listenAddresses != [ ];
             message = "gluetun-container: at least one listenAddress must be configured.";
-          }
-        ];
-
-        services.exposedPorts = lib.mkAfter [
-          {
-            service = "gluetun-container";
-            tcpPorts = [ cfg.port ] ++ lib.optional cfg.controlServer.enable cfg.controlServer.port;
           }
         ];
 
@@ -180,7 +192,14 @@ in
           TimeoutStartSec=120
 
           [Install]
-          WantedBy=multi-user.target
+            WantedBy=${
+              lib.attrByPath [
+                "services"
+                "startupPolicy"
+                "quadletTargets"
+                "gluetun.service"
+              ] "multi-user.target" config
+            }
         '';
 
         networking.firewall.allowedTCPPorts = [

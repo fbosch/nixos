@@ -14,6 +14,16 @@ _: {
       };
 
       config = {
+        services.startupPolicy.applications.termix = {
+          tier = lib.mkDefault "background";
+          units = [
+            {
+              name = "termix.service";
+              provider = "quadlet";
+            }
+          ];
+        };
+
         services.exposedPorts = lib.mkAfter [
           {
             service = "termix-container";
@@ -47,7 +57,14 @@ _: {
           TimeoutStartSec=300
 
           [Install]
-          WantedBy=multi-user.target
+            WantedBy=${
+              lib.attrByPath [
+                "services"
+                "startupPolicy"
+                "quadletTargets"
+                "termix.service"
+              ] "multi-user.target" config
+            }
         '';
 
         environment.etc."containers/systemd/termix-data.volume".text = ''
