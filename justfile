@@ -33,6 +33,10 @@ pull-priceghost-postgres:
 push-attic target='' jobs='3':
     if [ -n "{{target}}" ]; then nix path-info -r "{{target}}" | attic push --jobs "{{jobs}}" --no-closure nix-cache --stdin; else nix path-info -r ".#nixosConfigurations.$(hostname).config.system.build.toplevel" | attic push --jobs "{{jobs}}" --no-closure nix-cache --stdin; fi
 
+# Collect read-only Atticd and SQLite lock diagnostics from rvn-srv's repository clone
+atticd-diagnose host='srv':
+    ssh -tt -o BatchMode=yes "{{host}}" 'bash ~/nixos/scripts/atticd-diagnose.sh'
+
 # Run linter (statix, deadnix, treefmt, actionlint, shellcheck)
 lint:
     nix run .#lint
