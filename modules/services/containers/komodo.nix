@@ -92,7 +92,7 @@ in
 
           imageTag = lib.mkOption {
             type = lib.types.str;
-            default = "1.19.5";
+            default = "2.2.0";
             description = "Komodo Core Docker image tag";
           };
         };
