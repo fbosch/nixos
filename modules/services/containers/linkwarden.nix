@@ -190,7 +190,7 @@ in
 
             [Container]
             ContainerName=linkwarden-postgres
-            Image=docker.io/library/postgres:16-alpine
+            Image=docker.io/library/postgres:18-alpine
             Network=linkwarden.network
             EnvironmentFile=${cfg.envFile}
             Environment=POSTGRES_DB=postgres
