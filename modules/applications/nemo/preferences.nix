@@ -33,6 +33,20 @@
           exec = "${weztermForNemo}/bin/nemo-wezterm";
           exec-arg = "--";
         };
+        "org/freedesktop/tracker/miner/files" = {
+          index-recursive-directories = [
+            "&DESKTOP"
+            "&DOCUMENTS"
+            "&MUSIC"
+            "&PICTURES"
+            "&VIDEOS"
+            "$HOME/Projects"
+          ];
+          index-single-directories = [
+            "$HOME"
+            "&DOWNLOAD"
+          ];
+        };
         "org/nemo/preferences" = {
           enable-delete = true;
           show-delete-permanently = true;
