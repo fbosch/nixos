@@ -242,7 +242,7 @@ _: {
           ];
         };
 
-        users.users.plex.extraGroups = [ "users" ];
+        users.users.plex.extraGroups = [ "media" ];
 
         systemd = {
           services = {

@@ -28,24 +28,36 @@ in
         "LaCie"
       ];
 
+      mediaShares = [
+        "music"
+        "video"
+        "downloads"
+        "LaCie"
+      ];
+
       persistentShares = [
         "web"
         "video"
         "LaCie"
       ];
 
-      # Common CIFS mount options
-      cifsOptions = "credentials=${nixosConfig.sops.templates.smbcredentials.path},uid=${flakeConfig.flake.meta.user.username},gid=users,forceuid,forcegid,iocharset=utf8,file_mode=0664,dir_mode=0775,vers=3.0";
+      shareGroup = share: if lib.elem share mediaShares then "media" else "users";
+
+      # Keep media services limited to shares they manage.
+      cifsOptionsFor =
+        share:
+        "credentials=${nixosConfig.sops.templates.smbcredentials.path},uid=${flakeConfig.flake.meta.user.username},gid=${shareGroup share},forceuid,forcegid,iocharset=utf8,file_mode=0664,dir_mode=0775,vers=3.0";
 
       # Generate tmpfile rule for a share
-      mkTmpfileRule = share: "d /mnt/nas/${share} 0755 ${flakeConfig.flake.meta.user.username} users -";
+      mkTmpfileRule =
+        share: "d /mnt/nas/${share} 0755 ${flakeConfig.flake.meta.user.username} ${shareGroup share} -";
 
       # Generate mount configuration for a share
       mkMount = share: {
         type = "cifs";
         what = "//${nasHostname}/${share}";
         where = "/mnt/nas/${share}";
-        options = if share == "encrypted" then "${cifsOptions},nofail" else cifsOptions;
+        options = if share == "encrypted" then "${cifsOptionsFor share},nofail" else cifsOptionsFor share;
         unitConfig = lib.mkMerge [
           {
             After = "network-online.target";
@@ -81,10 +93,13 @@ in
             username=${nixosConfig.sops.placeholder.smb-username}
             password=${nixosConfig.sops.placeholder.smb-password}
           '';
-          mode = "0600";
-          owner = flakeConfig.flake.meta.user.username;
+          mode = "0400";
+          owner = "root";
+          group = "root";
         };
       };
+
+      users.groups.media = { };
 
       # Add NAS hostname to /etc/hosts for reliable name resolution
       networking.hosts = {

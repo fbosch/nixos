@@ -22,34 +22,18 @@ _: {
 
         users = {
           groups = {
-            media = { };
             prowlarr = { };
           };
           users = {
-            bazarr.extraGroups = [
-              "media"
-              "users"
-            ];
+            bazarr.extraGroups = [ "media" ];
             prowlarr = {
               isSystemUser = true;
               group = "prowlarr";
-              extraGroups = [
-                "media"
-                "users"
-              ];
+              extraGroups = [ "media" ];
             };
-            lidarr.extraGroups = [
-              "media"
-              "users"
-            ];
-            radarr.extraGroups = [
-              "media"
-              "users"
-            ];
-            sonarr.extraGroups = [
-              "media"
-              "users"
-            ];
+            lidarr.extraGroups = [ "media" ];
+            radarr.extraGroups = [ "media" ];
+            sonarr.extraGroups = [ "media" ];
           };
         };
 
