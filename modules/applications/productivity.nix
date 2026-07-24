@@ -38,6 +38,7 @@ in
         pkgs.local."webapp/protoncalendar"
         pkgs.local."webapp/linear"
         pkgs.local."webapp/figma"
+        pkgs.local."webapp/apple-maps"
       ];
 
       services.flatpak.packages = [
