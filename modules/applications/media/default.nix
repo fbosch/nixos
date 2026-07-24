@@ -1,7 +1,3 @@
-{ config, ... }:
-let
-  flakeConfig = config;
-in
 {
   flake.modules.nixos.applications =
     { pkgs, ... }:
@@ -9,17 +5,11 @@ in
       environment.systemPackages = with pkgs; [
         # File previewer for Nemo file manager
         sushi
-        media-downloader
       ];
     };
 
   flake.modules.homeManager.applications =
-    { pkgs
-    , ...
-    }:
-    let
-      proxyHost = flakeConfig.flake.lib.hostMeta "rvn-srv";
-    in
+    { pkgs, ... }:
     {
       home.packages = with pkgs; [
         # Image viewers
@@ -40,11 +30,5 @@ in
         "be.alexandervanhee.gradia" # image editor
         "org.kde.iconexplorer" # Icon Explorer
       ];
-
-      xdg.dataFile."media-downloader/settings/settings.ini".text = ''
-        [General]
-        ProxySettingsType=Manual
-        ProxySettingsCustomSource=http://${proxyHost.local}:8889
-      '';
     };
 }

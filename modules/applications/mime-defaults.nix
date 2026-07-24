@@ -15,6 +15,7 @@
     let
       defaultFileExplorer = "nemo.desktop";
       defaultImageViewer = "org.gnome.Loupe.desktop";
+      defaultMediaPlayer = "mpv.desktop";
       defaultExeLauncher = "faugus-launcher.desktop";
       defaultWebBrowser = "app.zen_browser.zen.desktop";
     in
@@ -40,6 +41,17 @@
           "image/png" = [ defaultImageViewer ];
           "image/jpeg" = [ defaultImageViewer ];
           "image/webp" = [ defaultImageViewer ];
+
+          "video/3gpp" = [ defaultMediaPlayer ];
+          "video/mp2t" = [ defaultMediaPlayer ];
+          "video/mp4" = [ defaultMediaPlayer ];
+          "video/mpeg" = [ defaultMediaPlayer ];
+          "video/ogg" = [ defaultMediaPlayer ];
+          "video/quicktime" = [ defaultMediaPlayer ];
+          "video/webm" = [ defaultMediaPlayer ];
+          "video/x-matroska" = [ defaultMediaPlayer ];
+          "video/x-msvideo" = [ defaultMediaPlayer ];
+          "video/x-ms-wmv" = [ defaultMediaPlayer ];
 
           # Common MIME types for Windows executables
           "application/x-ms-dos-executable" = [ defaultExeLauncher ];
@@ -72,6 +84,18 @@
           "image/avif" = [ defaultImageViewer ];
           "image/heic" = [ defaultImageViewer ];
           "image/heif" = [ defaultImageViewer ];
+
+          # Video formats
+          "video/3gpp" = [ defaultMediaPlayer ];
+          "video/mp2t" = [ defaultMediaPlayer ];
+          "video/mp4" = [ defaultMediaPlayer ];
+          "video/mpeg" = [ defaultMediaPlayer ];
+          "video/ogg" = [ defaultMediaPlayer ];
+          "video/quicktime" = [ defaultMediaPlayer ];
+          "video/webm" = [ defaultMediaPlayer ];
+          "video/x-matroska" = [ defaultMediaPlayer ];
+          "video/x-msvideo" = [ defaultMediaPlayer ];
+          "video/x-ms-wmv" = [ defaultMediaPlayer ];
 
           # Windows executables
           "application/x-ms-dos-executable" = [ defaultExeLauncher ];

@@ -3,6 +3,12 @@ let
   inherit (config.flake.lib) lazyApp lazyDesktopApp;
 in
 {
+  flake.modules.nixos.applications =
+    { pkgs, ... }:
+    {
+      environment.systemPackages = [ pkgs.media-downloader ];
+    };
+
   flake.modules.homeManager.applications =
     { pkgs, ... }:
     let
@@ -37,6 +43,7 @@ in
           ];
         };
       };
+      proxyHost = config.flake.lib.hostMeta "rvn-srv";
     in
     {
       home.packages =
@@ -45,5 +52,12 @@ in
           p7zip
         ])
         ++ lazySpeedtestCli;
+
+      xdg.dataFile."media-downloader/settings/settings.ini".text = ''
+        [General]
+        ThemeName=Dark
+        ProxySettingsType=Manual
+        ProxySettingsCustomSource=http://${proxyHost.local}:8889
+      '';
     };
 }
