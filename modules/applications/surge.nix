@@ -80,7 +80,7 @@ _: {
             inherit (jsonFormat) type;
             default = { };
             example = {
-              general.default_download_dir = "/mnt/storage/Downloads";
+              general.default_download_dir = config.xdg.userDirs.download;
               connections.max_concurrent_downloads = 5;
             };
             description = "Contents for `~/.config/surge/settings.json`.";

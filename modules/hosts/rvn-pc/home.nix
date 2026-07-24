@@ -19,22 +19,21 @@
         inputs.flatpaks.homeManagerModules.nix-flatpak
 
         # User directory configuration
-        {
+        ({ config, ... }: {
           xdg.userDirs = {
             enable = true;
             setSessionVariables = true;
-            download = "/mnt/storage/Downloads";
           };
 
           services.surge = {
             autostart = true;
             settings = {
-              general.default_download_dir = "/mnt/storage/Downloads";
+              general.default_download_dir = config.xdg.userDirs.download;
               network.proxy_url = "http://192.168.1.46:8889";
             };
           };
 
-        }
+        })
       ];
   };
 }
