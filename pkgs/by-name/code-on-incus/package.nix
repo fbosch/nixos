@@ -6,7 +6,7 @@
 
 let
   pname = "code-on-incus";
-  version = "0.7.0";
+  version = "0.10.1";
 
   inherit (stdenvNoCC.hostPlatform) system;
   asset =
