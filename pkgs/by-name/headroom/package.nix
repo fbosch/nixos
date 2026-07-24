@@ -7,13 +7,13 @@
 
 stdenv.mkDerivation rec {
   pname = "headroom";
-  version = "0.31.0";
+  version = "0.32.0";
 
   src = fetchFromGitHub {
     owner = "headroomlabs-ai";
     repo = "headroom";
     rev = "v${version}";
-    hash = "sha256-A04h+wTlGBZVXW6ujb8bYdtM2Y16SbntwnNy48qaA7g=";
+    hash = "sha256-7+ul+rco4HvI3ar6Y9JvfBiFem8IeBwnBEGUcj/d9xU=";
   };
 
   dontBuild = true;
