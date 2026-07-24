@@ -20,6 +20,7 @@
             # cursor-cli
             # aichat
             tesseract
+            herdr
           ])
           ++ optionalLocalPackages [
             "headroom"
