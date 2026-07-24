@@ -1,6 +1,10 @@
 {
   flake.modules.homeManager.applications =
-    { lib, pkgs, ... }:
+    { config
+    , lib
+    , pkgs
+    , ...
+    }:
     let
       anime4kShaders = lib.concatStringsSep ":" [
         "${pkgs.anime4k}/Anime4K_Clamp_Highlights.glsl"
@@ -15,7 +19,7 @@
       programs.mpv = {
         enable = true;
         scripts = with pkgs.mpvScripts; [
-          modernx
+          uosc
           thumbfast
         ];
         config = {
@@ -24,6 +28,7 @@
           gpu-api = "vulkan";
           vo = "gpu-next";
           save-watch-history = false;
+          sub-file-paths = config.xdg.userDirs.download;
         };
         profiles = {
           anime4k = {

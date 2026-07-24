@@ -13,6 +13,10 @@ user_pref("intl.locale.requested", "en");
 user_pref("network.dns.disablePrefetch", true);
 user_pref("network.http.speculative-parallel-limit", 0);
 user_pref("network.prefetch-next", false);
+// Delegate URL2App links to the registered system protocol handler.
+user_pref("network.protocol-handler.expose.x-url2app", false);
+user_pref("network.protocol-handler.external.x-url2app", true);
+user_pref("network.protocol-handler.warn-external.x-url2app", false);
 user_pref("network.trr.custom_uri", "https://dns.nextdns.io/24219a");
 user_pref("media.peerconnection.ice.default_address_only", true);
 user_pref("media.peerconnection.ice.no_host", true);
