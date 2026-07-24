@@ -7,7 +7,7 @@
 
 let
   pname = "lightpanda";
-  version = "0.3.4";
+  version = "0.3.5";
 
   inherit (stdenvNoCC.hostPlatform) system;
   sources = {
