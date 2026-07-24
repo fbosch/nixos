@@ -123,6 +123,9 @@
       devShells.default = pkgs.mkShell {
         packages = with pkgs; [
           just
+          git
+          nil
+          nixd
           statix
           deadnix
           treefmt
@@ -134,6 +137,7 @@
           lintScript
           formatScript
         ];
+        shellHook = config.pre-commit.installationScript;
       };
     };
 }

@@ -5,8 +5,8 @@
 default:
     @just --list
 
-# Run recipes in devenv when the current shell has not already activated it.
-set shell := ["bash", "-eu", "-o", "pipefail", "-c", "[ -n \"${DEVENV_ROOT:-}\" ] || exec devenv shell -- bash -eu -o pipefail -c \"$0\"; exec bash -eu -o pipefail -c \"$0\""]
+# Run recipes in the flake dev shell when it is not already active.
+set shell := ["bash", "-eu", "-o", "pipefail", "-c", "[ -n \"${IN_NIX_SHELL:-}\" ] || exec nix develop --command bash -eu -o pipefail -c \"$0\"; exec bash -eu -o pipefail -c \"$0\""]
 
 build-pc:
     nh os build .#rvn-pc
@@ -113,6 +113,6 @@ rotate-gpg-gist:
 rotate-gpg-gist-dry:
     nix run .#rotate-gpg-gist -- --dry-run
 
-# Install devenv-managed pre-commit hooks
+# Install flake-managed pre-commit hooks
 install-hooks:
-    devenv shell true
+    nix develop --command true
