@@ -41,6 +41,10 @@ atticd-diagnose host='srv':
 lint:
     nix run .#lint
 
+# Interactively inspect disk usage and reclaim Nix garbage or Trash contents
+cleanup-disk:
+    bash ./scripts/cleanup-disk.sh
+
 # Validate documented service ports against rvn-srv declarations
 check-service-ports:
     bash ./scripts/check-service-ports.sh

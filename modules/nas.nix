@@ -46,11 +46,11 @@ in
       # Keep media services limited to shares they manage.
       cifsOptionsFor =
         share:
-        "credentials=${nixosConfig.sops.templates.smbcredentials.path},uid=${flakeConfig.flake.meta.user.username},gid=${shareGroup share},forceuid,forcegid,iocharset=utf8,file_mode=0664,dir_mode=0775,vers=3.0";
+        "credentials=${nixosConfig.sops.templates.smbcredentials.path},uid=${flakeConfig.flake.meta.user.username},gid=${shareGroup share},forceuid,forcegid,iocharset=utf8,file_mode=0660,dir_mode=0770,vers=3.0";
 
       # Generate tmpfile rule for a share
       mkTmpfileRule =
-        share: "d /mnt/nas/${share} 0755 ${flakeConfig.flake.meta.user.username} ${shareGroup share} -";
+        share: "d /mnt/nas/${share} 0770 ${flakeConfig.flake.meta.user.username} ${shareGroup share} -";
 
       # Generate mount configuration for a share
       mkMount = share: {
