@@ -37,11 +37,8 @@ jobs:
           cachix-name: fbosch
           cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
-      - name: Install devenv
-        run: nix profile add nixpkgs#devenv
-
-      - name: Devenv checks
-        run: devenv test
+      - name: Lint
+        run: nix run .#lint
 
   flake-check:
     runs-on: ubuntu-latest
