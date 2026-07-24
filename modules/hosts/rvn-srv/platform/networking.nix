@@ -3,7 +3,7 @@
 , ...
 }:
 let
-  hostMeta = lib.findFirst (host: host.name == "rvn-srv") null config.flake.meta.hosts;
+  hostMeta = config.flake.lib.hostMeta "rvn-srv";
 in
 {
   flake.modules.nixos."hosts/rvn-srv/platform" = {

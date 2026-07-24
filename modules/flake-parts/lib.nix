@@ -20,6 +20,15 @@
       m: if builtins.isString m then config.flake.modules.darwin.${m} else m
     );
 
+    hostMeta =
+      name:
+      lib.findFirst
+        (
+          host: host.name == name
+        )
+        (throw "Host metadata `${name}` is not defined")
+        config.flake.meta.hosts;
+
     lazyApp =
       pkgs: pkgOrArgs:
       pkgs.lazy-app.override (if lib.isDerivation pkgOrArgs then { pkg = pkgOrArgs; } else pkgOrArgs);
