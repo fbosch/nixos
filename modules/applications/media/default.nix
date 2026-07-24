@@ -12,9 +12,6 @@
     { pkgs, ... }:
     {
       home.packages = with pkgs; [
-        # Video players
-        vlc
-
         # Image viewers
         loupe # GNOME image viewer
 
