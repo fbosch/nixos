@@ -88,7 +88,12 @@ fi
 if [ "$exit_code" -ne 0 ]; then
   echo "$(gum style --foreground 1 '[ERROR]') Pre-commit checks failed"
 else
-  echo "$(gum style --foreground 2 '[DONE]') All pre-commit checks passed"
+  if "$(dirname "$0")/pre-commit-checks" "$@"; then
+    echo "$(gum style --foreground 2 '[DONE]') All pre-commit checks passed"
+  else
+    echo "$(gum style --foreground 1 '[ERROR]') Pre-commit checks failed"
+    exit_code=1
+  fi
 fi
 
 exit "$exit_code"

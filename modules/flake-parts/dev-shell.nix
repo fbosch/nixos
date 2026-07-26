@@ -137,7 +137,15 @@
           lintScript
           formatScript
         ];
-        shellHook = config.pre-commit.installationScript;
+        shellHook = ''
+          ${config.pre-commit.installationScript}
+
+          if [ ! -e .git/hooks/pre-commit-checks ]; then
+            mv .git/hooks/pre-commit .git/hooks/pre-commit-checks
+          fi
+
+          ln -sf ${../../scripts/pre-commit-wrapper.sh} .git/hooks/pre-commit
+        '';
       };
     };
 }

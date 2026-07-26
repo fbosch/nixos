@@ -18,6 +18,10 @@ Do not run `sops` commands directly; they break the TUI. Instruct the user to ru
 - Avoid repeated top-level keys in a single attrset (Statix W20), especially `sops.*`.
 - Prefer grouping related values under one key, for example `sops = { secrets.<name> = ...; templates.<name> = ...; };`.
 
+## Module Layout
+
+- When a module needs supporting files, place it in its own directory with a `default.nix`; do not leave those files beside root modules in shared category directories.
+
 ## Library Helpers
 
 - Reusable helper functions live in `lib/`.

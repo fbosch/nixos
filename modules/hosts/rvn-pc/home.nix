@@ -23,7 +23,10 @@
           xdg.userDirs = {
             enable = true;
             setSessionVariables = true;
+            download = "/mnt/storage/Downloads";
           };
+
+          home.file."Downloads".source = config.lib.file.mkOutOfStoreSymlink config.xdg.userDirs.download;
 
           services.surge = {
             autostart = true;
