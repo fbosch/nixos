@@ -15,23 +15,6 @@
         "${pkgs.anime4k}/Anime4K_Upscale_CNN_x2_S.glsl"
       ];
       shaderPack = "${pkgs.mpv-shim-default-shaders}/share/mpv-shim-default-shaders/shaders";
-      svpMpv = pkgs.mpv.override {
-        mpv-unwrapped = pkgs.mpv-unwrapped.override { vapoursynthSupport = true; };
-        extraMakeWrapperArgs = [
-          "--prefix"
-          "LD_LIBRARY_PATH"
-          ":"
-          "/run/opengl-driver/lib:${lib.makeLibraryPath [ pkgs.ocl-icd ]}"
-        ];
-        scripts = with pkgs.mpvScripts; [
-          uosc
-          thumbfast
-        ];
-      };
-      svpLauncher = pkgs.writeShellScriptBin "svp-mpv" ''
-        ${pkgs.systemd}/bin/systemctl --user start svp.service
-        exec ${svpMpv}/bin/mpv --input-ipc-server=/tmp/mpvsocket --hwdec=auto-copy "$@"
-      '';
     in
     {
       programs.mpv = {
@@ -103,24 +86,6 @@
             deband = "no";
           };
         };
-      };
-
-      home.packages = [
-        pkgs.svp
-        svpLauncher
-      ];
-
-      systemd.user.services.svp = {
-        Unit = {
-          Description = "SmoothVideo Project manager";
-          After = [ "graphical-session.target" ];
-        };
-        Service = {
-          ExecStart = "${pkgs.svp}/bin/SVPManager";
-          Restart = "on-failure";
-          RestartSec = 2;
-        };
-        Install.WantedBy = [ "graphical-session.target" ];
       };
 
       xdg.configFile."mpv/scripts/profile-selector.lua".source = ./profile-selector.lua;
