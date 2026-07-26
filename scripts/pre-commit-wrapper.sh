@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 
 set +e
+
+if [ -z "${NIX_PRE_COMMIT_HOOK:-}" ]; then
+  export NIX_PRE_COMMIT_HOOK=1
+  exec nix develop --command "$0" "$@"
+fi
+
 exit_code=0
 
 gum style --foreground 244 "Pre-commit checks..."
