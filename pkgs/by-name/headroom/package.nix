@@ -1,5 +1,6 @@
 { fetchFromGitHub
 , lib
+, libiconv
 , stdenv
 , uv
 ,
@@ -24,9 +25,12 @@ stdenv.mkDerivation rec {
     cat > "$out/bin/headroom" <<EOF
     #!${stdenv.shell}
     export LD_LIBRARY_PATH="${
-      lib.makeLibraryPath [ stdenv.cc.cc.lib ]
+      lib.makeLibraryPath [
+        stdenv.cc.cc.lib
+        libiconv
+      ]
     }\''${LD_LIBRARY_PATH:+:\$LD_LIBRARY_PATH}"
-    exec ${uv}/bin/uvx --from 'headroom-ai[proxy]==${version}' headroom "\$@"
+    exec ${uv}/bin/uvx --python 3.10 --from 'headroom-ai[proxy]==${version}' headroom "\$@"
     EOF
     chmod +x "$out/bin/headroom"
     runHook postInstall
