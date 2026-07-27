@@ -64,6 +64,7 @@ in
     {
       home.packages =
         (with pkgs; [
+          ast-grep
           tree-sitter
           stylua
           luarocks
