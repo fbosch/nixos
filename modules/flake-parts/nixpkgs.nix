@@ -22,7 +22,7 @@
           inputs.lazy-apps.overlays.default
         ];
       };
-      enableByNameLegacy = pkgs.stdenv.isLinux;
+      enableByNameLegacy = pkgs.stdenv.hostPlatform.isUnix;
       inputsScope = lib.makeScope pkgs.newScope (_self: {
         inherit inputs;
       });
