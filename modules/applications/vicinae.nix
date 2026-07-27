@@ -5,4 +5,5 @@
 
     systemd.user.targets.graphical-session.wants = [ "vicinae.service" ];
   };
+
 }

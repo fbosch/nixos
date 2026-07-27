@@ -55,6 +55,8 @@ in
           "linear"
           "bentobox"
           "bitwarden"
+          "font-sf-pro"
+          "vicinae"
         ];
 
         brews = [
