@@ -61,6 +61,7 @@ in
           "mas"
           "mole"
           "rtk"
+          "worktrunk"
         ];
       };
     };
