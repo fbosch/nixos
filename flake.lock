@@ -2002,11 +2002,11 @@
         "rust-overlay": "rust-overlay"
       },
       "locked": {
-        "lastModified": 1785082246,
-        "narHash": "sha256-lgYWWb4TJ4q0AjrzGN3cisGNVG4mPmYgamfnnrphNu4=",
+        "lastModified": 1785105695,
+        "narHash": "sha256-bEYZcETeyD6k6DavJyraDG1VnJKxu25q26XVfLOIVS4=",
         "owner": "max-sixty",
         "repo": "worktrunk",
-        "rev": "14580de79c594cea15cec76a5f1c8d29c35d8ab0",
+        "rev": "951dac773fe8f83914cbeacb5968d30f592fe595",
         "type": "github"
       },
       "original": {
