@@ -11,6 +11,7 @@
         "fonts"
         "security"
         "development"
+        "development/services/headroom"
         "worktrunk"
         "shell"
         "virtualization/podman"
