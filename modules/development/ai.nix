@@ -17,6 +17,7 @@
         codex
         copilot-cli
         openspec
+        opencode
         agent-browser
       ];
 

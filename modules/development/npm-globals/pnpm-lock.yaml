@@ -41,9 +41,6 @@ importers:
       neovim:
         specifier: 5.4.0
         version: 5.4.0
-      opencode-ai:
-        specifier: 1.18.5
-        version: 1.18.5
       pokemonshow:
         specifier: 4.0.0
         version: 4.0.0
@@ -1292,75 +1289,6 @@ packages:
   open@8.4.0:
     resolution: {integrity: sha512-XgFPPM+B28FtCCgSb9I+s9szOC1vZRSwgWsRUA5ylIxRTgKozqjOCrVOqGsYABPYK5qnfqClxZTFBa8PKt2v6Q==}
     engines: {node: '>=12'}
-
-  opencode-ai@1.18.5:
-    resolution: {integrity: sha512-Q0jlX4ihn7veMeYsLX3c4PYFAKIURU3GIpXt1FnhNxNn3v8+RpIZ8z9umG5D0r8g8Smp9fZLGjgLe/9mJ4NyYw==}
-    cpu: [arm64, x64]
-    os: [darwin, linux, win32]
-    hasBin: true
-
-  opencode-darwin-arm64@1.18.5:
-    resolution: {integrity: sha512-an4t+aOHTREf1f1Z8mNIyEoy1iJL+434BuB+2UKFuAarMUaV37SWkPiS4oW8nvJjXyb8LC0AFSeVA8AeBy44cg==}
-    cpu: [arm64]
-    os: [darwin]
-
-  opencode-darwin-x64-baseline@1.18.5:
-    resolution: {integrity: sha512-7coC1U01D3YoKiJFT/qop7zO6bGwJ+5NgkxV/SZvRbgfXFbaXpG4c38q/YOk6QcC3aJ11/3R7qgUFkfkyHFUPQ==}
-    cpu: [x64]
-    os: [darwin]
-
-  opencode-darwin-x64@1.18.5:
-    resolution: {integrity: sha512-mAXaO4qje89avIEclKeUHmuj0DJG4PBYljtGuMJaJtnQVNns/BzfZb4bR8IYfVXTv0QwYk2Sudju/mGN5vpNNA==}
-    cpu: [x64]
-    os: [darwin]
-
-  opencode-linux-arm64-musl@1.18.5:
-    resolution: {integrity: sha512-GsX09fuzCUfRpDnZ/cS4Z0N4B6yk+Yckr1kXB2Z0sN2hajxqypOpwUkzaS/MkGgbRHP3vR2fFZQj0FSORHvy8w==}
-    cpu: [arm64]
-    os: [linux]
-    libc: [musl]
-
-  opencode-linux-arm64@1.18.5:
-    resolution: {integrity: sha512-cnv2IAi/TpitYJUq44TC0Ci5zVCi9Qspx/7P2pDNcp5IH9f6U58t9oi9WpHyVtkFthAQc2CdSIByb3HuduscAg==}
-    cpu: [arm64]
-    os: [linux]
-
-  opencode-linux-x64-baseline-musl@1.18.5:
-    resolution: {integrity: sha512-2DdvOrg5kE2kaGdeFF/ifV9QfVFmzQM8eOthDTvDDdMm4fCWF1tmVpBdpcLO5tzZmVpO3M0aT6+TiF8/nKmq+A==}
-    cpu: [x64]
-    os: [linux]
-    libc: [musl]
-
-  opencode-linux-x64-baseline@1.18.5:
-    resolution: {integrity: sha512-4eXOJCG/8KmPUlFe2vJTT7u24GOF8VMLPHlNjqrwu31CxlT+csEk287lI0ayPX3J0R1pbG71HLcJLqsokR+wvw==}
-    cpu: [x64]
-    os: [linux]
-
-  opencode-linux-x64-musl@1.18.5:
-    resolution: {integrity: sha512-RrXkgR9SWRO9nP+kopCga/Cry2LrkPC+GaM0UIMUMaso/p3OJDSRinwFdSSNCf+J8JlI6vzjb1+eUyRApSWjtQ==}
-    cpu: [x64]
-    os: [linux]
-    libc: [musl]
-
-  opencode-linux-x64@1.18.5:
-    resolution: {integrity: sha512-aa/Y6xznaGtE0kA2sZKdddY7iNBw/yrXWH0mA6fGs4GgrYc9jcXS+UXLwLZLWZwLLYBOFYoAoyeWiJoEZ0ba6w==}
-    cpu: [x64]
-    os: [linux]
-
-  opencode-windows-arm64@1.18.5:
-    resolution: {integrity: sha512-9424cw1gPH+aLCN06NfRFk0j+KbYizguReEo8Ftsg4HHK09qAFtFwjc9rcakkWCSoF+an4U5fDOG1jfcf9jYcA==}
-    cpu: [arm64]
-    os: [win32]
-
-  opencode-windows-x64-baseline@1.18.5:
-    resolution: {integrity: sha512-KC9vzFEnwIXMaARLftiLqjtmVig6u7u+nzwya2UXr+b7DJj3LkSzSkv3jFD9AIGNox2saOr47Gt9VMeCtr6O6w==}
-    cpu: [x64]
-    os: [win32]
-
-  opencode-windows-x64@1.18.5:
-    resolution: {integrity: sha512-b1cbKqn4RMWVH+I6utY0Qtgf/fXwu/asaa4sgrTOV//yrhxL42NKITD+nAzscgzHHzX1kzDkl8I2OBtW/KXWJg==}
-    cpu: [x64]
-    os: [win32]
 
   os-paths@4.4.0:
     resolution: {integrity: sha512-wrAwOeXp1RRMFfQY8Sy7VaGVmPocaLwSFOYCGKSyo8qmJ+/yaafCl5BCA1IQZWqFSRBrKDYFeR9d/VyQzfH/jg==}
@@ -2967,57 +2895,6 @@ snapshots:
       define-lazy-prop: 2.0.0
       is-docker: 2.2.1
       is-wsl: 2.2.0
-
-  opencode-ai@1.18.5:
-    optionalDependencies:
-      opencode-darwin-arm64: 1.18.5
-      opencode-darwin-x64: 1.18.5
-      opencode-darwin-x64-baseline: 1.18.5
-      opencode-linux-arm64: 1.18.5
-      opencode-linux-arm64-musl: 1.18.5
-      opencode-linux-x64: 1.18.5
-      opencode-linux-x64-baseline: 1.18.5
-      opencode-linux-x64-baseline-musl: 1.18.5
-      opencode-linux-x64-musl: 1.18.5
-      opencode-windows-arm64: 1.18.5
-      opencode-windows-x64: 1.18.5
-      opencode-windows-x64-baseline: 1.18.5
-
-  opencode-darwin-arm64@1.18.5:
-    optional: true
-
-  opencode-darwin-x64-baseline@1.18.5:
-    optional: true
-
-  opencode-darwin-x64@1.18.5:
-    optional: true
-
-  opencode-linux-arm64-musl@1.18.5:
-    optional: true
-
-  opencode-linux-arm64@1.18.5:
-    optional: true
-
-  opencode-linux-x64-baseline-musl@1.18.5:
-    optional: true
-
-  opencode-linux-x64-baseline@1.18.5:
-    optional: true
-
-  opencode-linux-x64-musl@1.18.5:
-    optional: true
-
-  opencode-linux-x64@1.18.5:
-    optional: true
-
-  opencode-windows-arm64@1.18.5:
-    optional: true
-
-  opencode-windows-x64-baseline@1.18.5:
-    optional: true
-
-  opencode-windows-x64@1.18.5:
-    optional: true
 
   os-paths@4.4.0: {}
 
