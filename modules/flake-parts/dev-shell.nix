@@ -19,7 +19,7 @@
         runtimeInputs = with pkgs; [
           statix
           deadnix
-          treefmt
+          config.treefmt.build.wrapper
           nixpkgs-fmt
           shfmt
           actionlint
