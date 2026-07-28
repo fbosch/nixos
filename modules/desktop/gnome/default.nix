@@ -1,7 +1,7 @@
 { config, ... }:
 let
   flakeConfig = config;
-  zenwritten = import ../../../lib/themes/zenwritten.nix;
+  zenwritten = flakeConfig.flake.lib.themes.zenwritten;
   inherit (zenwritten.css) base bright;
 in
 {

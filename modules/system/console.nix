@@ -1,15 +1,12 @@
-let
-  zenwritten = import ../../lib/themes/zenwritten.nix;
-in
 {
   flake.modules.nixos.system =
-    { pkgs, ... }:
+    { pkgs, config, ... }:
     {
       console = {
         earlySetup = true;
         font = "Lat2-Terminus16";
         packages = with pkgs; [ terminus_font ];
-        colors = zenwritten.console;
+        colors = config.flake.lib.themes.zenwritten.console;
       };
     };
 }
