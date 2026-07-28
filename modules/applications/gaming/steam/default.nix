@@ -25,7 +25,7 @@ in
           proton-ge-bin
         ];
         package = pkgs.steam.override {
-          extraArgs = "-system-composer";
+          extraArgs = "-system-composer --enable-features=UseOzonePlatform --ozone-platform=wayland";
           extraEnv = {
             DXVK_HUD = "0";
             PROTON_HIDE_NVIDIA_GPU = "0";
