@@ -71,7 +71,7 @@ network-reset domain='example.com':
 
 # Format all files
 fmt:
-    fmt
+    treefmt --no-cache
 
 # Locate or copy the original package icon for a lazy desktop item
 resolve-lazy-icon package desktop_file='' asset_path='':
