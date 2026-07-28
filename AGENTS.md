@@ -78,6 +78,7 @@ Port map reference:
 See the detailed guides:
 
 - [Dendritic core concepts](docs/agents/dendritic-core.md)
+- [Glossary](docs/agents/glossary.md)
 - [Module authoring rules](docs/agents/module-authoring.md)
 - [Dotfiles policy](docs/agents/dotfiles-policy.md)
 - [SOPS secrets workflow](docs/agents/sops-secrets.md)

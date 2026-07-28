@@ -1,13 +1,13 @@
-# NixOS Flake Context
+# Glossary
 
 Domain language for this personal NixOS, Darwin, and Home Manager flake. Architecture guidance lives in the dendritic pattern references; this file names the project concepts those references apply to.
 
 ## References
 
-- [README.md](README.md) - project overview and common tasks.
-- [Dendritic core concepts](docs/agents/dendritic-core.md) - single module tree, central loader, metadata, per-system outputs, and special arguments.
-- [Module authoring rules](docs/agents/module-authoring.md) - import-to-enable modules, option namespaces, and authoring conventions.
-- [Container module authoring](docs/agents/container-modules.md) - Podman Quadlet module conventions.
+- [README.md](../../README.md) - project overview and common tasks.
+- [Dendritic core concepts](dendritic-core.md) - single module tree, central loader, metadata, per-system outputs, and special arguments.
+- [Module authoring rules](module-authoring.md) - import-to-enable modules, option namespaces, and authoring conventions.
+- [Container module authoring](container-modules.md) - Podman Quadlet module conventions.
 
 ## Language
 
