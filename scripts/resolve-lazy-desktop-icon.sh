@@ -4,7 +4,7 @@ set -euo pipefail
 
 usage() {
   printf 'Usage: %s <pkgs attribute> [desktop file] [asset path]\n' "$0" >&2
-  printf 'Example: %s protonup-qt protonup-qt.desktop assets/icons/protonup-qt.png\n' "$0" >&2
+  printf 'Example: %s vscodium codium.desktop modules/applications/productivity/vscodium.png\n' "$0" >&2
 }
 
 if [ "$#" -lt 1 ] || [ "$#" -gt 3 ]; then

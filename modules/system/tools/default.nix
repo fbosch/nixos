@@ -13,7 +13,7 @@
           desktopName = "GParted";
           genericName = "Partition Editor";
           comment = "Create, reorganize, and delete partitions";
-          icon = ../../assets/icons/gparted.svg;
+          icon = ./gparted.svg;
           terminal = false;
           startupNotify = true;
           categories = [
@@ -32,7 +32,7 @@
           name = "io.missioncenter.MissionCenter";
           exec = "missioncenter";
           desktopName = "Mission Center";
-          icon = ../../assets/icons/mission-center.svg;
+          icon = ./mission-center.svg;
           terminal = false;
           startupNotify = true;
           categories = [

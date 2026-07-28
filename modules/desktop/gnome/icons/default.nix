@@ -359,7 +359,7 @@
         }
         {
           name = "discord";
-          source = ../../../assets/icons/discord.svg;
+          source = ./discord.svg;
           sizes = [ "scalable" ];
           context = "apps";
         }

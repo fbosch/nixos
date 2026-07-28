@@ -49,7 +49,7 @@ in
           exec = "gnome-tweaks";
           desktopName = "Tweaks";
           comment = "Tweak advanced GNOME settings";
-          icon = ../../../assets/icons/gnome-tweaks.svg;
+          icon = ./gnome-tweaks.svg;
           terminal = false;
           onlyShowIn = [
             "GNOME"

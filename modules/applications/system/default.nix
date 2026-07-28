@@ -46,7 +46,7 @@ in
           exec = "resources";
           desktopName = "Resources";
           comment = "Keep an eye on system resources";
-          icon = ../../assets/icons/resources.svg;
+          icon = ./resources.svg;
           terminal = false;
           startupNotify = true;
           categories = [ "System" ];

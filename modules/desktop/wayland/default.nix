@@ -25,7 +25,7 @@
           desktopName = "GTK Settings";
           genericName = "Adjust Look and Feel";
           comment = "Customizes GTK3 look and feel settings";
-          icon = ../../assets/icons/nwg-look.svg;
+          icon = ./nwg-look.svg;
           terminal = false;
           notShowIn = [
             "GNOME"
@@ -59,7 +59,7 @@
           desktopName = "Displays Settings";
           genericName = "Output configuration utility";
           comment = "nwg-shell tool to configure outputs";
-          icon = ../../assets/icons/nwg-displays.svg;
+          icon = ./nwg-displays.svg;
           terminal = false;
           categories = [
             "Settings"

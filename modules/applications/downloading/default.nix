@@ -34,7 +34,7 @@ in
           desktopName = "MEGAsync";
           genericName = "File Synchronizer";
           comment = "Easy automated syncing between your computers and your MEGA cloud drive";
-          icon = ../../assets/icons/megasync.png;
+          icon = ./megasync.png;
           terminal = false;
           startupNotify = false;
           categories = [

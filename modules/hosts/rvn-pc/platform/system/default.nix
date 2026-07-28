@@ -11,7 +11,7 @@
           name = "keymapp";
           exec = "keymapp";
           desktopName = "Keymapp";
-          icon = ../../../../assets/icons/keymapp.png;
+          icon = ./keymapp.png;
           terminal = false;
           categories = [
             "Settings"
