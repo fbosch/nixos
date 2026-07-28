@@ -19,6 +19,7 @@
         openspec
         opencode
         agent-browser
+        rtk
       ];
 
     in
@@ -36,7 +37,6 @@
             "plannotator"
             "pxpipe"
             "codexbar"
-            "rtk"
           ])
         ];
       };
