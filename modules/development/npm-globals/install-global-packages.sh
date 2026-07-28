@@ -42,6 +42,22 @@ EOF
   done
 }
 
+prune_stale_managed_shims() {
+  for wrapper in "$pnpm_home/bin"/*; do
+    if [ ! -f "$wrapper" ]; then
+      continue
+    fi
+
+    case "$(cat "$wrapper")" in
+    *"exec \"$managed_current_dir/node_modules/.bin/"*)
+      if [ ! -e "$managed_current_dir/node_modules/.bin/$(basename "$wrapper")" ]; then
+        rm -f "$wrapper"
+      fi
+      ;;
+    esac
+  done
+}
+
 finish_failed_install() {
   echo ""
   echo "WARNING: Failed to install/update npm global packages." >&2
@@ -126,6 +142,7 @@ cp "$project_dir/package.json" "$project_dir/pnpm-lock.yaml" "$project_dir/pnpm-
 
 if "$pnpm_bin" --dir "$managed_current_dir" install --frozen-lockfile --prod --ignore-scripts=false 2>&1; then
   install_managed_shims
+  prune_stale_managed_shims
   printf '%s\n' "$input_fingerprint" >"$input_fingerprint_file"
   rm -rf "$managed_current_dir.previous"
   echo ""
