@@ -105,6 +105,7 @@
       url = "github:nix-community/nix-unit";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    llm-agents.url = "github:numtide/llm-agents.nix";
 
     # Applications
     worktrunk = {

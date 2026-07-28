@@ -1,3 +1,4 @@
+{ inputs, ... }:
 {
   flake.modules.homeManager.development =
     { pkgs, ... }:
@@ -11,25 +12,32 @@
           (builtins.map (name: pkgs.local.${name}))
         ];
 
+      llmAgentPackages = with inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}; [
+        claude-code
+        codex
+        copilot-cli
+        openspec
+        agent-browser
+      ];
+
     in
     {
       config = {
-        home.packages =
+        home.packages = lib.flatten [
+          llmAgentPackages
           (with pkgs; [
-            codex
-            # cursor-cli
-            # aichat
             tesseract
             herdr
           ])
-          ++ optionalLocalPackages [
+          (optionalLocalPackages [
             "headroom"
             "no-mistakes"
             "plannotator"
             "pxpipe"
             "codexbar"
             "rtk"
-          ];
+          ])
+        ];
       };
     };
 }
