@@ -17,7 +17,7 @@ secrets/*.asc
 *-age-key.txt
 *.asc
 # Allow public GPG key (not a secret)
-!configs/gpg/public-key.asc
+!modules/flake-parts/meta/public-key.asc
 
 # System state
 .direnv/

@@ -9,7 +9,7 @@ let
     };
     gpg = {
       fingerprint = "5E0F EC74 518E D5FE AA5E  A33E 5C49 A562 D850 322A";
-      publicKeyFile = ../../configs/gpg/public-key.asc;
+      publicKeyFile = ./public-key.asc;
     };
     ssh = {
       authorizedKeys = [

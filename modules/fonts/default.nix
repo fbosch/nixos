@@ -212,7 +212,7 @@
               '';
       in
       {
-        xdg.configFile."fontconfig/fonts.conf".text = builtins.readFile ../configs/fontconfig/fonts.conf;
+        xdg.configFile."fontconfig/fonts.conf".text = builtins.readFile ./fonts.conf;
 
         home.packages = lib.optionals pkgs.stdenv.isLinux (
           with pkgs.local;
