@@ -79,7 +79,9 @@
               icon = "white";
               screen = "1080p";
               footer = true;
-              splashImage = ./black.jpg;
+              splashImage = pkgs.runCommand "black.jpg" { nativeBuildInputs = [ pkgs.imagemagick ]; } ''
+                magick -size 1920x1080 xc:black "$out"
+              '';
             };
           })
         ];

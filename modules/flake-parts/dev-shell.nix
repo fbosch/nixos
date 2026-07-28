@@ -8,7 +8,11 @@
   ];
 
   perSystem =
-    { config, lib, pkgs, ... }:
+    { config
+    , lib
+    , pkgs
+    , ...
+    }:
     let
       lintScript = pkgs.writeShellApplication {
         name = "lint";
@@ -78,6 +82,11 @@
             check-merge-conflicts.enable = true;
             check-symlinks.enable = true;
             end-of-file-fixer.enable = true;
+            pngcheck = {
+              enable = true;
+              entry = "${pkgs.pngcheck}/bin/pngcheck";
+              files = "\\.png$";
+            };
             ripsecrets.enable = true;
             trim-trailing-whitespace = {
               enable = true;

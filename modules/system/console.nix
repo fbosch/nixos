@@ -1,12 +1,16 @@
+{ config, ... }:
+let
+  flakeConfig = config;
+in
 {
   flake.modules.nixos.system =
-    { pkgs, config, ... }:
+    { pkgs, ... }:
     {
       console = {
         earlySetup = true;
         font = "Lat2-Terminus16";
         packages = with pkgs; [ terminus_font ];
-        colors = config.flake.lib.themes.zenwritten.console;
+        colors = flakeConfig.flake.lib.themes.zenwritten.console;
       };
     };
 }
