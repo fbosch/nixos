@@ -2,7 +2,7 @@
 set -euo pipefail
 
 config_path="${1:-$HOME/.config/hypr/hyprpaper.conf}"
-output_path="${2:-assets/wallpaper.png}"
+output_path="${2:-${XDG_DATA_HOME:-$HOME/.local/share}/wallpaper.png}"
 monitor_name="${3:-DP-2}"
 
 if [ ! -f "$config_path" ]; then

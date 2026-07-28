@@ -79,7 +79,7 @@
               icon = "white";
               screen = "1080p";
               footer = true;
-              splashImage = ./../../../assets/grub-backgrounds/black.jpg;
+              splashImage = ./black.jpg;
             };
           })
         ];

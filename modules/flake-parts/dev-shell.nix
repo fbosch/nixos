@@ -82,7 +82,10 @@
             };
             actionlint.enable = true;
             shellcheck.enable = true;
-            check-added-large-files.enable = true;
+            check-added-large-files = {
+              enable = true;
+              excludes = [ "^modules/desktop/display-manager/" ];
+            };
             check-merge-conflicts.enable = true;
             check-symlinks.enable = true;
             end-of-file-fixer.enable = true;

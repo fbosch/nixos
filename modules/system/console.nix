@@ -1,5 +1,5 @@
 let
-  zenwritten = import ../../assets/themes/zenwritten.nix;
+  zenwritten = import ../../lib/themes/zenwritten.nix;
 in
 {
   flake.modules.nixos.system =

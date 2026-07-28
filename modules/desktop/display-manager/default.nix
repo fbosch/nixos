@@ -2,7 +2,7 @@
 , ...
 }:
 let
-  sddmBackground = ../../assets/wallpapers/glaze_2.png;
+  sddmBackground = ./glaze_2.png;
   sddmBackgroundName = builtins.baseNameOf sddmBackground;
 in
 {
