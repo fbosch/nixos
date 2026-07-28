@@ -4,10 +4,11 @@
   # Local git hook installation is handled by devenv.
   imports = [
     inputs.pre-commit-hooks.flakeModule
+    inputs.treefmt-nix.flakeModule
   ];
 
   perSystem =
-    { config, pkgs, ... }:
+    { config, lib, pkgs, ... }:
     let
       lintScript = pkgs.writeShellApplication {
         name = "lint";
@@ -22,18 +23,6 @@
           gum
         ];
         text = builtins.readFile ../../scripts/lint.sh;
-      };
-
-      formatScript = pkgs.writeShellApplication {
-        name = "fmt";
-        runtimeInputs = with pkgs; [
-          treefmt
-          nixpkgs-fmt
-          shfmt
-        ];
-        text = ''
-          treefmt --no-cache
-        '';
       };
 
       installScript = pkgs.writeShellApplication {
@@ -98,7 +87,24 @@
         };
       };
 
-      formatter = formatScript;
+      treefmt = {
+        programs = {
+          nixpkgs-fmt.enable = true;
+          shfmt = {
+            enable = true;
+            indent_size = 2;
+            simplify = true;
+          };
+        };
+        settings.formatter = {
+          nixpkgs-fmt.excludes = [
+            ".agents/**/*.nix"
+            ".github/skills/**/*.nix"
+            ".opencode/skills/**/*.nix"
+          ];
+          shfmt.includes = [ "*.sh" ];
+        };
+      };
 
       apps = {
         lint = {
@@ -108,7 +114,7 @@
         };
         fmt = {
           type = "app";
-          program = "${formatScript}/bin/fmt";
+          program = "${config.treefmt.build.wrapper}/bin/treefmt";
           meta.description = "Format files via treefmt";
         };
         install = {
@@ -124,22 +130,22 @@
       };
 
       devShells.default = pkgs.mkShell {
-        packages = with pkgs; [
-          just
-          git
-          nil
-          nixd
-          statix
-          deadnix
-          treefmt
-          nixpkgs-fmt
-          shfmt
-          actionlint
-          shellcheck
-          gum
-          lintScript
-          formatScript
-        ];
+        packages =
+          (with pkgs; [
+            just
+            git
+            nil
+            nixd
+            statix
+            deadnix
+            actionlint
+            shellcheck
+            gum
+            pre-commit
+            lintScript
+          ])
+          ++ [ config.treefmt.build.wrapper ]
+          ++ lib.attrValues config.treefmt.build.programs;
         shellHook = ''
           ${config.pre-commit.installationScript}
 

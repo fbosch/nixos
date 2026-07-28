@@ -1894,6 +1894,7 @@
         "silentSDDM": "silentSDDM",
         "sops-nix": "sops-nix",
         "steam-config-nix": "steam-config-nix",
+        "treefmt-nix": "treefmt-nix_4",
         "winapps": "winapps",
         "worktrunk": "worktrunk"
       }
@@ -2075,6 +2076,26 @@
       "inputs": {
         "nixpkgs": [
           "nix-unit",
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1784369104,
+        "narHash": "sha256-47cxbcZODibHv3rELFQ9vZly0vUNkND/atn/U7HLeb0=",
+        "owner": "numtide",
+        "repo": "treefmt-nix",
+        "rev": "df3c0640565d04a0261253cdd89fce78ec50168a",
+        "type": "github"
+      },
+      "original": {
+        "owner": "numtide",
+        "repo": "treefmt-nix",
+        "type": "github"
+      }
+    },
+    "treefmt-nix_4": {
+      "inputs": {
+        "nixpkgs": [
           "nixpkgs"
         ]
       },

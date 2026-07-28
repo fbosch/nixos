@@ -94,7 +94,7 @@ fi
 if [ "$exit_code" -ne 0 ]; then
   echo "$(gum style --foreground 1 '[ERROR]') Pre-commit checks failed"
 else
-  if "$(dirname "$0")/pre-commit-checks" "$@"; then
+  if pre-commit run --config .pre-commit-config.yaml --hook-stage pre-commit; then
     echo "$(gum style --foreground 2 '[DONE]') All pre-commit checks passed"
   else
     echo "$(gum style --foreground 1 '[ERROR]') Pre-commit checks failed"

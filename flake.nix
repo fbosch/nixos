@@ -99,6 +99,10 @@
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.flake-compat.follows = "dedupe_flake-compat";
     };
+    treefmt-nix = {
+      url = "github:numtide/treefmt-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
     # Nix expression tests (modules/flake-parts/nix-unit.nix)
     nix-unit = {
