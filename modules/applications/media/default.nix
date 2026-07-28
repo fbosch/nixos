@@ -18,6 +18,8 @@
         # Media web apps
         local."webapp/youtubemusic" # YouTube Music
         local."webapp/synologyphotos" # Synology Photos
+
+        plezy # plex client
       ];
 
       # Flatpak media applications
