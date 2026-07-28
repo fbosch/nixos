@@ -20,6 +20,7 @@
         opencode
         agent-browser
         rtk
+        plannotator
       ];
 
     in
@@ -34,7 +35,6 @@
           (optionalLocalPackages [
             "headroom"
             "no-mistakes"
-            "plannotator"
             "pxpipe"
             "codexbar"
           ])
