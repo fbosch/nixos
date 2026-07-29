@@ -54,15 +54,6 @@
 
 ## Daily usage
 
-Use SecretSpec for scoped, command-local access to the existing SOPS files:
-
-```bash
-secretspec check --no-prompt --scope ai --reason "Validate local setup"
-secretspec run --scope ai --reason "Run local command" -- command
-```
-
-`secretspec.toml` is read-only during this experiment. Continue using SOPS for edits, recipient changes, and recovery:
-
 Edit secrets:
 
 ```bash
