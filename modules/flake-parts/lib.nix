@@ -1,5 +1,4 @@
-{ inputs
-, config
+{ config
 , lib
 , ...
 }:
@@ -237,39 +236,5 @@
           ;
       };
 
-    secretspecHelpers = {
-      systemdCredentialScript =
-        { config
-        , scope
-        , reason
-        , command
-        ,
-        }:
-        let
-          secretspec =
-            inputs.nixpkgs-unstable.legacyPackages.${config.nixpkgs.hostPlatform.system}.secretspec;
-          manifestFile = builtins.toFile "secretspec.toml" (builtins.readFile ../../secretspec.toml);
-        in
-        ''
-          exec ${
-            lib.escapeShellArgs (
-              [
-                (lib.getExe secretspec)
-                "--file"
-                (toString manifestFile)
-                "run"
-                "--profile"
-                "systemd"
-                "--scope"
-                scope
-                "--reason"
-                reason
-                "--"
-              ]
-              ++ command
-            )
-          }
-        '';
-    };
   };
 }

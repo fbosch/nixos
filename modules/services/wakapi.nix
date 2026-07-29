@@ -2,20 +2,16 @@
 , ...
 }:
 let
-  inherit (config.flake.lib) secretspecHelpers sopsHelpers;
+  inherit (config.flake.lib) sopsHelpers;
 in
 {
   flake.modules.nixos."services/wakapi" =
     { config
     , lib
-    , pkgs
     , ...
     }:
     let
       port = 3033;
-      wakapiSettingsFile =
-        (pkgs.formats.yaml { }).generate "wakapi-settings"
-          config.services.wakapi.settings;
     in
     {
       config = lib.mkMerge [
@@ -48,28 +44,16 @@ in
         (lib.mkIf (config ? sops) {
           sops.secrets.wakapi-password-salt = sopsHelpers.mkSecret ../../secrets/apis.yaml sopsHelpers.rootOnly;
 
-          systemd.services.wakapi = {
-            after = [ "sops-install-secrets.service" ];
-            wants = [ "sops-install-secrets.service" ];
-            # The upstream module supports EnvironmentFile but not a credential-aware command.
-            script = lib.mkForce (
-              secretspecHelpers.systemdCredentialScript {
-                inherit config;
-                scope = "wakapi";
-                reason = "Start Wakapi";
-                command = [
-                  (lib.getExe config.services.wakapi.package)
-                  "-config"
-                  wakapiSettingsFile
-                ];
-              }
-            );
-            serviceConfig = {
-              LoadCredential = [
-                "WAKAPI_PASSWORD_SALT:${config.sops.secrets.wakapi-password-salt.path}"
-              ];
-            };
+          sops.templates."wakapi-env" = {
+            content = ''
+              WAKAPI_PASSWORD_SALT=${config.sops.placeholder.wakapi-password-salt}
+            '';
+            mode = "0400";
           };
+
+          services.wakapi.environmentFiles = [
+            config.sops.templates."wakapi-env".path
+          ];
         })
         {
           networking.firewall.allowedTCPPorts = lib.mkAfter [ port ];
