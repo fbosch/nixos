@@ -5,7 +5,6 @@
   "dependencies": {
     "@fbb.sh/pkdx": "0.7.0",
     "@schpet/linear-cli": "2.3.0",
-    "corepack": "0.35.0",
     "docs-cache": "0.7.0",
     "jiti": "2.7.0",
     "neovim": "5.4.0",
