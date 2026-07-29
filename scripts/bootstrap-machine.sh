@@ -292,7 +292,7 @@ fi
 
 gum style --foreground 244 ""
 if gum confirm "Run rebuild now?"; then
-  sudo nixos-rebuild switch --flake ".#$host_name"
+  sudo nixos-rebuild switch --accept-flake-config --flake ".#$host_name"
   rebuild_status="completed"
 else
   rebuild_status="skipped"

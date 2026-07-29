@@ -34,6 +34,8 @@ let
       "nix-command"
       "flakes"
     ];
+    # This repository's flake declares its binary caches for bootstrap builds.
+    accept-flake-config = true;
     fallback = true;
   };
 
