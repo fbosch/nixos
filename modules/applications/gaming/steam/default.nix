@@ -28,11 +28,12 @@ in
           extraArgs = "-system-composer --enable-features=UseOzonePlatform --ozone-platform=wayland";
           extraEnv = {
             DXVK_HUD = "0";
+            GAMEMODERUN = "1";
             PROTON_HIDE_NVIDIA_GPU = "0";
             PROTON_ENABLE_NVAPI = "1";
             PROTON_USE_NTSYNC = "1";
-            GAMEMODERUN = "1";
             PROTON_LOCAL_SHADER_CACHE = "1";
+            PROTON_DXVK_LOWLATENCY = "1";
             TZ = ":/etc/localtime";
             TZDIR = "/etc/zoneinfo";
           };
