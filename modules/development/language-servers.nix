@@ -7,7 +7,6 @@
         lua-language-server
         marksman
         tailwindcss-language-server
-        typescript-language-server
         vscode-langservers-extracted
       ];
     };

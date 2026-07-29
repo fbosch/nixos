@@ -70,6 +70,16 @@ let
     else
       hostForUrl url;
 
+  originFor =
+    url:
+    let
+      match = builtins.match "^([a-zA-Z][a-zA-Z0-9+.-]*://[^/:?#]+).*" url;
+    in
+    if match == null then
+      throw "mkHeliumApp: cannot infer origin from URL ${url}"
+    else
+      builtins.head match;
+
   iconExtensionFor = icon: if lib.hasSuffix ".svg" (toString icon) then "svg" else "png";
   iconDirectoryFor = extension: if extension == "svg" then "scalable" else "512x512";
 in
@@ -88,6 +98,7 @@ in
     , profileDirName ? appName
     , url
     , runtime ? { }
+    , rememberLastPage ? false
     , keywords ? [ ]
     , meta ? { }
     ,
@@ -99,6 +110,14 @@ in
         install -Dm444 ${policyFile} \
           "$out/share/chromium/policies/managed/${appName}.json"
       '';
+      origin = originFor url;
+      profilePath = "\${XDG_CONFIG_HOME:-$HOME/.config}/helium-browser/${profileDirName}";
+      historyPath = "${profilePath}/${profile}/History";
+      lastPageQuery = lib.escapeShellArg "SELECT url FROM urls WHERE url LIKE '${origin}/%' ORDER BY last_visit_time DESC LIMIT 1;";
+      waylandAppId = runtime.waylandAppId or null;
+      needsProcessExit = rememberLastPage || waylandAppId != null;
+      browserCommand =
+        if waylandAppId == null then "helium-browser" else "/run/current-system/sw/bin/helium-browser";
       resolvedIcon =
         if icon != null then
           icon
@@ -115,16 +134,100 @@ in
       flagArgs = lib.concatMapStringsSep " " lib.escapeShellArg flags;
       launcher = pkgs.writeShellApplication {
         name = appName;
-        runtimeInputs = [ pkgs.local.helium-browser ];
+        runtimeInputs = [
+          pkgs.local.helium-browser
+        ]
+        ++ lib.optional rememberLastPage pkgs.sqlite
+        ++ lib.optional (waylandAppId != null) pkgs.local.filterway;
         text = ''
           export CHROME_POLICY_FILES_DIR=${policyTree}/share/chromium/policies
 
-          exec helium-browser \
-            --app=${lib.escapeShellArg url} \
-            --user-data-dir="''${XDG_CONFIG_HOME:-$HOME/.config}/helium-browser/${profileDirName}" \
-            --profile-directory=${lib.escapeShellArg profile} \
-            ${flagArgs} \
-            "$@"
+          ${
+            if needsProcessExit then
+              ''
+                launch_url=${lib.escapeShellArg url}
+                ${lib.optionalString rememberLastPage ''
+                  state_file="${profilePath}/last-url"
+
+                  if [ -r "$state_file" ]; then
+                    last_url="$(< "$state_file")"
+                    case "$last_url" in
+                      ${origin}|${origin}/*) launch_url="$last_url" ;;
+                    esac
+                  fi
+
+                  if [ "$launch_url" = ${lib.escapeShellArg url} ] && [ -r "${historyPath}" ]; then
+                    last_url="$(sqlite3 "${historyPath}" ${lastPageQuery} || true)"
+                    case "$last_url" in
+                      ${origin}|${origin}/*) launch_url="$last_url" ;;
+                    esac
+                  fi
+                ''}
+
+                ${lib.optionalString (waylandAppId != null) ''
+                  : "''${XDG_RUNTIME_DIR:?${appName} requires XDG_RUNTIME_DIR}"
+                  : "''${WAYLAND_DISPLAY:?${appName} requires native Wayland}"
+
+                  upstream="$WAYLAND_DISPLAY"
+                  case "$upstream" in
+                    /*) ;;
+                    *) upstream="$XDG_RUNTIME_DIR/$upstream" ;;
+                  esac
+
+                  downstream="wayland-${appName}-$$"
+                  filterway --upstream "$upstream" --downstream "$XDG_RUNTIME_DIR/$downstream" --app-id ${lib.escapeShellArg waylandAppId} &
+                  filterway_pid=$!
+
+                  for _ in {1..50}; do
+                    [ -S "$XDG_RUNTIME_DIR/$downstream" ] && break
+                    if ! kill -0 "$filterway_pid" 2>/dev/null; then
+                      wait "$filterway_pid" 2>/dev/null || true
+                      exit 1
+                    fi
+                    sleep 0.1
+                  done
+
+                  if [ ! -S "$XDG_RUNTIME_DIR/$downstream" ]; then
+                    kill "$filterway_pid" 2>/dev/null || true
+                    wait "$filterway_pid" 2>/dev/null || true
+                    exit 1
+                  fi
+                ''}
+
+                app_status=0
+                ${lib.optionalString (waylandAppId != null) "WAYLAND_DISPLAY=\"$downstream\" "}${browserCommand} \
+                  --app="$launch_url" \
+                  --user-data-dir="${profilePath}" \
+                  --profile-directory=${lib.escapeShellArg profile} \
+                  ${flagArgs} \
+                  "$@" || app_status=$?
+
+                ${lib.optionalString rememberLastPage ''
+                  if [ -r "${historyPath}" ]; then
+                    last_url="$(sqlite3 "${historyPath}" ${lastPageQuery} || true)"
+                    case "$last_url" in
+                      ${origin}|${origin}/*) printf '%s\n' "$last_url" > "$state_file" ;;
+                    esac
+                  fi
+                ''}
+
+                ${lib.optionalString (waylandAppId != null) ''
+                  kill "$filterway_pid" 2>/dev/null || true
+                  wait "$filterway_pid" 2>/dev/null || true
+                ''}
+
+                exit "$app_status"
+              ''
+            else
+              ''
+                exec helium-browser \
+                  --app=${lib.escapeShellArg url} \
+                  --user-data-dir="${profilePath}" \
+                  --profile-directory=${lib.escapeShellArg profile} \
+                  ${flagArgs} \
+                  "$@"
+              ''
+          }
         '';
       };
       desktopItem = pkgs.makeDesktopItem {
@@ -136,7 +239,7 @@ in
           desktopName
           keywords
           ;
-        icon = appName;
+        icon = "${iconTheme}/share/icons/hicolor/${iconDirectory}/apps/${appName}.${iconExtension}";
         terminal = false;
         startupNotify = true;
         startupWMClass = wmClass;
@@ -175,7 +278,7 @@ in
       ];
 
       passthru.heliumWebapp = {
-        inherit policyFile flags;
+        inherit policyFile flags waylandAppId;
       };
 
       meta = lib.recursiveUpdate

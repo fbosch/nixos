@@ -18,7 +18,7 @@ in
       networkmanager = {
         enable = true;
         # Keep DHCP-provided DNS out of resolv.conf so all lookups use dnsmasq.
-        dns = "none";
+        dns = lib.mkForce "none";
       };
       nameservers = [ "127.0.0.1" ];
       timeServers = [ "time.nist.gov" ];

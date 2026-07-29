@@ -9,7 +9,7 @@
             bun
             nodejs_24
             yarn
-            typescript
+            typescript-go
             prettier
             eslint
             npm-check-updates

@@ -10,6 +10,16 @@ in
         chromiumProfile = "${pkgs.firejail}/etc/firejail/chromium.profile";
       };
       heliumWebapps = lib.filterAttrs (name: _: lib.hasPrefix "webapp/" name) pkgs.local;
+      nativeWaylandWebapps = lib.filterAttrs
+        (
+          _: package: package.passthru.heliumWebapp.waylandAppId != null
+        )
+        heliumWebapps;
+      firejailedWebapps = lib.filterAttrs
+        (
+          _: package: package.passthru.heliumWebapp.waylandAppId == null
+        )
+        heliumWebapps;
       bitwardenNativeMessagingHost = builtins.toJSON {
         name = "com.8bit.bitwarden";
         description = "Bitwarden desktop <-> browser bridge";
@@ -35,6 +45,8 @@ in
         "chromium/policies/managed/helium-dns.json".text = heliumManagedPolicy;
       };
 
+      environment.systemPackages = builtins.attrValues nativeWaylandWebapps;
+
       programs.firejail.wrappedBinaries =
         lib.mapAttrs'
           (name: package: {
@@ -47,7 +59,7 @@ in
             }.desktop";
             };
           })
-          heliumWebapps
+          firejailedWebapps
         // {
           helium-browser = {
             executable = "${heliumPackage}/bin/helium-browser";
