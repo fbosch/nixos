@@ -9,7 +9,7 @@
     };
 
   flake.modules.homeManager.applications =
-    { pkgs, ... }:
+    { config, pkgs, ... }:
     {
       home.packages = with pkgs; [
         # Image viewers
@@ -32,6 +32,10 @@
         "be.alexandervanhee.gradia" # image editor
         "org.kde.iconexplorer" # Icon Explorer
         "org.upscayl.Upscayl"
+      ];
+
+      services.flatpak.overrides."org.upscayl.Upscayl".Context.filesystems = [
+        config.xdg.userDirs.download
       ];
     };
 }
