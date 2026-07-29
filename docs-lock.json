@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "toolVersion": "0.7.0",
+  "sources": {
+    "secretspec": {
+      "repo": "https://github.com/cachix/secretspec.git",
+      "ref": "main",
+      "resolvedCommit": "ec1b9420fa57805d1905d421446304e1a5ba768c",
+      "bytes": 351757,
+      "fileCount": 57,
+      "manifestSha256": "493eaaa2a4c81119c12872e782bac2c8591447219f7cd411396a9b2782dd167c",
+      "rulesSha256": "292a912375f27e4d0426baae461ae7a8c300a1f84c557d8cf7421743fb8b1fde"
+    }
+  },
+  "opencode": {
+    "configPath": "opencode.json",
+    "aliases": [
+      "secretspec"
+    ]
+  }
+}

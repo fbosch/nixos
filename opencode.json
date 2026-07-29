@@ -10,6 +10,10 @@
     "dotfiles": {
       "path": "~/dotfiles",
       "description": "Personal dotfiles configuration"
+    },
+    "secretspec": {
+      "path": ".docs/secretspec",
+      "description": "Use for documentation from cachix/secretspec. Start with TOC.md."
     }
   },
   "mcp": {

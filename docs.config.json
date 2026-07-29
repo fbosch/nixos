@@ -1,0 +1,12 @@
+{
+  "$schema": "https://raw.githubusercontent.com/fbosch/docs-cache/main/docs.config.schema.json",
+  "sources": [
+    {
+      "id": "secretspec",
+      "repo": "https://github.com/cachix/secretspec.git",
+      "ref": "main",
+      "include": ["docs/**/*.md"]
+    }
+  ],
+  "opencode": true
+}
