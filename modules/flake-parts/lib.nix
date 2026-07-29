@@ -1,4 +1,8 @@
-{ config, lib, ... }:
+{ inputs
+, config
+, lib
+, ...
+}:
 {
   config.flake.lib = {
     # Dendritic pattern helpers for module path resolution
@@ -232,5 +236,40 @@
           mkSecret
           ;
       };
+
+    secretspecHelpers = {
+      systemdCredentialScript =
+        { config
+        , scope
+        , reason
+        , command
+        ,
+        }:
+        let
+          secretspec =
+            inputs.nixpkgs-unstable.legacyPackages.${config.nixpkgs.hostPlatform.system}.secretspec;
+          manifestFile = builtins.toFile "secretspec.toml" (builtins.readFile ../../secretspec.toml);
+        in
+        ''
+          exec ${
+            lib.escapeShellArgs (
+              [
+                (lib.getExe secretspec)
+                "--file"
+                (toString manifestFile)
+                "run"
+                "--profile"
+                "systemd"
+                "--scope"
+                scope
+                "--reason"
+                reason
+                "--"
+              ]
+              ++ command
+            )
+          }
+        '';
+    };
   };
 }
