@@ -34,10 +34,14 @@ in
     homeManager = {
       security =
         { pkgs, ... }:
+        let
+          secretspec = inputs.nixpkgs-unstable.legacyPackages.${pkgs.stdenv.hostPlatform.system}.secretspec;
+        in
         {
           home.packages = with pkgs; [
             sops
             age
+            secretspec
           ];
         };
 
