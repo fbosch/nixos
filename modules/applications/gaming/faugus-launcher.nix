@@ -54,6 +54,7 @@ _: {
         PROTON_NO_WM_DECORATION=1
         PROTON_USE_NTSYNC=1
         PROTON_ENABLE_NVAPI=1
+        PROTON_DXVK_LOWLATENCY=1
         DXVK_HUD=0
       '';
     in
