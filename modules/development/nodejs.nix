@@ -15,7 +15,6 @@
             npm-check-updates
             prettierd
             playwright-test
-            corepack
           ])
           ++ [ (pkgs.local.pnpm or pkgs.pnpm) ];
       };
