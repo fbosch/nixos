@@ -29,7 +29,6 @@ let
   };
 
   defaultFlags = [
-    "--disable-extensions"
     "--disable-sync"
     "--disable-background-networking"
     "--no-first-run"
@@ -130,7 +129,18 @@ in
             }
         else
           throw "mkHeliumApp ${appName}: set icon or faviconHash";
-      flags = lib.lists.unique (defaultFlags ++ (runtime.extraFlags or [ ]) ++ [ "--class=${wmClass}" ]);
+      unpackedExtensions = runtime.unpackedExtensions or [ ];
+      extensionFlags = lib.optionals (unpackedExtensions != [ ]) [
+        "--disable-features=ExtensionDisableUnsupportedDeveloper"
+        "--load-extension=${lib.concatStringsSep "," (map toString unpackedExtensions)}"
+      ];
+      flags = lib.lists.unique (
+        lib.optional (unpackedExtensions == [ ]) "--disable-extensions"
+        ++ defaultFlags
+        ++ extensionFlags
+        ++ (runtime.extraFlags or [ ])
+        ++ [ "--class=${wmClass}" ]
+      );
       flagArgs = lib.concatMapStringsSep " " lib.escapeShellArg flags;
       launcher = pkgs.writeShellApplication {
         name = appName;
@@ -278,7 +288,12 @@ in
       ];
 
       passthru.heliumWebapp = {
-        inherit policyFile flags waylandAppId;
+        inherit
+          flags
+          policyFile
+          unpackedExtensions
+          waylandAppId
+          ;
       };
 
       meta = lib.recursiveUpdate
