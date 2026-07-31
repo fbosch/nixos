@@ -14,11 +14,20 @@
 <a href="https://github.com/nix-community/home-manager"> <img src="https://img.shields.io/badge/Home--Manager-Nix-informational?logo=nixos&logoColor=white" alt="Home Manager"/></a>
 <a href="https://github.com/Mic92/sops-nix"> <img src="https://img.shields.io/badge/SOPS-Nix-informational?logo=nixos&logoColor=white" alt="SOPS"/></a>
 
-Personal NixOS configuration using a dendritic module layout with flake-parts.
+Personal NixOS and nix-darwin configuration using a dendritic module layout with flake-parts.
+
+### Install
+
+NixOS:
 
 ```sh
-# bootstrapping after fresh install
 curl -fsSL nix.fbb.sh/install | bash
+```
+
+macOS with Nix and nix-darwin installed:
+
+```sh
+darwin-rebuild switch --accept-flake-config --flake .#rvn-mac
 ```
 
 ---
