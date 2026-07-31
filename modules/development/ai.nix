@@ -21,6 +21,7 @@
         agent-browser
         rtk
         plannotator
+        pi
       ];
 
     in
