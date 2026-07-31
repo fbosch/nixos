@@ -24,10 +24,10 @@ NixOS:
 curl -fsSL nix.fbb.sh/install | bash
 ```
 
-macOS with Nix and nix-darwin installed:
+nix-darwin:
 
 ```sh
-darwin-rebuild switch --accept-flake-config --flake .#rvn-mac
+darwin-rebuild switch --accept-flake-config --flake .#<host>
 ```
 
 ---
