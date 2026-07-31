@@ -39,7 +39,7 @@ index 2b07f65..c65b991 100644
    window.signal_configure_event().connect_notify(sigc::mem_fun(*this, &Bar::onConfigure));
    output->monitor->property_geometry().signal_changed().connect(
        sigc::mem_fun(*this, &Bar::onOutputGeometryChanged));
-@@ -366,11 +369,42 @@ void waybar::Bar::setVisible(bool value) {
+@@ -366,11 +369,44 @@ void waybar::Bar::setVisible(bool value) {
    visible = value;
    if (auto mode = config.get("mode", {}); mode.isString()) {
      setMode(visible ? config["mode"].asString() : MODE_INVISIBLE);
@@ -52,7 +52,8 @@ index 2b07f65..c65b991 100644
  }
 
 +void waybar::Bar::animateVisibility(bool should_show) {
-+  if (!config["slide-duration"].isUInt() || position != Gtk::POS_BOTTOM) {
++  if (!config["slide-duration"].isUInt() || !config["slide-ease-out-exponent"].isNumeric() ||
++      config["slide-ease-out-exponent"].asDouble() < 1.0 || position != Gtk::POS_BOTTOM) {
 +    return;
 +  }
 +
@@ -61,17 +62,18 @@ index 2b07f65..c65b991 100644
 +  }
 +
 +  const auto duration = std::chrono::milliseconds(config["slide-duration"].asUInt());
++  const auto ease_out_exponent = config["slide-ease-out-exponent"].asDouble();
 +  const auto started_at = std::chrono::steady_clock::now();
 +  const auto offset = config["slide-offset"].isInt() ? config["slide-offset"].asInt() : 0;
 +  const auto target = should_show ? margins_.bottom : -static_cast<int>(height_) - offset;
 +  const auto start = slide_margin_;
 +
 +  slide_connection_ = Glib::signal_timeout().connect(
-+      [this, duration, started_at, start, target] {
++      [this, duration, ease_out_exponent, started_at, start, target] {
 +        const auto elapsed = std::chrono::steady_clock::now() - started_at;
 +        const auto linear_progress = std::min(1.0, std::chrono::duration<double>(elapsed).count() /
 +                                                       std::chrono::duration<double>(duration).count());
-+        const auto progress = 1.0 - std::pow(1.0 - linear_progress, 3);
++        const auto progress = 1.0 - std::pow(1.0 - linear_progress, ease_out_exponent);
 +        slide_margin_ = static_cast<int>(start + (target - start) * progress);
 +        gtk_layer_set_margin(window.gobj(), GTK_LAYER_SHELL_EDGE_BOTTOM, slide_margin_);
 +        gtk_layer_try_force_commit(window.gobj());
