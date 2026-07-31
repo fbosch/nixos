@@ -4,20 +4,16 @@
 , ...
 }:
 let
-  mkCachixConfig = isCorporateHost: {
-    substituters = [
-      "https://cache.nixos.org"
-    ]
-    ++ lib.optionals (!isCorporateHost) [
-      "https://fbosch.cachix.org"
-    ];
-    trusted-public-keys = [
-      "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
-    ]
-    ++ lib.optionals (!isCorporateHost) [
-      "fbosch.cachix.org-1:QGKDLpPb1MY7YtcCvFpDNqQzGsYtDgE3YyC6IXK1nO8="
-    ];
-  };
+  mkCachixConfig =
+    isCorporateHost:
+    lib.optionalAttrs (!isCorporateHost) {
+      extra-substituters = lib.mkBefore [
+        "https://fbosch.cachix.org"
+      ];
+      extra-trusted-public-keys = [
+        "fbosch.cachix.org-1:QGKDLpPb1MY7YtcCvFpDNqQzGsYtDgE3YyC6IXK1nO8="
+      ];
+    };
   # Shared Cachix configuration for both NixOS and Darwin
   sharedCachixConfig = mkCachixConfig false;
 
