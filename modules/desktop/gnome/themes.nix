@@ -39,7 +39,6 @@
         monoThemeDark
         pkgs.gtk4
         adwGtk3Zenwritten
-        pkgs.colloid-gtk-theme
       ];
     };
 }
