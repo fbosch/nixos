@@ -95,6 +95,10 @@ in
           settings = {
             max-jobs = "auto";
             cores = 0;
+            extra-substituters = [ "https://attic.xuyh0120.win/lantian" ];
+            extra-trusted-public-keys = [
+              "lantian:EeAUQ+W+6r7EtwnmYjeVwx5kOGEBpjlBfPlzGlTNvHc="
+            ];
           };
 
           # De-prioritize Nix daemon scheduling so desktop workloads stay responsive.

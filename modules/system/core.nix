@@ -7,18 +7,12 @@ let
   mkCachixConfig = isCorporateHost: {
     substituters = [
       "https://cache.nixos.org"
-      "https://nix-community.cachix.org"
-      "https://hyprland.cachix.org"
-      "https://cache.numtide.com"
     ]
     ++ lib.optionals (!isCorporateHost) [
       "https://fbosch.cachix.org"
     ];
     trusted-public-keys = [
       "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
-      "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
-      "hyprland.cachix.org-1:a7pgxzMz7+chwVL3/pzj6jIBMioiJM7ypFP8PwtkuGc="
-      "niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g="
     ]
     ++ lib.optionals (!isCorporateHost) [
       "fbosch.cachix.org-1:QGKDLpPb1MY7YtcCvFpDNqQzGsYtDgE3YyC6IXK1nO8="
@@ -41,30 +35,6 @@ let
   sharedNixSettingsMerged = lib.mkMerge [
     sharedNixSettings
     sharedCachixConfig
-  ];
-
-  # NixOS-specific nix settings
-  nixosNixSettings = lib.mkMerge [
-    sharedNixSettingsMerged
-    {
-      extra-substituters = [
-        # Flox cache: useful for prebuilt CUDA/NVIDIA-related artifacts.
-        "https://cache.flox.dev"
-        "https://comfyui.cachix.org"
-        "https://cuda-maintainers.cachix.org"
-        # CachyOS kernel cache (Hydra/Attic) for nix-cachyos-kernel artifacts.
-        "https://attic.xuyh0120.win/lantian"
-        # CachyOS kernel cache mirror built on Garnix.
-        "https://cache.garnix.io"
-      ];
-      extra-trusted-public-keys = [
-        "flox-cache-public-1:7F4OyH7ZCnFhcze3fJdfyXYLQw/aV7GEed86nQ7IsOs="
-        "comfyui.cachix.org-1:33mf9VzoIjzVbp0zwj+fT51HG0y31ZTK3nzYZAX0rec="
-        "cuda-maintainers.cachix.org-1:0dq3bujKpuEPMCX6U4WylrUDZ9JyUG0VpVZa7CNfq5E="
-        "lantian:EeAUQ+W+6r7EtwnmYjeVwx5kOGEBpjlBfPlzGlTNvHc="
-        "cache.garnix.io:CTFPyKSLcx5RMJKfLo5EEPUObbA78b0YQ2DTCJXqr9g="
-      ];
-    }
   ];
 
   # Shared home-manager config
@@ -113,7 +83,7 @@ in
 
     nix = {
       settings = lib.mkMerge [
-        nixosNixSettings
+        sharedNixSettingsMerged
         {
           allowed-users = [
             "root"
