@@ -75,7 +75,7 @@ index 2b07f65..c65b991 100644
 +
 +  slide_tick_callback_ = gtk_widget_add_tick_callback(
 +      GTK_WIDGET(window.gobj()),
-+      [](GtkWidget* /*widget*/, GdkFrameClock* frame_clock, gpointer data) {
++      [](GtkWidget* /*widget*/, GdkFrameClock* frame_clock, gpointer data) -> gboolean {
 +        auto* bar = static_cast<waybar::Bar*>(data);
 +        const auto frame_time = gdk_frame_clock_get_frame_time(frame_clock);
 +        if (bar->slide_started_at_ == 0) {
