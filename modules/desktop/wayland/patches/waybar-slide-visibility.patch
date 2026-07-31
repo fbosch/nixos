@@ -10,16 +10,14 @@ index 7dce4d7..d25c6b4 100644
    void onOutputGeometryChanged();
 
    /* Copy initial set of modes to allow customization */
-@@ -94,5 +95,14 @@ class Bar : public sigc::trackable {
+@@ -94,5 +95,12 @@ class Bar : public sigc::trackable {
    struct bar_margins margins_;
    uint32_t width_, height_;
    bool passthrough_;
 +  int slide_margin_ = 0;
 +  guint slide_tick_callback_ = 0;
 +  gint64 slide_started_at_ = 0;
-+  gint64 slide_previous_frame_time_ = 0;
 +  gint64 slide_duration_ = 0;
-+  bool slide_delay_logged_ = false;
 +  int slide_start_ = 0;
 +  int slide_target_ = 0;
 +  double slide_ease_out_exponent_ = 1;
@@ -45,7 +43,7 @@ index 2b07f65..c65b991 100644
    window.signal_configure_event().connect_notify(sigc::mem_fun(*this, &Bar::onConfigure));
    output->monitor->property_geometry().signal_changed().connect(
        sigc::mem_fun(*this, &Bar::onOutputGeometryChanged));
-@@ -366,11 +369,67 @@ void waybar::Bar::setVisible(bool value) {
+@@ -366,11 +369,58 @@ void waybar::Bar::setVisible(bool value) {
    visible = value;
    if (auto mode = config.get("mode", {}); mode.isString()) {
      setMode(visible ? config["mode"].asString() : MODE_INVISIBLE);
@@ -71,8 +69,6 @@ index 2b07f65..c65b991 100644
 +  slide_duration_ = static_cast<gint64>(config["slide-duration"].asUInt()) * G_TIME_SPAN_MILLISECOND;
 +  slide_ease_out_exponent_ = config["slide-ease-out-exponent"].asDouble();
 +  slide_started_at_ = 0;
-+  slide_previous_frame_time_ = 0;
-+  slide_delay_logged_ = false;
 +  const auto offset = config["slide-offset"].isInt() ? config["slide-offset"].asInt() : 0;
 +  slide_target_ = should_show ? margins_.bottom : -static_cast<int>(height_) - offset;
 +  slide_start_ = slide_margin_;
@@ -85,13 +81,6 @@ index 2b07f65..c65b991 100644
 +        if (bar->slide_started_at_ == 0) {
 +          bar->slide_started_at_ = frame_time;
 +        }
-+        if (bar->slide_previous_frame_time_ != 0 && !bar->slide_delay_logged_ &&
-+            frame_time - bar->slide_previous_frame_time_ > 20 * G_TIME_SPAN_MILLISECOND) {
-+          spdlog::warn("[waybar-slide] delayed frame: {} ms",
-+                       (frame_time - bar->slide_previous_frame_time_) / 1000.0);
-+          bar->slide_delay_logged_ = true;
-+        }
-+        bar->slide_previous_frame_time_ = frame_time;
 +
 +        const auto elapsed = frame_time - bar->slide_started_at_;
 +        const auto linear_progress = std::min(1.0, static_cast<double>(elapsed) / bar->slide_duration_);
