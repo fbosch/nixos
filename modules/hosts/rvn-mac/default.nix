@@ -7,6 +7,7 @@ let
     tailscale = "100.118.36.81";
     local = "192.168.167.54";
     sshPublicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKFeunJFBraRV+0gG6sjGxCu0iEPMvxvDlfAb7FxribY";
+    primaryUser = config.flake.meta.user.username;
     useTailnet = true;
     system = "aarch64-darwin";
     platform = {

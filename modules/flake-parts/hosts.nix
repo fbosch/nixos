@@ -18,6 +18,7 @@ let
     hostType: name: hostModule:
     let
       hostId = lib.removePrefix prefix name;
+      hostMeta = config.flake.lib.hostMeta hostId;
 
       # Platform-specific defaults
       platformDefaults =
@@ -50,6 +51,7 @@ let
       name = hostId;
       value = platformDefaults.builder {
         system = evalSystem;
+        specialArgs = { inherit hostMeta; };
         modules = [
           hostModule
           platformDefaults.homeManagerModule
@@ -57,6 +59,7 @@ let
             home-manager = {
               useGlobalPkgs = true;
               useUserPackages = true;
+              extraSpecialArgs = { inherit hostMeta; };
             };
           }
         ];

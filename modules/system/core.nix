@@ -4,7 +4,6 @@
 , ...
 }:
 let
-  flakeConfig = config;
   mkCachixConfig = isCorporateHost: {
     substituters = [
       "https://cache.nixos.org"
@@ -138,11 +137,9 @@ in
   };
 
   flake.modules.darwin.system =
-    { config, ... }:
+    { hostMeta, ... }:
     let
-      hosts = flakeConfig.flake.meta.hosts or [ ];
-      currentHost = lib.findFirst (host: host.name == config.networking.hostName) null hosts;
-      isCorporateHost = currentHost != null && (currentHost.corporate or false);
+      isCorporateHost = hostMeta.corporate or false;
     in
     {
       # Centralize nixpkgs overlays for Darwin hosts

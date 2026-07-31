@@ -70,6 +70,7 @@
 
       inherit (pkgs.stdenv.hostPlatform) system;
       waybar = pkgs.waybar.overrideAttrs (old: {
+        patches = (old.patches or [ ]) ++ [ ./patches/waybar-slide-visibility.patch ];
         postPatch = (old.postPatch or "") + ''
           substituteInPlace src/modules/hyprland/workspace.cpp \
             --replace-fail \

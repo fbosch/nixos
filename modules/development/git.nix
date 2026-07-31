@@ -1,8 +1,13 @@
 { config, ... }:
 {
   flake.modules.homeManager.development =
-    { pkgs, ... }:
+    { pkgs
+    , lib
+    , hostMeta
+    , ...
+    }:
     let
+      isCorporateHost = hostMeta.corporate or false;
       gh-mcp-asset =
         if pkgs.stdenv.hostPlatform.isDarwin then
           if pkgs.stdenv.hostPlatform.isAarch64 then
@@ -59,11 +64,15 @@
 
       programs.git = {
         enable = true;
-        settings.credential = {
-          helper = "manager";
-          "https://github.com".username = config.flake.meta.user.github.username;
-          credentialStore = "secretservice";
-        };
+        settings.credential = lib.mkMerge [
+          {
+            helper = "manager";
+            credentialStore = "secretservice";
+          }
+          (lib.mkIf (!isCorporateHost) {
+            "https://github.com".username = config.flake.meta.user.github.username;
+          })
+        ];
       };
 
       programs.gh = {

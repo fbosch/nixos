@@ -95,7 +95,7 @@ in
           options = {
             name = lib.mkOption {
               type = lib.types.str;
-              description = "Full host name (matches flake host id)";
+              description = "Flake host identifier";
             };
             role = lib.mkOption {
               type = hostRoleType;
@@ -125,6 +125,11 @@ in
               type = lib.types.nullOr lib.types.str;
               default = null;
               description = "Optional: Override default username for SSH connections";
+            };
+            primaryUser = lib.mkOption {
+              type = lib.types.nullOr lib.types.str;
+              default = null;
+              description = "Existing account used for per-user system configuration";
             };
             useTailnet = lib.mkOption {
               type = lib.types.bool;

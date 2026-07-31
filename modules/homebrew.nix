@@ -1,70 +1,68 @@
-{ config, lib, ... }:
-let
-  flakeConfig = config;
-in
+{ lib, ... }:
 {
   flake.modules.darwin.homebrew =
-    { config, ... }:
+    { hostMeta, ... }:
     let
-      hosts = flakeConfig.flake.meta.hosts or [ ];
-      currentHost = lib.findFirst (host: host.name == config.networking.hostName) null hosts;
-      isCorporateHost = currentHost != null && (currentHost.corporate or false);
+      isCorporateHost = hostMeta.corporate or false;
+      primaryUser = hostMeta.primaryUser or null;
     in
     {
-      homebrew = {
-        enable = true;
-        onActivation = lib.mkMerge [
-          {
-            autoUpdate = false;
-            upgrade = false;
-          }
-          (lib.mkIf (!isCorporateHost) {
-            cleanup = "zap";
-            extraFlags = [ "--force-cleanup" ];
-          })
-        ];
+      config = lib.mkIf (primaryUser != null) {
+        homebrew = {
+          enable = true;
+          onActivation = lib.mkMerge [
+            {
+              autoUpdate = false;
+              upgrade = false;
+            }
+            (lib.mkIf (!isCorporateHost) {
+              cleanup = "zap";
+              extraFlags = [ "--force-cleanup" ];
+            })
+          ];
 
-        taps = [
-          "steipete/tap"
-        ];
+          taps = [
+            "steipete/tap"
+          ];
 
-        extraConfig = ''
-          tap "FelixKratz/formulae", "https://github.com/FelixKratz/homebrew-formulae", trusted: true
-          brew "FelixKratz/formulae/borders", trusted: true
+          extraConfig = ''
+            tap "FelixKratz/formulae", "https://github.com/FelixKratz/homebrew-formulae", trusted: true
+            brew "FelixKratz/formulae/borders", trusted: true
 
-          tap "lightpanda-io/browser", trusted: true
-          brew "lightpanda-io/browser/lightpanda", trusted: true
-        '';
+            tap "lightpanda-io/browser", trusted: true
+            brew "lightpanda-io/browser/lightpanda", trusted: true
+          '';
 
-        casks = [
-          "raycast"
-          "numi"
-          "floorp"
-          "firefox"
-          "arc"
-          "zen"
-          "helium-browser"
-          "hazeover"
-          "alt-tab"
-          "replacicon"
-          "cursor"
-          "figma"
-          "cleanshot"
-          "obsidian"
-          "codexbar"
-          "linear"
-          "bentobox"
-          "bitwarden"
-          "font-sf-pro"
-          "vicinae"
-        ];
+          casks = [
+            "raycast"
+            "numi"
+            "floorp"
+            "firefox"
+            "arc"
+            "zen"
+            "helium-browser"
+            "hazeover"
+            "alt-tab"
+            "replacicon"
+            "cursor"
+            "figma"
+            "cleanshot"
+            "obsidian"
+            "codexbar"
+            "linear"
+            "bentobox"
+            "bitwarden"
+            "font-sf-pro"
+            "vicinae"
+          ];
 
-        brews = [
-          "mas"
-          "mole"
-          "rtk"
-          "worktrunk"
-        ];
+          brews = [
+            "mas"
+            "mole"
+            "rtk"
+            "worktrunk"
+          ];
+        };
       };
     };
 }

@@ -1,0 +1,86 @@
+diff --git a/include/bar.hpp b/include/bar.hpp
+index 7dce4d7..d25c6b4 100644
+--- a/include/bar.hpp
++++ b/include/bar.hpp
+@@ -84,6 +84,7 @@ class Bar : public sigc::trackable {
+   void setPosition(Gtk::PositionType position);
+   void onConfigure(GdkEventConfigure* ev);
+   void configureGlobalOffset(int width, int height);
++  void animateVisibility(bool visible);
+   void onOutputGeometryChanged();
+
+   /* Copy initial set of modes to allow customization */
+@@ -94,5 +95,7 @@ class Bar : public sigc::trackable {
+   struct bar_margins margins_;
+   uint32_t width_, height_;
+   bool passthrough_;
++  int slide_margin_ = 0;
++  sigc::connection slide_connection_;
+
+   Gtk::Box left_;
+diff --git a/src/bar.cpp b/src/bar.cpp
+index 2b07f65..c65b991 100644
+--- a/src/bar.cpp
++++ b/src/bar.cpp
+@@ -1,5 +1,8 @@
+ #include "bar.hpp"
+
++#include <algorithm>
++#include <cmath>
++#include <chrono>
+ #include <gtk-layer-shell.h>
+ #include <spdlog/spdlog.h>
+
+@@ -169,6 +171,7 @@ waybar::Bar::Bar(struct waybar_output* w_output, const Json::Value& w_config)
+     margins_ = {.top = gaps, .right = gaps, .bottom = gaps, .left = gaps};
+   }
+
++  slide_margin_ = margins_.bottom;
+   window.signal_configure_event().connect_notify(sigc::mem_fun(*this, &Bar::onConfigure));
+   output->monitor->property_geometry().signal_changed().connect(
+       sigc::mem_fun(*this, &Bar::onOutputGeometryChanged));
+@@ -366,11 +369,42 @@ void waybar::Bar::setVisible(bool value) {
+   visible = value;
+   if (auto mode = config.get("mode", {}); mode.isString()) {
+     setMode(visible ? config["mode"].asString() : MODE_INVISIBLE);
+-  } else {
+-    setMode(visible ? MODE_DEFAULT : MODE_INVISIBLE);
++  } else {
++    setMode(visible ? MODE_DEFAULT : MODE_INVISIBLE);
+   }
++  animateVisibility(visible);
+ }
+
++void waybar::Bar::animateVisibility(bool should_show) {
++  if (!config["slide-duration"].isUInt() || position != Gtk::POS_BOTTOM) {
++    return;
++  }
++
++  if (slide_connection_.connected()) {
++    slide_connection_.disconnect();
++  }
++
++  const auto duration = std::chrono::milliseconds(config["slide-duration"].asUInt());
++  const auto started_at = std::chrono::steady_clock::now();
++  const auto offset = config["slide-offset"].isInt() ? config["slide-offset"].asInt() : 0;
++  const auto target = should_show ? margins_.bottom : -static_cast<int>(height_) - offset;
++  const auto start = slide_margin_;
++
++  slide_connection_ = Glib::signal_timeout().connect(
++      [this, duration, started_at, start, target] {
++        const auto elapsed = std::chrono::steady_clock::now() - started_at;
++        const auto linear_progress = std::min(1.0, std::chrono::duration<double>(elapsed).count() /
++                                                       std::chrono::duration<double>(duration).count());
++        const auto progress = 1.0 - std::pow(1.0 - linear_progress, 3);
++        slide_margin_ = static_cast<int>(start + (target - start) * progress);
++        gtk_layer_set_margin(window.gobj(), GTK_LAYER_SHELL_EDGE_BOTTOM, slide_margin_);
++        gtk_layer_try_force_commit(window.gobj());
++        wl_display_flush(Client::inst()->wl_display);
++        return progress < 1.0;
++      },
++      16);
++}
++
+ void waybar::Bar::toggle() { setVisible(!visible); }
+ void waybar::Bar::show() { setVisible(true); }
+ void waybar::Bar::hide() { setVisible(false); }

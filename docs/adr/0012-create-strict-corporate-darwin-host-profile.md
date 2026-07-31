@@ -1,6 +1,6 @@
 # Create strict corporate Darwin host profile
 
-**Status:** superseded
+**Status:** accepted
 **Date:** 2026-06-12
 
 ## Context
@@ -13,9 +13,7 @@ KMD's exact MDM baseline is not known. The local Nix configuration should theref
 
 ## Decision
 
-Superseded: the separate `rvn-mac-corp` host profile was removed in favor of maintaining a single Darwin host profile at `modules/hosts/rvn-mac/`.
-
-Original decision: create a separate Darwin host profile for the KMD machine, tentatively named `rvn-mac-corp`, instead of overloading the existing personal `rvn-mac` host.
+Create a separate Darwin host profile for the KMD machine, named `kmd-mac`, instead of overloading the personal `rvn-mac` profile. The flake output name is independent of the MDM-managed macOS hostname.
 
 The corporate profile will be strict by default:
 
@@ -25,10 +23,7 @@ The corporate profile will be strict by default:
 - Do not install personal SOPS secrets, including the personal SSH private key.
 - Do not globally export personal API tokens in shell startup.
 - Do not install personal npm token or Wakatime/Wakapi config.
-- Keep developer tools, Homebrew, container tooling, and AI tools installed, with authentication handled manually or through work-approved credentials.
-- Keep personal dotfiles allowed, but do not use `stow --adopt` on the corporate host.
-- Install Podman tooling, but do not auto-start the Podman machine through launchd.
-- Allow Homebrew auto-update, but disable automatic Homebrew upgrades and zap cleanup.
+- Keep developer tools, Homebrew, container tooling, and AI tools installed for the assigned account; authenticate through work-approved credentials.
 - Exclude the personal `fbosch.cachix.org` binary cache on the corporate host; keep `cache.nixos.org` and `nix-community.cachix.org` unless KMD policy later forbids community caches.
 
 macOS hardening controls such as FileVault, firewall, password policy, screen lock, Gatekeeper, TCC, certificates, and VPN profiles are assumed to be owned by KMD's MDM unless proven otherwise. Nix should not fight those profiles.
@@ -45,10 +40,10 @@ Disabling personal dotfiles entirely was considered, but dotfiles are allowed fo
 
 ## Consequences
 
-The corporate Mac keeps the expected development workflow while removing the clearest compliance conflicts: Tailscale, personal SSH reachability to home machines, global personal tokens, personal npm/Wakatime credentials, personal SSH key installation, Podman background auto-start, and the personal Cachix cache.
+The corporate Mac keeps the development workflow while removing the clearest compliance conflicts: Tailscale, personal SSH reachability to home machines, global personal tokens, personal npm/Wakatime credentials, personal SSH key installation, Podman background auto-start, and the personal Cachix cache.
 
-Some work setup becomes more manual. API keys, GitHub auth, npm auth, and AI-tool auth must come from work-approved flows or explicit per-project configuration. Podman may require manual `podman machine start` before container work.
+Account-specific setup uses `hostMeta.primaryUser` to target the assigned macOS short username. The profile does not create, rename, or alter that account. API keys, GitHub auth, npm auth, and AI-tool auth must come from work-approved flows or explicit per-project configuration.
 
 The profile still depends on KMD policy details that are not yet known. If KMD forbids Homebrew, community Nix caches, personal dotfiles, specific AI tools, or local containers, the profile must tighten further.
 
-Future implementation should add host metadata for corporate policy and make shared modules host-aware where needed, instead of duplicating entire modules unnecessarily.
+The profile sets host metadata independently of `networking.hostName`, so MDM can retain ownership of the computer name. Shared Darwin modules must use this active metadata rather than infer it from the hostname.
