@@ -1,0 +1,149 @@
+diff --git a/libnemo-private/nemo-icon-container.c b/libnemo-private/nemo-icon-container.c
+index cf97f4c..5ce1f0b 100644
+--- a/libnemo-private/nemo-icon-container.c
++++ b/libnemo-private/nemo-icon-container.c
+@@ -4198,4 +4198,9 @@ key_press_event (GtkWidget *widget,
+		case GDK_KEY_Left:
++		case GDK_KEY_h:
++			if (event->keyval == GDK_KEY_h &&
++			    (event->state & gtk_accelerator_get_default_mod_mask ()) != 0) {
++				break;
++			}
+		case GDK_KEY_KP_Left:
+			/* Don't eat Alt-Left, as that is used for history browsing */
+			if ((event->state & GDK_MOD1_MASK) == 0) {
+@@ -4203,6 +4208,11 @@ key_press_event (GtkWidget *widget,
+			}
+			break;
+		case GDK_KEY_Up:
++		case GDK_KEY_k:
++			if (event->keyval == GDK_KEY_k &&
++			    (event->state & gtk_accelerator_get_default_mod_mask ()) != 0) {
++				break;
++			}
+		case GDK_KEY_KP_Up:
+			/* Don't eat Alt-Up, as that is used for alt-shift-Up */
+			if ((event->state & GDK_MOD1_MASK) == 0) {
+@@ -4214,4 +4224,9 @@ key_press_event (GtkWidget *widget,
+		case GDK_KEY_Right:
++		case GDK_KEY_l:
++			if (event->keyval == GDK_KEY_l &&
++			    (event->state & gtk_accelerator_get_default_mod_mask ()) != 0) {
++				break;
++			}
+		case GDK_KEY_KP_Right:
+			/* Don't eat Alt-Right, as that is used for history browsing */
+			if ((event->state & GDK_MOD1_MASK) == 0) {
+@@ -4222,4 +4237,9 @@ key_press_event (GtkWidget *widget,
+		case GDK_KEY_Down:
++		case GDK_KEY_j:
++			if (event->keyval == GDK_KEY_j &&
++			    (event->state & gtk_accelerator_get_default_mod_mask ()) != 0) {
++				break;
++			}
+		case GDK_KEY_KP_Down:
+			/* Don't eat Alt-Down, as that is used for Open */
+			if ((event->state & GDK_MOD1_MASK) == 0) {
+diff --git a/src/nemo-list-view.c b/src/nemo-list-view.c
+index 26bfc3c..ea31e4e 100644
+--- a/src/nemo-list-view.c
++++ b/src/nemo-list-view.c
+@@ -1478,6 +1478,23 @@ key_press_callback (GtkWidget *widget, GdkEventKey *event, gpointer callback_da
+		}
+	}
+
++	if ((event->state & gtk_accelerator_get_default_mod_mask ()) == 0) {
++		switch (event->keyval) {
++		case GDK_KEY_j:
++			event->keyval = GDK_KEY_Down;
++			break;
++		case GDK_KEY_k:
++			event->keyval = GDK_KEY_Up;
++			break;
++		case GDK_KEY_h:
++			event->keyval = GDK_KEY_Left;
++			break;
++		case GDK_KEY_l:
++			event->keyval = GDK_KEY_Right;
++			break;
++		}
++	}
++
+	switch (event->keyval) {
+	case GDK_KEY_F10:
+		if (event->state & GDK_CONTROL_MASK) {
+diff --git a/src/nemo-places-sidebar.c b/src/nemo-places-sidebar.c
+index 6d867d8..419e0b1 100644
+--- a/src/nemo-places-sidebar.c
++++ b/src/nemo-places-sidebar.c
+@@ -3253,1 +3253,9 @@ nemo_places_sidebar_focus (GtkWidget *widget,
++void
++nemo_places_sidebar_grab_focus (GtkWidget *widget)
++{
++	NemoPlacesSidebar *sidebar = NEMO_PLACES_SIDEBAR (widget);
++
++	gtk_widget_grab_focus (GTK_WIDGET (sidebar->tree_view));
++}
++
+ static gboolean
+diff --git a/src/nemo-places-sidebar.h b/src/nemo-places-sidebar.h
+index 2fe0c60..57be00a 100644
+--- a/src/nemo-places-sidebar.h
++++ b/src/nemo-places-sidebar.h
+@@ -46,2 +46,3 @@ GType nemo_places_sidebar_get_type (void);
+ GType nemo_places_sidebar_get_type (void);
+ GtkWidget * nemo_places_sidebar_new (NemoWindow *window);
++void nemo_places_sidebar_grab_focus (GtkWidget *widget);
+diff --git a/src/nemo-window.c b/src/nemo-window.c
+index f00e15d..91a3936 100644
+--- a/src/nemo-window.c
++++ b/src/nemo-window.c
+@@ -1233,5 +1233,48 @@ nemo_window_key_press_event (GtkWidget *widget,
+		}
+	}
+
++	if (view != NULL &&
++	    focus_widget != NULL &&
++	    window->details->sidebar != NULL &&
++	    (focus_widget == window->details->sidebar ||
++	     gtk_widget_is_ancestor (focus_widget, window->details->sidebar)) &&
++	    (event->state & gtk_accelerator_get_default_mod_mask ()) == 0 &&
++	    (event->keyval == GDK_KEY_h || event->keyval == GDK_KEY_j ||
++	     event->keyval == GDK_KEY_k || event->keyval == GDK_KEY_l)) {
++		nemo_view_grab_focus (view);
++
++		switch (event->keyval) {
++		case GDK_KEY_h:
++			event->keyval = GDK_KEY_Left;
++			break;
++		case GDK_KEY_j:
++			event->keyval = GDK_KEY_Down;
++			break;
++		case GDK_KEY_k:
++			event->keyval = GDK_KEY_Up;
++			break;
++		case GDK_KEY_l:
++			event->keyval = GDK_KEY_Right;
++			break;
++		}
++		return gtk_window_propagate_key_event (GTK_WINDOW (window), event);
++	}
++
++	if ((event->state & gtk_accelerator_get_default_mod_mask ()) == GDK_MOD1_MASK &&
++	    (event->keyval == GDK_KEY_j || event->keyval == GDK_KEY_k) &&
++	    window->details->sidebar != NULL) {
++		GList *children = gtk_container_get_children (GTK_CONTAINER (window->details->sidebar));
++
++		if (children != NULL && NEMO_IS_PLACES_SIDEBAR (children->data)) {
++			nemo_places_sidebar_grab_focus (children->data);
++			g_list_free (children);
++			event->keyval = event->keyval == GDK_KEY_j ? GDK_KEY_Down : GDK_KEY_Up;
++			event->state &= ~GDK_MOD1_MASK;
++			return gtk_window_propagate_key_event (GTK_WINDOW (window), event);
++		}
++
++		g_list_free (children);
++	}
++
+	for (i = 0; i < G_N_ELEMENTS (extra_window_keybindings); i++) {
+		if (extra_window_keybindings[i].keyval == event->keyval) {

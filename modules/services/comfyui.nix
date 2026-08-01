@@ -77,9 +77,11 @@ in
       nix.settings = {
         extra-substituters = [
           "https://comfyui.cachix.org"
+          "https://cache.nixos-cuda.org"
         ];
         extra-trusted-public-keys = [
           "comfyui.cachix.org-1:33mf9VzoIjzVbp0zwj+fT51HG0y31ZTK3nzYZAX0rec="
+          "cache.nixos-cuda.org:74DUi4Ye579gUqzH4ziL9IyiJBlDpMRn9MBN8oNan9M="
         ];
       };
 

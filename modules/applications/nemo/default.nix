@@ -5,6 +5,7 @@
       nemo = pkgs.nemo.overrideAttrs (old: {
         buildInputs = old.buildInputs ++ [ pkgs.tinysparql ];
         mesonFlags = old.mesonFlags ++ [ "-Dtracker=true" ];
+        patches = (old.patches or [ ]) ++ [ ./patches/vim-navigation.patch ];
         # Nemo's Tracker backend otherwise treats filename searches as case-sensitive.
         postPatch = (old.postPatch or "") + ''
           substituteInPlace libnemo-private/nemo-search-engine-tracker.c \

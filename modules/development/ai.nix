@@ -35,6 +35,7 @@
           ])
           (optionalLocalPackages [
             "headroom"
+            "graphify"
             "no-mistakes"
             "pxpipe"
             "codexbar"
