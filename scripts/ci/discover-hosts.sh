@@ -19,6 +19,14 @@ json_array() {
 base_flake_ref() {
   local base_rev
 
+  if [ -n "${GITHUB_BASE_SHA:-}" ] && [ "${GITHUB_BASE_SHA}" != "0000000000000000000000000000000000000000" ]; then
+    base_rev="$(git rev-parse --verify "${GITHUB_BASE_SHA}^{commit}" 2>/dev/null || true)"
+    if [ -n "$base_rev" ]; then
+      printf 'git+file://%s?rev=%s\n' "$PWD" "$base_rev"
+      return
+    fi
+  fi
+
   if [ -z "${GITHUB_BASE_REF:-}" ]; then
     return 1
   fi
