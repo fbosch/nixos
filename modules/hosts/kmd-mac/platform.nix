@@ -33,6 +33,7 @@
           wezterm
           rectangle
         ];
+        variables.NH_FLAKE = "/Users/${hostMeta.primaryUser}/nixos";
         shells = [ pkgs.fish ];
       };
     };
