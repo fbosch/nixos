@@ -5,7 +5,7 @@
 , nix
 , nix-update
 , stdenvNoCC
-, writeShellApplication
+, writeShellScript
 ,
 }:
 stdenvNoCC.mkDerivation (finalAttrs: {
@@ -25,22 +25,14 @@ stdenvNoCC.mkDerivation (finalAttrs: {
     runHook postInstall
   '';
 
-  passthru.updateScript = writeShellApplication {
-    name = "update-hytale-launcher-flatpak";
-    runtimeInputs = [
-      curl
-      jq
-      nix
-      nix-update
-    ];
-    text = ''
-      version="$(curl --fail --silent --show-error --location \
-        https://launcher.hytale.com/version/release/launcher.json | jq --raw-output '.version')"
-      [ "$version" != "null" ] && [ -n "$version" ]
+  passthru.updateScript = writeShellScript "update-hytale-launcher-flatpak" ''
+    export PATH="${lib.makeBinPath [ nix ]}:$PATH"
+    version="$(${curl}/bin/curl --fail --silent --show-error --location \
+      https://launcher.hytale.com/version/release/launcher.json | ${jq}/bin/jq --raw-output '.version')"
+    [ "$version" != "null" ] && [ -n "$version" ]
 
-      exec nix-update --flake --version "$version" hytale-launcher-flatpak
-    '';
-  };
+    exec ${nix-update}/bin/nix-update --flake --version "$version" hytale-launcher-flatpak
+  '';
 
   meta = with lib; {
     description = "Official Hytale launcher Flatpak bundle";
