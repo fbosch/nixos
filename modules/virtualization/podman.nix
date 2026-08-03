@@ -1,7 +1,4 @@
-{ config, lib, ... }:
-let
-  flakeConfig = config;
-in
+{ config, ... }:
 {
   flake.modules.nixos."virtualization/podman" =
     { pkgs, ... }:
@@ -55,15 +52,10 @@ in
     { config
     , pkgs
     , lib
-    , osConfig ? null
     , ...
     }:
     let
       inherit (pkgs.stdenv.hostPlatform) isDarwin;
-      hosts = flakeConfig.flake.meta.hosts or [ ];
-      currentHostName = if osConfig != null then osConfig.networking.hostName or null else null;
-      currentHost = lib.findFirst (host: host.name == currentHostName) null hosts;
-      isCorporateHost = currentHost != null && (currentHost.corporate or false);
       podmanMachineName = "podman-machine-default";
       startPodmanMachine = pkgs.writeShellScript "start-podman-machine" ''
         set -eu
@@ -101,7 +93,7 @@ in
         };
       };
 
-      launchd.agents.podman-machine = lib.mkIf (isDarwin && !isCorporateHost) {
+      launchd.agents.podman-machine = lib.mkIf isDarwin {
         enable = true;
         config = {
           ProgramArguments = [ "${startPodmanMachine}" ];
@@ -114,7 +106,7 @@ in
         };
       };
 
-      home.sessionVariables = lib.mkIf (isDarwin && !isCorporateHost) {
+      home.sessionVariables = lib.mkIf isDarwin {
         DOCKER_HOST = "unix://${config.home.homeDirectory}/.local/share/containers/podman/machine/podman.sock";
       };
     };
