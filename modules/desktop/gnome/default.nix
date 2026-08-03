@@ -130,6 +130,7 @@ in
           gtk-theme = "MonoThemeDark";
           icon-theme = "Win11-dark";
           cursor-theme = "WinSur-white-cursors";
+          cursor-size = 24;
           font-name = "SF Pro Display 11";
           text-scaling-factor = 1.0;
           color-scheme = "prefer-dark";
