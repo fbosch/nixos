@@ -46,7 +46,6 @@
           "figma"
           "cleanshot"
           "obsidian"
-          "codexbar"
           "linear"
           "bentobox"
           "bitwarden"

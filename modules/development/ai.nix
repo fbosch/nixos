@@ -47,7 +47,6 @@
             "graphify"
             "no-mistakes"
             "pxpipe"
-            "codexbar"
           ])
         ];
       };
