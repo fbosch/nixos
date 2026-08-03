@@ -114,11 +114,6 @@
   flake.modules.homeManager.applications =
     { pkgs, ... }:
     let
-      hytaleLauncherFlatpak = pkgs.fetchurl {
-        url = "https://launcher.hytale.com/builds/release/linux/amd64/hytale-launcher-latest.flatpak";
-        hash = "sha256-Fno5t0dztF23+/KldnSC2GYSmFbnGW3aFsZQdJ8HIfY=";
-      };
-
       hytaleLauncherIcon = pkgs.fetchurl {
         url = "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/hytale.png";
         hash = "sha256-pBATM9a3+b2fRlo0kFGaoWe/YABcEI6X80TrrmNdnio=";
@@ -132,8 +127,8 @@
         "io.mgba.mGBA" # GBA emulator
         {
           appId = "com.hypixel.HytaleLauncher";
-          bundle = "${hytaleLauncherFlatpak}";
-          sha256 = "sha256-Fno5t0dztF23+/KldnSC2GYSmFbnGW3aFsZQdJ8HIfY=";
+          bundle = "${pkgs.local.hytale-launcher-flatpak}/hytale-launcher.flatpak";
+          sha256 = "${pkgs.local.hytale-launcher-flatpak.src.outputHash}";
         }
       ];
 
