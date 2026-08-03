@@ -23,6 +23,7 @@ creation_rules:
           - *admin
         age:
           - *rvn-pc
+          - *Frederiks-Macbook-Pro
           - *Frederiks-Macbook-Pro-system
           - *rvn-srv
           - *fbb-user
@@ -32,6 +33,7 @@ creation_rules:
           - *admin
         age:
           - *rvn-pc
+          - *Frederiks-Macbook-Pro
           - *Frederiks-Macbook-Pro-system
           - *rvn-srv
           - *fbb-user

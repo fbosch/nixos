@@ -45,6 +45,7 @@ in
       secrets =
         { config
         , lib
+        , pkgs
         , ...
         }:
         let
@@ -91,12 +92,15 @@ in
             };
           };
 
-          # sd-switch starts the inactive, wanted one-shot service during activation.
-          home.activation.sops-nix = lib.mkForce (
-            lib.hm.dag.entryAfter [ "reloadSystemd" ] ''
-              :
-            ''
-          );
+          # sd-switch starts the inactive, wanted one-shot service on Linux.
+          # Darwin needs the Home Manager activation to install its secrets.
+          home.activation = lib.mkIf pkgs.stdenv.hostPlatform.isLinux {
+            sops-nix = lib.mkForce (
+              lib.hm.dag.entryAfter [ "reloadSystemd" ] ''
+                :
+              ''
+            );
+          };
 
           xdg.configFile."nix/nix.conf".text = ''
             !include ${hmConfig.sops.templates."nix-github-token".path}

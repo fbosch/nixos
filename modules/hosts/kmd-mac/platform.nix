@@ -11,6 +11,17 @@
         };
       };
 
+      nix = {
+        # Let macOS throttle Nix CPU and I/O activity behind interactive work.
+        daemonProcessType = "Background";
+
+        settings = {
+          # Two small builds leave CPU and unified memory for macOS.
+          max-jobs = 2;
+          cores = 2;
+        };
+      };
+
       security.pam.services.sudo_local.touchIdAuth = true;
 
       environment = {

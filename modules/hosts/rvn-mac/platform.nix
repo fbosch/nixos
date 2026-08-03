@@ -12,13 +12,18 @@
         };
       };
 
-      nix.settings = {
-        # Add user to trusted users (core already adds @admin)
-        trusted-users = [ config.flake.meta.user.username ];
+      nix = {
+        # Let macOS throttle Nix CPU and I/O activity behind interactive work.
+        daemonProcessType = "Background";
 
-        # Keep rebuilds responsive on this laptop.
-        max-jobs = 4;
-        cores = 2;
+        settings = {
+          # Add user to trusted users (core already adds @admin)
+          trusted-users = [ config.flake.meta.user.username ];
+
+          # Two small builds leave CPU and unified memory for macOS.
+          max-jobs = 2;
+          cores = 2;
+        };
       };
 
       # direnv 2.37.x runs long shell tests on darwin during checkPhase.
