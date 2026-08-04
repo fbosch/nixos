@@ -24,10 +24,12 @@ NixOS:
 curl -fsSL nix.fbb.sh/install | bash
 ```
 
-nix-darwin:
+nix-darwin on a fresh macOS installation with Determinate Nix:
+
+Install [Determinate Nix for macOS](https://docs.determinate.systems/getting-started/individuals/), then run:
 
 ```sh
-darwin-rebuild switch --accept-flake-config --flake .#<host>
+nix run --inputs-from . nix-darwin -- switch --accept-flake-config --flake .#<host>
 ```
 
 ---
