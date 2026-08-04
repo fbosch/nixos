@@ -97,6 +97,14 @@
   ],
   "packageRules": [
     {
+      "description": "Npm updates must pass the pnpm 24-hour release-age policy before a PR is created",
+      "matchDatasources": [
+        "npm"
+      ],
+      "minimumReleaseAge": "1 day",
+      "internalChecksFilter": "strict"
+    },
+    {
       "description": "Critical infrastructure services - require manual review, wait 3 days for stability",
       "matchDatasources": [
         "docker"
