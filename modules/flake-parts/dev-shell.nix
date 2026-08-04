@@ -163,7 +163,8 @@
             mv .git/hooks/pre-commit .git/hooks/pre-commit-checks
           fi
 
-          ln -sf ${../../scripts/pre-commit-wrapper.sh} .git/hooks/pre-commit
+           ln -sf "$(git rev-parse --show-toplevel)/scripts/pre-commit-wrapper.sh" .git/hooks/pre-commit
+           ln -sf "$(git rev-parse --show-toplevel)/scripts/pre-push-wrapper.sh" .git/hooks/pre-push
         '';
       };
     };
