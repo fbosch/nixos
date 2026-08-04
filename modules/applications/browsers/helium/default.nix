@@ -1,24 +1,19 @@
 let
   makeHeliumPackage = pkgs: pkgs.local.helium-browser;
-  makeHeliumWidevineSetup =
-    pkgs:
-    pkgs.writeShellApplication {
-      name = "helium-widevine-setup";
-      runtimeInputs = [
-        pkgs.coreutils
-        pkgs.jq
-      ];
-      text = builtins.readFile ./helium-widevine-setup.sh;
-    };
 in
 {
   flake.modules.nixos.applications =
-    { pkgs, lib, ... }:
+    { config
+    , pkgs
+    , lib
+    , ...
+    }:
     let
       heliumPackage = makeHeliumPackage pkgs;
-      heliumWidevineSetup = makeHeliumWidevineSetup pkgs;
+      heliumWidevineSetup = heliumPackage.passthru.widevineSetup;
       heliumProfile = pkgs.replaceVars ./helium.profile {
         chromiumProfile = "${pkgs.firejail}/etc/firejail/chromium.profile";
+        timeZone = config.time.timeZone;
       };
       heliumWebapps = lib.filterAttrs (name: _: lib.hasPrefix "webapp/" name) pkgs.local;
       nativeWaylandWebapps = lib.filterAttrs
@@ -81,11 +76,24 @@ in
     };
 
   flake.modules.homeManager.applications =
-    { pkgs, ... }:
+    { config
+    , pkgs
+    , ...
+    }:
+    let
+      heliumPackage = makeHeliumPackage pkgs;
+      heliumWidevineSetup = heliumPackage.passthru.widevineSetup;
+    in
     {
       home.packages = [
-        (makeHeliumPackage pkgs)
-        (makeHeliumWidevineSetup pkgs)
+        heliumPackage
+        heliumWidevineSetup
       ];
+
+      home.activation.heliumWidevine = config.lib.dag.entryAfter [ "writeBoundary" ] ''
+        ${heliumWidevineSetup}/bin/helium-widevine-setup \
+          --source ${pkgs.google-chrome}/share/google/chrome/WidevineCdm \
+          --user-data-dir ${config.xdg.configHome}/net.imput.helium
+      '';
     };
 }

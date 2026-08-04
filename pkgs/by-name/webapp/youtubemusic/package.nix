@@ -16,6 +16,7 @@
   profileDirName = "youtubemusic";
   url = "https://music.youtube.com";
   runtime = {
+    enableWidevine = true;
     extraFlags = [ "--hide-scrollbars" ];
     policyOverrides = {
       DefaultMediaStreamSetting = 1;

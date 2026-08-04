@@ -113,6 +113,7 @@ in
       profilePath = "\${XDG_CONFIG_HOME:-$HOME/.config}/helium-browser/${profileDirName}";
       historyPath = "${profilePath}/${profile}/History";
       lastPageQuery = lib.escapeShellArg "SELECT url FROM urls WHERE url LIKE '${origin}/%' ORDER BY last_visit_time DESC LIMIT 1;";
+      enableWidevine = runtime.enableWidevine or false;
       waylandAppId = runtime.waylandAppId or null;
       needsProcessExit = rememberLastPage || waylandAppId != null;
       browserCommand =
@@ -147,10 +148,18 @@ in
         runtimeInputs = [
           pkgs.local.helium-browser
         ]
+        ++ lib.optionals enableWidevine [
+          pkgs.google-chrome
+          pkgs.local.helium-browser.passthru.widevineSetup
+        ]
         ++ lib.optional rememberLastPage pkgs.sqlite
         ++ lib.optional (waylandAppId != null) pkgs.local.filterway;
         text = ''
           export CHROME_POLICY_FILES_DIR=${policyTree}/share/chromium/policies
+
+          ${lib.optionalString enableWidevine ''
+            helium-widevine-setup --user-data-dir="${profilePath}"
+          ''}
 
           ${
             if needsProcessExit then

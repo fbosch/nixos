@@ -3,7 +3,7 @@ set -euo pipefail
 
 command_name=helium-widevine-setup
 default_source=/opt/google/chrome/WidevineCdm
-default_user_data_dir="${XDG_CONFIG_HOME:-$HOME/.config}/helium-browser"
+default_user_data_dir="${XDG_CONFIG_HOME:-$HOME/.config}/net.imput.helium"
 
 usage() {
   cat <<EOF
@@ -14,7 +14,8 @@ Helium user-data directory. The CDM is never downloaded or distributed.
 
 Options:
   --source DIR           Existing Chrome WidevineCdm directory.
-                         Default: $default_source
+                         Default: Nix-installed Google Chrome, otherwise
+                         $default_source
   --user-data-dir DIR    Helium user-data directory.
                          Default: $default_user_data_dir
   -h, --help             Show this help text.
@@ -33,7 +34,7 @@ die() {
   exit "${2:-1}"
 }
 
-source_dir=$default_source
+source_dir=
 user_data_dir=$default_user_data_dir
 
 while [ "$#" -gt 0 ]; do
@@ -57,6 +58,17 @@ while [ "$#" -gt 0 ]; do
     ;;
   esac
 done
+
+if [ -z "$source_dir" ]; then
+  if [ -d "$default_source" ]; then
+    source_dir=$default_source
+  elif chrome_bin="$(command -v google-chrome-stable)"; then
+    chrome_bin="$(realpath -e "$chrome_bin")" || die "could not resolve Google Chrome: $chrome_bin"
+    source_dir="$(dirname "$(dirname "$chrome_bin")")/share/google/chrome/WidevineCdm"
+  else
+    source_dir=$default_source
+  fi
+fi
 
 source_dir=$(realpath -e "$source_dir") || die "source directory does not exist: $source_dir"
 user_data_dir=$(realpath -m "$user_data_dir")

@@ -152,7 +152,6 @@
         sessionVariables = {
           PNPM_HOME = pnpmHome;
           PNPM_STORE_DIR = pnpmStoreDir;
-          NPM_CONFIG_STORE_DIR = pnpmStoreDir;
           NPM_GLOBALS_BIN_DIR = pnpmGlobalBinDir;
         };
 

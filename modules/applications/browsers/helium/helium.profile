@@ -1,6 +1,10 @@
 ignore private-cache
 ignore disable-mnt
 
+# Chromium's ICU requires an IANA timezone name, not /etc/localtime.
+env TZ=@timeZone@
+env TZDIR=/etc/zoneinfo
+
 noblacklist ${DESKTOP}
 noblacklist ${DOCUMENTS}
 noblacklist ${DOWNLOADS}
@@ -14,6 +18,8 @@ include @chromiumProfile@
 noblacklist /etc/resolv.conf
 noblacklist /etc/hosts
 noblacklist /etc/nsswitch.conf
+noblacklist /etc/localtime
+noblacklist /etc/zoneinfo
 noblacklist /run/systemd/resolve/resolv.conf
 noblacklist /run/systemd/resolve/stub-resolv.conf
 noblacklist /run/NetworkManager/resolv.conf
@@ -26,6 +32,8 @@ noblacklist /etc/static/pki
 whitelist /etc/resolv.conf
 whitelist /etc/hosts
 whitelist /etc/nsswitch.conf
+whitelist /etc/localtime
+whitelist /etc/zoneinfo
 whitelist /run/systemd/resolve/resolv.conf
 whitelist /run/systemd/resolve/stub-resolv.conf
 whitelist /run/NetworkManager/resolv.conf

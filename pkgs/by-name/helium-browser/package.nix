@@ -2,6 +2,9 @@
 , fetchurl
 , appimageTools
 , makeWrapper
+, writeShellApplication
+, coreutils
+, jq
 ,
 }:
 
@@ -20,6 +23,14 @@ let
   };
 
   appimageContents = appimageTools.extractType2 { inherit pname version src; };
+  widevineSetup = writeShellApplication {
+    name = "helium-widevine-setup";
+    runtimeInputs = [
+      coreutils
+      jq
+    ];
+    text = builtins.readFile ./helium-widevine-setup.sh;
+  };
 in
 appimageTools.wrapType2 rec {
   inherit pname version src;
@@ -44,6 +55,10 @@ appimageTools.wrapType2 rec {
   '';
 
   extraPkgs = pkgs: with pkgs; [ nss_latest ];
+
+  passthru = {
+    inherit widevineSetup;
+  };
 
   meta = with lib; {
     description = "A privacy-focused Chromium-based browser";
