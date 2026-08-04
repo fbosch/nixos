@@ -42,7 +42,7 @@
       };
 
       system.activationScripts.postActivation.text = lib.mkAfter ''
-        /usr/bin/dscl . -create ${userPath} UserShell /run/current-system/sw/bin/fish
+        /usr/bin/dscl . -create ${userPath} UserShell ${lib.escapeShellArg "${pkgs.fish}/bin/fish"}
       '';
     };
 }
