@@ -106,6 +106,7 @@ in
     { hostMeta, ... }:
     let
       isCorporateHost = hostMeta.corporate or false;
+      usesDeterminateNix = hostMeta.nixDistribution == "determinate";
     in
     {
       # Centralize nixpkgs overlays for Darwin hosts
@@ -118,7 +119,7 @@ in
       # Allow unfree packages (using simple allowUnfree for Darwin)
       nixpkgs.config.allowUnfree = true;
 
-      nix = {
+      nix = lib.mkIf (!usesDeterminateNix) {
         settings = lib.mkMerge [
           sharedNixSettings
           (mkCachixConfig isCorporateHost)

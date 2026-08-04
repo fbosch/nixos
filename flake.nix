@@ -38,6 +38,7 @@
       url = "github:LnL7/nix-darwin";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    determinate.url = "https://flakehub.com/f/DeterminateSystems/determinate/3";
     nixos-hardware.url = "github:nixos/nixos-hardware/master";
 
     # Alternative kernel variants (hosts/rvn-pc)

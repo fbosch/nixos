@@ -50,6 +50,12 @@ let
     "x86_64"
     "arm64"
   ];
+
+  nixDistributionType = lib.types.enum [
+    "upstream"
+    "determinate"
+  ];
+
 in
 {
   # Declare options for flake metadata
@@ -130,6 +136,11 @@ in
               type = lib.types.nullOr lib.types.str;
               default = null;
               description = "Existing account used for per-user system configuration";
+            };
+            nixDistribution = lib.mkOption {
+              type = nixDistributionType;
+              default = "upstream";
+              description = "Nix distribution installed on this host";
             };
             useTailnet = lib.mkOption {
               type = lib.types.bool;

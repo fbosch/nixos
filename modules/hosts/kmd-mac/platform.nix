@@ -11,11 +11,9 @@
         };
       };
 
-      nix = {
-        # Let macOS throttle Nix CPU and I/O activity behind interactive work.
-        daemonProcessType = "Background";
-
-        settings = {
+      determinateNix = {
+        enable = true;
+        customSettings = {
           # Two small builds leave CPU and unified memory for macOS.
           max-jobs = 2;
           cores = 2;
