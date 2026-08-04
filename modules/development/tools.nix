@@ -85,7 +85,6 @@ in
         ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isLinux [
           pkgs.local.fff-mcp
           pkgs.local.lightpanda
-          pkgs.local.limux
         ]
         ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isDarwin [
           # work only tooling
