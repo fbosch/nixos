@@ -27,19 +27,13 @@ curl -fsSL nix.fbb.sh/install | bash
 MacOS:
 
 1. Install [Determinate Nix for macOS](https://docs.determinate.systems/getting-started/individuals/) and [Homebrew](https://brew.sh/). nix-darwin manages Homebrew packages but does not install Homebrew.
-2. If activation reports an unexpected `/etc/nix/nix.custom.conf`, preserve the existing file and let nix-darwin recreate it:
-
-   ```sh
-   sudo mv /etc/nix/nix.custom.conf /etc/nix/nix.custom.conf.before-nix-darwin
-   ```
-
-   Migrate any required settings from the backup into `determinateNix.customSettings` before activation.
-
-3. Run:
+2. Run:
 
 ```sh
 nix run --inputs-from . nix-darwin -- switch --flake .#<host>
 ```
+
+[Troubleshooting](docs/troubleshooting.md)
 
 ---
 

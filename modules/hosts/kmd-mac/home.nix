@@ -14,6 +14,7 @@
         };
 
         imports = config.flake.lib.resolveHm [
+          "dotfiles"
           "fonts"
           "security"
           "development"

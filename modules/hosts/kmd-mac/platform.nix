@@ -34,5 +34,11 @@
         variables.NH_FLAKE = "/Users/${hostMeta.primaryUser}/nixos";
         shells = [ pkgs.fish ];
       };
+
+      users.users.${hostMeta.primaryUser} = {
+        home = "/Users/${hostMeta.primaryUser}";
+        shell = pkgs.fish;
+        ignoreShellProgramCheck = true;
+      };
     };
 }

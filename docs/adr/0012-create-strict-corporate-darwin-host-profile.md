@@ -23,6 +23,7 @@ The corporate profile will be strict by default:
 - Do not install personal SOPS secrets, including the personal SSH private key.
 - Do not globally export personal API tokens in shell startup.
 - Do not install personal npm token or Wakatime/Wakapi config.
+- Set the assigned account's login shell to Fish and manage its dotfiles without `stow --adopt`.
 - Keep developer tools, Homebrew, container tooling, and AI tools installed for the assigned account; authenticate through work-approved credentials. Start the local rootless Podman machine at login so approved local MCPs can connect without a manual prerequisite.
 - Exclude the personal `fbosch.cachix.org` binary cache on the corporate host; keep `cache.nixos.org` and `nix-community.cachix.org` unless KMD policy later forbids community caches.
 
@@ -42,7 +43,7 @@ Disabling personal dotfiles entirely was considered, but dotfiles are allowed fo
 
 The corporate Mac keeps the development workflow while removing the clearest compliance conflicts: Tailscale, personal SSH reachability to home machines, global personal tokens, personal npm/Wakatime credentials, personal SSH key installation, and the personal Cachix cache. Its local rootless Podman machine starts at login, which is limited to the assigned user's local development environment.
 
-Account-specific setup uses `hostMeta.primaryUser` to target the assigned macOS short username. The profile does not create, rename, or alter that account. API keys, GitHub auth, npm auth, and AI-tool auth must come from work-approved flows or explicit per-project configuration.
+Account-specific setup uses `hostMeta.primaryUser` to target the assigned macOS short username. The profile does not create or rename that account; it sets Fish as its login shell. API keys, GitHub auth, npm auth, and AI-tool auth must come from work-approved flows or explicit per-project configuration.
 
 The profile still depends on KMD policy details that are not yet known. If KMD forbids Homebrew, community Nix caches, personal dotfiles, specific AI tools, or local containers, the profile must tighten further.
 
