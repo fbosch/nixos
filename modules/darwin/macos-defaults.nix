@@ -63,6 +63,8 @@
           DisableAllAnimations = true;
         };
 
+        "com.apple.symbolichotkeys".AppleSymbolicHotKeys."64".enabled = false;
+
         "com.apple.dock" = {
           springboard-hide-duration = 0.0;
           springboard-page-duration = 0.0;

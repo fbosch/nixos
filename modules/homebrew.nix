@@ -32,7 +32,6 @@
         '';
 
         casks = [
-          "raycast"
           "numi"
           "floorp"
           "firefox"
