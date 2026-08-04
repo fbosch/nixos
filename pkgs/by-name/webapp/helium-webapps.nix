@@ -302,6 +302,7 @@ in
           policyFile
           unpackedExtensions
           waylandAppId
+          enableWidevine
           ;
       };
 

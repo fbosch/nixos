@@ -15,6 +15,9 @@ in
         chromiumProfile = "${pkgs.firejail}/etc/firejail/chromium.profile";
         timeZone = config.time.timeZone;
       };
+      heliumDrmProfile = pkgs.replaceVars ./helium-drm.profile {
+        inherit heliumProfile;
+      };
       heliumWebapps = lib.filterAttrs (name: _: lib.hasPrefix "webapp/" name) pkgs.local;
       nativeWaylandWebapps = lib.filterAttrs
         (
@@ -59,7 +62,7 @@ in
             name = package.meta.mainProgram or (builtins.baseNameOf name);
             value = {
               executable = lib.getExe package;
-              profile = "${heliumProfile}";
+              profile = if package.passthru.heliumWebapp.enableWidevine then heliumDrmProfile else heliumProfile;
               desktop = "${package}/share/applications/${
               package.meta.mainProgram or (builtins.baseNameOf name)
             }.desktop";
@@ -69,7 +72,7 @@ in
         // {
           helium-browser = {
             executable = "${heliumPackage}/bin/helium-browser";
-            profile = "${heliumProfile}";
+            profile = "${heliumDrmProfile}";
             desktop = "${heliumPackage}/share/applications/helium-browser.desktop";
           };
         };
