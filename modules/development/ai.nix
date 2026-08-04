@@ -40,7 +40,7 @@
           llmAgentPackages
           (with pkgs; [
             tesseract
-            herdr
+            inputs.herdr.packages.${pkgs.stdenv.hostPlatform.system}.default
           ])
           (optionalLocalPackages [
             "headroom"

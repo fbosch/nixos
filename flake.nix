@@ -110,6 +110,10 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     llm-agents.url = "github:numtide/llm-agents.nix";
+    herdr = {
+      url = "github:herdrdev/herdr/master";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
     # Applications
     worktrunk = {
