@@ -24,6 +24,7 @@
           shfmt
           actionlint
           shellcheck
+          fish
           gum
         ];
         text = builtins.readFile ../../scripts/lint.sh;

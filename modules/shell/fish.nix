@@ -97,7 +97,7 @@
           set -gx NH_FLAKE ${lib.escapeShellArg "${config.home.homeDirectory}/nixos"}
           ${fishHostVariable}
           ${fishWithSecretFunction}
-          EOF
+        EOF
 
           $DRY_RUN_CMD ${lib.getExe' pkgs.coreutils "chmod"} 600 ${config.home.homeDirectory}/.config/fish/private.fish
 
