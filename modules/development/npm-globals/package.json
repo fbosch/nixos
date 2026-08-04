@@ -4,7 +4,6 @@
   "packageManager": "pnpm@11.5.1",
   "dependencies": {
     "@fbb.sh/pkdx": "0.7.0",
-    "@schpet/linear-cli": "2.3.0",
     "docs-cache": "0.7.0",
     "fallow": "3.12.0",
     "jiti": "2.7.0",
