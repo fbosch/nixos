@@ -158,7 +158,7 @@ in
           export CHROME_POLICY_FILES_DIR=${policyTree}/share/chromium/policies
 
           ${lib.optionalString enableWidevine ''
-            helium-widevine-setup --user-data-dir="${profilePath}"
+            helium-widevine-setup --user-data-dir "${profilePath}"
           ''}
 
           ${
