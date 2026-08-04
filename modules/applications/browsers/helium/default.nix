@@ -1,11 +1,22 @@
 let
   makeHeliumPackage = pkgs: pkgs.local.helium-browser;
+  makeHeliumWidevineSetup =
+    pkgs:
+    pkgs.writeShellApplication {
+      name = "helium-widevine-setup";
+      runtimeInputs = [
+        pkgs.coreutils
+        pkgs.jq
+      ];
+      text = builtins.readFile ./helium-widevine-setup.sh;
+    };
 in
 {
   flake.modules.nixos.applications =
     { pkgs, lib, ... }:
     let
       heliumPackage = makeHeliumPackage pkgs;
+      heliumWidevineSetup = makeHeliumWidevineSetup pkgs;
       heliumProfile = pkgs.replaceVars ./helium.profile {
         chromiumProfile = "${pkgs.firejail}/etc/firejail/chromium.profile";
       };
@@ -45,7 +56,7 @@ in
         "chromium/policies/managed/helium-dns.json".text = heliumManagedPolicy;
       };
 
-      environment.systemPackages = builtins.attrValues nativeWaylandWebapps;
+      environment.systemPackages = [ heliumWidevineSetup ] ++ builtins.attrValues nativeWaylandWebapps;
 
       programs.firejail.wrappedBinaries =
         lib.mapAttrs'
@@ -72,6 +83,9 @@ in
   flake.modules.homeManager.applications =
     { pkgs, ... }:
     {
-      home.packages = [ (makeHeliumPackage pkgs) ];
+      home.packages = [
+        (makeHeliumPackage pkgs)
+        (makeHeliumWidevineSetup pkgs)
+      ];
     };
 }
