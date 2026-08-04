@@ -64,6 +64,7 @@ in
 
     # Enable ~/.local/bin in PATH for user-installed binaries (e.g. uv tools)
     environment.localBinInPath = true;
+    environment.variables.NH_FLAKE = "/home/${config.flake.meta.user.username}/nixos";
 
     nixpkgs.config = {
       allowUnfreePredicate =
@@ -118,6 +119,11 @@ in
 
       # Allow unfree packages (using simple allowUnfree for Darwin)
       nixpkgs.config.allowUnfree = true;
+
+      environment.variables = {
+        NH_DARWIN_HOST = hostMeta.name;
+        NH_FLAKE = "/Users/${hostMeta.primaryUser}/nixos";
+      };
 
       nix = lib.mkIf (!usesDeterminateNix) {
         settings = lib.mkMerge [

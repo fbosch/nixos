@@ -60,7 +60,6 @@
           tailscale
           _1password-gui
         ];
-        variables.NH_FLAKE = "/Users/${config.flake.meta.user.username}/nixos";
         shells = [ pkgs.fish ];
       };
 

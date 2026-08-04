@@ -26,7 +26,7 @@ curl -fsSL nix.fbb.sh/install | bash
 
 MacOS:
 
-1. Install [Determinate Nix for macOS](https://docs.determinate.systems/getting-started/individuals/) and [Homebrew](https://brew.sh/). nix-darwin manages Homebrew packages but does not install Homebrew.
+1. Install [Determinate Nix for macOS](https://docs.determinate.systems/getting-started/individuals/) and [Homebrew](https://brew.sh/).
 2. Run:
 
 ```sh

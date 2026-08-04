@@ -1,6 +1,13 @@
 {
   flake.modules.darwin."hosts/kmd-mac/platform" =
-    { pkgs, hostMeta, ... }:
+    { pkgs
+    , lib
+    , hostMeta
+    , ...
+    }:
+    let
+      userPath = lib.escapeShellArg "/Users/${hostMeta.primaryUser}";
+    in
     {
       system = {
         stateVersion = 5;
@@ -31,14 +38,11 @@
           wezterm
           rectangle
         ];
-        variables.NH_FLAKE = "/Users/${hostMeta.primaryUser}/nixos";
         shells = [ pkgs.fish ];
       };
 
-      users.users.${hostMeta.primaryUser} = {
-        home = "/Users/${hostMeta.primaryUser}";
-        shell = pkgs.fish;
-        ignoreShellProgramCheck = true;
-      };
+      system.activationScripts.setFishAsDefaultShell.text = lib.mkAfter ''
+        /usr/bin/dscl . -create ${userPath} UserShell /run/current-system/sw/bin/fish
+      '';
     };
 }
