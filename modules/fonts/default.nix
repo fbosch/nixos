@@ -74,6 +74,7 @@
       {
         fonts = {
           packages = with pkgs; [
+            local.font-zenbones
             nerd-fonts.symbols-only
             nerd-fonts.jetbrains-mono
             mononoki
