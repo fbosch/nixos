@@ -63,6 +63,7 @@
           DisableAllAnimations = true;
         };
 
+        # Release Command-Space from Spotlight for Vicinae's global shortcut.
         "com.apple.symbolichotkeys".AppleSymbolicHotKeys."64".enabled = false;
 
         "com.apple.dock" = {
