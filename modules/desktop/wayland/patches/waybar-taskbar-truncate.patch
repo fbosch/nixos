@@ -12,3 +12,21 @@ diff --git a/src/modules/wlr/taskbar.cpp b/src/modules/wlr/taskbar.cpp
 +    text_after_.set_ellipsize(Pango::ELLIPSIZE_END);
 +    text_after_.set_line_wrap(false);
 +  }
+@@ -464,1 +464,8 @@ void Task::update() {
+  std::string title = title_;
++  std::string display_title = title_;
++  if (config_["max-length"].isInt() && config_["max-length"].asInt() > 0) {
++    const auto max_length = static_cast<Glib::ustring::size_type>(config_["max-length"].asInt());
++    if (Glib::ustring(display_title).length() > max_length) {
++      display_title = Glib::ustring(display_title).substr(0, max_length) + "…";
++    }
++  }
+@@ -468,1 +475,2 @@ void Task::update() {
+  title = Glib::Markup::escape_text(title);
++    display_title = Glib::Markup::escape_text(display_title);
+@@ -474,1 +482,1 @@ void Task::update() {
+-        fmt::format(fmt::runtime(format_before_), fmt::arg("title", title), fmt::arg("name", name),
++        fmt::format(fmt::runtime(format_before_), fmt::arg("title", display_title), fmt::arg("name", name),
+@@ -488,1 +496,1 @@ void Task::update() {
+-        fmt::format(fmt::runtime(format_after_), fmt::arg("title", title), fmt::arg("name", name),
++        fmt::format(fmt::runtime(format_after_), fmt::arg("title", display_title), fmt::arg("name", name),
