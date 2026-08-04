@@ -41,7 +41,7 @@
         shells = [ pkgs.fish ];
       };
 
-      system.activationScripts.setFishAsDefaultShell.text = lib.mkAfter ''
+      system.activationScripts.postActivation.text = lib.mkAfter ''
         /usr/bin/dscl . -create ${userPath} UserShell /run/current-system/sw/bin/fish
       '';
     };
