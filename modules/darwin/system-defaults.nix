@@ -1,5 +1,5 @@
 {
-  flake.modules.darwin."macos-defaults" = {
+  flake.modules.darwin."system-defaults" = {
     system.defaults = {
       dock = {
         autohide = true;
@@ -50,13 +50,6 @@
           NSToolbarFullScreenAnimationDuration = 0.0;
           NSWindowResizeTime = 0.001;
           QLPanelAnimationDuration = 0.0;
-        };
-
-        "com.knollsoft.Rectangle" = {
-          allowAnyShortcut = 1;
-          alternateDefaultShortcuts = 1;
-          launchOnLogin = 1;
-          windowSnapping = 1;
         };
 
         "com.apple.finder" = {

@@ -36,7 +36,6 @@
           keychain
           neovim
           wezterm
-          rectangle
         ];
         shells = [ pkgs.fish ];
       };

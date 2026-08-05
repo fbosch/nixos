@@ -56,7 +56,6 @@
           keychain
           neovim
           wezterm
-          rectangle
           _1password-gui
         ];
         shells = [ pkgs.fish ];

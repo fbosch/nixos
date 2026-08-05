@@ -46,7 +46,7 @@ in
         "cleanshot"
         "fonts"
         "hazeover"
-        "macos-defaults"
+        "system-defaults"
         "security"
         "homebrew"
       ];
