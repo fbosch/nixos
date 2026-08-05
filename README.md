@@ -24,13 +24,13 @@ NixOS:
 curl -fsSL nix.fbb.sh/install | bash
 ```
 
-MacOS:
+macOS:
 
 1. Install [Determinate Nix for macOS](https://docs.determinate.systems/getting-started/individuals/) and [Homebrew](https://brew.sh/).
-2. Run:
+2. Clone this repository and run from it:
 
 ```sh
-nix run --inputs-from . nix-darwin -- switch --flake .#<host>
+nix --accept-flake-config run --inputs-from . nix-darwin -- switch --flake .#<host>
 ```
 
 [Troubleshooting](docs/troubleshooting.md)

@@ -40,6 +40,7 @@ in
         "hosts/kmd-mac/platform"
         "hosts/kmd-mac/home"
         "system"
+        "development"
         "aerospace"
         "cleanshot"
         "fonts"

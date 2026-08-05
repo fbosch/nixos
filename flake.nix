@@ -1,6 +1,13 @@
 {
   description = "fbosch/nix";
 
+  nixConfig = {
+    extra-substituters = [ "https://cache.numtide.com" ];
+    extra-trusted-public-keys = [
+      "niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g="
+    ];
+  };
+
   # Uses dendritic pattern (https://vic.github.io/dendrix/)
   # All modules are declared under flake.modules.nixos.* and flake.modules.homeManager.*
   # Hosts are built by directly defining flake.modules.{nixos,darwin}."hosts/*" modules

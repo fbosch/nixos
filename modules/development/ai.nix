@@ -1,13 +1,30 @@
 { inputs, ... }:
+let
+  numtideCache = {
+    extra-substituters = [ "https://cache.numtide.com" ];
+    extra-trusted-public-keys = [
+      "niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g="
+    ];
+  };
+in
 {
   flake.modules.nixos.development = {
-    nix.settings = {
-      extra-substituters = [ "https://cache.numtide.com" ];
-      extra-trusted-public-keys = [
-        "niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g="
-      ];
-    };
+    nix.settings = numtideCache;
   };
+
+  flake.modules.darwin.development =
+    { hostMeta, ... }:
+    let
+      isDeterminate = (hostMeta.nixDistribution or null) == "determinate";
+    in
+    if isDeterminate then
+      {
+        determinateNix.customSettings = numtideCache;
+      }
+    else
+      {
+        nix.settings = numtideCache;
+      };
 
   flake.modules.homeManager.development =
     { pkgs, ... }:
