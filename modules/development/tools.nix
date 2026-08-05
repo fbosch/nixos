@@ -77,7 +77,6 @@ in
           devenv
           (lazyApp pkgs posting)
           pastel
-          pkgs.local.pxpipe
           ripsecrets
           luajitPackages.luacheck
         ])

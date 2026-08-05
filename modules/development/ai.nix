@@ -29,16 +29,18 @@ in
           };
 
       homeManager.development =
-        { pkgs, ... }:
+        { hostMeta, pkgs, ... }:
         let
           inherit (pkgs) lib;
 
-          llmAgentPackages = with inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}; [
-            codex
-            openspec
-            opencode
-            agent-browser
-          ];
+          llmAgents = inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system};
+          llmAgentPackages = with llmAgents;
+            [
+              codex
+              openspec
+              agent-browser
+            ]
+            ++ lib.optionals (!(hostMeta.corporate or false)) [ opencode ];
 
         in
         {
