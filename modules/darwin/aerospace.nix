@@ -40,7 +40,7 @@ in
       enable = true;
       settings = {
         after-startup-command = [
-          (exec "${borders} style=round width=4.0 hidpi=on active_color=0xccffffff inactive_color=0x00ffffff")
+          (exec "${borders} style=round width=2.0 hidpi=on active_color=0x66999999 inactive_color=0x1a999999")
           (setWorkspaceLayoutOnMonitor "1" "DELL U2717D")
         ];
 
