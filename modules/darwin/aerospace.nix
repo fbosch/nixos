@@ -40,7 +40,8 @@ in
       enable = true;
       settings = {
         after-startup-command = [
-          (exec "${borders} style=round width=2.0 hidpi=on active_color=0x66999999 inactive_color=0x1a999999")
+          # Disabled until JankyBorders can match native macOS window corners.
+          # (exec "${borders} style=uniform width=2.0 hidpi=on active_color=0x66999999 inactive_color=0x1a999999")
           (setWorkspaceLayoutOnMonitor "1" "DELL U2717D")
         ];
 
