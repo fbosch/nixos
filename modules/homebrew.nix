@@ -31,26 +31,29 @@
           brew "lightpanda-io/browser/lightpanda", trusted: true
         '';
 
-        casks = [
-          "numi"
-          "floorp"
-          "firefox"
-          "arc"
-          "zen"
-          "helium-browser"
-          "hazeover"
-          "alt-tab"
-          "replacicon"
-          "cursor"
-          "figma"
-          "cleanshot"
-          "obsidian"
-          "linear"
-          "bentobox"
-          "bitwarden"
-          "font-sf-pro"
-          "vicinae"
-        ];
+        casks =
+          [
+            "numi"
+            "floorp"
+            "firefox"
+            "arc"
+            "zen"
+          ]
+          ++ lib.optionals (!isCorporateHost) [ "helium-browser" ]
+          ++ [
+            "hazeover"
+            "alt-tab"
+            "replacicon"
+            "cursor"
+            "figma"
+            "cleanshot"
+            "obsidian"
+            "linear"
+            "bentobox"
+            "bitwarden"
+            "font-sf-pro"
+            "vicinae"
+          ];
 
         brews = [
           "biome"
