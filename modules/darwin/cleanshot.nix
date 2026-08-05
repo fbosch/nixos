@@ -9,6 +9,8 @@ in
       username = if hostMeta.corporate or false then hostMeta.primaryUser else personalUsername;
     in
     {
+      homebrew.casks = [ "cleanshot" ];
+
       system.activationScripts.postActivation.text = lib.mkAfter ''
         sudo -u ${username} defaults write pl.maketheweb.cleanshotx analyticsAllowed -int 0
         sudo -u ${username} defaults write pl.maketheweb.cleanshotx afterScreenshotActions -array 0 1

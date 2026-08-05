@@ -40,12 +40,9 @@
             "tailscale"
           ]
           ++ [
-            "hazeover"
-            "alt-tab"
             "replacicon"
             "cursor"
             "figma"
-            "cleanshot"
             "obsidian"
             "linear"
             "bentobox"

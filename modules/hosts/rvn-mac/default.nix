@@ -47,8 +47,10 @@ in
 
         # Darwin-specific modules
         "aerospace"
+        "alt-tab"
         "cleanshot"
         "fonts"
+        "hazeover"
         "macos-defaults"
         "security"
         "secrets"
