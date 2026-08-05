@@ -53,6 +53,7 @@
         ];
 
         brews = [
+          "biome"
           "mas"
           "mole"
           "rtk"

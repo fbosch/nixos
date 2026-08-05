@@ -43,6 +43,7 @@ in
 
         # Darwin core system configuration (Cachix, nix settings, home-manager)
         "system"
+        "development"
 
         # Darwin-specific modules
         "aerospace"

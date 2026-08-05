@@ -67,7 +67,6 @@ in
           tree-sitter
           stylua
           luarocks
-          biome
           deno
           bacon
           sqlite
@@ -83,6 +82,7 @@ in
           luajitPackages.luacheck
         ])
         ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isLinux [
+          pkgs.biome
           pkgs.local.fff-mcp
           pkgs.local.lightpanda
         ]
