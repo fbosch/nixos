@@ -63,6 +63,9 @@
           springboard-hide-duration = 0.0;
           springboard-page-duration = 0.0;
           springboard-show-duration = 0.0;
+          # Disable the bottom-right Quick Note hot corner and its modifier.
+          wvous-br-corner = 0;
+          wvous-br-modifier = 0;
         };
 
       };
