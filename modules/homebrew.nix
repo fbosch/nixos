@@ -8,16 +8,12 @@
     {
       homebrew = {
         enable = true;
-        onActivation = lib.mkMerge [
-          {
-            autoUpdate = false;
-            upgrade = false;
-          }
-          (lib.mkIf (!isCorporateHost) {
-            cleanup = "zap";
-            extraFlags = [ "--force-cleanup" ];
-          })
-        ];
+        onActivation = {
+          autoUpdate = false;
+          cleanup = "zap";
+          extraFlags = [ "--force-cleanup" ];
+          upgrade = false;
+        };
 
         taps = [
           "steipete/tap"
