@@ -35,7 +35,10 @@
             "arc"
             "zen"
           ]
-          ++ lib.optionals (!isCorporateHost) [ "helium-browser" ]
+          ++ lib.optionals (!isCorporateHost) [
+            "helium-browser"
+            "tailscale"
+          ]
           ++ [
             "hazeover"
             "alt-tab"

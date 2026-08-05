@@ -57,7 +57,6 @@
           neovim
           wezterm
           rectangle
-          tailscale
           _1password-gui
         ];
         shells = [ pkgs.fish ];

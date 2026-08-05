@@ -8,64 +8,50 @@ let
   };
 in
 {
-  flake.modules.nixos.development = {
-    nix.settings = numtideCache;
-  };
-
-  flake.modules.darwin.development =
-    { hostMeta, ... }:
-    let
-      isDeterminate = (hostMeta.nixDistribution or null) == "determinate";
-    in
-    if isDeterminate then
-      {
-        determinateNix.customSettings = numtideCache;
-      }
-    else
-      {
+  flake = {
+    modules = {
+      nixos.development = {
         nix.settings = numtideCache;
       };
 
-  flake.modules.homeManager.development =
-    { pkgs, ... }:
-    let
-      inherit (pkgs) lib;
+      darwin.development =
+        { hostMeta, ... }:
+        let
+          isDeterminate = (hostMeta.nixDistribution or null) == "determinate";
+        in
+        if isDeterminate then
+          {
+            determinateNix.customSettings = numtideCache;
+          }
+        else
+          {
+            nix.settings = numtideCache;
+          };
 
-      optionalLocalPackages =
-        names:
-        lib.pipe names [
-          (builtins.filter (name: lib.hasAttr name pkgs.local))
-          (builtins.map (name: pkgs.local.${name}))
-        ];
+      homeManager.development =
+        { pkgs, ... }:
+        let
+          inherit (pkgs) lib;
 
-      llmAgentPackages = with inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}; [
-        claude-code
-        codex
-        copilot-cli
-        openspec
-        opencode
-        agent-browser
-        rtk
-        plannotator
-        pi
-      ];
+          llmAgentPackages = with inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}; [
+            codex
+            openspec
+            opencode
+            agent-browser
+          ];
 
-    in
-    {
-      config = {
-        home.packages = lib.flatten [
-          llmAgentPackages
-          (with pkgs; [
-            tesseract
-            inputs.herdr.packages.${pkgs.stdenv.hostPlatform.system}.default
-          ])
-          (optionalLocalPackages [
-            "headroom"
-            "graphify"
-            "no-mistakes"
-            "pxpipe"
-          ])
-        ];
-      };
+        in
+        {
+          config = {
+            home.packages = lib.flatten [
+              llmAgentPackages
+              (with pkgs; [
+                tesseract
+                inputs.herdr.packages.${pkgs.stdenv.hostPlatform.system}.default
+              ])
+            ];
+          };
+        };
     };
+  };
 }
