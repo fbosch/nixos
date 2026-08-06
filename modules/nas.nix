@@ -11,8 +11,6 @@ in
       # NAS server configuration
       nasHostname = flakeConfig.flake.meta.nas.hostname;
       nasIpAddress = flakeConfig.flake.meta.nas.ipAddress;
-      encryptedConditionPath = "/run/nas/encrypted.available";
-
       # List of NAS shares to mount
       shares = [
         "homes"
@@ -58,15 +56,10 @@ in
         what = "//${nasHostname}/${share}";
         where = "/mnt/nas/${share}";
         options = if share == "encrypted" then "${cifsOptionsFor share},nofail" else cifsOptionsFor share;
-        unitConfig = lib.mkMerge [
-          {
-            After = "network-online.target";
-            Requires = "network-online.target";
-          }
-          (lib.optionalAttrs (share == "encrypted") {
-            ConditionPathExists = encryptedConditionPath;
-          })
-        ];
+        unitConfig = {
+          After = "network-online.target";
+          Requires = "network-online.target";
+        };
       };
 
       # Generate automount configuration for a share
