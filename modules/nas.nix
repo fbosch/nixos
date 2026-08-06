@@ -73,9 +73,6 @@ in
       mkAutomount = share: {
         where = "/mnt/nas/${share}";
         wantedBy = [ "multi-user.target" ];
-        unitConfig = lib.optionalAttrs (share == "encrypted") {
-          ConditionPathExists = encryptedConditionPath;
-        };
         automountConfig = {
           TimeoutIdleSec = if lib.elem share persistentShares then "0" else "30s";
         };
