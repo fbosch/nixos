@@ -67,7 +67,6 @@
         icu
         dig
         duf
-        freshfetch
         lazyjournal
         lazyMissionCenter
       ];
