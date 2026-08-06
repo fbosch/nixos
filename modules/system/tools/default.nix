@@ -63,6 +63,7 @@
         usbutils
         lsof
         ethtool
+        chafa
         file
         icu
         dig
