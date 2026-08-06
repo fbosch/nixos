@@ -1,4 +1,4 @@
-{ inputs, config, ... }:
+{ config, ... }:
 let
   flakeConfig = config;
   dataDir = "/mnt/storage/ComfyUI";
@@ -11,28 +11,7 @@ in
     , ...
     }:
     let
-      nvidiaNamespaceShim = pkgs.writeTextDir "nvidia/__init__.py" "";
-      runtimeCompatibleComfyUI = pkgs.runCommand "comfy-ui-runtime-compatible" { } ''
-        mkdir -p "$out"
-        cp -RL ${pkgs.comfy-ui-cuda}/. "$out/"
-        chmod -R u+w "$out"
-
-        for bin in "$out/bin/comfy-ui" "$out/bin/comfyui"; do
-          substituteInPlace "$bin" \
-            --replace-fail \
-              "          'import sys' \\" \
-              "          'import sys' \\
-          'import importlib' \\
-          ' ' \\
-          'base_dir = os.environ.get(\"COMFYUI_BASE_DIR\")' \\
-          'if base_dir:' \\
-          '    try:' \\
-          '        folder_paths = importlib.import_module(\"folder_paths\")' \\
-          '        folder_paths.__file__ = os.path.join(base_dir, \"folder_paths.py\")' \\
-          '    except Exception:' \\
-          '        pass' \\"
-        done
-      '';
+      comfyuiPackage = pkgs.comfyui.override { withManager = true; };
       scriptRuntimeInputs = with pkgs; [
         coreutils
         curl
@@ -72,15 +51,9 @@ in
       };
     in
     {
-      imports = [ inputs.comfyui-nix.nixosModules.default ];
-
       nix.settings = {
-        extra-substituters = [
-          "https://comfyui.cachix.org"
-          "https://cache.nixos-cuda.org"
-        ];
+        extra-substituters = [ "https://cache.nixos-cuda.org" ];
         extra-trusted-public-keys = [
-          "comfyui.cachix.org-1:33mf9VzoIjzVbp0zwj+fT51HG0y31ZTK3nzYZAX0rec="
           "cache.nixos-cuda.org:74DUi4Ye579gUqzH4ziL9IyiJBlDpMRn9MBN8oNan9M="
         ];
       };
@@ -89,38 +62,39 @@ in
 
       services.comfyui = {
         enable = true;
-        gpuSupport = "cuda";
-        package = runtimeCompatibleComfyUI;
-        enableManager = true;
-
-        inherit dataDir port;
-        listenAddress = "127.0.0.1";
-        openFirewall = false;
-
-        user = flakeConfig.flake.meta.user.username;
-        group = "users";
-        createUser = false;
-
-        requiresMounts = [ "mnt-storage.mount" ];
-
-        environment = {
-          HOME = dataDir;
-          PYTHONPATH = "${nvidiaNamespaceShim}";
-          XDG_CACHE_HOME = "/run/comfyui/cache";
-          MPLCONFIGDIR = "/run/comfyui/cache/matplotlib";
-          TORCH_HOME = "${dataDir}/.cache/torch";
-          HF_HOME = "${dataDir}/.cache/huggingface";
-        };
+        package = comfyuiPackage;
+        inherit port;
+        listen = [ "127.0.0.1" ];
+        extraArgs = lib.mkForce [
+          "--base-directory=${dataDir}"
+          "--database-url=sqlite:///${dataDir}/user/comfyui.db"
+          "--listen=127.0.0.1"
+          "--port=${toString port}"
+          "--enable-manager"
+        ];
       };
 
       systemd.services.comfyui = {
         after = [ "comfyui-nvidia-uvm.service" ];
         requires = [ "comfyui-nvidia-uvm.service" ];
         wantedBy = lib.mkForce [ ];
+        preStart = lib.mkForce "";
+        environment = {
+          HOME = dataDir;
+          XDG_CACHE_HOME = "/run/comfyui/cache";
+          MPLCONFIGDIR = "/run/comfyui/cache/matplotlib";
+          TORCH_HOME = "${dataDir}/.cache/torch";
+          HF_HOME = "${dataDir}/.cache/huggingface";
+        };
         serviceConfig = {
+          User = lib.mkForce flakeConfig.flake.meta.user.username;
+          Group = lib.mkForce "users";
+          WorkingDirectory = dataDir;
+          ReadWritePaths = [ dataDir ];
+          PrivateUsers = lib.mkForce false;
           Restart = lib.mkForce "no";
           RuntimeDirectory = "comfyui";
-          RuntimeDirectoryMode = "0755";
+          RuntimeDirectoryMode = lib.mkForce "0755";
         };
       };
 
@@ -158,7 +132,6 @@ in
           startupNotify = false;
           terminal = false;
         };
-
       };
     };
 }
