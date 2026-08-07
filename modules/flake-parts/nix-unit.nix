@@ -2,7 +2,7 @@
 {
   imports = [ inputs.nix-unit.modules.flake.default ];
 
-  perSystem = _: {
+  perSystem = { lib, ... }: {
     nix-unit = {
       inputs = builtins.mapAttrs (_name: input: input.outPath) (builtins.removeAttrs inputs [ "self" ]);
 
@@ -18,6 +18,47 @@
         startupPolicy = import ../../tests/nix-unit/startup-policy.nix {
           inherit (config.flake.lib) startupPolicy;
         };
+
+        dotfilesActivation =
+          let
+            activationSource = builtins.readFile ../../modules/dotfiles.nix;
+          in
+          {
+            testActivationNeverAdoptsDotfiles = {
+              expr = lib.hasInfix "--adopt" activationSource;
+              expected = false;
+            };
+
+            testActivationRestowsDotfiles = {
+              expr = lib.hasInfix "--restow --verbose" activationSource;
+              expected = true;
+            };
+
+            testExistingCheckoutIsNotReconciled = {
+              expr = lib.any (command: lib.hasInfix command activationSource) [
+                " fetch origin"
+                " pull --ff-only"
+                " reset --"
+                " switch --"
+              ];
+              expected = false;
+            };
+
+            testPinnedRevisionIsBootstrapOnly = {
+              expr = lib.hasInfix "DOTFILES_BOOTSTRAP_REV" activationSource;
+              expected = true;
+            };
+
+            testBootstrapPublishesOnlyAfterCheckout = {
+              expr = lib.hasInfix "mv \"$BOOTSTRAP_REPO\"" activationSource;
+              expected = true;
+            };
+
+            testActivationValidatesCheckoutRoot = {
+              expr = lib.hasInfix "rev-parse --show-toplevel" activationSource;
+              expected = true;
+            };
+          };
       };
     };
   };

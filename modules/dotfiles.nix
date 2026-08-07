@@ -7,54 +7,61 @@ in
     { config
     , pkgs
     , lib
-    , osConfig ? null
     , ...
     }:
     let
       hmConfig = config;
+      HOME_DIR = lib.escapeShellArg hmConfig.home.homeDirectory;
       REPO = lib.escapeShellArg "${hmConfig.home.homeDirectory}/dotfiles";
-      DOTFILES_REV = inputs.dotfiles.rev or "master";
-      DOTFILES_URL = flakeConfig.flake.meta.dotfiles.url;
-      hosts = flakeConfig.flake.meta.hosts or [ ];
-      currentHostName = if osConfig != null then osConfig.networking.hostName or null else null;
-      currentHost = lib.findFirst (host: host.name == currentHostName) null hosts;
-      isCorporateHost = currentHost != null && (currentHost.corporate or false);
-      stowFlags = if isCorporateHost then "--restow --verbose" else "--restow --adopt --verbose";
+      DOTFILES_BOOTSTRAP_REV = inputs.dotfiles.rev or "master";
+      DOTFILES_BOOTSTRAP_URL = lib.escapeShellArg flakeConfig.flake.meta.dotfiles.url;
+      stowFlags = "--restow --verbose";
     in
     # Manages dotfiles via git clone + GNU Stow.
-      # Clones the dotfiles repo (pinned to a flake input revision) on first activation,
-      # then symlinks everything into $HOME with stow on every activation.
+      # The flake revision is used only to bootstrap an absent checkout. Existing
+      # checkouts remain mutable and are reconciled by git_pull_system_repos.
     {
       home.packages = with pkgs; [
         stow
       ];
       home.activation = {
-        # Phase 1: ensure the dotfiles repo is present and uses SSH.
-
-        # Runs after writeBoundary so the home directory structure exists.
+        # Phase 1: bootstrap the checkout only when its path is absent.
         setupDotfiles = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
           set -euo pipefail
 
-          DOTFILES_RECLONED=false
-          if [ -n "''${oldGenPath:-}" ] && [ "''${oldGenPath}" = "''${newGenPath:-}" ] && [ -d ${REPO}/.git ]; then
-            echo "Home Manager generation unchanged, skipping dotfiles setup"
-          else
-            if [ ! -d ${REPO}/.git ]; then
-              echo "Cloning dotfiles repository at revision ${DOTFILES_REV}..."
-              $DRY_RUN_CMD ${pkgs.git}/bin/git clone ${DOTFILES_URL} ${REPO}
-              $DRY_RUN_CMD ${pkgs.git}/bin/git -C ${REPO} checkout ${DOTFILES_REV}
-              DOTFILES_RECLONED=true
+          DOTFILES_BOOTSTRAPPED=false
+          if [ ! -e ${REPO} ]; then
+            echo "Bootstrapping dotfiles repository at revision ${DOTFILES_BOOTSTRAP_REV}..."
+            if [ -n "$DRY_RUN_CMD" ]; then
+              $DRY_RUN_CMD ${pkgs.git}/bin/git clone ${DOTFILES_BOOTSTRAP_URL} ${REPO}
+              $DRY_RUN_CMD ${pkgs.git}/bin/git -C ${REPO} checkout ${DOTFILES_BOOTSTRAP_REV}
+              $DRY_RUN_CMD ${pkgs.git}/bin/git -C ${REPO} remote set-url origin ${DOTFILES_BOOTSTRAP_URL}
             else
-              echo "Dotfiles repository already exists, skipping checkout to preserve local changes..."
-            fi
+              BOOTSTRAP_PARENT=$(${pkgs.coreutils}/bin/mktemp -d ${HOME_DIR}/.dotfiles-bootstrap.XXXXXX)
+              BOOTSTRAP_REPO="$BOOTSTRAP_PARENT/dotfiles"
+              cleanup_bootstrap() {
+                ${pkgs.coreutils}/bin/rm -rf "$BOOTSTRAP_PARENT"
+              }
+              trap cleanup_bootstrap EXIT
 
-            # Ensure remote uses SSH instead of HTTPS
-            CURRENT_URL=$(${pkgs.git}/bin/git -C ${REPO} remote get-url origin 2>/dev/null || echo "")
-            if [[ "$CURRENT_URL" == https://github.com/* ]]; then
-              SSH_URL=$(echo "$CURRENT_URL" | sed 's|https://github.com/|git@github.com:|')
-              echo "Switching remote from HTTPS to SSH: $SSH_URL"
-              $DRY_RUN_CMD ${pkgs.git}/bin/git -C ${REPO} remote set-url origin "$SSH_URL"
+              ${pkgs.git}/bin/git clone ${DOTFILES_BOOTSTRAP_URL} "$BOOTSTRAP_REPO"
+              ${pkgs.git}/bin/git -C "$BOOTSTRAP_REPO" checkout ${DOTFILES_BOOTSTRAP_REV}
+              ${pkgs.git}/bin/git -C "$BOOTSTRAP_REPO" remote set-url origin ${DOTFILES_BOOTSTRAP_URL}
+              ${pkgs.coreutils}/bin/mv "$BOOTSTRAP_REPO" ${REPO}
+              ${pkgs.coreutils}/bin/rmdir "$BOOTSTRAP_PARENT"
+              trap - EXIT
             fi
+            DOTFILES_BOOTSTRAPPED=true
+          else
+            if ! REPO_TOPLEVEL=$(${pkgs.git}/bin/git -C ${REPO} rev-parse --show-toplevel 2>/dev/null); then
+              echo "Expected ${REPO} to be a Git checkout; refusing to replace existing files." >&2
+              exit 1
+            fi
+            if [ "$REPO_TOPLEVEL" != "$(${pkgs.coreutils}/bin/realpath ${REPO})" ]; then
+              echo "Expected ${REPO} to be the root of its Git checkout; refusing to use a parent repository." >&2
+              exit 1
+            fi
+            echo "Using existing mutable dotfiles checkout without Git reconciliation."
           fi
         '';
 
@@ -64,13 +71,16 @@ in
         stowDotFiles = lib.hm.dag.entryAfter [ "setupDotfiles" "linkGeneration" ] ''
           set -euo pipefail
 
-          if [ -n "''${oldGenPath:-}" ] && [ "''${oldGenPath}" = "''${newGenPath:-}" ] && [ "''${DOTFILES_RECLONED:-false}" = false ]; then
+          if [ -n "''${oldGenPath:-}" ] && [ "''${oldGenPath}" = "''${newGenPath:-}" ] && [ "''${DOTFILES_BOOTSTRAPPED:-false}" = false ]; then
             echo "Home Manager generation unchanged, skipping dotfiles stow"
           else
-            cd ${REPO}
-            CURRENT_REV=$(${pkgs.git}/bin/git rev-parse --short HEAD 2>/dev/null || echo "unknown")
-            echo "Stowing dotfiles from current revision: $CURRENT_REV"
-            $DRY_RUN_CMD ${pkgs.stow}/bin/stow ${stowFlags} -t "$HOME" .
+            if [ -d ${REPO} ]; then
+              CURRENT_REV=$(${pkgs.git}/bin/git -C ${REPO} rev-parse --short HEAD 2>/dev/null || echo "unknown")
+              echo "Stowing dotfiles from current revision: $CURRENT_REV"
+            else
+              echo "Stowing bootstrapped dotfiles..."
+            fi
+            $DRY_RUN_CMD ${pkgs.stow}/bin/stow ${stowFlags} --dir ${REPO} --target "$HOME" .
           fi
         '';
       };
