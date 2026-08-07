@@ -244,6 +244,7 @@ in
             Network=linkwarden.network
             PodmanArgs=--network-alias=meilisearch
             EnvironmentFile=${cfg.envFile}
+            Environment=MEILI_UPGRADE_DB=true
             Volume=${cfg.dataDir}/meili_data:/meili_data
             ${lib.optionalString (cfg.meilisearch.cpus != null) "PodmanArgs=--cpus=${cfg.meilisearch.cpus}"}
             ${lib.optionalString (cfg.meilisearch.memory != null) "Memory=${cfg.meilisearch.memory}"}
