@@ -58,6 +58,19 @@
               expr = lib.hasInfix "rev-parse --show-toplevel" activationSource;
               expected = true;
             };
+
+            testActivationUsesOneLifecycleEntry = {
+              expr = lib.any (entry: lib.hasInfix entry activationSource) [
+                "setupDotfiles"
+                "stowDotFiles"
+              ];
+              expected = false;
+            };
+
+            testBootstrapDoesNotRewriteOrigin = {
+              expr = lib.hasInfix "remote set-url" activationSource;
+              expected = false;
+            };
           };
       };
     };
