@@ -10,6 +10,11 @@ let
     tailscale = null;
     local = null;
     sshPublicKey = null;
+    system = "x86_64-linux";
+    platform = {
+      os = "linux";
+      arch = "x86_64";
+    };
   };
 in
 {
@@ -20,20 +25,26 @@ in
   flake.meta.hosts = [ hostMeta ];
 
   flake.modules.nixos."hosts/rvn-vm" =
-    { lib, pkgs, options, ... }:
+    { lib
+    , pkgs
+    , options
+    , ...
+    }:
     {
-      imports = config.flake.lib.resolve [
-        "hosts/rvn-vm/hardware"
+      imports =
+        config.flake.lib.resolve [
+          "hosts/rvn-vm/hardware"
 
-        # Desktop preset (users, fonts, security, desktop, applications, development, shell, system, vpn)
-        "presets/desktop"
+          # Desktop preset (users, fonts, security, desktop, applications, development, shell, system, vpn)
+          "presets/desktop"
 
-        # system
-        "secrets"
-        "nas"
-      ] ++ [
-        inputs.grub2-themes.nixosModules.default
-      ];
+          # system
+          "secrets"
+          "nas"
+        ]
+        ++ [
+          inputs.grub2-themes.nixosModules.default
+        ];
 
       system.stateVersion = "25.05";
       hardware.bluetooth.enable = false;

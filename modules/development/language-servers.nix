@@ -1,13 +1,22 @@
+let
+  packagesFor =
+    pkgs: with pkgs; [
+      astro-language-server
+      lua-language-server
+      marksman
+      tailwindcss-language-server
+      vscode-langservers-extracted
+    ];
+  systemPackages = { pkgs, ... }: {
+    environment.systemPackages = packagesFor pkgs;
+  };
+in
 {
-  flake.modules.homeManager.development =
-    { pkgs, ... }:
-    {
-      home.packages = with pkgs; [
-        astro-language-server
-        lua-language-server
-        marksman
-        tailwindcss-language-server
-        vscode-langservers-extracted
-      ];
+  flake.modules = {
+    nixos.development = systemPackages;
+    darwin.development = systemPackages;
+    homeManager.development = { pkgs, ... }: {
+      home.packages = packagesFor pkgs;
     };
+  };
 }
