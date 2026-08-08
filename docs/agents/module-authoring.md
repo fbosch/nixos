@@ -19,8 +19,12 @@
    - Only add comments that explain "why", not "what"; remove obvious restatements.
    - Avoid section headers unless the file is complex enough to warrant them; brief inline comments for non-obvious values are acceptable.
 9. **Shell scripts in modules**
-   - Short scripts (~20 lines or fewer) can be inlined directly in Nix strings.
-   - Longer scripts should be placed in a sibling `scripts/` directory and loaded with `builtins.readFile` or `pkgs.writeShellApplication` to preserve shellcheck/linting and editor support.
+    - Short scripts (~20 lines or fewer) can be inlined directly in Nix strings.
+    - Longer scripts should be placed in a sibling `scripts/` directory and loaded with `builtins.readFile` or `pkgs.writeShellApplication` to preserve shellcheck/linting and editor support.
+10. **Use direct attribute sets by default**
+    - Export `{ flake.modules... = ...; }` directly when no flake-level arguments are needed.
+    - Use an outer function only when it consumes flake-level arguments, such as `{ config, ... }:` for `config.flake.lib`.
+    - This does not apply to functions assigned to `flake.modules.*`; those are the NixOS, Darwin, or Home Manager module interfaces and may need arguments.
 
 ## Self-Contained Service Modules
 
