@@ -96,8 +96,6 @@ in
         '';
       in
       {
-        home.packages = packagesFor pkgs;
-
         home.activation.generateFishPrivateConfig = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
           if [ -n "''${oldGenPath:-}" ] && [ "''${oldGenPath}" = "''${newGenPath:-}" ]; then
             echo "Home Manager generation unchanged, skipping Fish private configuration"

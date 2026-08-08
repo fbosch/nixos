@@ -12,9 +12,7 @@ in
     nixos.applications = { pkgs, ... }: {
       environment.systemPackages = packagesFor pkgs;
     };
-    homeManager.applications = { pkgs, ... }: {
-      home.packages = packagesFor pkgs;
-
+    homeManager.applications = {
       services.flatpak.packages = [
         "org.keepassxc.KeePassXC"
       ];

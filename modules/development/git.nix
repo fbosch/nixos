@@ -39,8 +39,6 @@ in
         '';
       in
       {
-        home.packages = packagesFor pkgs;
-
         programs.git = {
           enable = true;
           package = if pkgs.stdenv.hostPlatform.isLinux then pkgs.gitFull else pkgs.git;

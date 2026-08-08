@@ -97,8 +97,5 @@ in
       environment.systemPackages = sharedPackages pkgs;
     };
 
-    homeManager.development = { pkgs, ... }: {
-      home.packages = sharedPackages pkgs;
-    };
   };
 }

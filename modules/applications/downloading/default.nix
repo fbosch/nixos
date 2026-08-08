@@ -54,8 +54,6 @@ in
       proxyHost = config.flake.lib.hostMeta "rvn-srv";
     in
     {
-      home.packages = packagesFor pkgs;
-
       xdg.dataFile."media-downloader/settings/settings.ini".text = ''
         [General]
         ThemeName=Dark

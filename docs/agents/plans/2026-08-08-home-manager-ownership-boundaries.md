@@ -132,7 +132,7 @@ Keep the existing feature-oriented dendritic layout. Related NixOS, Darwin, and 
 
 **Outcome:** Home Manager stops being a general package installer where it has no user-state responsibility.
 
-**Status:** Started on `rvn-pc`, the only host where the Slice 5 generation has been activated and verified. The Home Manager FreeRDP duplicate is removed; shared Linux, server, and Darwin package removals remain blocked on their compatibility rollout.
+**Status:** Implemented after the Slice 5 generation was activated and verified on all active hosts. Home Manager package ownership remains only for Stow, WinApps, Steam theming, the Flake update service, Headroom, and Pxpipe because they directly back user configuration or lifecycle behavior.
 
 **Changes**
 
@@ -208,7 +208,7 @@ Keep the existing feature-oriented dendritic layout. Related NixOS, Darwin, and 
 
 **Outcome:** Future changes cannot easily reintroduce known ownership errors.
 
-**Status:** Partially implemented. Nix unit checks cover Stow adoption, Bat ordering, SSH authorization/agent ownership, GTK paths, Git credential helpers, and Surge package/AppArmor consistency. Existing CI discovers and evaluates changed active NixOS and Darwin hosts. Package-duplicate assertions and isolated inactive-aspect evaluation remain pending until Slice 6 finishes.
+**Status:** Partially implemented. Nix unit checks cover Stow adoption, Bat ordering, SSH authorization/agent ownership, GTK paths, Git credential helpers, Surge package/AppArmor consistency, and the allowed Home Manager package-owner set. Existing CI discovers and evaluates changed active NixOS and Darwin hosts. Isolated inactive-aspect evaluation remains pending.
 
 **Changes**
 

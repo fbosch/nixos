@@ -1,5 +1,27 @@
 { lib }:
 let
+  modulesRoot = ../../modules;
+  nixFilesIn =
+    directory:
+    let
+      entries = builtins.readDir directory;
+    in
+    lib.concatMap
+      (
+        name:
+        let
+          path = directory + "/${name}";
+          type = entries.${name};
+        in
+        if type == "directory" then
+          nixFilesIn path
+        else
+          lib.optional (type == "regular" && lib.hasSuffix ".nix" name) path
+      )
+      (builtins.attrNames entries);
+  homePackageOwners = map (path: lib.removePrefix "${toString modulesRoot}/" (toString path)) (
+    lib.filter (path: lib.hasInfix "home.packages" (builtins.readFile path)) (nixFilesIn modulesRoot)
+  );
   serverSource = builtins.readFile ../../modules/hosts/rvn-srv/default.nix;
   serverSystemSource = builtins.readFile ../../modules/hosts/rvn-srv/platform/system.nix;
   gnomeSource = builtins.readFile ../../modules/desktop/gnome/default.nix;
@@ -40,4 +62,15 @@ in
     };
   };
 
+  packageOwnership.testOnlyLifecyclePackagesRemainInHomeManager = {
+    expr = lib.sort builtins.lessThan homePackageOwners;
+    expected = [
+      "applications/gaming/steam/theme.nix"
+      "applications/windows.nix"
+      "desktop/flake-updates.nix"
+      "development/services/headroom.nix"
+      "development/services/pxpipe.nix"
+      "dotfiles.nix"
+    ];
+  };
 }

@@ -40,10 +40,8 @@ in
   };
 
   flake.modules.homeManager.applications =
-    { pkgs, lib, ... }:
+    { lib, ... }:
     {
-      home.packages = packagesFor pkgs;
-
       services.flatpak.packages = [
         "md.obsidian.Obsidian"
         "io.github.efogdev.mpris-timer"

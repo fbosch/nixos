@@ -88,8 +88,6 @@ in
         '';
       in
       {
-        home.packages = packagesFor pkgs;
-
         launchd.enable = lib.mkIf isDarwin true;
 
         # Enable user-level podman socket for rootless containers on Linux.

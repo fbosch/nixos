@@ -26,17 +26,4 @@
       networking.firewall.trustedInterfaces = [ "waydroid0" ];
     };
 
-  # Home Manager module: Waydroid user configuration
-  flake.modules.homeManager.waydroid =
-    { pkgs
-    , lib
-    , osConfig
-    , ...
-    }:
-    lib.optionalAttrs osConfig.virtualisation.waydroid.enable {
-      home.packages = with pkgs; [
-        # WayDroid helper tools
-        wl-clipboard
-      ];
-    };
 }

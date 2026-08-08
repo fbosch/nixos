@@ -17,8 +17,6 @@ in
   };
 
   flake.modules.homeManager.desktop = { pkgs, ... }: {
-    home.packages = packagesFor pkgs;
-
     dconf.settings = {
       "org/gnome/desktop/interface" = {
         monospace-font-name = "SF Mono 11";

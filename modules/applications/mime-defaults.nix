@@ -20,10 +20,6 @@
       defaultWebBrowser = "app.zen_browser.zen.desktop";
     in
     {
-      home.packages = with pkgs; [
-        xdg-utils
-      ];
-
       # Flatpak file management applications
       services.flatpak.packages = [
         "org.gnome.FileRoller" # Archive manager

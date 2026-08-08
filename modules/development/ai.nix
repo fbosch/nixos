@@ -52,11 +52,6 @@ in
             }
         );
 
-      homeManager.development =
-        { hostMeta, pkgs, ... }:
-        {
-          home.packages = packagesFor { inherit hostMeta pkgs; };
-        };
     };
   };
 }

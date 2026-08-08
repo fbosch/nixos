@@ -18,8 +18,6 @@ in
     };
 
     homeManager.applications = { config, pkgs, ... }: {
-      home.packages = packagesFor pkgs;
-
       # Flatpak media applications
       services.flatpak.packages = [
         "org.gnome.Decibels" # Audio player

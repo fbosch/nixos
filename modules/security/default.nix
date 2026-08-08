@@ -52,8 +52,6 @@ in
           enableSshSupport = false;
         };
 
-        home.packages = packagesFor pkgs;
-
       };
   };
 }

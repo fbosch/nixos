@@ -17,8 +17,6 @@ in
       {
         programs.bat.enable = true;
 
-        home.packages = packagesFor pkgs;
-
         home.activation.batCache = lib.mkForce (
           lib.hm.dag.entryAfter [ "dotfiles" ] ''
             set -euo pipefail

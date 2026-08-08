@@ -30,8 +30,6 @@ in
         inputs.ags.homeManagerModules.default
       ];
 
-      home.packages = lib.optionals pkgs.stdenv.isLinux (packagesFor pkgs);
-
       programs.ags = lib.mkIf pkgs.stdenv.isLinux {
         enable = true;
         package = inputs.ags.packages.${system}.default;

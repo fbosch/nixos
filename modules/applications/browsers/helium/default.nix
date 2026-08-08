@@ -88,11 +88,6 @@ in
       heliumWidevineSetup = heliumPackage.passthru.widevineSetup;
     in
     {
-      home.packages = [
-        heliumPackage
-        heliumWidevineSetup
-      ];
-
       home.activation.heliumWidevine = config.lib.dag.entryAfter [ "writeBoundary" ] ''
         ${heliumWidevineSetup}/bin/helium-widevine-setup \
           --source ${pkgs.google-chrome}/share/google/chrome/WidevineCdm \

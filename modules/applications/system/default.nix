@@ -71,8 +71,5 @@ in
     nixos.applications = { pkgs, ... }: {
       environment.systemPackages = packagesFor pkgs;
     };
-    homeManager.applications = { pkgs, ... }: {
-      home.packages = packagesFor pkgs;
-    };
   };
 }

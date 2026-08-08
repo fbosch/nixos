@@ -62,7 +62,6 @@ in
 
     homeManager.shell = { pkgs, ... }: {
       programs.fzf.enable = true;
-      home.packages = sharedPackages pkgs;
     };
   };
 }

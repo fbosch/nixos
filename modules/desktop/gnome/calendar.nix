@@ -48,8 +48,6 @@ in
         '';
       in
       {
-        home.packages = packagesFor pkgs;
-
         home.activation.denmarkHolidaysCalendar = config.lib.dag.entryAfter [ "writeBoundary" ] ''
           source_dir="$HOME/.config/evolution/sources"
           source_file="$source_dir/denmark-holidays.source"

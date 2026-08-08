@@ -40,12 +40,6 @@ in
 {
   flake.modules = {
     homeManager = {
-      security =
-        { pkgs, ... }:
-        {
-          home.packages = packagesFor pkgs;
-        };
-
       # Home Manager SOPS module - works on both NixOS and Darwin
       secrets =
         { config

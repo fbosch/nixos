@@ -17,8 +17,5 @@ in
   flake.modules = {
     nixos.development = systemPackages;
     darwin.development = systemPackages;
-    homeManager.development = { pkgs, ... }: {
-      home.packages = packagesFor pkgs;
-    };
   };
 }

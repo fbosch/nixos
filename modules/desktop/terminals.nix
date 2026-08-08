@@ -12,8 +12,5 @@ in
     nixos.desktop = { pkgs, ... }: {
       environment.systemPackages = packagesFor pkgs;
     };
-    homeManager.desktop = { pkgs, ... }: {
-      home.packages = packagesFor pkgs;
-    };
   };
 }

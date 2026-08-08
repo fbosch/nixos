@@ -17,15 +17,6 @@ let
 in
 {
   flake.modules = {
-    homeManager.desktop =
-      { pkgs
-      , lib
-      , ...
-      }:
-      {
-        home.packages = lib.optionals pkgs.stdenv.isLinux (packagesFor pkgs);
-      };
-
     nixos = {
       desktop =
         { pkgs
