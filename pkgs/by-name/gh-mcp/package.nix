@@ -6,7 +6,7 @@
 }:
 
 let
-  version = "2.0.1";
+  version = "2.2.0";
   sources = {
     aarch64-darwin = {
       name = "darwin-arm64";
