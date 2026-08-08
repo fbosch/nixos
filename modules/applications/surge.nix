@@ -1,4 +1,4 @@
-_: {
+{
   flake.modules = {
     homeManager."applications/surge" =
       { config

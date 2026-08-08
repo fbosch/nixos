@@ -1,4 +1,4 @@
-_: {
+{
   flake.modules.nixos."hardware/usb-automount" = _: {
     # USB automounting services
     services = {

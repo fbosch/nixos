@@ -83,7 +83,7 @@ services.myapp.port = 9000;
 
 ```nix
 # modules/services/tinyproxy.nix
-_: {
+{
   flake.modules.nixos."services/tinyproxy" = { config, lib, ... }:
     let
       cfg = config.services.tinyproxy;

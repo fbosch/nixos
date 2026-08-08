@@ -136,7 +136,7 @@ flake.modules.nixos.syncthing = {
 
 **Example**:
 ```nix
-_: {
+{
   flake.modules.nixos.simple = { config, lib, pkgs, ... }: {
     # config not used
   };

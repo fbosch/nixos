@@ -1,4 +1,4 @@
-_: {
+{
   flake.modules.nixos.gaming = {
     networking.firewall.allowedUDPPorts = [
       # Baldur's Gate 3 LAN lobby discovery and connections.

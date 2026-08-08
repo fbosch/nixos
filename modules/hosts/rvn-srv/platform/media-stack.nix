@@ -1,4 +1,4 @@
-_: {
+{
   flake.modules.nixos."hosts/rvn-srv/platform" =
     { lib, pkgs, ... }:
     let

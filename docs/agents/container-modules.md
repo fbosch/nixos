@@ -18,10 +18,10 @@ If the upstream does not publish images (source-only project), ship a **build he
 
 ### Outer function signature
 
-Use `_: {` when the module needs no flake-level config:
+Return an attribute set directly when the module needs no flake-level config:
 
 ```nix
-_: {
+{
   flake.modules.nixos."services/containers/myapp" = { config, lib, ... }:
     let cfg = config.services.myapp-container; in { ... };
 }

@@ -1,4 +1,4 @@
-_: {
+{
   flake.modules.nixos."system/tiered-service-startup" =
     { config
     , lib
