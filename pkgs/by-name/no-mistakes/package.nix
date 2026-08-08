@@ -6,7 +6,7 @@
 
 buildGoModule rec {
   pname = "no-mistakes";
-  version = "1.37.0";
+  version = "1.45.4";
 
   src = fetchFromGitHub {
     owner = "kunchenguid";
