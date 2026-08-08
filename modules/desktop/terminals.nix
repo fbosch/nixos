@@ -1,13 +1,19 @@
-_:
+let
+  packagesFor =
+    pkgs: with pkgs; [
+      wezterm
+      foot
+      kitty
+      ghostty
+    ];
+in
 {
-  flake.modules.homeManager.desktop =
-    { pkgs, ... }:
-    {
-      home.packages = [
-        pkgs.wezterm
-        pkgs.foot
-        pkgs.kitty
-        pkgs.ghostty
-      ];
+  flake.modules = {
+    nixos.desktop = { pkgs, ... }: {
+      environment.systemPackages = packagesFor pkgs;
     };
+    homeManager.desktop = { pkgs, ... }: {
+      home.packages = packagesFor pkgs;
+    };
+  };
 }

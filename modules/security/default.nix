@@ -1,8 +1,17 @@
+let
+  packagesFor =
+    pkgs: with pkgs; [
+      bitwarden-cli
+      clamav
+    ];
+in
 {
   flake.modules = {
     nixos.security =
       { pkgs, ... }:
       {
+        environment.systemPackages = packagesFor pkgs;
+
         services = {
           udev.packages = [ pkgs.libfido2 ];
           clamav.updater.enable = true;
@@ -21,7 +30,9 @@
         };
       };
 
-    darwin.security = _: {
+    darwin.security = { pkgs, ... }: {
+      environment.systemPackages = packagesFor pkgs;
+
       # Configure sudo with pwfeedback on Darwin
       security.sudo.extraConfig = ''
         Defaults !lecture
@@ -41,11 +52,7 @@
           enableSshSupport = false;
         };
 
-        # Security tools
-        home.packages = with pkgs; [
-          bitwarden-cli
-          clamav
-        ];
+        home.packages = packagesFor pkgs;
 
       };
   };

@@ -41,6 +41,8 @@ in
         "hosts/kmd-mac/home"
         "system"
         "development"
+        "shell"
+        "virtualization/podman"
         "aerospace"
         "alt-tab"
         "cleanshot"

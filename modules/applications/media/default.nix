@@ -1,26 +1,24 @@
+let
+  packagesFor =
+    pkgs: with pkgs; [
+      loupe
+      plezy
+      local."webapp/youtubemusic"
+      local."webapp/synologyphotos"
+    ];
+in
 {
-  flake.modules.nixos.applications =
-    { pkgs, ... }:
-    {
-      environment.systemPackages = with pkgs; [
+  flake.modules = {
+    nixos.applications = { pkgs, ... }: {
+      environment.systemPackages = [
         # File previewer for Nemo file manager
-        sushi
-      ];
+        pkgs.sushi
+      ]
+      ++ packagesFor pkgs;
     };
 
-  flake.modules.homeManager.applications =
-    { config, pkgs, ... }:
-    {
-      home.packages = with pkgs; [
-        # Image viewers
-        loupe # GNOME image viewer
-        plezy # plex client
-
-        # Media web apps
-        local."webapp/youtubemusic" # YouTube Music
-        local."webapp/synologyphotos" # Synology Photos
-
-      ];
+    homeManager.applications = { config, pkgs, ... }: {
+      home.packages = packagesFor pkgs;
 
       # Flatpak media applications
       services.flatpak.packages = [
@@ -38,4 +36,5 @@
         config.xdg.userDirs.download
       ];
     };
+  };
 }

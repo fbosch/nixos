@@ -1,16 +1,23 @@
+let
+  packagesFor =
+    pkgs: with pkgs; [
+      pass
+      gnupg
+      pinentry-curses
+      bitwarden-desktop
+    ];
+in
 {
-  flake.modules.homeManager.applications =
-    { pkgs, ... }:
-    {
-      home.packages = with pkgs; [
-        pass
-        gnupg
-        pinentry-curses
-        bitwarden-desktop
-      ];
+  flake.modules = {
+    nixos.applications = { pkgs, ... }: {
+      environment.systemPackages = packagesFor pkgs;
+    };
+    homeManager.applications = { pkgs, ... }: {
+      home.packages = packagesFor pkgs;
 
       services.flatpak.packages = [
         "org.keepassxc.KeePassXC"
       ];
     };
+  };
 }

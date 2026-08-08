@@ -1,10 +1,8 @@
 { config, ... }:
 let
   inherit (config.flake.lib) lazyDesktopApp;
-in
-{
-  flake.modules.homeManager.applications =
-    { pkgs, ... }:
+  packagesFor =
+    pkgs:
     let
       hardinfo2Icon = pkgs.fetchurl {
         url = "https://raw.githubusercontent.com/hardinfo2/hardinfo2/ebc19f3e5e3bbe7a806ff9384fbb226e767ddf0a/pixmaps/hardinfo2.svg";
@@ -63,10 +61,18 @@ in
         };
       };
     in
-    {
-      home.packages = [
-        lazyHardinfo2
-        lazyResources
-      ];
+    [
+      lazyHardinfo2
+      lazyResources
+    ];
+in
+{
+  flake.modules = {
+    nixos.applications = { pkgs, ... }: {
+      environment.systemPackages = packagesFor pkgs;
     };
+    homeManager.applications = { pkgs, ... }: {
+      home.packages = packagesFor pkgs;
+    };
+  };
 }

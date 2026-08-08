@@ -1,4 +1,20 @@
 { inputs, ... }:
+let
+  packagesFor =
+    pkgs:
+    let
+      inherit (pkgs.stdenv.hostPlatform) system;
+      luaWithSocket = pkgs.luajit.withPackages (ps: [ ps.luasocket ]);
+    in
+    [
+      inputs.hyprpaper.packages.${system}.hyprpaper
+      pkgs.hyprprop
+      pkgs.hyprpicker
+      pkgs.grim
+      luaWithSocket
+      inputs.hyprland-contrib.packages.${system}.grimblast
+    ];
+in
 {
   flake.modules = {
     homeManager.desktop =
@@ -6,19 +22,8 @@
       , lib
       , ...
       }:
-      let
-        inherit (pkgs.stdenv.hostPlatform) system;
-        luaWithSocket = pkgs.luajit.withPackages (ps: [ ps.luasocket ]);
-      in
       {
-        home.packages = lib.optionals pkgs.stdenv.isLinux [
-          inputs.hyprpaper.packages.${system}.hyprpaper
-          pkgs.hyprprop
-          pkgs.hyprpicker
-          pkgs.grim
-          luaWithSocket
-          inputs.hyprland-contrib.packages.${system}.grimblast
-        ];
+        home.packages = lib.optionals pkgs.stdenv.isLinux (packagesFor pkgs);
       };
 
     nixos = {
@@ -76,30 +81,32 @@
             "L+ /usr/share/hypr/stubs - - - - ${hyprlandPackage}/share/hypr/stubs"
           ];
 
-          environment.sessionVariables = {
-            EMOJI_FONT = "Apple Color Emoji";
-            XCURSOR_THEME = "WinSur-white-cursors";
-            XCURSOR_SIZE = "24";
-            NIXOS_OZONE_WL = "1";
-            GDK_BACKEND = "wayland,x11";
-            GSK_RENDERER = "ngl";
-            ADW_DEBUG_COLOR_SCHEME = "prefer-dark";
-            WLR_NO_HARDWARE_CURSORS = "1";
-            __GL_GSYNC_ALLOWED = "1";
-            __GL_VRR_ALLOWED = "1";
-            QT_QPA_PLATFORM = "wayland;xcb";
-            QT_IM_MODULE = "wayland";
-            __JAVA_AWT_WM_NONREPARENTING = "1";
-            MOZ_ENABLE_WAYLAND = "1";
-            XDG_SESSION_TYPE = "wayland";
-          };
+          environment = {
+            sessionVariables = {
+              EMOJI_FONT = "Apple Color Emoji";
+              XCURSOR_THEME = "WinSur-white-cursors";
+              XCURSOR_SIZE = "24";
+              NIXOS_OZONE_WL = "1";
+              GDK_BACKEND = "wayland,x11";
+              GSK_RENDERER = "ngl";
+              ADW_DEBUG_COLOR_SCHEME = "prefer-dark";
+              WLR_NO_HARDWARE_CURSORS = "1";
+              __GL_GSYNC_ALLOWED = "1";
+              __GL_VRR_ALLOWED = "1";
+              QT_QPA_PLATFORM = "wayland;xcb";
+              QT_IM_MODULE = "wayland";
+              __JAVA_AWT_WM_NONREPARENTING = "1";
+              MOZ_ENABLE_WAYLAND = "1";
+              XDG_SESSION_TYPE = "wayland";
+            };
 
-          environment.systemPackages = [
-            inputs.hyprlock.packages.${system}.hyprlock
-            inputs.hypridle.packages.${system}.hypridle
-            inputs.hyprsunset.packages.${system}.hyprsunset
-            pkgs.hyprshutdown
-          ];
+            systemPackages = packagesFor pkgs ++ [
+              inputs.hyprlock.packages.${system}.hyprlock
+              inputs.hypridle.packages.${system}.hypridle
+              inputs.hyprsunset.packages.${system}.hyprsunset
+              pkgs.hyprshutdown
+            ];
+          };
 
           security.pam.services = {
             hyprland.enableGnomeKeyring = true;

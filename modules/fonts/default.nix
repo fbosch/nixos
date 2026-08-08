@@ -1,3 +1,12 @@
+let
+  localFonts =
+    pkgs: with pkgs.local; [
+      font-fast-font
+      font-zenbones
+      font-babelstone-runes
+      font-ionicons
+    ];
+in
 {
   flake.modules = {
     nixos.fonts =
@@ -65,6 +74,7 @@
               noto-fonts-emoji-blob-bin
               unifont
             ]
+            ++ localFonts pkgs
             ++ lib.optionals allowProprietary [ sfProRoundedSystem ];
         };
       };
@@ -73,17 +83,18 @@
       { pkgs, ... }:
       {
         fonts = {
-          packages = with pkgs; [
-            local.font-zenbones
-            nerd-fonts.symbols-only
-            nerd-fonts.jetbrains-mono
-            mononoki
-            dejavu_fonts
-            noto-fonts
-            noto-fonts-cjk-sans
-            noto-fonts-emoji-blob-bin
-            unifont
-          ];
+          packages =
+            (with pkgs; [
+              nerd-fonts.symbols-only
+              nerd-fonts.jetbrains-mono
+              mononoki
+              dejavu_fonts
+              noto-fonts
+              noto-fonts-cjk-sans
+              noto-fonts-emoji-blob-bin
+              unifont
+            ])
+            ++ localFonts pkgs;
         };
       };
 
@@ -215,15 +226,7 @@
       {
         xdg.configFile."fontconfig/fonts.conf".text = builtins.readFile ./fonts.conf;
 
-        home.packages = lib.optionals pkgs.stdenv.isLinux (
-          with pkgs.local;
-          [
-            font-fast-font
-            font-zenbones
-            font-babelstone-runes
-            font-ionicons
-          ]
-        );
+        home.packages = lib.optionals pkgs.stdenv.isLinux (localFonts pkgs);
 
         xdg.dataFile = lib.mkIf allowProprietary {
           "fonts/proprietary" = {

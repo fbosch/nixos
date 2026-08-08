@@ -7,6 +7,14 @@ let
   flakeConfig = config;
   user = flakeConfig.flake.meta.user.username;
   inherit (flakeConfig.flake.lib) sopsHelpers;
+  packagesFor =
+    pkgs: with pkgs; [
+      sops
+      age
+    ];
+  systemPackages = { pkgs, ... }: {
+    environment.systemPackages = packagesFor pkgs;
+  };
 
   # Secret file paths
   commonFile = ../secrets/common.yaml;
@@ -35,10 +43,7 @@ in
       security =
         { pkgs, ... }:
         {
-          home.packages = with pkgs; [
-            sops
-            age
-          ];
+          home.packages = packagesFor pkgs;
         };
 
       # Home Manager SOPS module - works on both NixOS and Darwin
@@ -108,6 +113,9 @@ in
 
         };
     };
+
+    nixos.security = systemPackages;
+    darwin.security = systemPackages;
 
     # NixOS-specific SOPS module (system-level secrets)
     nixos.secrets =

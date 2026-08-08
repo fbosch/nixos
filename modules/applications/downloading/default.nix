@@ -1,16 +1,8 @@
 { config, ... }:
 let
   inherit (config.flake.lib) lazyApp lazyDesktopApp;
-in
-{
-  flake.modules.nixos.applications =
-    { pkgs, ... }:
-    {
-      environment.systemPackages = [ pkgs.media-downloader ];
-    };
-
-  flake.modules.homeManager.applications =
-    { pkgs, ... }:
+  packagesFor =
+    pkgs:
     let
       lazySpeedtestCli =
         map
@@ -25,7 +17,6 @@ in
             "speedtest"
             "speedtest-cli"
           ];
-
       lazyMegasync = lazyDesktopApp pkgs {
         pkg = pkgs.megasync;
         desktopItem = {
@@ -43,15 +34,27 @@ in
           ];
         };
       };
+    in
+    [
+      lazyMegasync
+      pkgs.p7zip
+    ]
+    ++ lazySpeedtestCli;
+in
+{
+  flake.modules.nixos.applications =
+    { pkgs, ... }:
+    {
+      environment.systemPackages = [ pkgs.media-downloader ] ++ packagesFor pkgs;
+    };
+
+  flake.modules.homeManager.applications =
+    { pkgs, ... }:
+    let
       proxyHost = config.flake.lib.hostMeta "rvn-srv";
     in
     {
-      home.packages =
-        (with pkgs; [
-          lazyMegasync
-          p7zip
-        ])
-        ++ lazySpeedtestCli;
+      home.packages = packagesFor pkgs;
 
       xdg.dataFile."media-downloader/settings/settings.ini".text = ''
         [General]

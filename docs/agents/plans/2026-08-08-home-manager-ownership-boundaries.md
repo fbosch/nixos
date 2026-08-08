@@ -18,7 +18,7 @@ Keep the existing feature-oriented dendritic layout. Related NixOS, Darwin, and 
 4. Darwin `DOCKER_HOST` is session-wide for GUI and LaunchAgent clients.
 5. Surge download roots are defined per host by `services.surge.outputDir`.
 6. `rvn-srv` retains the full shared development tool set after packages become system-owned.
-7. Confirm that Stow intentionally does not configure GTK on a clean standalone checkout.
+7. Stow intentionally does not configure GTK on a clean standalone checkout.
 
 ## Slice 1: Record the Contract
 
@@ -103,6 +103,8 @@ Keep the existing feature-oriented dendritic layout. Related NixOS, Darwin, and 
 
 **Outcome:** Packages are available from the machine profile before Home Manager copies are removed.
 
+**Status:** Implemented with single-source package sets consumed by both system and Home Manager modules during the compatibility window. Active Darwin hosts now import the system `shell` and `virtualization/podman` aspects, and `rvn-srv` retains the full development set.
+
 **Changes**
 
 - Inventory each package by active host rather than moving entire aggregate aspects mechanically.
@@ -156,15 +158,15 @@ Keep the existing feature-oriented dendritic layout. Related NixOS, Darwin, and 
 - Make Home Manager the complete owner of GTK on managed Linux desktops:
   - reproduce required GTK settings, CSS, Nemo bookmarks, and required assets from immutable Nix sources;
   - do not recreate existing absolute `/home/fbb/.local/share/...` GTK symlinks;
-  - remove stale GTK root links only when they resolve exactly to the known dotfiles paths;
-  - restore recognized links if the cutover fails.
+  - verify stale GTK root links resolve exactly to known dotfiles paths before removing them as a one-time migration step;
+  - do not add permanent activation cleanup for this completed refactor.
 - Remove dormant GTK files from dotfiles after verified parity and the rollback window.
 
 **Acceptance criteria**
 
 - Fish starts with host variables and `with-secret` through the documented generated-file handoff.
 - GTK is complete on a clean Linux home without Stow GTK ownership.
-- GTK activation refuses unknown real directories or symlink targets.
+- The one-time GTK cutover does not remove unknown real directories or symlink targets.
 
 **Risk:** High. This is a two-repository filesystem migration and needs canary rollout on `rvn-pc` first.
 
