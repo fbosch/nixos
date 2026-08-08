@@ -11,10 +11,6 @@ let
     local = null;
     sshPublicKey = null;
     system = "x86_64-linux";
-    platform = {
-      os = "linux";
-      arch = "x86_64";
-    };
   };
 in
 {

@@ -10,10 +10,6 @@ let
     primaryUser = config.flake.meta.user.username;
     useTailnet = true;
     system = "aarch64-darwin";
-    platform = {
-      os = "darwin";
-      arch = "arm64";
-    };
     hardware = {
       vendor = "Apple";
       model = "MacBook Pro (2024)";

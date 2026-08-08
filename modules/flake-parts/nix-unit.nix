@@ -19,6 +19,12 @@
           inherit (config.flake.lib) startupPolicy;
         };
 
+        hostSystem = import ../../tests/nix-unit/host-system.nix {
+          hostSystem = import ../../lib/host-system.nix { inherit lib; };
+        };
+
+        hostLoader = import ../../tests/nix-unit/host-loader.nix { inherit lib; };
+
         ownershipBoundaries = import ../../tests/nix-unit/ownership-boundaries.nix {
           inherit lib;
         };

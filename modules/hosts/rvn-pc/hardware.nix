@@ -4,6 +4,7 @@
   flake.modules.nixos."hosts/rvn-pc/hardware" =
     { config
     , lib
+    , hostMeta
     , pkgs
     , modulesPath
     , ...
@@ -49,7 +50,7 @@
 
       swapDevices = [ ];
 
-      nixpkgs.hostPlatform = lib.mkDefault "x86_64-linux";
+      nixpkgs.hostPlatform = lib.mkDefault hostMeta.system;
 
       hardware = {
         cpu.intel.updateMicrocode = lib.mkDefault config.hardware.enableRedistributableFirmware;

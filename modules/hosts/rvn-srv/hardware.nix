@@ -4,6 +4,7 @@
   flake.modules.nixos."hosts/rvn-srv/hardware" =
     { config
     , lib
+    , hostMeta
     , modulesPath
     , ...
     }:
@@ -46,7 +47,7 @@
         { device = "/dev/disk/by-uuid/664d28b0-b8fa-4102-8867-7e9d4fd86981"; }
       ];
 
-      nixpkgs.hostPlatform = lib.mkDefault "x86_64-linux";
+      nixpkgs.hostPlatform = lib.mkDefault hostMeta.system;
       hardware.cpu.intel.updateMicrocode = lib.mkDefault config.hardware.enableRedistributableFirmware;
     };
 }

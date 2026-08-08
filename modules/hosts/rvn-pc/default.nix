@@ -15,10 +15,6 @@ let
       "192.168.1.202"
     ];
     system = "x86_64-linux";
-    platform = {
-      os = "linux";
-      arch = "x86_64";
-    };
     hardware = {
       vendor = "ASUSTeK COMPUTER INC.";
       model = "TUF Z370-PLUS GAMING";

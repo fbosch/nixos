@@ -4,6 +4,7 @@
 , ...
 }:
 let
+  hostSystem = import ../../lib/host-system.nix { inherit lib; };
   prefix = "hosts/";
 
   isTopLevelHostModule =
@@ -20,41 +21,31 @@ let
       hostId = lib.removePrefix prefix name;
       hostMeta = config.flake.lib.hostMeta hostId;
 
-      # Platform-specific defaults
-      platformDefaults =
+      validatedSystem = hostSystem {
+        inherit (hostMeta) system;
+        hostName = hostId;
+        inherit hostType;
+      };
+      hostBuilder =
         {
           nixos = {
-            defaultSystem = "x86_64-linux";
             builder = inputs.nixpkgs.lib.nixosSystem;
             homeManagerModule = inputs.home-manager.nixosModules.home-manager;
           };
           darwin = {
-            defaultSystem = "aarch64-darwin";
             builder = inputs.nix-darwin.lib.darwinSystem;
             homeManagerModule = inputs.home-manager.darwinModules.home-manager;
           };
         }.${hostType};
-
-      # Use the first system from config.systems that matches the platform type
-      # For darwin hosts, prefer darwin systems; for nixos hosts, prefer linux systems
-      evalSystem =
-        if (config ? systems) && (config.systems != [ ]) then
-          let
-            isDarwinSystem = sys: lib.hasSuffix "-darwin" sys;
-            matchingSystems = lib.filter (sys: (hostType == "darwin") == (isDarwinSystem sys)) config.systems;
-          in
-          if matchingSystems != [ ] then builtins.head matchingSystems else platformDefaults.defaultSystem
-        else
-          platformDefaults.defaultSystem;
     in
-    {
+    builtins.seq validatedSystem {
       name = hostId;
-      value = platformDefaults.builder {
-        system = evalSystem;
+      value = hostBuilder.builder {
+        inherit (hostMeta) system;
         specialArgs = { inherit hostMeta; };
         modules = [
           hostModule
-          platformDefaults.homeManagerModule
+          hostBuilder.homeManagerModule
           {
             home-manager = {
               useGlobalPkgs = true;
@@ -71,10 +62,45 @@ let
   darwinHostModules = lib.filterAttrs (name: _: isTopLevelHostModule name) (
     config.flake.modules.darwin or { }
   );
+  nixosHostIds = builtins.map (lib.removePrefix prefix) (builtins.attrNames nixosHostModules);
+  darwinHostIds = builtins.map (lib.removePrefix prefix) (builtins.attrNames darwinHostModules);
+  discoveredHostIds = nixosHostIds ++ darwinHostIds;
+  metadataHostNames = builtins.map (host: host.name) config.flake.meta.hosts;
+  duplicateMetadataHostNames = builtins.attrNames (
+    lib.filterAttrs (_: names: lib.length names > 1) (
+      builtins.groupBy (host: host.name) config.flake.meta.hosts
+    )
+  );
+  duplicatedModuleHostIds = lib.intersectLists nixosHostIds darwinHostIds;
+  missingMetadataHostIds = lib.filter (name: !(lib.elem name metadataHostNames)) discoveredHostIds;
+  metadataSystems = builtins.map
+    (
+      host:
+      hostSystem {
+        inherit (host) system;
+        hostName = host.name;
+      }
+    )
+    config.flake.meta.hosts;
+  hostMetadataValidation =
+    assert
+    duplicateMetadataHostNames == [ ]
+    || throw "Host metadata is duplicated for: ${lib.concatStringsSep ", " duplicateMetadataHostNames}";
+    assert
+    duplicatedModuleHostIds == [ ]
+    || throw "Host modules are registered for both NixOS and Darwin: ${lib.concatStringsSep ", " duplicatedModuleHostIds}";
+    assert
+    missingMetadataHostIds == [ ]
+    || throw "Host modules have no metadata: ${lib.concatStringsSep ", " missingMetadataHostIds}";
+    builtins.deepSeq metadataSystems true;
 in
 {
   flake = {
-    nixosConfigurations = lib.mapAttrs' (mkHostConfig "nixos") nixosHostModules;
-    darwinConfigurations = lib.mapAttrs' (mkHostConfig "darwin") darwinHostModules;
+    nixosConfigurations = builtins.seq hostMetadataValidation (
+      lib.mapAttrs' (mkHostConfig "nixos") nixosHostModules
+    );
+    darwinConfigurations = builtins.seq hostMetadataValidation (
+      lib.mapAttrs' (mkHostConfig "darwin") darwinHostModules
+    );
   };
 }

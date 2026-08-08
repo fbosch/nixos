@@ -16,10 +16,6 @@ let
       "127.0.0.1"
     ];
     system = "x86_64-linux";
-    platform = {
-      os = "linux";
-      arch = "x86_64";
-    };
     hardware = {
       vendor = "MSI";
       model = "Cubi";

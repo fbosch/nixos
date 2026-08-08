@@ -57,7 +57,7 @@ in
         hasAnySecrets = secretsMap != { };
 
         fishHostVariable =
-          if hostMeta.platform.os == "darwin" then
+          if lib.hasSuffix "-darwin" hostMeta.system then
             "set -gx NH_DARWIN_HOST ${lib.escapeShellArg hostMeta.name}"
           else
             "set -gx NH_OS_HOST ${lib.escapeShellArg hostMeta.name}";

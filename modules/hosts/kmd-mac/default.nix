@@ -7,10 +7,6 @@ let
     primaryUser = "Z6FBO";
     nixDistribution = "determinate";
     system = "aarch64-darwin";
-    platform = {
-      os = "darwin";
-      arch = "arm64";
-    };
     hardware = {
       vendor = "Apple";
       model = "MacBook Pro (2026)";

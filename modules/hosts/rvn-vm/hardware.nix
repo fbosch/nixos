@@ -3,14 +3,20 @@
 { lib, ... }:
 {
   flake.modules.nixos."hosts/rvn-vm/hardware" =
-    { ... }:
+    { hostMeta, ... }:
     {
       imports = [ ];
 
       boot = {
         initrd = {
-          availableKernelModules =
-            [ "ata_piix" "ohci_pci" "ehci_pci" "ahci" "sd_mod" "sr_mod" ];
+          availableKernelModules = [
+            "ata_piix"
+            "ohci_pci"
+            "ehci_pci"
+            "ahci"
+            "sd_mod"
+            "sr_mod"
+          ];
           kernelModules = [ ];
         };
         kernelModules = [ ];
@@ -22,12 +28,11 @@
         fsType = "ext4";
       };
 
-      swapDevices =
-        [{ device = "/dev/disk/by-uuid/5bc8db14-f547-4119-9705-ae8b5b5bf364"; }];
+      swapDevices = [{ device = "/dev/disk/by-uuid/5bc8db14-f547-4119-9705-ae8b5b5bf364"; }];
 
       networking.useDHCP = lib.mkDefault true;
 
-      nixpkgs.hostPlatform = lib.mkDefault "x86_64-linux";
+      nixpkgs.hostPlatform = lib.mkDefault hostMeta.system;
 
       virtualisation.virtualbox.guest = {
         enable = true;

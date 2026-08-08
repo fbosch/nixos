@@ -25,12 +25,15 @@
 
     hostMeta =
       name:
-      lib.findFirst
-        (
-          host: host.name == name
-        )
-        (throw "Host metadata `${name}` is not defined")
-        config.flake.meta.hosts;
+      let
+        matches = lib.filter (host: host.name == name) config.flake.meta.hosts;
+      in
+      if matches == [ ] then
+        throw "Host metadata `${name}` is not defined"
+      else if lib.length matches > 1 then
+        throw "Host metadata `${name}` is defined more than once"
+      else
+        builtins.head matches;
 
     lazyApp =
       pkgs: pkgOrArgs:
