@@ -16,15 +16,13 @@
         apps = {
           Noita = {
             id = 881100;
-            launchOptions.wrappers = [ "gamemoderun" ];
+            wrappers = [ "gamemoderun" ];
           };
 
           "Baldur's Gate 3" = {
             id = 1086940;
-            launchOptions = {
-              wrappers = [ "gamemoderun" ];
-              args = [ "--vulkan --skip-launcher" ];
-            };
+            wrappers = [ "gamemoderun" ];
+            args = [ "--vulkan --skip-launcher" ];
           };
         };
       };
