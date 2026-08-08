@@ -55,4 +55,22 @@ in
         );
       };
   };
+
+  perSystem =
+    { lib, ... }:
+    let
+      batSource = builtins.readFile ./bat.nix;
+    in
+    {
+      nix-unit.tests.batActivation = {
+        testCacheWaitsForDotfiles = {
+          expr = lib.hasInfix (''entryAfter [ "dot'' + ''files" ]'') batSource;
+          expected = true;
+        };
+        testCacheDoesNotFollowAssetSymlinks = {
+          expr = lib.hasInfix ("find " + "-L") batSource;
+          expected = false;
+        };
+      };
+    };
 }

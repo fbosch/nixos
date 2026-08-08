@@ -76,4 +76,54 @@ in
         '';
       };
     };
+
+  perSystem =
+    { lib, ... }:
+    let
+      activationSource = builtins.readFile ./dotfiles.nix;
+    in
+    {
+      nix-unit.tests.dotfilesActivation = {
+        testActivationNeverAdoptsDotfiles = {
+          expr = lib.hasInfix ("--" + "adopt") activationSource;
+          expected = false;
+        };
+        testActivationRestowsDotfiles = {
+          expr = lib.hasInfix ("--restow " + "--verbose") activationSource;
+          expected = true;
+        };
+        testExistingCheckoutIsNotReconciled = {
+          expr = lib.any (command: lib.hasInfix command activationSource) [
+            (" fetch " + "origin")
+            (" pull " + "--ff-only")
+            (" reset " + "--")
+            (" switch " + "--")
+          ];
+          expected = false;
+        };
+        testPinnedRevisionIsBootstrapOnly = {
+          expr = lib.hasInfix ("DOTFILES_BOOTSTRAP_" + "REV") activationSource;
+          expected = true;
+        };
+        testBootstrapPublishesOnlyAfterCheckout = {
+          expr = lib.hasInfix ("mv \"$BOOTSTRAP_" + "REPO\"") activationSource;
+          expected = true;
+        };
+        testActivationValidatesCheckoutRoot = {
+          expr = lib.hasInfix ("rev-parse --show-" + "toplevel") activationSource;
+          expected = true;
+        };
+        testActivationUsesOneLifecycleEntry = {
+          expr = lib.any (entry: lib.hasInfix entry activationSource) [
+            ("setup" + "Dotfiles")
+            ("stow" + "DotFiles")
+          ];
+          expected = false;
+        };
+        testBootstrapDoesNotRewriteOrigin = {
+          expr = lib.hasInfix ("remote set-" + "url") activationSource;
+          expected = false;
+        };
+      };
+    };
 }

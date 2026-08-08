@@ -58,4 +58,32 @@ in
         };
       };
   };
+
+  perSystem =
+    { lib, ... }:
+    let
+      gitSource = builtins.readFile ./git.nix;
+    in
+    {
+      nix-unit.tests.gitCredentialOwnership = {
+        testPlatformCredentialHelpersAreExplicit = {
+          expr = lib.all (helper: lib.hasInfix helper gitSource) [
+            ("/usr/bin/git-credential-" + "osxkeychain")
+            ("git-credential-" + "libsecret")
+          ];
+          expected = true;
+        };
+        testLegacyCredentialManagerIsAbsent = {
+          expr = lib.any (setting: lib.hasInfix setting gitSource) [
+            (''helper = "'' + ''manager"'')
+            ("credential" + "Store")
+          ];
+          expected = false;
+        };
+        testGeneratedPlatformIncludeHasOneHelper = {
+          expr = lib.hasInfix (''xdg.configFile."nix/git/config".text = '' + "gitPlatformConfig;") gitSource;
+          expected = true;
+        };
+      };
+    };
 }

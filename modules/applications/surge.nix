@@ -197,4 +197,48 @@
         };
       };
   };
+
+  perSystem =
+    { lib, ... }:
+    let
+      surgeSource = builtins.readFile ./surge.nix;
+    in
+    {
+      nix-unit.tests.surgeService = {
+        testExitWhenDoneDoesNotRestart = {
+          expr = lib.hasInfix
+            (
+              ''Restart = if cfg.exitWhenDone then "no"'' + " " + ''else "always";''
+            )
+            surgeSource;
+          expected = true;
+        };
+        testServiceUsesConfiguredPackage = {
+          expr = lib.hasInfix ("Exec" + "Start = \"\${lib.getExe cfg.package} \${serverArgs}\";") surgeSource;
+          expected = true;
+        };
+        testAppArmorUsesConfiguredPackage = {
+          expr = lib.hasInfix ("\${lib.getExe cfg.package} flags=(attach_" + "disconnected)") surgeSource;
+          expected = true;
+        };
+        testAppArmorAllowsOnlyConfiguredOutputRoot = {
+          expr = lib.hasInfix ("owner \${outputDir}/** " + "rwk,") surgeSource;
+          expected = true;
+        };
+        testAppArmorHasNoBroadHomeOrMountWrites = {
+          expr = lib.any (rule: lib.hasInfix rule surgeSource) [
+            ("owner @{HOME}/** " + "rw,")
+            ("owner /mnt/** " + "rw,")
+          ];
+          expected = false;
+        };
+        testAppArmorDeniesSensitivePaths = {
+          expr = lib.all (rule: lib.hasInfix rule surgeSource) [
+            ("deny @{HOME}/.ssh/** " + "rw,")
+            ("deny @{HOME}/.gnupg/** " + "rw,")
+          ];
+          expected = true;
+        };
+      };
+    };
 }

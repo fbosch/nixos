@@ -1,6 +1,5 @@
 let
   aerospace = "/run/current-system/sw/bin/aerospace";
-  borders = "/opt/homebrew/bin/borders";
 
   exec = command: "exec-and-forget ${command}";
 

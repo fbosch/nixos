@@ -3,7 +3,7 @@ let
   flakeConfig = config;
 in
 {
-  config.flake.modules.homeManager.shell =
+  flake.modules.homeManager.shell =
     { config
     , lib
     , pkgs
@@ -125,5 +125,23 @@ in
       ];
 
       services.ssh-agent.enable = sshAgent == "ssh-agent";
+    };
+
+  perSystem =
+    { lib, ... }:
+    let
+      sshSource = builtins.readFile ./ssh.nix;
+    in
+    {
+      nix-unit.tests.sshOwnership = {
+        testHomeManagerDoesNotOwnAuthorizedKeys = {
+          expr = lib.hasInfix (".ssh/authorized_" + "keys") sshSource;
+          expected = false;
+        };
+        testHomeManagerAgentFollowsHostMetadata = {
+          expr = lib.hasInfix ("services.ssh-agent.enable = sshAgent == " + ''"ssh-agent";'') sshSource;
+          expected = true;
+        };
+      };
     };
 }
