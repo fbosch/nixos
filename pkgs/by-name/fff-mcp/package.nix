@@ -19,7 +19,7 @@ let
 in
 stdenvNoCC.mkDerivation rec {
   pname = "fff-mcp";
-  version = "0.10.1";
+  version = "0.10.3";
 
   src = fetchurl source;
 
