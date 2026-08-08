@@ -70,7 +70,7 @@ Keep the existing feature-oriented dendritic layout. Related NixOS, Darwin, and 
 - Bound Bat cache input traversal; do not recursively follow arbitrary directory symlinks from Stow-managed themes or syntaxes.
 - In `modules/virtualization/podman.nix`, remove the hardcoded Darwin `DOCKER_HOST` behavior or derive it from `podman machine inspect` consistently with the Fish profile.
 - If session-wide Docker access is required, publish the discovered socket through the LaunchAgent; otherwise leave runtime discovery in Fish only.
-- Add launchd log retention or use unified logging for Podman, Headroom, and Pxpipe.
+- Add launchd log retention or use unified logging for Podman.
 - In `modules/applications/surge.nix`, make successful `exitWhenDone` completion compatible with systemd restart behavior.
 
 **Acceptance criteria**
@@ -132,7 +132,7 @@ Keep the existing feature-oriented dendritic layout. Related NixOS, Darwin, and 
 
 **Outcome:** Home Manager stops being a general package installer where it has no user-state responsibility.
 
-**Status:** Implemented after the Slice 5 generation was activated and verified on all active hosts. Home Manager package ownership remains only for Stow, WinApps, Steam theming, the Flake update service, Headroom, and Pxpipe because they directly back user configuration or lifecycle behavior.
+**Status:** Implemented after the Slice 5 generation was activated and verified on all active hosts. Home Manager package ownership remains only for Stow, WinApps, Steam theming, and the Flake update service because they directly back user configuration or lifecycle behavior.
 
 **Changes**
 
@@ -223,7 +223,7 @@ Keep the existing feature-oriented dendritic layout. Related NixOS, Darwin, and 
   - Git helper existence and single effective configuration;
   - Surge package/policy consistency and output-root allowlists.
 - Evaluate all active hosts in CI: `rvn-pc`, `rvn-mac`, `kmd-mac`, `rvn-srv`, and `rvn-vm`.
-- Evaluate inactive aspects in isolation: minimal/server presets, Waydroid, and Pxpipe.
+- Evaluate inactive minimal/server presets in isolation.
 
 **Acceptance criteria**
 

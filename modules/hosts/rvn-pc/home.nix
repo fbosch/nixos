@@ -16,7 +16,6 @@ in
           "applications/surge"
           "windows"
           "worktrunk"
-          "development/services/headroom"
           "virtualization/podman"
 
           # Shared modules with Home Manager components

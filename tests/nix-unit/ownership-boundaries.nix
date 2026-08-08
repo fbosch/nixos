@@ -68,8 +68,6 @@ in
       "applications/gaming/steam/theme.nix"
       "applications/windows.nix"
       "desktop/flake-updates.nix"
-      "development/services/headroom.nix"
-      "development/services/pxpipe.nix"
       "dotfiles.nix"
     ];
   };
