@@ -12,19 +12,18 @@ Package installation and program configuration are separate decisions. A package
 
 ## Path Boundaries
 
-Each managed path has one writer. Home Manager must not create a child below a directory Stow links. Generated Home Manager files belong outside Stow-owned trees; Stow may source or include them from a documented compatibility path.
+Each managed file has one writer. Avoid Home Manager child files below directories Stow links unless the leaf is an explicitly documented, ignored generated-file handoff.
 
 | Path or responsibility | Owner |
 | --- | --- |
 | `~/.config/fish/**` hand-maintained configuration | Stow |
-| Generated Fish host and secret state | Home Manager, outside `~/.config/fish` |
+| `~/.config/fish/private.fish` ignored generated Fish host and secret state | Home Manager |
 | `~/.gitconfig` portable identity, aliases, signing, and GitHub username | Stow |
-| Generated Git platform helper and host maintenance include | Home Manager |
+| `~/.config/nix/git/config` generated platform helper and host maintenance include | Home Manager |
 | GTK roots, CSS, and Nemo bookmarks on managed Linux desktops | Home Manager |
 | SSH login `authorized_keys` | NixOS or nix-darwin machine configuration |
 | SSH client configuration, private key, generated public key, and user agent | Home Manager |
 | MIME associations and desktop entries | Home Manager |
-| `.npmrc` and `.wakatime.cfg` rendered user secret files | Home Manager |
 | Terminal and editor hand-maintained configuration | Stow |
 
 Stow must not deploy runtime state such as `.direnv`, and automated activation must never use `stow --adopt`.
@@ -33,4 +32,4 @@ Stow must not deploy runtime state such as `.direnv`, and automated activation m
 
 The Nix and dotfiles repositories can update independently. A path transfer requires an explicit compatibility window in which old and new revisions interoperate. Compatibility code must identify its removal condition and must not overwrite unknown user files or symlinks.
 
-When adding or changing a generated user path, validate all ancestors with `lstat`; a safe leaf does not make a Stow-linked parent safe. Use atomic replacement for generated secret or session files.
+When adding or changing a generated user path, validate all ancestors with `lstat`. Use atomic replacement for generated secret or session files, except for documented Stow handoffs that have an established safe writer.

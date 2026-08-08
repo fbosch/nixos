@@ -72,6 +72,34 @@
               expected = false;
             };
           };
+
+        batActivation =
+          let
+            batSource = builtins.readFile ../../modules/shell/bat.nix;
+          in
+          {
+            testCacheWaitsForDotfiles = {
+              expr = lib.hasInfix "entryAfter [ \"dotfiles\" ]" batSource;
+              expected = true;
+            };
+
+            testCacheDoesNotFollowAssetSymlinks = {
+              expr = lib.hasInfix "find -L" batSource;
+              expected = false;
+            };
+          };
+
+        surgeService =
+          let
+            surgeSource = builtins.readFile ../../modules/applications/surge.nix;
+          in
+          {
+            testExitWhenDoneDoesNotRestart = {
+              expr = lib.hasInfix "Restart = if cfg.exitWhenDone then \"no\" else \"always\";" surgeSource;
+              expected = true;
+            };
+          };
+
       };
     };
   };

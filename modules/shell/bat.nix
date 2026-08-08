@@ -13,7 +13,7 @@
       ];
 
       home.activation.batCache = lib.mkForce (
-        lib.hm.dag.entryAfter [ "stowDotFiles" ] ''
+        lib.hm.dag.entryAfter [ "dotfiles" ] ''
           set -euo pipefail
 
           export XDG_CACHE_HOME=${lib.escapeShellArg config.xdg.cacheHome}
@@ -23,7 +23,7 @@
             printf '%s\0' ${lib.escapeShellArg (toString config.programs.bat.package)}
             for assets_dir in "$config_dir/themes" "$config_dir/syntaxes"; do
               if [ -d "$assets_dir" ]; then
-                ${pkgs.findutils}/bin/find -L "$assets_dir" -type f -print0 \
+                ${pkgs.findutils}/bin/find -P "$assets_dir" -type f -print0 \
                   | ${pkgs.coreutils}/bin/sort -z \
                   | while IFS= read -r -d "" asset; do
                     printf '%s\0' "$asset"

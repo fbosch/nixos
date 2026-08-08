@@ -16,7 +16,7 @@ Keep the existing feature-oriented dendritic layout. Related NixOS, Darwin, and 
 2. Select one `rvn-srv` SSH-agent strategy: Home Manager `ssh-agent`, or GPG agent with SSH support.
 3. Confirm whether either Mac manages Remote Login; machine login keys must not come from the generic Home Manager SSH client module.
 4. Decide whether Darwin `DOCKER_HOST` is Fish-only or must reach GUI and LaunchAgent clients.
-5. Define the minimum supported rollback generation for `.npmrc` and `.wakatime.cfg` ownership migration.
+5. Define the minimum supported rollback generation for `.wakatime.cfg` ownership migration.
 6. Confirm exact Surge download roots for every host.
 7. Decide whether `rvn-srv` should retain the full shared development tool set after packages become system-owned.
 8. Confirm that Stow intentionally does not configure GTK on a clean standalone checkout.
@@ -29,13 +29,13 @@ Keep the existing feature-oriented dendritic layout. Related NixOS, Darwin, and 
 
 - Replace the absolute rules in `docs/agents/dotfiles-policy.md` with path- and responsibility-based ownership rules.
 - Add an ADR documenting the NixOS/nix-darwin, Home Manager, and Stow boundary.
-- Add an exact-path ownership manifest covering Fish generated state, Git includes, GTK, SSH authorization, MIME, `.npmrc`, `.wakatime.cfg`, terminals, editors, and desktop entries.
+- Add an exact-path ownership manifest covering Fish generated state, Git includes, GTK, SSH authorization, MIME, `.wakatime.cfg`, terminals, editors, and desktop entries.
 - Record the cross-repository handoff rule: Nix and dotfiles repositories may update independently, so every move needs an old/new compatibility window.
 
 **Acceptance criteria**
 
 - The policy distinguishes package installation from program configuration.
-- It explicitly forbids Home Manager child files below Stow-linked directories.
+- It documents the supported ignored generated-file handoff for `~/.config/fish/private.fish` and otherwise avoids Home Manager child files below Stow-linked directories.
 - It states that machine login authorization is system-owned and SSH client configuration is Home Manager-owned.
 - It preserves Stow as independently usable and bans automated `stow --adopt`.
 
@@ -89,16 +89,12 @@ Keep the existing feature-oriented dendritic layout. Related NixOS, Darwin, and 
 
 **Changes**
 
-- Update `dotfiles/.config/fish/config.fish` to prefer a generated file outside `.config/fish`, with a temporary fallback to legacy `private.fish`.
-- Keep the fallback for one documented compatibility window.
 - Add an optional generated Git include to Stow's `.gitconfig`; retain portable name, email, signing key, aliases, diff behavior, and GitHub username in Stow.
 - Keep GTK roots excluded in `.stow-local-ignore`.
 - Exclude `.direnv` runtime state from Stow.
 
 **Acceptance criteria**
 
-- Old Home Manager output remains usable with new dotfiles.
-- New Home Manager output can be consumed by updated dotfiles without writing into the Stow checkout.
 - A Stow-only Git configuration retains portable identity and GitHub username.
 - A clean Stow run does not deploy `.direnv` state or GTK roots.
 
@@ -106,11 +102,11 @@ Keep the existing feature-oriented dendritic layout. Related NixOS, Darwin, and 
 
 ## Slice 5: Establish Non-Destructive Secret-File Compatibility
 
-**Outcome:** The current system owners of `.npmrc` and `.wakatime.cfg` no longer overwrite arbitrary user files during a later handoff or rollback.
+**Outcome:** The current system owner of `.wakatime.cfg` no longer overwrites arbitrary user files during a later handoff or rollback.
 
 **Changes**
 
-- In `modules/files/npmrc.nix` and `modules/files/wakatime.nix`, replace forceful NixOS tmpfiles and Darwin `ln -sf` behavior with guarded handling.
+- In `modules/files/wakatime.nix`, replace forceful NixOS tmpfiles and Darwin `ln -sf` behavior with guarded handling.
 - Treat only the exact known rendered-SOPS symlink target as migratable.
 - Refuse regular files, directories, broken or unknown symlinks, and symlink ancestors outside the known contract.
 - Define the generation containing these safeguards as the earliest supported rollback point.
@@ -176,10 +172,7 @@ Keep the existing feature-oriented dendritic layout. Related NixOS, Darwin, and 
 
 **Changes**
 
-- Move generated Fish state to a Home Manager-only path outside `.config/fish`.
-- Publish generated Fish state atomically: create a mode-`0600` temporary file in its final directory and rename it into place only after a successful write.
-- Walk all ancestors with `lstat` before migration; do not consider a leaf safe when a parent is a Stow symlink.
-- Remove legacy `private.fish` only if it is the known generated file or known Stow-through path; preserve unknown user files.
+- Retain `~/.config/fish/private.fish` as the documented ignored generated-file handoff: Stow owns `config.fish`; Home Manager owns the generated leaf.
 - Make Home Manager the complete owner of GTK on managed Linux desktops:
   - reproduce required GTK settings, CSS, Nemo bookmarks, and required assets from immutable Nix sources;
   - do not recreate existing absolute `/home/fbb/.local/share/...` GTK symlinks;
@@ -189,8 +182,7 @@ Keep the existing feature-oriented dendritic layout. Related NixOS, Darwin, and 
 
 **Acceptance criteria**
 
-- HM creates no child below a Stow-linked directory.
-- Fish starts with host variables and `with-secret` after all supported Nix/dotfiles version combinations.
+- Fish starts with host variables and `with-secret` through the documented generated-file handoff.
 - GTK is complete on a clean Linux home without Stow GTK ownership.
 - GTK activation refuses unknown real directories or symlink targets.
 
@@ -230,11 +222,11 @@ Keep the existing feature-oriented dendritic layout. Related NixOS, Darwin, and 
 
 ## Slice 10: Transfer User Secret Files to Home Manager
 
-**Outcome:** `.npmrc` and `.wakatime.cfg` have one user-level owner with user-scoped secret material.
+**Outcome:** `.wakatime.cfg` has one user-level owner with user-scoped secret material.
 
 **Changes**
 
-- Add npm and Wakapi secret declarations, templates, permissions, and target paths to Home Manager SOPS configuration.
+- Add Wakapi secret declarations, templates, permissions, and target paths to Home Manager SOPS configuration.
 - Use user-only permissions for source secrets and rendered files.
 - In one integrated generation, disable the guarded system writers and enable HM ownership.
 - Retain explicit migration checks from Slice 5 and reject rollback before the compatibility floor.
@@ -260,7 +252,6 @@ Keep the existing feature-oriented dendritic layout. Related NixOS, Darwin, and 
   - Bat dependency on `dotfiles`;
   - no HM `authorized_keys` on NixOS hosts;
   - one SSH-agent strategy on `rvn-srv`;
-  - generated Fish state outside Stow trees;
   - GTK exact-path single ownership;
   - safe secret-file migration semantics;
   - Linux HM/system duplicate package assertions;
@@ -289,7 +280,7 @@ Keep the existing feature-oriented dendritic layout. Related NixOS, Darwin, and 
 7. Slice 7: remove pure HM package ownership.
 8. Slice 8: perform Fish and GTK filesystem cutovers.
 9. Slice 9: finish Git, Podman, and Surge mixed-feature contracts.
-10. Slice 10: move `.npmrc` and `.wakatime.cfg` to HM.
+10. Slice 10: move `.wakatime.cfg` to HM.
 11. Slice 11: encode checks and remove compatibility paths after the defined window.
 
 Each slice is independently reviewable. Do not combine a new ownership writer with deletion of an old writer until the preceding compatibility slice is active and validated.

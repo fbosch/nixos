@@ -110,7 +110,7 @@
             Service = {
               Type = "simple";
               ExecStart = "${lib.getExe cfg.package} ${serverArgs}";
-              Restart = "always";
+              Restart = if cfg.exitWhenDone then "no" else "always";
               RestartSec = "5s";
             };
 

@@ -55,8 +55,6 @@ in
         "security"
         "secrets"
         "homebrew"
-        "files/wakatime"
-        "files/npmrc"
       ];
 
       networking.hostName = hostMeta.name;

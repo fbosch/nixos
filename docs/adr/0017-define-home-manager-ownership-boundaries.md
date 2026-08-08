@@ -15,7 +15,7 @@ NixOS and nix-darwin own machine state and generally available packages. Home Ma
 
 Package installation is independent from configuration ownership. Keep related NixOS, Darwin, and Home Manager aspects colocated in feature modules, while each aspect owns only its appropriate lifecycle.
 
-No two owners may write the same path. In particular, Home Manager must not create child files below a Stow-linked directory. Machine SSH login authorization is system-owned; Home Manager owns SSH client configuration, user key material, and the selected user-session agent.
+No two owners may write the same file. Home Manager avoids child files below Stow-linked directories unless the leaf is an explicitly documented, ignored generated-file handoff; `~/.config/fish/private.fish` is the supported Fish handoff. Machine SSH login authorization is system-owned; Home Manager owns SSH client configuration, user key material, and the selected user-session agent.
 
 The Nix and dotfiles repositories may be upgraded independently. Every ownership transfer needs a documented old/new compatibility window, guarded migration behavior, tests, and a removal condition. Automated Stow activation must not use `--adopt`.
 
@@ -23,4 +23,4 @@ The Nix and dotfiles repositories may be upgraded independently. Every ownership
 
 Existing package-only Home Manager lists move to system package destinations only after every active host has a destination. Home Manager retains packages that directly support its services, activations, generated commands, or material `programs.*` configuration.
 
-Generated Fish state, GTK configuration, Git platform configuration, and user secret files require staged migrations. System writers for user files must become non-destructive before Home Manager takes ownership. The exact credential helper, SSH-agent, Remote Login, Podman session, secret rollback, Surge output-root, server development-package, and standalone GTK policies remain explicit implementation decisions.
+GTK configuration and Git platform configuration require staged migrations. The exact credential helper, SSH-agent, Remote Login, Podman session, Surge output-root, server development-package, and standalone GTK policies remain explicit implementation decisions.

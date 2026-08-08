@@ -66,10 +66,6 @@ in
             "services/comfyui"
             "services/nextdns"
 
-            # files
-            "files/wakatime"
-            "files/npmrc"
-
             # hardware
             "hardware/usb-automount"
             "hardware/fingerprint"
