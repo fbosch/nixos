@@ -19,6 +19,10 @@
           inherit (config.flake.lib) startupPolicy;
         };
 
+        ownershipBoundaries = import ../../tests/nix-unit/ownership-boundaries.nix {
+          inherit lib;
+        };
+
         dotfilesActivation =
           let
             activationSource = builtins.readFile ../../modules/dotfiles.nix;

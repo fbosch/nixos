@@ -15,7 +15,6 @@
       home.packages = with pkgs; [
         inputs.winapps.packages.${pkgs.stdenv.hostPlatform.system}.winapps
         inputs.winapps.packages.${pkgs.stdenv.hostPlatform.system}.winapps-launcher
-        freerdp
       ];
 
       services.flatpak.packages = [
