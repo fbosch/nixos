@@ -62,12 +62,8 @@ in
           ]
         );
 
-      # Collect all SSH public keys from hosts
-      allAuthorizedKeys =
-        flakeConfig.flake.meta.user.ssh.authorizedKeys
-        ++ (lib.filter (key: key != null && key != "") (map (host: host.sshPublicKey) managedHosts));
-
       publicKeyPath = "${config.home.homeDirectory}/.ssh/id_ed25519.pub";
+      sshAgent = hostMeta.sshAgent or "ssh-agent";
     in
     {
       programs.ssh = {
@@ -88,10 +84,6 @@ in
             };
           }
         ];
-      };
-
-      home.file.".ssh/authorized_keys" = lib.mkIf (!isCorporateHost) {
-        text = lib.concatStringsSep "\n" allAuthorizedKeys;
       };
 
       home.activation = lib.mkIf hasSopsPrivateKey {
@@ -118,7 +110,20 @@ in
         '';
       };
 
-      # Enable and start ssh-agent
-      services.ssh-agent.enable = true;
+      assertions = [
+        {
+          assertion = lib.elem sshAgent [
+            "gpg"
+            "ssh-agent"
+          ];
+          message = "hostMeta.sshAgent must be either gpg or ssh-agent";
+        }
+        {
+          assertion = sshAgent != "gpg" || config.services.ssh-agent.enable == false;
+          message = "GPG SSH support and Home Manager ssh-agent cannot both own the SSH agent socket.";
+        }
+      ];
+
+      services.ssh-agent.enable = sshAgent == "ssh-agent";
     };
 }

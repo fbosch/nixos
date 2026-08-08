@@ -112,6 +112,14 @@ in
               default = null;
               description = "Optional short SSH alias";
             };
+            sshAgent = lib.mkOption {
+              type = lib.types.enum [
+                "gpg"
+                "ssh-agent"
+              ];
+              default = "ssh-agent";
+              description = "Owner of the user's SSH agent socket";
+            };
             tailscale = lib.mkOption {
               type = lib.types.nullOr lib.types.str;
               default = null;

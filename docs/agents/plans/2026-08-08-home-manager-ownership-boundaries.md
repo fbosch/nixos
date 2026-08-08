@@ -13,13 +13,12 @@ Keep the existing feature-oriented dendritic layout. Related NixOS, Darwin, and 
 ## Decisions Required Before Implementation
 
 1. Select the Git credential helper strategy: cross-platform GCM, or Linux Secret Service plus macOS Keychain.
-2. Select one `rvn-srv` SSH-agent strategy: Home Manager `ssh-agent`, or GPG agent with SSH support.
-3. Confirm whether either Mac manages Remote Login; machine login keys must not come from the generic Home Manager SSH client module.
-4. Decide whether Darwin `DOCKER_HOST` is Fish-only or must reach GUI and LaunchAgent clients.
-5. Define the minimum supported rollback generation for `.wakatime.cfg` ownership migration.
-6. Confirm exact Surge download roots for every host.
-7. Decide whether `rvn-srv` should retain the full shared development tool set after packages become system-owned.
-8. Confirm that Stow intentionally does not configure GTK on a clean standalone checkout.
+2. `rvn-srv` uses GPG agent SSH support; Home Manager `ssh-agent` remains the default on other hosts.
+3. `rvn-mac` manages Remote Login and machine login keys; `kmd-mac` does not.
+4. Darwin `DOCKER_HOST` is session-wide for GUI and LaunchAgent clients.
+5. Confirm exact Surge download roots for every host.
+6. Decide whether `rvn-srv` should retain the full shared development tool set after packages become system-owned.
+7. Confirm that Stow intentionally does not configure GTK on a clean standalone checkout.
 
 ## Slice 1: Record the Contract
 
@@ -29,7 +28,7 @@ Keep the existing feature-oriented dendritic layout. Related NixOS, Darwin, and 
 
 - Replace the absolute rules in `docs/agents/dotfiles-policy.md` with path- and responsibility-based ownership rules.
 - Add an ADR documenting the NixOS/nix-darwin, Home Manager, and Stow boundary.
-- Add an exact-path ownership manifest covering Fish generated state, Git includes, GTK, SSH authorization, MIME, `.wakatime.cfg`, terminals, editors, and desktop entries.
+- Add an exact-path ownership manifest covering Fish generated state, Git includes, GTK, SSH authorization, MIME, terminals, editors, and desktop entries.
 - Record the cross-repository handoff rule: Nix and dotfiles repositories may update independently, so every move needs an old/new compatibility window.
 
 **Acceptance criteria**
@@ -100,26 +99,7 @@ Keep the existing feature-oriented dendritic layout. Related NixOS, Darwin, and 
 
 **Risk:** Medium. Deploy this slice to all managed dotfiles checkouts before changing Home Manager writers.
 
-## Slice 5: Establish Non-Destructive Secret-File Compatibility
-
-**Outcome:** The current system owner of `.wakatime.cfg` no longer overwrites arbitrary user files during a later handoff or rollback.
-
-**Changes**
-
-- In `modules/files/wakatime.nix`, replace forceful NixOS tmpfiles and Darwin `ln -sf` behavior with guarded handling.
-- Treat only the exact known rendered-SOPS symlink target as migratable.
-- Refuse regular files, directories, broken or unknown symlinks, and symlink ancestors outside the known contract.
-- Define the generation containing these safeguards as the earliest supported rollback point.
-
-**Acceptance criteria**
-
-- Existing known system SOPS links remain functional.
-- A regular file, directory, or unknown symlink is preserved and produces an actionable error.
-- No secret value or template content appears in activation output.
-
-**Risk:** High. This must ship before Home Manager takes ownership of either path.
-
-## Slice 6: Add System Package Destinations
+## Slice 5: Add System Package Destinations
 
 **Outcome:** Packages are available from the machine profile before Home Manager copies are removed.
 
@@ -146,13 +126,13 @@ Keep the existing feature-oriented dendritic layout. Related NixOS, Darwin, and 
 
 **Risk:** Medium. The main risk is a missing command on Darwin or unintended expansion of the server closure.
 
-## Slice 7: Cut Over Pure Package Ownership
+## Slice 6: Cut Over Pure Package Ownership
 
 **Outcome:** Home Manager stops being a general package installer where it has no user-state responsibility.
 
 **Changes**
 
-- Remove pure `home.packages` entries only after Slice 6 is deployed and verified.
+- Remove pure `home.packages` entries only after Slice 5 is deployed and verified.
 - Retain Home Manager packages that directly back user services, activations, generated commands, or material `programs.*` configuration.
 - Remove exact duplicates first: Linux Podman tools, `uv`, Luacheck, `just`, `p7zip`, `xdg-utils`, FreeRDP, and duplicate `zoxide`.
 - Consolidate VLC and Helium under their NixOS Firejail/system package owners while retaining Home Manager user setup where required.
@@ -166,9 +146,9 @@ Keep the existing feature-oriented dendritic layout. Related NixOS, Darwin, and 
 
 **Risk:** Medium. Apply per feature and validate command availability before removing the next list.
 
-## Slice 8: Complete the Stow/Home Manager Path Boundary
+## Slice 7: Complete the Stow/Home Manager Path Boundary
 
-**Outcome:** Home Manager and Stow no longer own the same path or parent directory.
+**Outcome:** Stow and Home Manager have documented filesystem handoffs, and GTK has one owner on managed Linux desktops.
 
 **Changes**
 
@@ -188,7 +168,7 @@ Keep the existing feature-oriented dendritic layout. Related NixOS, Darwin, and 
 
 **Risk:** High. This is a two-repository filesystem migration and needs canary rollout on `rvn-pc` first.
 
-## Slice 9: Clarify Git, Podman, and Surge Mixed Features
+## Slice 8: Clarify Git, Podman, and Surge Mixed Features
 
 **Outcome:** Mixed features have a small, explicit system/user contract with no cross-class configuration inspection.
 
@@ -220,28 +200,7 @@ Keep the existing feature-oriented dendritic layout. Related NixOS, Darwin, and 
 
 **Risk:** High for Surge; medium for Git and Podman.
 
-## Slice 10: Transfer User Secret Files to Home Manager
-
-**Outcome:** `.wakatime.cfg` has one user-level owner with user-scoped secret material.
-
-**Changes**
-
-- Add Wakapi secret declarations, templates, permissions, and target paths to Home Manager SOPS configuration.
-- Use user-only permissions for source secrets and rendered files.
-- In one integrated generation, disable the guarded system writers and enable HM ownership.
-- Retain explicit migration checks from Slice 5 and reject rollback before the compatibility floor.
-- Remove obsolete NixOS/Darwin host imports only after all consumers use the HM implementation.
-
-**Acceptance criteria**
-
-- Existing recognized system links migrate without exposing secret values.
-- HM owns both the secret lifecycle and final `$HOME` path.
-- Regular files and unknown links remain untouched.
-- Supported rollback remains non-destructive.
-
-**Risk:** High. Canary on `rvn-pc`, then `rvn-mac`, then `rvn-srv`; `kmd-mac` does not currently import HM secrets.
-
-## Slice 11: Encode the Boundary
+## Slice 9: Encode the Boundary
 
 **Outcome:** Future changes cannot easily reintroduce known ownership errors.
 
@@ -253,7 +212,6 @@ Keep the existing feature-oriented dendritic layout. Related NixOS, Darwin, and 
   - no HM `authorized_keys` on NixOS hosts;
   - one SSH-agent strategy on `rvn-srv`;
   - GTK exact-path single ownership;
-  - safe secret-file migration semantics;
   - Linux HM/system duplicate package assertions;
   - active-host package destination coverage;
   - Git helper existence and single effective configuration;
@@ -275,12 +233,10 @@ Keep the existing feature-oriented dendritic layout. Related NixOS, Darwin, and 
 2. Slice 2: remove SSH authorization and agent ambiguity.
 3. Slice 3: repair known service/session defects.
 4. Slice 4: publish dotfiles compatibility.
-5. Slice 5: establish the secret-file rollback floor.
-6. Slice 6: add system package destinations.
-7. Slice 7: remove pure HM package ownership.
-8. Slice 8: perform Fish and GTK filesystem cutovers.
-9. Slice 9: finish Git, Podman, and Surge mixed-feature contracts.
-10. Slice 10: move `.wakatime.cfg` to HM.
-11. Slice 11: encode checks and remove compatibility paths after the defined window.
+5. Slice 5: add system package destinations.
+6. Slice 6: remove pure HM package ownership.
+7. Slice 7: complete the GTK filesystem cutover.
+8. Slice 8: finish Git, Podman, and Surge mixed-feature contracts.
+9. Slice 9: encode checks and remove compatibility paths after the defined window.
 
 Each slice is independently reviewable. Do not combine a new ownership writer with deletion of an old writer until the preceding compatibility slice is active and validated.

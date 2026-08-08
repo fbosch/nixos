@@ -23,4 +23,4 @@ The Nix and dotfiles repositories may be upgraded independently. Every ownership
 
 Existing package-only Home Manager lists move to system package destinations only after every active host has a destination. Home Manager retains packages that directly support its services, activations, generated commands, or material `programs.*` configuration.
 
-GTK configuration and Git platform configuration require staged migrations. The exact credential helper, SSH-agent, Remote Login, Podman session, Surge output-root, server development-package, and standalone GTK policies remain explicit implementation decisions.
+GTK configuration and Git platform configuration require staged migrations. `rvn-srv` uses GPG SSH support, while other hosts use Home Manager `ssh-agent`. `rvn-mac` manages Remote Login and machine login keys; `kmd-mac` does not. The Darwin Podman LaunchAgent discovers and publishes `DOCKER_HOST` for the user session, while Fish derives it only when the session value is absent. The credential helper, Surge output-root, server development-package, and standalone GTK policies remain explicit implementation decisions.

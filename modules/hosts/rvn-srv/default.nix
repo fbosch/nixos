@@ -7,6 +7,7 @@ let
     name = "rvn-srv";
     role = "server";
     sshAlias = "srv";
+    sshAgent = "gpg";
     tailscale = "100.125.172.110";
     local = "192.168.1.46";
     sshPublicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJl/WCQsXEkE7em5A6d2Du2JAWngIPfA8sVuJP/9cuyq fbb@nixos";
@@ -62,9 +63,6 @@ in
             "nas"
             "system/scheduled-suspend"
             "system/ananicy"
-
-            # files
-            "files/wakatime"
 
             # applications
             "applications/surge"

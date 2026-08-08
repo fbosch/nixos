@@ -7,6 +7,12 @@
     }:
     let
       inherit (config.flake.meta.user) username;
+      managedHosts = lib.filter (host: (host.corporate or false) == false) (
+        config.flake.meta.hosts or [ ]
+      );
+      authorizedKeys =
+        config.flake.meta.user.ssh.authorizedKeys
+        ++ (lib.filter (key: key != null && key != "") (map (host: host.sshPublicKey) managedHosts));
       avatarFile =
         if config.flake.meta.user.avatar.source != null then
           config.flake.meta.user.avatar.source
@@ -19,7 +25,7 @@
       users.users.${username} = {
         isNormalUser = lib.mkForce true;
         description = lib.mkForce config.flake.meta.user.fullName;
-        openssh.authorizedKeys.keys = lib.mkForce config.flake.meta.user.ssh.authorizedKeys;
+        openssh.authorizedKeys.keys = lib.mkForce authorizedKeys;
         extraGroups = lib.mkForce [
           "gamemode"
           "input"
@@ -31,6 +37,22 @@
       };
 
       environment.etc."sddm/faces/${username}.face.icon".source = avatarFile;
+    };
+
+  flake.modules.darwin.users =
+    { lib, ... }:
+    let
+      inherit (config.flake.meta.user) username;
+      managedHosts = lib.filter (host: (host.corporate or false) == false) (
+        config.flake.meta.hosts or [ ]
+      );
+      authorizedKeys =
+        config.flake.meta.user.ssh.authorizedKeys
+        ++ (lib.filter (key: key != null && key != "") (map (host: host.sshPublicKey) managedHosts));
+    in
+    {
+      services.openssh.enable = true;
+      users.users.${username}.openssh.authorizedKeys.keys = authorizedKeys;
     };
 
   flake.modules.homeManager.users =

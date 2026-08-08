@@ -1,6 +1,9 @@
 {
   flake.modules.nixos."hosts/rvn-srv/platform" =
-    { pkgs, ... }:
+    { pkgs
+    , hostMeta
+    , ...
+    }:
     {
       system.stateVersion = "25.11";
 
@@ -14,7 +17,7 @@
 
       programs.gnupg.agent = {
         enable = true;
-        enableSSHSupport = true;
+        enableSSHSupport = hostMeta.sshAgent == "gpg";
       };
 
       # Kernel tuning for server workload

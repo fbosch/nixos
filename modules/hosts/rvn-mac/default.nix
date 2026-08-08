@@ -44,6 +44,7 @@ in
         # Darwin core system configuration (Cachix, nix settings, home-manager)
         "system"
         "development"
+        "users"
 
         # Darwin-specific modules
         "aerospace"

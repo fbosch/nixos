@@ -61,11 +61,17 @@
         set -eu
 
         state="$(${pkgs.podman}/bin/podman machine inspect ${podmanMachineName} --format '{{.State}}' 2>/dev/null || true)"
-        if [ "$state" = "running" ]; then
-          exit 0
+        if [ "$state" != "running" ]; then
+          ${pkgs.podman}/bin/podman machine start ${podmanMachineName}
         fi
 
-        exec ${pkgs.podman}/bin/podman machine start ${podmanMachineName}
+        socket="$(${pkgs.podman}/bin/podman machine inspect ${podmanMachineName} --format '{{.ConnectionInfo.PodmanSocket.Path}}')"
+        if [ -z "$socket" ]; then
+          printf '%s\n' "Podman machine socket is unavailable" >&2
+          exit 1
+        fi
+
+        exec /bin/launchctl setenv DOCKER_HOST "unix://''${socket#unix://}"
       '';
     in
     {
@@ -104,10 +110,6 @@
           StandardErrorPath = "${config.home.homeDirectory}/Library/Logs/podman-machine.err.log";
           EnvironmentVariables.PATH = lib.makeBinPath [ pkgs.podman ] + ":/usr/bin:/bin:/usr/sbin:/sbin";
         };
-      };
-
-      home.sessionVariables = lib.mkIf isDarwin {
-        DOCKER_HOST = "unix://${config.home.homeDirectory}/.local/share/containers/podman/machine/podman.sock";
       };
     };
 }
