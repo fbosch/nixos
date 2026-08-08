@@ -1,11 +1,13 @@
 { config, ... }:
 {
-  # NixOS system-level module
+  # NixOS system-level module. Use the Darwin class for a Darwin-only feature.
+  # This aspect owns package availability and machine state.
   flake.modules.nixos."<category>/<NAME>" =
-    { config
-    , lib
-    , pkgs
-    , ...
+    {
+      config,
+      lib,
+      pkgs,
+      ...
     }:
     {
       config = {
@@ -14,7 +16,7 @@
         # services.xserver.enable = true;
         # services.xserver.desktopManager.<NAME>.enable = true;
 
-        # System packages
+        # Generally available packages
         # environment.systemPackages = with pkgs; [
         #   # Desktop packages
         # ];
@@ -26,13 +28,10 @@
       };
     };
 
-  # Home Manager user-level module (auxiliary)
+  # Home Manager user-level module (auxiliary). This aspect owns user
+  # configuration, generated files, services, and session state.
   flake.modules.homeManager."<category>/<NAME>" =
-    { config
-    , lib
-    , pkgs
-    , ...
-    }:
+    { config, lib, ... }:
     {
       config = {
         # User-level configuration
@@ -42,11 +41,6 @@
         #     theme = "dark";
         #   };
         # };
-
-        # User packages
-        # home.packages = with pkgs; [
-        #   # User applications
-        # ];
       };
     };
 }

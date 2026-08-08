@@ -15,7 +15,7 @@ Modules are organized by category based on their purpose:
 - **presets/** - Feature collections
 
 ### User Categories (Home Manager)
-- **applications/** - User applications
+- **applications/** - User application configuration and lifecycle
 - **desktop/** - Desktop environment components
 - **development/** - Development tools and environments
 - **shell/** - Shell configuration
@@ -81,7 +81,7 @@ _:
 
 ## Pattern 2: Home Manager Program
 
-**Use when**: Adding a user-level application or program
+**Use when**: Home Manager owns material user configuration, generated files, services, session state, or another concrete user lifecycle for the program
 
 **Example**: firefox, git, neovim
 
@@ -90,11 +90,7 @@ _:
 _:
 {
   flake.modules.homeManager."programs/<name>" =
-    { config
-    , lib
-    , pkgs
-    , ...
-    }:
+    { lib, ... }:
     {
       # No options needed unless customization required
       config = {
@@ -102,11 +98,6 @@ _:
           enable = true;
           # Program-specific config
         };
-
-        # Additional user packages if needed
-        home.packages = with pkgs; [
-          # Related packages
-        ];
       };
     };
 }
@@ -114,7 +105,9 @@ _:
 
 **Key Points**:
 - Program enables by default
-- Configuration is user-specific
+- Enabling `programs.<name>` usually installs its package, so do this only when Home Manager owns material user behavior
+- Generally available packages belong in the NixOS or Darwin aspect
+- Home Manager package use remains valid for direct activation, generated command, user service, or intentionally user-scoped dependencies
 - Can include dotfiles, themes, plugins
 - Use `lib.mkDefault` for user-overridable settings
 
@@ -210,7 +203,8 @@ _:
 **Key Points**:
 - Both modules in same file
 - NixOS module includes Home Manager module via `sharedModules`
-- System config separate from user config
+- NixOS or Darwin owns package availability and machine state
+- Home Manager owns user configuration, generated files, services, and session state
 - Auxiliary module is private (only imported by parent)
 
 ## Pattern 5: Containerized Service

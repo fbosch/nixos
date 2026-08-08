@@ -19,7 +19,7 @@ let
           lib.optional (type == "regular" && lib.hasSuffix ".nix" name) path
       )
       (builtins.attrNames entries);
-  homePackageOwners = map (path: lib.removePrefix "${toString modulesRoot}/" (toString path)) (
+  literalHomePackageOwners = map (path: lib.removePrefix "${toString modulesRoot}/" (toString path)) (
     lib.filter (path: lib.hasInfix "home.packages" (builtins.readFile path)) (nixFilesIn modulesRoot)
   );
   serverSource = builtins.readFile ../../modules/hosts/rvn-srv/default.nix;
@@ -62,8 +62,10 @@ in
     };
   };
 
-  packageOwnership.testOnlyLifecyclePackagesRemainInHomeManager = {
-    expr = lib.sort builtins.lessThan homePackageOwners;
+  # This inventories explicit home.packages declarations. Home Manager program
+  # modules may install packages indirectly and require semantic review instead.
+  packageOwnership.testOnlyApprovedLiteralHomePackageOwnersRemain = {
+    expr = lib.sort builtins.lessThan literalHomePackageOwners;
     expected = [
       "applications/gaming/steam/theme.nix"
       "applications/windows.nix"

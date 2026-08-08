@@ -16,9 +16,9 @@ Before creating any module, ask yourself:
    - If unclear → Start narrow, expand later
 
 2. **Context**: Where does this feature live?
-   - System-level only (NixOS/Darwin) → Single class module
-   - User-level only (Home Manager) → Single class module  
-   - Both system + user → Multi-context module
+   - Machine state or generally available packages (NixOS/Darwin) → Single class module
+   - User files, services, session state, or material user configuration (Home Manager) → Single class module
+   - Both system + user lifecycles → Multi-context module
 
 3. **Sharing**: How many hosts will use this?
    - One host → Options can be minimal or none
@@ -44,6 +44,9 @@ These rules are non-negotiable for valid dendritic code:
 4. **MUST Use lib.mkMerge**: Always use `lib.mkMerge` not `//` for merging
 5. **Import to Enable**: Features activate when imported, not via enable options
 6. **Collector Merging**: Multiple files can define same aspect name - configs merge
+7. **Package Ownership**: Packages are system-owned unless they directly support Home Manager-owned lifecycle behavior or are intentionally user-scoped
+
+Enabling `programs.<name>` often installs its package. Use a Home Manager program module only when Home Manager also owns material user configuration, generated files, services, session state, or another concrete user lifecycle. Package installation and configuration ownership are separate decisions; do not use Home Manager as a general package installer.
 
 See [../dendritic-pattern/references/validation-rules.md](../dendritic-pattern/references/validation-rules.md) for complete details.
 
@@ -76,6 +79,7 @@ Based on the feature, select the appropriate pattern:
 - Example: GNOME (system packages + user settings)
 - Files: Same file exports both classes
 - Exports: Both `flake.modules.nixos.<name>` and `flake.modules.homeManager.<name>`
+- NixOS/Darwin owns package availability and machine state; Home Manager owns user configuration, files, services, and session state
 
 **Collector Module** - Aggregates config from multiple sources
 - Example: Syncthing devices across hosts
@@ -482,6 +486,8 @@ Before finalizing the module, verify:
 - [ ] File location matches: `modules/<category>/<name>.nix`
 - [ ] Aspect name matches semantic purpose
 - [ ] If multi-context, auxiliary module only in `sharedModules`, never imported directly
+- [ ] Generally available packages are NixOS/Darwin-owned
+- [ ] Any Home Manager-installed package directly supports a user lifecycle or is intentionally user-scoped
 
 ## Reference Documentation
 

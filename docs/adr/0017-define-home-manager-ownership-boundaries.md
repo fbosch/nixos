@@ -1,6 +1,6 @@
 # Define Home Manager Ownership Boundaries
 
-**Status:** proposed
+**Status:** superseded by ADR 0018
 **Date:** 2026-08-08
 
 ## Context
