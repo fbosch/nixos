@@ -137,57 +137,24 @@ in
         };
       };
 
-      xdg.configFile."gtk-4.0/gtk.css" = {
-        force = true;
-        text = ''
-          * {
-            font-family: "SF Pro Display", sans-serif;
-          }
+      xdg.configFile = {
+        "gtk-4.0/gtk.css".source = pkgs.replaceVars ./css/gtk-4.css {
+          baseSky = base.sky;
+          baseLeaf = base.leaf;
+          baseWood = base.wood;
+          baseRose = base.rose;
+          baseBlossom = base.blossom;
+          baseStone = base.stone;
+          baseBackground = base.background;
+          baseSurface = base.surface;
+          brightSky = bright.sky;
+          brightRose = bright.rose;
+          brightLeaf = bright.leaf;
+          brightWood = bright.wood;
+        };
 
-          :root {
-            --document-font-family: "SF Pro Display", sans-serif;
-          }
-
-          @media (prefers-color-scheme: dark) {
-            :root {
-              --accent-blue: ${base.sky};
-              --accent-teal: ${base.sky};
-              --accent-green: ${base.leaf};
-              --accent-yellow: ${base.wood};
-              --accent-orange: ${base.wood};
-              --accent-red: ${base.rose};
-              --accent-pink: ${base.blossom};
-              --accent-purple: ${base.blossom};
-              --accent-slate: ${base.stone};
-              --accent-bg-color: ${base.sky};
-              --accent-color: ${bright.sky};
-              --accent-fg-color: #ffffff;
-              --destructive-bg-color: ${base.rose};
-              --destructive-color: ${bright.rose};
-              --destructive-fg-color: #ffffff;
-              --success-bg-color: ${base.leaf};
-              --success-color: ${bright.leaf};
-              --success-fg-color: #ffffff;
-              --warning-bg-color: ${base.wood};
-              --warning-color: ${bright.wood};
-              --warning-fg-color: rgba(0, 0, 0, 0.8);
-              --error-bg-color: ${base.rose};
-              --error-color: ${bright.rose};
-              --error-fg-color: #ffffff;
-              --window-bg-color: ${base.background};
-              --view-bg-color: ${base.background};
-              --headerbar-bg-color: ${base.surface};
-              --sidebar-bg-color: ${base.surface};
-              --sidebar-backdrop-color: ${base.surface};
-              --secondary-sidebar-bg-color: ${base.surface};
-              --secondary-sidebar-backdrop-color: ${base.surface};
-              --dialog-bg-color: ${base.surface};
-              --popover-bg-color: ${base.surface};
-              --thumbnail-bg-color: ${base.surface};
-              --overview-bg-color: ${base.surface};
-            }
-          }
-        '';
+        "gtk-3.0/settings.ini".source = ./config/gtk-3-settings.ini;
+        "gtk-4.0/settings.ini".source = ./config/gtk-4-settings.ini;
       };
 
       home.activation.denmarkHolidaysCalendar = config.lib.dag.entryAfter [ "writeBoundary" ] ''

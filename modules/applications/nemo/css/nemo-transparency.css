@@ -1,0 +1,30 @@
+window.nemo-window,
+window.nemo-window .background,
+window.nemo-window .sidebar,
+window.nemo-window .nemo-window-pane,
+window.nemo-window scrolledwindow,
+window.nemo-window viewport,
+window.nemo-window .view,
+window.nemo-window treeview,
+window.nemo-window iconview {
+  background: transparent;
+}
+
+window.nemo-window > grid > paned.horizontal,
+.nemo-window .primary-toolbar,
+.nemo-window toolbar {
+  background: rgba(37, 37, 37, 0.82);
+}
+
+.nemo-window .sidebar {
+  border: none;
+  box-shadow: none;
+}
+
+.nemo-window .view:selected,
+.nemo-window iconview:selected,
+.nemo-window .view:selected:focus,
+.nemo-window iconview:selected:focus {
+  background-color: rgba(0, 120, 212, 0.8);
+  color: #ffffff;
+}

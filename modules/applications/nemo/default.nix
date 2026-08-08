@@ -39,6 +39,9 @@
   flake.modules.homeManager.applications =
     { pkgs, ... }:
     {
+      xdg.configFile."gtk-3.0/gtk.css".source = ./css/gtk.css;
+      xdg.configFile."gtk-3.0/nemo-transparency.css".source = ./css/nemo-transparency.css;
+
       home.sessionVariables = {
         XDG_DATA_DIRS = "$XDG_DATA_DIRS:${pkgs.nemo-with-extensions}/share/gsettings-schemas";
       };

@@ -103,6 +103,8 @@ in
           ++ [
             inputs.nixos-hardware.nixosModules.common-cpu-intel
           ];
+
+        services.surge.outputDir = "/mnt/nas/downloads";
       };
 
     nix = {

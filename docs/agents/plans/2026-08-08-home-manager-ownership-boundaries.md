@@ -12,12 +12,12 @@ Keep the existing feature-oriented dendritic layout. Related NixOS, Darwin, and 
 
 ## Decisions Required Before Implementation
 
-1. Select the Git credential helper strategy: cross-platform GCM, or Linux Secret Service plus macOS Keychain.
+1. Git uses Linux Secret Service and macOS Keychain credential helpers.
 2. `rvn-srv` uses GPG agent SSH support; Home Manager `ssh-agent` remains the default on other hosts.
 3. `rvn-mac` manages Remote Login and machine login keys; `kmd-mac` does not.
 4. Darwin `DOCKER_HOST` is session-wide for GUI and LaunchAgent clients.
-5. Confirm exact Surge download roots for every host.
-6. Decide whether `rvn-srv` should retain the full shared development tool set after packages become system-owned.
+5. Surge download roots are defined per host by `services.surge.outputDir`.
+6. `rvn-srv` retains the full shared development tool set after packages become system-owned.
 7. Confirm that Stow intentionally does not configure GTK on a clean standalone checkout.
 
 ## Slice 1: Record the Contract

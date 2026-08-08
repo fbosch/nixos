@@ -86,16 +86,9 @@
             description = "Contents for `~/.config/surge/settings.json`.";
           };
 
-          enableAppArmor = lib.mkOption {
-            type = lib.types.nullOr lib.types.bool;
-            default = null;
-            description = "Enable AppArmor confinement for Surge. Null follows NixOS AppArmor enablement; set true/false to override per host.";
-          };
         };
 
         config = {
-          home.packages = [ cfg.package ];
-
           xdg.configFile."surge/settings.json" = lib.mkIf (cfg.settings != { }) {
             source = jsonFormat.generate "surge-settings.json" cfg.settings;
           };
@@ -121,7 +114,6 @@
         };
       };
 
-    # NixOS-level AppArmor profile for Surge
     nixos."applications/surge" =
       { config
       , lib
@@ -129,25 +121,39 @@
       , ...
       }:
       let
-        # Extract AppArmor enablement from home-manager user config
-        hmUsers = config.home-manager.users or { };
-        user = config.flake.meta.user.username or null;
-        surgeCfg = if user != null && hmUsers ? ${user} then hmUsers.${user}.services.surge or { } else { };
-        appArmorEnabled = config.security.apparmor.enable or false;
-        enableAppArmor =
-          if surgeCfg ? enableAppArmor && surgeCfg.enableAppArmor != null then
-            surgeCfg.enableAppArmor
-          else
-            appArmorEnabled;
+        cfg = config.services.surge;
+        outputDir = lib.removeSuffix "/" cfg.outputDir;
       in
       {
-        config = lib.mkIf enableAppArmor {
-          security.apparmor.policies."surge" = {
+        options.services.surge = {
+          package = lib.mkOption {
+            type = lib.types.package;
+            default = pkgs.local.surge;
+            description = "Surge package to install and confine.";
+          };
+
+          outputDir = lib.mkOption {
+            type = lib.types.str;
+            description = "Absolute download directory available to the Surge service.";
+          };
+        };
+
+        config = {
+          assertions = [
+            {
+              assertion = lib.hasPrefix "/" cfg.outputDir && cfg.outputDir != "/";
+              message = "services.surge.outputDir must be an absolute directory other than /.";
+            }
+          ];
+
+          environment.systemPackages = [ cfg.package ];
+
+          security.apparmor.policies.surge = lib.mkIf (config.security.apparmor.enable or false) {
             profile = ''
               abi <abi/4.0>,
               include <tunables/global>
 
-              ${lib.getExe pkgs.local.surge} flags=(attach_disconnected) {
+              ${lib.getExe cfg.package} flags=(attach_disconnected) {
                 include <abstractions/base>
                 include <abstractions/nameservice>
                 include <abstractions/ssl_certs>
@@ -160,51 +166,28 @@
                 network unix stream,
                 network unix dgram,
 
-                # Surge binary
-                ${lib.getExe pkgs.local.surge} mr,
+                ${lib.getExe cfg.package} mr,
 
-                # Config directory
                 owner @{HOME}/.config/surge/ rw,
                 owner @{HOME}/.config/surge/** rw,
 
-                # State directory (database, logs, token)
                 owner @{HOME}/.local/state/surge/ rw,
                 owner @{HOME}/.local/state/surge/** rwk,
 
-                # Runtime directory (PID, port, lock files)
                 owner /run/user/[0-9]*/surge/ rw,
                 owner /run/user/[0-9]*/surge/** rwk,
 
-                # Download directories (user home + common locations)
-                owner @{HOME}/Downloads/ rw,
-                owner @{HOME}/Downloads/** rw,
-                owner @{HOME}/** rw,
-                owner /mnt/** rw,
+                owner ${outputDir}/ rw,
+                owner ${outputDir}/** rwk,
 
-                # Batch files (URL lists)
-                owner @{HOME}/** r,
-
-                # Temporary download files
-                owner @{HOME}/**{.surge,.tmp} rw,
-
-                # System libraries and shared objects
                 /usr/lib/** mr,
                 /lib/** mr,
 
-                # /proc access for own process
                 owner @{PROC}/@{pid}/stat r,
                 owner @{PROC}/@{pid}/fd/ r,
 
-                # Clipboard tools (optional, for clipboard monitoring)
-                /usr/bin/xclip ix,
-                /usr/bin/xsel ix,
-                /usr/bin/wl-copy ix,
-                /usr/bin/wl-paste ix,
-
-                # Nix store (for Go runtime and dependencies)
                 /nix/store/** mr,
 
-                # Deny unnecessary access
                 deny /sys/** rw,
                 deny @{HOME}/.ssh/** rw,
                 deny @{HOME}/.gnupg/** rw,

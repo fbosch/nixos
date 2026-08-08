@@ -65,6 +65,7 @@ in
             "services/attic"
             "services/comfyui"
             "services/nextdns"
+            "applications/surge"
 
             # hardware
             "hardware/usb-automount"
@@ -86,6 +87,8 @@ in
           ];
 
         nixpkgs.overlays = [ inputs.nix-cachyos-kernel.overlays.default ];
+
+        services.surge.outputDir = "/mnt/storage/Downloads";
 
         nix = {
           settings = {

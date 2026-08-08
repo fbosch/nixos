@@ -1,0 +1,47 @@
+* {
+  font-family: "SF Pro Display", sans-serif;
+}
+
+:root {
+  --document-font-family: "SF Pro Display", sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --accent-blue: @baseSky@;
+    --accent-teal: @baseSky@;
+    --accent-green: @baseLeaf@;
+    --accent-yellow: @baseWood@;
+    --accent-orange: @baseWood@;
+    --accent-red: @baseRose@;
+    --accent-pink: @baseBlossom@;
+    --accent-purple: @baseBlossom@;
+    --accent-slate: @baseStone@;
+    --accent-bg-color: @baseSky@;
+    --accent-color: @brightSky@;
+    --accent-fg-color: #ffffff;
+    --destructive-bg-color: @baseRose@;
+    --destructive-color: @brightRose@;
+    --destructive-fg-color: #ffffff;
+    --success-bg-color: @baseLeaf@;
+    --success-color: @brightLeaf@;
+    --success-fg-color: #ffffff;
+    --warning-bg-color: @baseWood@;
+    --warning-color: @brightWood@;
+    --warning-fg-color: rgba(0, 0, 0, 0.8);
+    --error-bg-color: @baseRose@;
+    --error-color: @brightRose@;
+    --error-fg-color: #ffffff;
+    --window-bg-color: @baseBackground@;
+    --view-bg-color: @baseBackground@;
+    --headerbar-bg-color: @baseSurface@;
+    --sidebar-bg-color: @baseSurface@;
+    --sidebar-backdrop-color: @baseSurface@;
+    --secondary-sidebar-bg-color: @baseSurface@;
+    --secondary-sidebar-backdrop-color: @baseSurface@;
+    --dialog-bg-color: @baseSurface@;
+    --popover-bg-color: @baseSurface@;
+    --thumbnail-bg-color: @baseSurface@;
+    --overview-bg-color: @baseSurface@;
+  }
+}

@@ -8,6 +8,19 @@
     }:
     let
       isCorporateHost = hostMeta.corporate or false;
+      gitCredentialHelper =
+        if pkgs.stdenv.hostPlatform.isDarwin then
+          "/usr/bin/git-credential-osxkeychain"
+        else
+          "${pkgs.gitFull}/bin/git-credential-libsecret";
+      gitPlatformConfig = ''
+        [credential]
+          helper = ${gitCredentialHelper}
+      ''
+      + lib.optionalString (!isCorporateHost) ''
+        [credential "https://github.com"]
+          username = ${config.flake.meta.user.github.username}
+      '';
       gh-mcp-asset =
         if pkgs.stdenv.hostPlatform.isDarwin then
           if pkgs.stdenv.hostPlatform.isAarch64 then
@@ -64,16 +77,10 @@
 
       programs.git = {
         enable = true;
-        settings.credential = lib.mkMerge [
-          {
-            helper = "manager";
-            credentialStore = "secretservice";
-          }
-          (lib.mkIf (!isCorporateHost) {
-            "https://github.com".username = config.flake.meta.user.github.username;
-          })
-        ];
+        package = if pkgs.stdenv.hostPlatform.isLinux then pkgs.gitFull else pkgs.git;
       };
+
+      xdg.configFile."nix/git/config".text = gitPlatformConfig;
 
       programs.gh = {
         enable = true;
