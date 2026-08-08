@@ -58,6 +58,9 @@ in
         ];
       };
 
+      # ComfyUI's PyTorch dependency inherits this setting when built.
+      nixpkgs.config.cudaSupport = true;
+
       boot.kernelModules = [ "nvidia_uvm" ];
 
       services.comfyui = {
