@@ -6,7 +6,8 @@
 let
   inherit (config) hosts;
   hostSystem = import ../../lib/host-system.nix { inherit lib; };
-  hostMetadata = lib.mapAttrsToList (name: host: host.metadata // { inherit name; }) hosts;
+  hostMetadataType = import ../../lib/host-metadata.nix { inherit lib; };
+  hostMetadata = lib.attrValues (lib.mapAttrs (_name: host: host.metadata) hosts);
   systems = lib.mapAttrs
     (
       name: host:
@@ -71,19 +72,22 @@ in
   options = {
     hosts = lib.mkOption {
       type = lib.types.attrsOf (
-        lib.types.submodule {
-          options = {
-            metadata = lib.mkOption {
-              type = lib.types.attrs;
-              description = "Host metadata without its name";
-            };
+        lib.types.submodule (
+          { name, ... }: {
+            options = {
+              metadata = lib.mkOption {
+                type = hostMetadataType;
+                description = "Host metadata";
+              };
 
-            modules = lib.mkOption {
-              type = lib.types.listOf lib.types.raw;
-              description = "NixOS or nix-darwin module names and values";
+              modules = lib.mkOption {
+                type = lib.types.listOf lib.types.raw;
+                description = "NixOS or nix-darwin module names and values";
+              };
             };
-          };
-        }
+            config.metadata.name = lib.mkDefault name;
+          }
+        )
       );
       default = { };
       description = "Host declarations contributed by modules/hosts";

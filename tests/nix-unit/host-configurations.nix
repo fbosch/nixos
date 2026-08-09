@@ -35,14 +35,54 @@ let
       };
     }).config.flake;
 
-  declaration = system: {
-    metadata = { inherit system; };
+  normalizedHosts =
+    hosts:
+    (lib.evalModules {
+      specialArgs = { inherit inputs; };
+      modules = [
+        ../../modules/flake-parts/meta
+        ../../modules/flake-parts/host-configurations.nix
+        (
+          { config, ... }:
+          {
+            options.flake = {
+              lib = lib.mkOption {
+                type = lib.types.attrsOf lib.types.raw;
+                default = { };
+              };
+              modules = lib.mkOption {
+                type = lib.types.attrsOf lib.types.raw;
+                default = { };
+              };
+              nixosConfigurations = lib.mkOption {
+                type = lib.types.lazyAttrsOf lib.types.raw;
+                default = { };
+              };
+            };
+
+            config = {
+              inherit hosts;
+              flake = {
+                lib.hostMeta = name: config.hosts.${name}.metadata;
+                modules = {
+                  nixos.example = { };
+                  darwin.example = { };
+                };
+              };
+            };
+          }
+        )
+      ];
+    }).config.flake.meta.hosts;
+
+  declaration = name: system: {
+    metadata = { inherit name system; };
     modules = [ "example" ];
   };
 in
 {
-  testDerivesMetadataNameFromDeclarationKey = {
-    expr = (collector { host = declaration "x86_64-linux"; }).meta.hosts;
+  testPublishesNormalizedHostMetadata = {
+    expr = (collector { host = declaration "host" "x86_64-linux"; }).meta.hosts;
     expected = [
       {
         name = "host";
@@ -51,8 +91,22 @@ in
     ];
   };
 
+  testInjectsMetadataNameFromDeclarationKey = {
+    expr =
+      (builtins.head (normalizedHosts {
+        host = {
+          metadata = {
+            role = "desktop";
+            system = "x86_64-linux";
+          };
+          modules = [ ];
+        };
+      })).name;
+    expected = "host";
+  };
+
   testBuildsNixOSHost = {
-    expr = (collector { host = declaration "x86_64-linux"; }).nixosConfigurations.host;
+    expr = (collector { host = declaration "host" "x86_64-linux"; }).nixosConfigurations.host;
     expected = {
       builder = "nixos";
       system = "x86_64-linux";
@@ -78,7 +132,7 @@ in
   };
 
   testBuildsDarwinHost = {
-    expr = (collector { host = declaration "aarch64-darwin"; }).darwinConfigurations.host;
+    expr = (collector { host = declaration "host" "aarch64-darwin"; }).darwinConfigurations.host;
     expected = {
       builder = "darwin";
       system = "aarch64-darwin";
@@ -106,7 +160,7 @@ in
   testRejectsUnsupportedSystems = {
     expr =
       (builtins.tryEval (
-        builtins.attrNames (collector { host = declaration "x86_64-windows"; }).nixosConfigurations
+        builtins.attrNames (collector { host = declaration "host" "x86_64-windows"; }).nixosConfigurations
       )).success;
     expected = false;
   };
