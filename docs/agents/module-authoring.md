@@ -15,7 +15,7 @@
    - Checks, formatters, dev shells, and packages should be defined under `perSystem` so every supported platform gets consistent tooling.
    - Feature-specific nix-unit tests belong in the owning module under `perSystem.nix-unit.tests`; this keeps behavior, configuration, and its contract together.
    - Keep files under `tests/nix-unit/` for pure library tests or invariants that intentionally span multiple feature modules.
-   - A source-contract test may use `builtins.readFile ./module.nix` from its owning module. Assemble each search needle from fragments so the literal in the test cannot satisfy its own source search.
+   - Prefer evaluated module/configuration assertions. For generated shell, policy, or configuration text, inspect the evaluated artifact. Limit source scans to inherently textual repository policies and keep them outside the files they inspect.
    - Do not add an ordinary support `.nix` file under `modules/`, because `import-tree` treats it as a flake-parts module.
 7. **Prefer data over conditionals**
    - Pass environment-specific values (host role, install mode, usernames) in `specialArgs` to keep modules declarative and easily testable.
