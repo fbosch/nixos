@@ -33,31 +33,6 @@ macOS:
 nix --accept-flake-config run --inputs-from . nix-darwin -- switch --flake .#<host>
 ```
 
-[Troubleshooting](docs/troubleshooting.md)
-
----
-
-### Build
-
-```sh
-nh os switch          # Build and switch
-nh os test            # Test without switching
-nh os rollback        # Rollback to previous build
-nh os switch --update # Update and rebuild
-```
-
-### Tasks
-
-```sh
-just                  # List all available recipes
-# featured
-just lint             # Run linter suite
-just fmt              # Format files
-just build-images     # Build all custom container images
-just update-sops-keys # Re-encrypt secrets with current recipients
-just update-avatar    # Update GitHub avatar hash in flake metadata
-```
-
 ### Dotfiles
 
 Dotfiles are managed via [Home Manager + GNU Stow](https://github.com/fbosch/nixos/blob/master/modules/dotfiles.nix).
