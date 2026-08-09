@@ -1,7 +1,6 @@
 { lib }:
 { system
 , hostName ? null
-, hostType ? null
 ,
 }:
 let
@@ -31,11 +30,5 @@ else
     throw "${subject} `${system}` must use the canonical Nix system `${evaluated.value.normalized}`"
   else if evaluated.value.isLinux == false && evaluated.value.isDarwin == false then
     throw "${subject} `${system}` must target Linux or Darwin"
-  else if hostType != null && hostType != "nixos" && hostType != "darwin" then
-    throw "Unknown host type `${hostType}`"
-  else if hostType == "nixos" && evaluated.value.isLinux == false then
-    throw "Host `${hostName}` is registered as nixos but system `${system}` is not Linux"
-  else if hostType == "darwin" && evaluated.value.isDarwin == false then
-    throw "Host `${hostName}` is registered as darwin but system `${system}` is not Darwin"
   else
     system

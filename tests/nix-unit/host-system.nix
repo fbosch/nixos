@@ -44,23 +44,4 @@ in
     expected = false;
   };
 
-  testNixOSDarwinMismatchFails = {
-    expr =
-      (builtins.tryEval (hostSystem {
-        system = "aarch64-darwin";
-        hostName = "test";
-        hostType = "nixos";
-      })).success;
-    expected = false;
-  };
-
-  testDarwinLinuxMismatchFails = {
-    expr =
-      (builtins.tryEval (hostSystem {
-        system = "x86_64-linux";
-        hostName = "test";
-        hostType = "darwin";
-      })).success;
-    expected = false;
-  };
 }

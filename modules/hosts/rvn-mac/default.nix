@@ -1,7 +1,6 @@
 { config, ... }:
 let
-  hostMeta = {
-    name = "rvn-mac";
+  hostMetadata = {
     role = "laptop";
     sshAlias = "mac";
     tailscale = "100.118.36.81";
@@ -29,34 +28,34 @@ let
   };
 in
 {
-  flake = {
-    meta.hosts = [ hostMeta ];
+  hosts.rvn-mac = {
+    metadata = hostMetadata;
+    modules = [
+      "hosts/rvn-mac/platform"
+      "hosts/rvn-mac/home"
 
-    modules.darwin."hosts/rvn-mac" = {
-      imports = config.flake.lib.resolveDarwin [
-        "hosts/rvn-mac/platform"
-        "hosts/rvn-mac/home"
+      # Darwin core system configuration (Cachix, nix settings, home-manager)
+      "system"
+      "development"
+      "shell"
+      "users"
+      "virtualization/podman"
 
-        # Darwin core system configuration (Cachix, nix settings, home-manager)
-        "system"
-        "development"
-        "shell"
-        "users"
-        "virtualization/podman"
-
-        # Darwin-specific modules
-        "aerospace"
-        "alt-tab"
-        "cleanshot"
-        "fonts"
-        "hazeover"
-        "system-defaults"
-        "security"
-        "secrets"
-        "homebrew"
-      ];
-
-      networking.hostName = hostMeta.name;
-    };
+      # Darwin-specific modules
+      "aerospace"
+      "alt-tab"
+      "cleanshot"
+      "fonts"
+      "hazeover"
+      "system-defaults"
+      "security"
+      "secrets"
+      "homebrew"
+    ]
+    ++ [
+      ({ hostMeta, ... }: {
+        networking.hostName = hostMeta.name;
+      })
+    ];
   };
 }

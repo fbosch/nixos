@@ -23,8 +23,10 @@ validate_name() {
 render_host_module() {
   local preset="$1"
   local host_name="$2"
-  local machine_name="$3"
-  local host_file="$4"
+  local role="$3"
+  local system="$4"
+  local machine_name="$5"
+  local host_file="$6"
 
   local nixos_imports=""
   local hm_imports=""
@@ -48,29 +50,26 @@ render_host_module() {
 , ...
 }:
 let
-  hostMeta = {
-    name = "${host_name}";
-    sshAlias = null;
-    tailscale = null;
-    local = null;
-    sshPublicKey = null;
-  };
-in
-{
-  flake.meta.hosts = [ hostMeta ];
-
-  flake.modules.nixos."hosts/${host_name}" =
-    { ... }:
-    {
-      imports = config.flake.lib.resolve [${nixos_imports}
-        ../../machines/${machine_name}/configuration.nix
-        ../../machines/${machine_name}/hardware-configuration.nix
-      ];
-
-      home-manager.users.\${config.flake.meta.user.username}.imports =
-        config.flake.lib.resolveHm [${hm_imports}
-      ];
+  hosts."${host_name}" = {
+    metadata = {
+      role = "${role}";
+      system = "${system}";
+      sshAlias = null;
+      tailscale = null;
+      local = null;
+      sshPublicKey = null;
     };
+
+    modules = [${nixos_imports}
+      ../../machines/${machine_name}/configuration.nix
+      ../../machines/${machine_name}/hardware-configuration.nix
+      ({ config, ... }: {
+        home-manager.users.\${config.flake.meta.user.username}.imports =
+          config.flake.lib.resolveHm [${hm_imports}
+        ];
+      })
+    ];
+  };
 }
 EOF
 }
@@ -213,6 +212,8 @@ host_file="$target_dir/modules/hosts/$host_name.nix"
 use_existing_host="false"
 machine_name=""
 preset=""
+role=""
+system=""
 machine_dir=""
 
 if [ -e "$host_file" ]; then
@@ -221,11 +222,15 @@ if [ -e "$host_file" ]; then
 else
   machine_name="$(gum input --prompt "Machine name: " --value "$default_host_name" --placeholder "directory under machines/")"
   preset="$(gum choose --header "Select host preset" "minimal" "desktop" "server")"
+  role="$(gum choose --header "Select host role" "server" "desktop" "laptop" "vm")"
+  system="$(nix eval --impure --raw --expr builtins.currentSystem)"
 
   validate_name "$machine_name" "Machine name"
 
   gum style --foreground 244 "Machine name: $machine_name"
   gum style --foreground 244 "Preset: $preset"
+  gum style --foreground 244 "Role: $role"
+  gum style --foreground 244 "System: $system"
   machine_dir="$target_dir/machines/$machine_name"
 fi
 
@@ -246,7 +251,7 @@ if [ "$use_existing_host" = "false" ]; then
   cp -f /etc/nixos/hardware-configuration.nix "$machine_dir/"
 
   gum style --foreground 244 "Generating host module at $host_file"
-  render_host_module "$preset" "$host_name" "$machine_name" "$host_file"
+  render_host_module "$preset" "$host_name" "$role" "$system" "$machine_name" "$host_file"
 fi
 
 cd "$target_dir"

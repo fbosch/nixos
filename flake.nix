@@ -10,7 +10,7 @@
 
   # Uses dendritic pattern (https://vic.github.io/dendrix/)
   # All modules are declared under flake.modules.nixos.* and flake.modules.homeManager.*
-  # Hosts are built by directly defining flake.modules.{nixos,darwin}."hosts/*" modules
+  # Host directories contribute declarations collected into configuration outputs
   # Custom outputs:
   #   - flake.meta: Project-wide metadata (user info, UI defaults, presets)
   #   - flake.modules: Module tree (nixos/*, homeManager/*, darwin/*)

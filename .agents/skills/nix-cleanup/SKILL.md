@@ -36,7 +36,7 @@ This repository has custom lint infrastructure that respects exclusions:
 - Files with intentionally invalid Nix for demonstration
 
 **Review carefully before touching**:
-- `modules/flake-parts/hosts.nix` - Central loader, manual imports may be intentional
+- `modules/flake-parts/host-configurations.nix` - Host collector, module resolution may be intentional
 - `modules/flake-parts/lib.nix` - Helper functions used by loader
 - Files prefixed with `_` - Work-in-progress code intentionally not imported
 - `secrets/` - Never lint or modify secrets
@@ -292,7 +292,7 @@ statix fix .agents/skills/flake-module-creator/assets/
 **NEVER auto-fix loader files without careful review**
 
 Files requiring extra care:
-- `modules/flake-parts/hosts.nix`
+- `modules/flake-parts/host-configurations.nix`
 - `modules/flake-parts/lib.nix`
 - `modules/flake-parts/meta.nix`
 

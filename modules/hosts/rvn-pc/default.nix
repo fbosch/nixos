@@ -3,8 +3,7 @@
 , ...
 }:
 let
-  hostMeta = {
-    name = "rvn-pc";
+  hostMetadata = {
     role = "desktop";
     sshAlias = "pc";
     tailscale = "100.124.57.90";
@@ -37,51 +36,44 @@ in
   # Hardware: Custom desktop with Intel CPU and NVIDIA GPU
   # Role: Primary workstation for gaming, development, and daily use
 
-  flake = {
-    # Host metadata
-    meta.hosts = [ hostMeta ];
+  hosts.rvn-pc = {
+    metadata = hostMetadata;
+    modules = [
+      "hosts/rvn-pc/hardware"
+      "hosts/rvn-pc/boot"
+      "hosts/rvn-pc/platform"
+      "hosts/rvn-pc/storage"
+      "hosts/rvn-pc/home"
 
-    modules.nixos."hosts/rvn-pc" =
-      { lib, ... }:
+      # Desktop preset (users, security, development, shell, system, desktop environment)
+      "presets/desktop"
+
+      # system
+      "secrets"
+      "nas"
+      "services/attic"
+      "services/comfyui"
+      "services/nextdns"
+      "applications/surge"
+
+      # hardware
+      "hardware/usb-automount"
+      "hardware/fingerprint"
+      "hardware/fancontrol"
+      "hardware"
+
+      # desktop features
+      "gaming"
+      "windows"
+
+      # virtualization
+      "virtualization/podman"
+
+    ]
+    ++ [
+      inputs.nixos-hardware.nixosModules.common-cpu-intel
+      inputs.grub2-themes.nixosModules.default
       {
-        imports =
-          config.flake.lib.resolve [
-            "hosts/rvn-pc/hardware"
-            "hosts/rvn-pc/boot"
-            "hosts/rvn-pc/platform"
-            "hosts/rvn-pc/storage"
-            "hosts/rvn-pc/home"
-
-            # Desktop preset (users, security, development, shell, system, desktop environment)
-            "presets/desktop"
-
-            # system
-            "secrets"
-            "nas"
-            "services/attic"
-            "services/comfyui"
-            "services/nextdns"
-            "applications/surge"
-
-            # hardware
-            "hardware/usb-automount"
-            "hardware/fingerprint"
-            "hardware/fancontrol"
-            "hardware"
-
-            # desktop features
-            "gaming"
-            "windows"
-
-            # virtualization
-            "virtualization/podman"
-
-          ]
-          ++ [
-            inputs.nixos-hardware.nixosModules.common-cpu-intel
-            inputs.grub2-themes.nixosModules.default
-          ];
-
         nixpkgs.overlays = [ inputs.nix-cachyos-kernel.overlays.default ];
 
         services.surge.outputDir = "/mnt/storage/Downloads";
@@ -114,6 +106,7 @@ in
           TZ = ":/etc/localtime";
           TZDIR = "/etc/zoneinfo";
         };
-      };
+      }
+    ];
   };
 }

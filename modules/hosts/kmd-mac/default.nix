@@ -1,7 +1,6 @@
 { inputs, config, ... }:
 let
-  hostMeta = {
-    name = "kmd-mac";
+  hostMetadata = {
     role = "laptop";
     corporate = true;
     primaryUser = "Z6FBO";
@@ -25,30 +24,24 @@ let
   };
 in
 {
-  flake = {
-    meta.hosts = [ hostMeta ];
-
-    modules.darwin."hosts/kmd-mac" = {
-      imports = [
-        inputs.determinate.darwinModules.default
-      ]
-      ++ config.flake.lib.resolveDarwin [
-        "hosts/kmd-mac/platform"
-        "hosts/kmd-mac/home"
-        "system"
-        "development"
-        "shell"
-        "virtualization/podman"
-        "aerospace"
-        "alt-tab"
-        "cleanshot"
-        "fonts"
-        "hazeover"
-        "system-defaults"
-        "security"
-        "homebrew"
-      ];
-
-    };
+  hosts.kmd-mac = {
+    metadata = hostMetadata;
+    modules = [
+      inputs.determinate.darwinModules.default
+      "hosts/kmd-mac/platform"
+      "hosts/kmd-mac/home"
+      "system"
+      "development"
+      "shell"
+      "virtualization/podman"
+      "aerospace"
+      "alt-tab"
+      "cleanshot"
+      "fonts"
+      "hazeover"
+      "system-defaults"
+      "security"
+      "homebrew"
+    ];
   };
 }

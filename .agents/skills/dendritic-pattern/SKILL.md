@@ -45,7 +45,7 @@ See [references/aspect-patterns.md](references/aspect-patterns.md) for detailed 
 - Feature name matches file/directory name
 - Complex features split into subdirectories
 - No `specialArgs` usage (use `let...in` or flake-level options instead)
-- Host configs use `flake.modules.nixos."hosts/<name>"` pattern
+- Host configs contribute `hosts.<name>` declarations with `metadata` and `modules`; `host-configurations.nix` assembles configuration outputs
 
 ### Common Anti-Patterns
 
