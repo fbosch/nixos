@@ -94,6 +94,29 @@
       };
 
       config = lib.mkIf (apps != { }) {
+        # Startup policy flow:
+        #
+        #   ┌────────────────────────────────────┐
+        #   │ applications: tier + service units │
+        #   └──────────────────┬─────────────────┘
+        #                      │ validate; create per-app targets
+        #                      v
+        #   app target ──────────────> wants its owned service units
+        #
+        #   multi-user.target             boot timer (OnBootSec=0)
+        #          │                                  │
+        #          v                                  v
+        #   essential target                    standard dispatcher
+        #          │                         ┌────────┴────────┐
+        #          v                         v                 v
+        #   essential app targets   standard target   background dispatcher
+        #                                  │                 │ sequential
+        #                                  v                 v
+        #                        standard app targets  background app targets
+        #                                                       │
+        #                                                       v
+        #                                        background slice (CPU/IO 25)
+        #
         assertions = [
           {
             assertion = lib.all (name: apps.${name}.units != [ ]) appNames;

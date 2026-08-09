@@ -57,6 +57,34 @@
       };
 
       config = lib.mkIf (config.powerManagement.scheduledSuspend.schedules != { }) {
+        # Scheduled suspend flow:
+        #
+        #   ┌──────────────────┐
+        #   │ schedules.<name> │
+        #   └────────┬─────────┘
+        #            │ generates a matching timer and service
+        #            v
+        #   ┌───────────────────────────────┐
+        #   │ timer: OnCalendar, Persistent │
+        #   └───────────────┬───────────────┘
+        #                   │ triggers
+        #                   v
+        #   ┌────────────────────────────────────┐
+        #   │ service: one-shot wake calculation │
+        #   └──────────────────┬─────────────────┘
+        #                      │
+        #                      v
+        #           wake time <= suspend time?
+        #             ┌────────┴────────┐
+        #            yes               no
+        #             │                 │
+        #             v                 v
+        #   tomorrow's wake timestamp  today's wake timestamp
+        #             │                 │
+        #             └────────┬────────┘
+        #                      v
+        #        rtcwake: set RTC alarm, suspend to RAM
+        #
         systemd =
           let
             mkSuspendTimer = name: schedule: {
