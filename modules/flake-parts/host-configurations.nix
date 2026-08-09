@@ -101,6 +101,33 @@ in
   };
 
   config.flake = {
+    # Host configuration flow:
+    #
+    #   ┌──────────────────────────────────────┐
+    #   │ modules/hosts                        │
+    #   │ hosts.<name>: metadata + modules     │
+    #   └──────────────────┬───────────────────┘
+    #                      │ hostSystem
+    #                      v
+    #              ┌────────────────┐
+    #              │ systems.<name> │
+    #              └───────┬────────┘
+    #                      │
+    #          ┌───────────┴───────────┐
+    #          v                       v
+    #   ┌─────────────┐         ┌─────────────┐
+    #   │  *-linux    │         │  *-darwin   │
+    #   └──────┬──────┘         └──────┬──────┘
+    #          │                       │
+    #          v                       v
+    #   ┌─────────────────┐     ┌─────────────────┐
+    #   │ nixosSystem     │     │ darwinSystem    │
+    #   │ + NixOS HM      │     │ + Darwin HM     │
+    #   │ + resolved mods │     │ + resolved mods │
+    #   └────────┬────────┘     └────────┬────────┘
+    #            │                       │
+    #            v                       v
+    #   nixosConfigurations      darwinConfigurations
     meta.hosts = hostMetadata;
 
     nixosConfigurations = lib.mapAttrs mkConfiguration (lib.filterAttrs isLinux hosts);
