@@ -37,9 +37,3 @@ nix --accept-flake-config run --inputs-from . nix-darwin -- switch --flake .#<ho
 
 Dotfiles are managed via [Home Manager + GNU Stow](https://github.com/fbosch/nixos/blob/master/modules/dotfiles.nix).
 **→ [https://github.com/fbosch/dotfiles](https://github.com/fbosch/dotfiles)**
-
-## Credits
-
-- Dendritic pattern — https://vic.github.io/dendrix/
-- Inspiration — https://github.com/MrSom3body/dotfiles
-- Inspiration — https://github.com/drupol/infra
