@@ -49,6 +49,7 @@ appimageTools.wrapType2 rec {
       --replace 'Exec=AppRun %U' 'Exec=${pname} %U' \
       --replace 'Exec=AppRun' 'Exec=${pname}' \
       --replace 'Exec=helium' 'Exec=${pname}' \
+      --replace-fail 'Icon=helium' "Icon=$out/share/icons/hicolor/256x256/apps/helium.png" \
 
     install -Dm444 ${icon} \
       $out/share/icons/hicolor/256x256/apps/helium.png
