@@ -94,18 +94,18 @@ in
       inputs.nixos-hardware.nixosModules.common-cpu-intel
       {
         services.surge.outputDir = "/mnt/nas/downloads";
+
+        nix = {
+          settings = {
+            max-jobs = "auto";
+            cores = 0;
+          };
+
+          # De-prioritize Nix daemon scheduling so server workloads stay responsive.
+          daemonCPUSchedPolicy = "batch";
+          daemonIOSchedClass = "idle";
+        };
       }
     ];
-  };
-
-  flake.nix = {
-    settings = {
-      max-jobs = "auto";
-      cores = 0;
-    };
-
-    # De-prioritize Nix daemon scheduling so desktop workloads stay responsive.
-    daemonCPUSchedPolicy = "batch";
-    daemonIOSchedClass = "idle";
   };
 }
