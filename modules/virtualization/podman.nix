@@ -1,12 +1,4 @@
 { config, ... }:
-let
-  packagesFor =
-    pkgs: with pkgs; [
-      podman
-      podman-compose
-      podman-tui
-    ];
-in
 {
   flake.modules = {
     nixos."virtualization/podman" =
@@ -58,7 +50,11 @@ in
       };
 
     darwin."virtualization/podman" = { pkgs, ... }: {
-      environment.systemPackages = packagesFor pkgs;
+      environment.systemPackages = with pkgs; [
+        podman
+        podman-compose
+        podman-tui
+      ];
     };
 
     homeManager."virtualization/podman" =

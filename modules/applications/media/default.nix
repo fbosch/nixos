@@ -1,20 +1,14 @@
-let
-  packagesFor =
-    pkgs: with pkgs; [
-      loupe
-      plezy
-      local."webapp/youtubemusic"
-      local."webapp/synologyphotos"
-    ];
-in
 {
   flake.modules = {
     nixos.applications = { pkgs, ... }: {
-      environment.systemPackages = [
+      environment.systemPackages = with pkgs; [
         # File previewer for Nemo file manager
-        pkgs.sushi
-      ]
-      ++ packagesFor pkgs;
+        sushi
+        loupe
+        plezy
+        local."webapp/youtubemusic"
+        local."webapp/synologyphotos"
+      ];
     };
 
     homeManager.applications = { config, pkgs, ... }: {

@@ -1,16 +1,12 @@
-let
-  packagesFor =
-    pkgs: with pkgs; [
-      pass
-      gnupg
-      pinentry-curses
-      bitwarden-desktop
-    ];
-in
 {
   flake.modules = {
     nixos.applications = { pkgs, ... }: {
-      environment.systemPackages = packagesFor pkgs;
+      environment.systemPackages = with pkgs; [
+        pass
+        gnupg
+        pinentry-curses
+        bitwarden-desktop
+      ];
     };
     homeManager.applications = {
       services.flatpak.packages = [

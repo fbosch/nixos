@@ -30,14 +30,12 @@ let
       ripsecrets
       luajitPackages.luacheck
     ])
-    ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isLinux (linuxPackages pkgs)
+    ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isLinux [
+      pkgs.biome
+      pkgs.local.fff-mcp
+      pkgs.local.lightpanda
+    ]
     ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isDarwin (darwinPackages pkgs);
-
-  linuxPackages = pkgs: [
-    pkgs.biome
-    pkgs.local.fff-mcp
-    pkgs.local.lightpanda
-  ];
 
   darwinPackages =
     pkgs:

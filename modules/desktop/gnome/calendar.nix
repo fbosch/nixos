@@ -1,12 +1,14 @@
 { config, ... }:
 let
-  packagesFor = pkgs: [ pkgs.gnome-calendar ];
   denmarkHolidaysColor = config.flake.lib.themes.zenwritten.css.base.rose;
 in
 {
   flake.modules = {
     nixos.desktop = { pkgs, ... }: {
-      environment.systemPackages = [ pkgs.libical ] ++ packagesFor pkgs;
+      environment.systemPackages = with pkgs; [
+        libical
+        gnome-calendar
+      ];
       services.gnome.evolution-data-server.enable = true;
     };
 

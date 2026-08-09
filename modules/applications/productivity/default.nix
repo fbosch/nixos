@@ -1,22 +1,10 @@
 { config, ... }:
 let
   inherit (config.flake.lib) lazyDesktopApp;
-  packagesFor =
-    pkgs: with pkgs; [
-      gimp
-      local."webapp/chatgpt"
-      local."webapp/notion"
-      local."webapp/icloud-notes"
-      local."webapp/protonmail"
-      local."webapp/protoncalendar"
-      local."webapp/linear"
-      local."webapp/figma"
-      local."webapp/apple-maps"
-    ];
 in
 {
   flake.modules.nixos.applications = { pkgs, ... }: {
-    environment.systemPackages = [
+    environment.systemPackages = with pkgs; [
       (lazyDesktopApp pkgs {
         pkg = pkgs.vscodium;
         exe = "codium";
@@ -35,8 +23,16 @@ in
           ];
         };
       })
-    ]
-    ++ packagesFor pkgs;
+      gimp
+      local."webapp/chatgpt"
+      local."webapp/notion"
+      local."webapp/icloud-notes"
+      local."webapp/protonmail"
+      local."webapp/protoncalendar"
+      local."webapp/linear"
+      local."webapp/figma"
+      local."webapp/apple-maps"
+    ];
   };
 
   flake.modules.homeManager.applications =
