@@ -40,7 +40,10 @@ let
   mkConfiguration =
     name: host:
     let
-      hostMeta = config.flake.lib.hostMeta name;
+      hostArgs = {
+        hostMeta = host.metadata;
+        hostKey = name;
+      };
       system = systems.${name};
       hostBuilder =
         if lib.hasSuffix "-darwin" system then
@@ -56,20 +59,14 @@ let
     in
     hostBuilder.builder {
       inherit system;
-      specialArgs = {
-        inherit hostMeta;
-        hostKey = name;
-      };
+      specialArgs = hostArgs;
       modules = resolveModules name host.modules ++ [
         hostBuilder.homeManagerModule
         {
           home-manager = {
             useGlobalPkgs = true;
             useUserPackages = true;
-            extraSpecialArgs = {
-              inherit hostMeta;
-              hostKey = name;
-            };
+            extraSpecialArgs = hostArgs;
           };
         }
       ];

@@ -20,9 +20,6 @@ let
       config = rec {
         inherit hosts;
         flake = {
-          lib = {
-            hostMeta = name: hosts.${name}.metadata;
-          };
           modules = {
             nixos.example = {
               _testMarker = "nixos";
@@ -43,13 +40,9 @@ let
         ../../modules/flake-parts/meta
         ../../modules/flake-parts/host-configurations.nix
         (
-          { config, ... }:
+          _:
           {
             options.flake = {
-              lib = lib.mkOption {
-                type = lib.types.attrsOf lib.types.raw;
-                default = { };
-              };
               modules = lib.mkOption {
                 type = lib.types.attrsOf lib.types.raw;
                 default = { };
@@ -63,7 +56,6 @@ let
             config = {
               inherit hosts;
               flake = {
-                lib.hostMeta = name: config.hosts.${name}.metadata;
                 modules = {
                   nixos.example = { };
                   darwin.example = { };
