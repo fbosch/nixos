@@ -12,9 +12,9 @@ in
     }:
     let
       # Read host configurations from flake.meta.hosts
-      hosts = flakeConfig.flake.meta.hosts or [ ];
+      hosts = flakeConfig.flake.meta.hosts or { };
       isCorporateHost = hostMeta.corporate or false;
-      managedHosts = if isCorporateHost then [ ] else hosts;
+      managedHosts = if isCorporateHost then { } else hosts;
       clientUseTailnet = hostMeta.useTailnet or false;
       # Helper function to get the appropriate address for a specific host
       getAddress =
@@ -50,14 +50,14 @@ in
 
       # Generate match blocks for both short key and full hostname
       mkMatchBlocks =
-        host:
+        name: host:
         let
           address = getAddress host;
           block = mkMatchBlock host;
         in
         lib.optionalAttrs (address != null) (
           lib.mkMerge [
-            { ${host.name} = block; }
+            { ${name} = block; }
             (lib.optionalAttrs (host.sshAlias != null) { ${host.sshAlias} = block; })
           ]
         );
@@ -71,7 +71,7 @@ in
         enableDefaultConfig = false;
 
         settings = lib.mkMerge [
-          (lib.mkMerge (map mkMatchBlocks managedHosts))
+          (lib.mkMerge (lib.mapAttrsToList mkMatchBlocks managedHosts))
           {
             "ssh.dev.azure.com" = {
               IdentityFile = "~/.ssh/id_rsa";

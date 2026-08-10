@@ -1,4 +1,4 @@
-{ lib }:
+{ lib, hostName ? null }:
 let
   hostSystem = import ./host-system.nix { inherit lib; };
 
@@ -21,12 +21,8 @@ let
   ];
 in
 lib.types.submodule (
-  { config, ... }: {
+  _: {
     options = {
-      name = lib.mkOption {
-        type = lib.types.str;
-        description = "Flake host identifier";
-      };
       role = lib.mkOption {
         type = hostRoleType;
         description = "Primary role of this host";
@@ -89,13 +85,9 @@ lib.types.submodule (
         default = null;
         apply =
           system:
-          if system == null then
-            throw "Host `${config.name}` must define system"
-          else
-            hostSystem {
-              inherit system;
-              hostName = config.name;
-            };
+          hostSystem {
+            inherit system hostName;
+          };
         description = "Canonical Nix system double for this host";
       };
       hardware = lib.mkOption {

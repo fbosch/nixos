@@ -6,8 +6,12 @@
 let
   inherit (config) hosts;
   hostSystem = import ../../lib/host-system.nix { inherit lib; };
-  hostMetadataType = import ../../lib/host-metadata.nix { inherit lib; };
-  hostMetadata = lib.attrValues (lib.mapAttrs (_name: host: host.metadata) hosts);
+  hostMetadataType =
+    hostName:
+    import ../../lib/host-metadata.nix {
+      inherit lib hostName;
+    };
+  hostMetadata = lib.mapAttrs (_name: host: host.metadata) hosts;
   systems = lib.mapAttrs
     (
       name: host:
@@ -52,14 +56,20 @@ let
     in
     hostBuilder.builder {
       inherit system;
-      specialArgs = { inherit hostMeta; };
+      specialArgs = {
+        inherit hostMeta;
+        hostKey = name;
+      };
       modules = resolveModules name host.modules ++ [
         hostBuilder.homeManagerModule
         {
           home-manager = {
             useGlobalPkgs = true;
             useUserPackages = true;
-            extraSpecialArgs = { inherit hostMeta; };
+            extraSpecialArgs = {
+              inherit hostMeta;
+              hostKey = name;
+            };
           };
         }
       ];
@@ -76,7 +86,7 @@ in
           { name, ... }: {
             options = {
               metadata = lib.mkOption {
-                type = hostMetadataType;
+                type = hostMetadataType name;
                 description = "Host metadata";
               };
 
@@ -85,7 +95,6 @@ in
                 description = "NixOS or nix-darwin module names and values";
               };
             };
-            config.metadata.name = lib.mkDefault name;
           }
         )
       );

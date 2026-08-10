@@ -31,6 +31,7 @@ in
       , lib
       , pkgs
       , hostMeta
+      , hostKey
       , ...
       }:
       let
@@ -58,9 +59,9 @@ in
 
         fishHostVariable =
           if lib.hasSuffix "-darwin" hostMeta.system then
-            "set -gx NH_DARWIN_HOST ${lib.escapeShellArg hostMeta.name}"
+            "set -gx NH_DARWIN_HOST ${lib.escapeShellArg hostKey}"
           else
-            "set -gx NH_OS_HOST ${lib.escapeShellArg hostMeta.name}";
+            "set -gx NH_OS_HOST ${lib.escapeShellArg hostKey}";
 
         fishCorporateVariable = lib.optionalString (hostMeta.corporate or false) "set -gx CORPORATE 1";
 

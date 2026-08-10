@@ -21,7 +21,7 @@ let
         inherit hosts;
         flake = {
           lib = {
-            hostMeta = name: hosts.${name}.metadata // { inherit name; };
+            hostMeta = name: hosts.${name}.metadata;
           };
           modules = {
             nixos.example = {
@@ -75,25 +75,31 @@ let
       ];
     }).config.flake.meta.hosts;
 
-  declaration = name: system: {
-    metadata = { inherit name system; };
+  hostMeta =
+    hosts: name:
+    (import ../../modules/flake-parts/lib.nix {
+      config.flake.meta.hosts = hosts;
+      inherit lib;
+    }).config.flake.lib.hostMeta name;
+
+  declaration = system: {
+    metadata = { inherit system; };
     modules = [ "example" ];
   };
 in
 {
-  testPublishesNormalizedHostMetadata = {
-    expr = (collector { host = declaration "host" "x86_64-linux"; }).meta.hosts;
-    expected = [
-      {
-        name = "host";
+  testPublishesHostMetadataByDeclarationKey = {
+    expr = (collector { host = declaration "x86_64-linux"; }).meta.hosts;
+    expected = {
+      host = {
         system = "x86_64-linux";
-      }
-    ];
+      };
+    };
   };
 
-  testInjectsMetadataNameFromDeclarationKey = {
+  testUsesDeclarationKeyAsHostIdentity = {
     expr =
-      (builtins.head (normalizedHosts {
+      (normalizedHosts {
         host = {
           metadata = {
             role = "desktop";
@@ -101,19 +107,46 @@ in
           };
           modules = [ ];
         };
-      })).name;
-    expected = "host";
+      }).host.system;
+    expected = "x86_64-linux";
+  };
+
+  testRejectsMetadataName = {
+    expr =
+      (builtins.tryEval (builtins.deepSeq
+        (normalizedHosts {
+          host = {
+            metadata = {
+              name = "conflicting-host";
+              role = "desktop";
+              system = "x86_64-linux";
+            };
+            modules = [ ];
+          };
+        })
+        true)).success;
+    expected = false;
+  };
+
+  testLooksUpHostMetadataByDeclarationKey = {
+    expr = (hostMeta { host.system = "x86_64-linux"; } "host").system;
+    expected = "x86_64-linux";
+  };
+
+  testRejectsUnknownHostMetadataKey = {
+    expr = (builtins.tryEval (hostMeta { } "missing")).success;
+    expected = false;
   };
 
   testBuildsNixOSHost = {
-    expr = (collector { host = declaration "host" "x86_64-linux"; }).nixosConfigurations.host;
+    expr = (collector { host = declaration "x86_64-linux"; }).nixosConfigurations.host;
     expected = {
       builder = "nixos";
       system = "x86_64-linux";
       specialArgs.hostMeta = {
-        name = "host";
         system = "x86_64-linux";
       };
+      specialArgs.hostKey = "host";
       modules = [
         { _testMarker = "nixos"; }
         { _testMarker = "nixos-home-manager"; }
@@ -122,9 +155,9 @@ in
             useGlobalPkgs = true;
             useUserPackages = true;
             extraSpecialArgs.hostMeta = {
-              name = "host";
               system = "x86_64-linux";
             };
+            extraSpecialArgs.hostKey = "host";
           };
         }
       ];
@@ -132,14 +165,14 @@ in
   };
 
   testBuildsDarwinHost = {
-    expr = (collector { host = declaration "host" "aarch64-darwin"; }).darwinConfigurations.host;
+    expr = (collector { host = declaration "aarch64-darwin"; }).darwinConfigurations.host;
     expected = {
       builder = "darwin";
       system = "aarch64-darwin";
       specialArgs.hostMeta = {
-        name = "host";
         system = "aarch64-darwin";
       };
+      specialArgs.hostKey = "host";
       modules = [
         { _testMarker = "darwin"; }
         { _testMarker = "darwin-home-manager"; }
@@ -148,9 +181,9 @@ in
             useGlobalPkgs = true;
             useUserPackages = true;
             extraSpecialArgs.hostMeta = {
-              name = "host";
               system = "aarch64-darwin";
             };
+            extraSpecialArgs.hostKey = "host";
           };
         }
       ];
@@ -160,7 +193,7 @@ in
   testRejectsUnsupportedSystems = {
     expr =
       (builtins.tryEval (
-        builtins.attrNames (collector { host = declaration "host" "x86_64-windows"; }).nixosConfigurations
+        builtins.attrNames (collector { host = declaration "x86_64-windows"; }).nixosConfigurations
       )).success;
     expected = false;
   };

@@ -11,13 +11,13 @@ Platform identity also needs to be authoritative. Separate OS and architecture f
 
 ## Decision
 
-Each `modules/hosts/<name>/default.nix` contributes a `hosts.<name>` declaration with `metadata` and `modules`. The declaration key supplies `metadata.name`.
+Each `modules/hosts/<name>/default.nix` contributes a `hosts.<name>` declaration with `metadata` and `modules`. The declaration key is the authoritative host identity; metadata does not duplicate it as a field.
 
-`lib/host-metadata.nix` defines the shared metadata type used by both `hosts.<name>.metadata` and `flake.meta.hosts`. `system` is the required platform identity. `lib/host-system.nix` accepts only canonical Nix system identifiers for Linux and Darwin.
+`lib/host-metadata.nix` defines the shared metadata type used by both `hosts.<name>.metadata` and the values of `flake.meta.hosts.<name>`. `system` is the required platform identity. `lib/host-system.nix` accepts only canonical Nix system identifiers for Linux and Darwin.
 
 `hardware` is optional. When present, it records durable vendor and model information plus optional memory, CPU, and GPU fields defined by the shared type. Runtime-observed state remains outside host metadata.
 
-`modules/flake-parts/host-configurations.nix` uses `system` to select the NixOS or nix-darwin builder, publishes normalized metadata through `flake.meta.hosts`, and provides the record to system and Home Manager modules as `hostMeta`.
+`modules/flake-parts/host-configurations.nix` uses `system` to select the NixOS or nix-darwin builder, publishes normalized metadata keyed by host declaration through `flake.meta.hosts`, and provides the record to system and Home Manager modules as `hostMeta`. The declaration key is provided separately as `hostKey` where configuration behavior needs the flake host identity.
 
 ## Alternatives Considered
 
@@ -27,6 +27,6 @@ Separate OS and architecture fields were rejected because canonical Nix `system`
 
 ## Consequences
 
-Host metadata is available to configuration modules and cross-host consumers through one validated contract. Missing, malformed, noncanonical, or unsupported `system` values fail evaluation. Hardware-aware decisions can use structured facts when they are present without treating runtime state as configuration.
+Host metadata is available to configuration modules and cross-host consumers through one validated, name-keyed contract. Missing, malformed, noncanonical, or unsupported `system` values fail evaluation. Hardware-aware decisions can use structured facts when they are present without treating runtime state as configuration.
 
 Maintainers keep durable metadata accurate as hosts change. Hardware remains optional, so a host such as `rvn-vm` can declare its role and system without a hardware record. Runtime validation remains an operational responsibility.

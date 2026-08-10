@@ -24,7 +24,7 @@ A concrete machine configuration assembled from a list of modules and host metad
 _Avoid_: profile, target
 
 **Host metadata**:
-Static machine intent such as name, model, fleet role, and addressing exported through `flake.meta.hosts`.
+Static machine intent such as model, fleet role, and addressing exported by host declaration key through `flake.meta.hosts`.
 _Avoid_: runtime facts, live diagnostics
 
 **Module key**:

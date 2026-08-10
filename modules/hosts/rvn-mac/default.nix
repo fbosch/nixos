@@ -53,8 +53,8 @@ in
       "homebrew"
     ]
     ++ [
-      ({ hostMeta, ... }: {
-        networking.hostName = hostMeta.name;
+      ({ hostKey, ... }: {
+        networking.hostName = hostKey;
       })
     ];
   };

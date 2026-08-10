@@ -44,7 +44,7 @@ Do not run `sops` commands directly; they break the TUI. Instruct the user to ru
 
 - Host machine details are defined in each host module under `hostMeta` and exported via `flake.meta.hosts`.
 - Primary location pattern: `modules/hosts/**`.
-- Use `hostname` to identify the current machine, then find the matching record in `flake.meta.hosts` by `name`.
+- Use `hostname` to identify the current machine, then select its metadata by host declaration key from `flake.meta.hosts`.
 - Treat `hostMeta` as the source of static intent (model/fleet metadata, addressing, role-oriented fields).
 - Treat runtime facts (current firmware, live microcode revision, active peripherals, temperatures, uptime) as diagnostics to check on-host, not static metadata.
 

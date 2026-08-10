@@ -69,9 +69,9 @@ in
     };
 
     hosts = lib.mkOption {
-      type = lib.types.listOf hostMetadataType;
-      default = [ ];
-      description = "Network and SSH metadata for each host";
+      type = lib.types.attrsOf hostMetadataType;
+      default = { };
+      description = "Network and SSH metadata keyed by host declaration";
     };
   };
 

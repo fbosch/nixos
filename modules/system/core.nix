@@ -104,7 +104,7 @@ in
   };
 
   flake.modules.darwin.system =
-    { hostMeta, ... }:
+    { hostMeta, hostKey, ... }:
     let
       isCorporateHost = hostMeta.corporate or false;
       usesDeterminateNix = hostMeta.nixDistribution == "determinate";
@@ -121,7 +121,7 @@ in
       nixpkgs.config.allowUnfree = true;
 
       environment.variables = {
-        NH_DARWIN_HOST = hostMeta.name;
+        NH_DARWIN_HOST = hostKey;
         NH_FLAKE = "/Users/${hostMeta.primaryUser}/nixos";
       };
 
