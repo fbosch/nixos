@@ -55,7 +55,10 @@ check_activation() {
       };
       homeManager = flake.inputs.home-manager.lib.homeManagerConfiguration {
         inherit pkgs;
-        extraSpecialArgs = { inherit hostMeta; };
+        extraSpecialArgs = {
+          inherit hostMeta;
+          hostKey = \"$host_name\";
+        };
         modules =
           [ flake.modules.homeManager.shell ]
           ++ pkgs.lib.optional $include_secrets flake.modules.homeManager.secrets
