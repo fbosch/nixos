@@ -18,23 +18,28 @@ in
       postBuildHook = pkgs.writeShellApplication {
         name = "attic-post-build-hook";
         runtimeInputs = [ pkgs.coreutils ];
-        text = builtins.readFile (
-          pkgs.replaceVars ./post-build-hook.sh {
-            inherit queueDir;
-          }
+        text = builtins.replaceStrings [ "@queueDir@" ] [ queueDir ] (
+          builtins.readFile ./post-build-hook.sh
         );
       };
       uploadWorker = pkgs.writeShellApplication {
         name = "attic-upload";
         runtimeInputs = [ pkgs.coreutils ];
-        text = builtins.readFile (
-          pkgs.replaceVars ./upload-worker.sh {
-            atticClient = pkgs.attic-client;
-            inherit queueDir;
-            inherit (cfg) cacheName;
-            inherit endpoint;
-          }
-        );
+        text =
+          builtins.replaceStrings
+            [
+              "@atticClient@"
+              "@cacheName@"
+              "@endpoint@"
+              "@queueDir@"
+            ]
+            [
+              (toString pkgs.attic-client)
+              cfg.cacheName
+              endpoint
+              queueDir
+            ]
+            (builtins.readFile ./upload-worker.sh);
       };
       synologyDomain = lib.attrByPath [
         "flake"
