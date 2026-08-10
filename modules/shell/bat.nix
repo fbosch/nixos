@@ -107,7 +107,7 @@ in
           expected = [ "dotfiles" ];
         };
         testCacheUsesPhysicalAssetTraversal = {
-          expr = lib.hasInfix "${pkgs.findutils}/bin/find -P" batCache.data;
+          expr = lib.hasInfix "/bin/find -P" batCache.data;
           expected = true;
         };
       };
