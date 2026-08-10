@@ -67,13 +67,6 @@ let
       ];
     }).config.flake.meta.hosts;
 
-  hostMeta =
-    hosts: name:
-    (import ../../modules/flake-parts/lib.nix {
-      config.flake.meta.hosts = hosts;
-      inherit lib;
-    }).config.flake.lib.hostMeta name;
-
   declaration = system: {
     metadata = { inherit system; };
     modules = [ "example" ];
@@ -117,16 +110,6 @@ in
           };
         })
         true)).success;
-    expected = false;
-  };
-
-  testLooksUpHostMetadataByDeclarationKey = {
-    expr = (hostMeta { host.system = "x86_64-linux"; } "host").system;
-    expected = "x86_64-linux";
-  };
-
-  testRejectsUnknownHostMetadataKey = {
-    expr = (builtins.tryEval (hostMeta { } "missing")).success;
     expected = false;
   };
 
@@ -184,9 +167,17 @@ in
 
   testRejectsUnsupportedSystems = {
     expr =
-      (builtins.tryEval (
-        builtins.attrNames (collector { host = declaration "x86_64-windows"; }).nixosConfigurations
-      )).success;
+      (builtins.tryEval (builtins.deepSeq
+        (normalizedHosts {
+          host = {
+            metadata = {
+              role = "desktop";
+              system = "x86_64-windows";
+            };
+            modules = [ ];
+          };
+        })
+        true)).success;
     expected = false;
   };
 }

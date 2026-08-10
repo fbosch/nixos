@@ -1,18 +1,6 @@
-{ config
-, lib
-, ...
-}:
-let
-  hostMeta = config.flake.lib.hostMeta "rvn-pc";
-in
+{ lib, ... }:
 {
-  flake.modules.nixos."hosts/rvn-pc/platform" = {
-    assertions = [
-      {
-        assertion = hostMeta != null;
-        message = "Missing host metadata for rvn-pc";
-      }
-    ];
+  flake.modules.nixos."hosts/rvn-pc/platform" = { hostMeta, ... }: {
     networking = {
       hostName = "rvn-pc";
       networkmanager = {

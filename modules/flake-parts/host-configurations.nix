@@ -5,22 +5,13 @@
 }:
 let
   inherit (config) hosts;
-  hostSystem = import ../../lib/host-system.nix { inherit lib; };
   hostMetadataType =
     hostName:
     import ../../lib/host-metadata.nix {
       inherit lib hostName;
     };
   hostMetadata = lib.mapAttrs (_name: host: host.metadata) hosts;
-  systems = lib.mapAttrs
-    (
-      name: host:
-        hostSystem {
-          system = host.metadata.system;
-          hostName = name;
-        }
-    )
-    hosts;
+  systems = lib.mapAttrs (_name: host: host.metadata.system) hosts;
 
   resolveModules =
     name:

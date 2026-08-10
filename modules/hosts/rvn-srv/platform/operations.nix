@@ -2,18 +2,8 @@
 , lib
 , ...
 }:
-let
-  hostMeta = config.flake.lib.hostMeta "rvn-srv";
-in
 {
-  flake.modules.nixos."hosts/rvn-srv/platform" = {
-    assertions = [
-      {
-        assertion = hostMeta != null;
-        message = "Missing host metadata for rvn-srv";
-      }
-    ];
-
+  flake.modules.nixos."hosts/rvn-srv/platform" = { hostMeta, ... }: {
     services = {
       startupPolicy.applications = {
         dns = {

@@ -51,7 +51,7 @@ in
   flake.modules.homeManager.applications =
     { pkgs, ... }:
     let
-      proxyHost = config.flake.lib.hostMeta "rvn-srv";
+      proxyHost = config.flake.meta.hosts.rvn-srv;
     in
     {
       xdg.dataFile."media-downloader/settings/settings.ini".text = ''

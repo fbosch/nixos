@@ -23,13 +23,6 @@
       m: if builtins.isString m then config.flake.modules.darwin.${m} else m
     );
 
-    hostMeta =
-      name:
-      if !builtins.hasAttr name config.flake.meta.hosts then
-        throw "Host metadata `${name}` is not defined"
-      else
-        config.flake.meta.hosts.${name};
-
     lazyApp =
       pkgs: pkgOrArgs:
       pkgs.lazy-app.override (if lib.isDerivation pkgOrArgs then { pkg = pkgOrArgs; } else pkgOrArgs);
