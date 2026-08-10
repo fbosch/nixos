@@ -1,30 +1,11 @@
-{ config, ... }:
-let
-  inherit (config.flake.lib) lazyApp;
-in
 {
   flake.modules.nixos.hardware =
     { pkgs, ... }:
-    let
-      lazyEvemu =
-        map
-          (
-            exe:
-            lazyApp pkgs {
-              inherit exe;
-              pkg = pkgs.evemu;
-            }
-          )
-          [
-            "evemu-describe"
-            "evemu-device"
-            "evemu-event"
-            "evemu-play"
-            "evemu-record"
-          ];
-    in
     {
-      environment.systemPackages = [ pkgs.evtest ] ++ lazyEvemu;
+      environment.systemPackages = [
+        pkgs.evtest
+        pkgs.evemu
+      ];
 
       # Allow user access to Realforce keyboard for WebHID configuration
       services.udev.extraRules = ''

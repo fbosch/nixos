@@ -1,14 +1,11 @@
-{ inputs, config, ... }:
-let
-  inherit (config.flake.lib) lazyApp;
-in
+{ inputs, ... }:
 {
   flake.modules.nixos.gaming =
     { pkgs, ... }:
     {
       environment.systemPackages = with pkgs; [
-        (lazyApp pkgs steamcmd)
-        (lazyApp pkgs steamtinkerlaunch)
+        steamcmd
+        steamtinkerlaunch
       ];
 
       # Enable Steam with proper system support

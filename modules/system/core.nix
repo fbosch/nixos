@@ -47,7 +47,6 @@ in
     nixpkgs.overlays = [
       inputs.self.overlays.default
       inputs.nix-bwrapper.overlays.default
-      inputs.lazy-apps.overlays.default
     ];
     programs.nix-ld.enable = true;
 
@@ -114,7 +113,6 @@ in
       nixpkgs.overlays = [
         inputs.self.overlays.default
         inputs.nix-bwrapper.overlays.default
-        inputs.lazy-apps.overlays.default
       ];
 
       # Allow unfree packages (using simple allowUnfree for Darwin)

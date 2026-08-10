@@ -1,28 +1,7 @@
-{ config, ... }:
-let
-  inherit (config.flake.lib) lazyDesktopApp;
-in
 {
   flake.modules.nixos.applications = { pkgs, ... }: {
     environment.systemPackages = with pkgs; [
-      (lazyDesktopApp pkgs {
-        pkg = pkgs.vscodium;
-        exe = "codium";
-        desktopItem = {
-          name = "codium";
-          exec = "codium";
-          desktopName = "VSCodium";
-          genericName = "Code Editor";
-          comment = "Free and open-source distribution of VS Code";
-          icon = ./vscodium.png;
-          terminal = false;
-          categories = [
-            "Development"
-            "IDE"
-            "TextEditor"
-          ];
-        };
-      })
+      vscodium
       gimp
       local."webapp/chatgpt"
       local."webapp/notion"

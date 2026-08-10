@@ -1,6 +1,4 @@
-{ config, ... }:
 let
-  inherit (config.flake.lib) lazyApp;
   systemPackages =
     { pkgs, ... }:
     {
@@ -9,7 +7,7 @@ let
         [
           htop
           btop
-          (lazyApp pkgs glances)
+          glances
           dust
           dua
           ncdu
@@ -18,7 +16,7 @@ let
         ++ lib.optionals stdenv.isLinux [
           s-tui
           microfetch
-          (lazyApp pkgs below)
+          below
         ];
     };
 in

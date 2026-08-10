@@ -1,6 +1,4 @@
-{ config, ... }:
 let
-  inherit (config.flake.lib) lazyApp;
   sharedSystemPackages = { pkgs, ... }: {
     environment.systemPackages = with pkgs; [
       ripgrep
@@ -18,7 +16,7 @@ let
       tree
       just
       grc
-      (lazyApp pkgs cloc)
+      cloc
       xh
       lynx
       jq
@@ -26,7 +24,7 @@ let
       fd
       hyperfine
       html2text
-      (lazyApp pkgs croc)
+      croc
     ];
   };
 in

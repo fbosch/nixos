@@ -19,7 +19,6 @@
         overlays = [
           inputs.self.overlays.default
           inputs.nix-bwrapper.overlays.default
-          inputs.lazy-apps.overlays.default
         ];
       };
       enableByNameLegacy = pkgs.stdenv.hostPlatform.isUnix;

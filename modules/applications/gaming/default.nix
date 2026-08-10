@@ -1,71 +1,8 @@
-{ config, ... }:
 {
   # NixOS module: Generic gaming system configuration
   flake.modules.nixos.gaming =
     { pkgs, ... }:
     let
-      inherit (config.flake.lib) lazyApp lazyDesktopApp;
-
-      protonupQtIcon = pkgs.fetchurl {
-        url = "https://raw.githubusercontent.com/DavidoTek/ProtonUp-Qt/v2.15.1/pupgui2/resources/img/appicon256.png";
-        hash = "sha256-yCT3XxDDErvTehrgL9/6t7h8VCH/DB7kzp780var9ao=";
-      };
-
-      lazyProtontricks = lazyDesktopApp pkgs {
-        pkg = pkgs.protontricks;
-        exe = "protontricks";
-        desktopItem = {
-          name = "protontricks";
-          exec = "protontricks --no-term --gui";
-          desktopName = "Protontricks";
-          comment = "A simple wrapper that does winetricks things for Proton enabled games";
-          terminal = false;
-          categories = [ "Utility" ];
-          icon = "wine";
-          keywords = [
-            "Steam"
-            "Proton"
-            "Wine"
-            "Winetricks"
-          ];
-        };
-      };
-
-      lazyProtontricksLaunch = lazyDesktopApp pkgs {
-        pkg = pkgs.protontricks;
-        exe = "protontricks-launch";
-        desktopItem = {
-          name = "protontricks-launch";
-          exec = "protontricks-launch --no-term %f";
-          desktopName = "Protontricks Launcher";
-          terminal = false;
-          noDisplay = true;
-          categories = [ "Utility" ];
-          icon = "wine";
-          mimeTypes = [
-            "application/x-ms-dos-executable"
-            "application/x-msi"
-            "application/x-ms-shortcut"
-          ];
-        };
-      };
-
-      lazyProtonupQt = lazyDesktopApp pkgs {
-        pkg = pkgs.protonup-qt;
-        desktopItem = {
-          name = "protonup-qt";
-          exec = "protonup-qt";
-          desktopName = "ProtonUp-Qt";
-          comment = "Install Wine and Proton-based Compatibility Tools";
-          terminal = false;
-          icon = protonupQtIcon;
-          categories = [
-            "Game"
-            "Utility"
-          ];
-        };
-      };
-
       wowup-cf-wayland = pkgs.symlinkJoin {
         name = "wowup-cf-wayland";
         paths = [ pkgs.wowup-cf ];
@@ -83,14 +20,13 @@
       environment.systemPackages = with pkgs; [
         mangohud
         wowup-cf-wayland
-        lazyProtontricks
-        lazyProtontricksLaunch
+        protontricks
         wineWow64Packages.stable
         vulkan-tools
-        lazyProtonupQt
+        protonup-qt
         wl-freeze
         # sgdboop - disabled due to build error in nixpkgs (function signature mismatch)
-        (lazyApp pkgs nvitop)
+        nvitop
         prismlauncher # Minecraft launcher
       ];
 

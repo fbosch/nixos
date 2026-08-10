@@ -1,6 +1,4 @@
-{ config, ... }:
 let
-  inherit (config.flake.lib) lazyApp;
   sharedSystemPackages =
     { pkgs, ... }:
     let
@@ -30,7 +28,7 @@ let
           keychain
           openssl
           devenv
-          (lazyApp pkgs posting)
+          posting
           pastel
           ripsecrets
           luajitPackages.luacheck
@@ -48,40 +46,24 @@ in
     nixos.development = { pkgs, ... }: {
       imports = [ sharedSystemPackages ];
 
-      environment.systemPackages =
-        (with pkgs; [
-          git
-          just
-          uv
-          gcc
-          cmake
-          gnumake
-          sox
-          ffmpeg
-          vips
-          ghostscript
-          tectonic
-          librsvg
-          imagemagick
-          lnav
-          flake-checker
-        ])
-        ++
-        map
-          (
-            exe:
-            lazyApp pkgs {
-              inherit exe;
-              pkg = pkgs.evemu;
-            }
-          )
-          [
-            "evemu-describe"
-            "evemu-device"
-            "evemu-event"
-            "evemu-play"
-            "evemu-record"
-          ];
+      environment.systemPackages = with pkgs; [
+        git
+        just
+        uv
+        gcc
+        cmake
+        gnumake
+        sox
+        ffmpeg
+        vips
+        ghostscript
+        tectonic
+        librsvg
+        imagemagick
+        lnav
+        flake-checker
+        evemu
+      ];
     };
 
     darwin.development = {
