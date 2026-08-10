@@ -7,13 +7,11 @@ let
   flakeConfig = config;
   user = flakeConfig.flake.meta.user.username;
   inherit (flakeConfig.flake.lib) sopsHelpers;
-  packagesFor =
-    pkgs: with pkgs; [
+  systemPackages = { pkgs, ... }: {
+    environment.systemPackages = with pkgs; [
       sops
       age
     ];
-  systemPackages = { pkgs, ... }: {
-    environment.systemPackages = packagesFor pkgs;
   };
 
   # Secret file paths

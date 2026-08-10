@@ -1,6 +1,6 @@
 let
-  packagesFor =
-    pkgs: with pkgs; [
+  systemPackages = { pkgs, ... }: {
+    environment.systemPackages = with pkgs; [
       fish
       dash
       starship
@@ -9,22 +9,21 @@ let
       navi
       tealdeer
     ];
+  };
 in
 {
   flake.modules = {
     nixos.shell =
       { pkgs, ... }:
       {
+        imports = [ systemPackages ];
         environment.shells = [
           pkgs.fish
           pkgs.dash
         ];
-        environment.systemPackages = packagesFor pkgs;
       };
 
-    darwin.shell = { pkgs, ... }: {
-      environment.systemPackages = packagesFor pkgs;
-    };
+    darwin.shell = systemPackages;
 
     homeManager.shell =
       { config

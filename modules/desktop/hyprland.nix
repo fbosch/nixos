@@ -1,20 +1,4 @@
 { inputs, ... }:
-let
-  packagesFor =
-    pkgs:
-    let
-      inherit (pkgs.stdenv.hostPlatform) system;
-      luaWithSocket = pkgs.luajit.withPackages (ps: [ ps.luasocket ]);
-    in
-    [
-      inputs.hyprpaper.packages.${system}.hyprpaper
-      pkgs.hyprprop
-      pkgs.hyprpicker
-      pkgs.grim
-      luaWithSocket
-      inputs.hyprland-contrib.packages.${system}.grimblast
-    ];
-in
 {
   flake.modules = {
     nixos = {
@@ -25,6 +9,7 @@ in
         let
           inherit (pkgs.stdenv.hostPlatform) system;
 
+          luaWithSocket = pkgs.luajit.withPackages (ps: [ ps.luasocket ]);
           hyprlandPackage = inputs.hyprland.packages.${system}.hyprland;
           xdgDesktopPortalHyprlandPackage =
             inputs.hyprland.packages.${system}.xdg-desktop-portal-hyprland.override
@@ -91,7 +76,13 @@ in
               XDG_SESSION_TYPE = "wayland";
             };
 
-            systemPackages = packagesFor pkgs ++ [
+            systemPackages = [
+              inputs.hyprpaper.packages.${system}.hyprpaper
+              pkgs.hyprprop
+              pkgs.hyprpicker
+              pkgs.grim
+              luaWithSocket
+              inputs.hyprland-contrib.packages.${system}.grimblast
               inputs.hyprlock.packages.${system}.hyprlock
               inputs.hypridle.packages.${system}.hypridle
               inputs.hyprsunset.packages.${system}.hyprsunset

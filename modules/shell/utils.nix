@@ -1,8 +1,8 @@
 { config, ... }:
 let
   inherit (config.flake.lib) lazyApp;
-  sharedPackages =
-    pkgs: with pkgs; [
+  sharedSystemPackages = { pkgs, ... }: {
+    environment.systemPackages = with pkgs; [
       ripgrep
       eza
       lf
@@ -28,6 +28,7 @@ let
       html2text
       (lazyApp pkgs croc)
     ];
+  };
 in
 {
   flake.modules = {
@@ -39,25 +40,25 @@ in
         '';
       in
       {
-        environment.systemPackages =
-          (with pkgs; [
-            wget
-            curl
-            socat
-            xdg-utils
-            unzip
-            unrar
-            p7zip
-            killall
-            nixfmt
-            freshfetch
-            open
-          ])
-          ++ sharedPackages pkgs;
+        imports = [ sharedSystemPackages ];
+
+        environment.systemPackages = with pkgs; [
+          wget
+          curl
+          socat
+          xdg-utils
+          unzip
+          unrar
+          p7zip
+          killall
+          nixfmt
+          freshfetch
+          open
+        ];
       };
 
-    darwin.shell = { pkgs, ... }: {
-      environment.systemPackages = sharedPackages pkgs;
+    darwin.shell = {
+      imports = [ sharedSystemPackages ];
     };
 
     homeManager.shell = { pkgs, ... }: {

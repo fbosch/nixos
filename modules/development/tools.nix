@@ -1,8 +1,8 @@
 { config, ... }:
 let
   inherit (config.flake.lib) lazyApp;
-  sharedPackages =
-    pkgs:
+  sharedSystemPackages =
+    { pkgs, ... }:
     let
       astGrep =
         if pkgs.stdenv.hostPlatform.isDarwin then
@@ -12,44 +12,61 @@ let
             })
         else
           pkgs.ast-grep;
-    in
-    (with pkgs; [
-      tree-sitter
-      stylua
-      luarocks
-      deno
-      bacon
-      sqlite
-      units
-      astGrep
-      keychain
-      openssl
-      devenv
-      (lazyApp pkgs posting)
-      pastel
-      ripsecrets
-      luajitPackages.luacheck
-    ])
-    ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isLinux [
-      pkgs.biome
-      pkgs.local.fff-mcp
-      pkgs.local.lightpanda
-    ]
-    ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isDarwin (darwinPackages pkgs);
-
-  darwinPackages =
-    pkgs:
-    let
       azureCli = (pkgs.azure-cli.override { withImmutableConfig = false; }).overrideAttrs (_: {
         doInstallCheck = false;
       });
     in
-    [ azureCli ];
+    {
+      environment.systemPackages =
+        (with pkgs; [
+          tree-sitter
+          stylua
+          luarocks
+          deno
+          bacon
+          sqlite
+          units
+          astGrep
+          keychain
+          openssl
+          devenv
+          (lazyApp pkgs posting)
+          pastel
+          ripsecrets
+          luajitPackages.luacheck
+        ])
+        ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isLinux [
+          pkgs.biome
+          pkgs.local.fff-mcp
+          pkgs.local.lightpanda
+        ]
+        ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isDarwin [ azureCli ];
+    };
+in
+{
+  flake.modules = {
+    nixos.development = { pkgs, ... }: {
+      imports = [ sharedSystemPackages ];
 
-  nixosPackages =
-    pkgs:
-    let
-      lazyEvemu =
+      environment.systemPackages =
+        (with pkgs; [
+          git
+          just
+          uv
+          gcc
+          cmake
+          gnumake
+          sox
+          ffmpeg
+          vips
+          ghostscript
+          tectonic
+          librsvg
+          imagemagick
+          lnav
+          flake-checker
+        ])
+        ++
         map
           (
             exe:
@@ -65,34 +82,10 @@ let
             "evemu-play"
             "evemu-record"
           ];
-    in
-    (with pkgs; [
-      git
-      just
-      uv
-      gcc
-      cmake
-      gnumake
-      sox
-      ffmpeg
-      vips
-      ghostscript
-      tectonic
-      librsvg
-      imagemagick
-      lnav
-      flake-checker
-    ])
-    ++ lazyEvemu;
-in
-{
-  flake.modules = {
-    nixos.development = { pkgs, ... }: {
-      environment.systemPackages = nixosPackages pkgs ++ sharedPackages pkgs;
     };
 
-    darwin.development = { pkgs, ... }: {
-      environment.systemPackages = sharedPackages pkgs;
+    darwin.development = {
+      imports = [ sharedSystemPackages ];
     };
 
   };

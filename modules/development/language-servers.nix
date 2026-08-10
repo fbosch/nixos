@@ -1,14 +1,12 @@
 let
-  packagesFor =
-    pkgs: with pkgs; [
+  systemPackages = { pkgs, ... }: {
+    environment.systemPackages = with pkgs; [
       astro-language-server
       lua-language-server
       marksman
       tailwindcss-language-server
       vscode-langservers-extracted
     ];
-  systemPackages = { pkgs, ... }: {
-    environment.systemPackages = packagesFor pkgs;
   };
 in
 {

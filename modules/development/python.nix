@@ -1,17 +1,17 @@
 let
-  packagesFor =
-    pkgs:
-      with pkgs;
-      [
-        (python3.withPackages (pythonPackages: [ pythonPackages.pyyaml ]))
-        uv
-      ]
-      ++ lib.optionals stdenv.isLinux [
-        python3Packages.evdev
-      ];
-  systemPackages = { pkgs, ... }: {
-    environment.systemPackages = packagesFor pkgs;
-  };
+  systemPackages =
+    { pkgs, ... }:
+    {
+      environment.systemPackages =
+        with pkgs;
+        [
+          (python3.withPackages (pythonPackages: [ pythonPackages.pyyaml ]))
+          uv
+        ]
+        ++ lib.optionals stdenv.isLinux [
+          python3Packages.evdev
+        ];
+    };
 in
 {
   flake.modules = {

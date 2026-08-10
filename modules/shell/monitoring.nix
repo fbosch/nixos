@@ -1,26 +1,26 @@
 { config, ... }:
 let
   inherit (config.flake.lib) lazyApp;
-  packagesFor =
-    pkgs:
-      with pkgs;
-      [
-        htop
-        btop
-        (lazyApp pkgs glances)
-        dust
-        dua
-        ncdu
-        fastfetch
-      ]
-      ++ lib.optionals stdenv.isLinux [
-        s-tui
-        microfetch
-        (lazyApp pkgs below)
-      ];
-  systemPackages = { pkgs, ... }: {
-    environment.systemPackages = packagesFor pkgs;
-  };
+  systemPackages =
+    { pkgs, ... }:
+    {
+      environment.systemPackages =
+        with pkgs;
+        [
+          htop
+          btop
+          (lazyApp pkgs glances)
+          dust
+          dua
+          ncdu
+          fastfetch
+        ]
+        ++ lib.optionals stdenv.isLinux [
+          s-tui
+          microfetch
+          (lazyApp pkgs below)
+        ];
+    };
 in
 {
   flake.modules = {

@@ -1,16 +1,17 @@
 let
-  packagesFor =
-    pkgs: with pkgs; [
+  systemPackages = { pkgs, ... }: {
+    environment.systemPackages = with pkgs; [
       bitwarden-cli
       clamav
     ];
+  };
 in
 {
   flake.modules = {
     nixos.security =
       { pkgs, ... }:
       {
-        environment.systemPackages = packagesFor pkgs;
+        imports = [ systemPackages ];
 
         services = {
           udev.packages = [ pkgs.libfido2 ];
@@ -30,8 +31,8 @@ in
         };
       };
 
-    darwin.security = { pkgs, ... }: {
-      environment.systemPackages = packagesFor pkgs;
+    darwin.security = {
+      imports = [ systemPackages ];
 
       # Configure sudo with pwfeedback on Darwin
       security.sudo.extraConfig = ''

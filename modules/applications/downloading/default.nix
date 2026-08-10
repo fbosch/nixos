@@ -1,8 +1,10 @@
 { config, ... }:
 let
   inherit (config.flake.lib) lazyApp lazyDesktopApp;
-  packagesFor =
-    pkgs:
+in
+{
+  flake.modules.nixos.applications =
+    { pkgs, ... }:
     let
       lazySpeedtestCli =
         map
@@ -35,17 +37,13 @@ let
         };
       };
     in
-    [
-      lazyMegasync
-      pkgs.p7zip
-    ]
-    ++ lazySpeedtestCli;
-in
-{
-  flake.modules.nixos.applications =
-    { pkgs, ... }:
     {
-      environment.systemPackages = [ pkgs.media-downloader ] ++ packagesFor pkgs;
+      environment.systemPackages = [
+        pkgs.media-downloader
+        lazyMegasync
+        pkgs.p7zip
+      ]
+      ++ lazySpeedtestCli;
     };
 
   flake.modules.homeManager.applications =

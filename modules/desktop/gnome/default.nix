@@ -3,19 +3,8 @@ let
   flakeConfig = config;
   zenwritten = flakeConfig.flake.lib.themes.zenwritten;
   inherit (zenwritten.css) base bright;
-  packagesFor = import ./_packages.nix {
-    inherit (flakeConfig.flake.lib) lazyDesktopApp;
-  };
 in
 {
-  flake.modules.nixos.desktop = { pkgs, ... }: {
-    environment.systemPackages =
-      (with pkgs; [
-        json-glib
-      ])
-      ++ packagesFor pkgs;
-  };
-
   flake.modules.homeManager.desktop = { pkgs, ... }: {
     dconf.settings = {
       "org/gnome/desktop/interface" = {

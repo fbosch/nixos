@@ -1,21 +1,19 @@
 let
-  packagesFor =
-    pkgs:
+  systemPackages =
+    { pkgs, ... }:
     let
       luaWithSocket = pkgs.luajit.withPackages (ps: [ ps.luasocket ]);
     in
-    with pkgs;
-    [
-      clang
-      go
-      rustc
-      rustup
-      zig
-      luaWithSocket
-    ];
-  systemPackages = { pkgs, ... }: {
-    environment.systemPackages = packagesFor pkgs;
-  };
+    {
+      environment.systemPackages = with pkgs; [
+        clang
+        go
+        rustc
+        rustup
+        zig
+        luaWithSocket
+      ];
+    };
 in
 {
   flake.modules = {

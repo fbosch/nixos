@@ -1,25 +1,5 @@
-{ config, inputs, ... }:
-let
-  packagesFor = import ./_packages.nix {
-    inherit inputs;
-    inherit (config.flake.lib) lazyDesktopApp;
-  };
-in
+{ inputs, ... }:
 {
-  flake.modules.nixos.desktop =
-    { pkgs, ... }:
-    {
-      environment.systemPackages =
-        (with pkgs; [
-          xrdb
-          xhost
-          xrandr
-          xprop
-          xwininfo
-        ])
-        ++ packagesFor pkgs;
-    };
-
   flake.modules.homeManager.desktop =
     { pkgs, lib, ... }:
     let
