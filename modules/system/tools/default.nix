@@ -18,7 +18,6 @@
         dig
         duf
         lazyjournal
-        lazyMissionCenter
       ];
     };
 }
