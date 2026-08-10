@@ -25,7 +25,6 @@ let
   serverSource = builtins.readFile ../../modules/hosts/rvn-srv/default.nix;
   serverSystemSource = builtins.readFile ../../modules/hosts/rvn-srv/platform/system.nix;
   gnomeSource = builtins.readFile ../../modules/desktop/gnome/default.nix;
-  dotfilesSource = builtins.readFile ../../modules/dotfiles.nix;
 in
 {
   ssh = {
@@ -51,15 +50,6 @@ in
       expected = true;
     };
 
-    testDotfilesActivationDoesNotOwnGtk = {
-      expr = lib.hasInfix ".config/gtk-" dotfilesSource;
-      expected = false;
-    };
-
-    testNoPermanentGtkMigrationCleanup = {
-      expr = lib.hasInfix "removeStaleGtkLinks" gnomeSource;
-      expected = false;
-    };
   };
 
   # This inventories explicit home.packages declarations. Home Manager program

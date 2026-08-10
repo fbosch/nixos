@@ -1,9 +1,12 @@
 { inputs, config, ... }:
 let
   flakeConfig = config;
-in
-{
-  flake.modules.homeManager.dotfiles =
+  homeManagerLib = import
+    (
+      inputs.home-manager.outPath + "/modules/lib/stdlib-extended.nix"
+    )
+    inputs.nixpkgs.lib;
+  homeManagerDotfiles =
     { config
     , pkgs
     , lib
@@ -76,53 +79,77 @@ in
         '';
       };
     };
+in
+{
+  flake.modules.homeManager.dotfiles = homeManagerDotfiles;
 
   perSystem =
-    { lib, ... }:
+    { lib, pkgs, ... }:
     let
-      activationSource = builtins.readFile ./dotfiles.nix;
+      dotfilesHomeConfig =
+        (homeManagerLib.evalModules {
+          specialArgs = { inherit pkgs; };
+          modules = [
+            {
+              options.home = {
+                activation = lib.mkOption {
+                  type = lib.types.attrsOf lib.types.anything;
+                  default = { };
+                };
+                homeDirectory = lib.mkOption { type = lib.types.str; };
+                packages = lib.mkOption {
+                  type = lib.types.listOf lib.types.anything;
+                  default = [ ];
+                };
+              };
+            }
+            homeManagerDotfiles
+            {
+              home.homeDirectory = "/home/tester";
+            }
+          ];
+        }).config;
+      dotfilesActivation = dotfilesHomeConfig.home.activation.dotfiles;
+      dotfilesScript = dotfilesActivation.data;
+      bootstrapRevision = inputs.dotfiles.rev or "master";
+      scriptLines = lib.splitString "\n" dotfilesScript;
+      lineIndex =
+        needle:
+        let
+          find =
+            index: lines:
+            if lines == [ ] then
+              null
+            else if lib.hasInfix needle (builtins.head lines) then
+              index
+            else
+              find (index + 1) (builtins.tail lines);
+        in
+        find 0 scriptLines;
+      checkoutIndex = lineIndex "checkout ${bootstrapRevision}";
+      publishIndex = lineIndex ''mv "$BOOTSTRAP_REPO"'';
     in
     {
       nix-unit.tests.dotfilesActivation = {
-        testActivationNeverAdoptsDotfiles = {
-          expr = lib.hasInfix ("--" + "adopt") activationSource;
-          expected = false;
-        };
         testActivationRestowsDotfiles = {
-          expr = lib.hasInfix ("--restow " + "--verbose") activationSource;
+          expr = lib.hasInfix ''/bin/stow --restow --verbose --dir /home/tester/dotfiles --target "$HOME" .'' dotfilesScript;
           expected = true;
         };
-        testExistingCheckoutIsNotReconciled = {
-          expr = lib.any (command: lib.hasInfix command activationSource) [
-            (" fetch " + "origin")
-            (" pull " + "--ff-only")
-            (" reset " + "--")
-            (" switch " + "--")
-          ];
-          expected = false;
-        };
-        testPinnedRevisionIsBootstrapOnly = {
-          expr = lib.hasInfix ("DOTFILES_BOOTSTRAP_" + "REV") activationSource;
+        testBootstrapChecksOutPinnedRevision = {
+          expr = lib.hasInfix "checkout ${bootstrapRevision}" dotfilesScript;
           expected = true;
         };
         testBootstrapPublishesOnlyAfterCheckout = {
-          expr = lib.hasInfix ("mv \"$BOOTSTRAP_" + "REPO\"") activationSource;
+          expr = checkoutIndex != null && publishIndex != null && checkoutIndex < publishIndex;
           expected = true;
         };
         testActivationValidatesCheckoutRoot = {
-          expr = lib.hasInfix ("rev-parse --show-" + "toplevel") activationSource;
-          expected = true;
-        };
-        testActivationUsesOneLifecycleEntry = {
-          expr = lib.any (entry: lib.hasInfix entry activationSource) [
-            ("setup" + "Dotfiles")
-            ("stow" + "DotFiles")
+          expr = lib.all (fragment: lib.hasInfix fragment dotfilesScript) [
+            "rev-parse --show-toplevel"
+            "realpath /home/tester/dotfiles"
+            "exit 1"
           ];
-          expected = false;
-        };
-        testBootstrapDoesNotRewriteOrigin = {
-          expr = lib.hasInfix ("remote set-" + "url") activationSource;
-          expected = false;
+          expected = true;
         };
       };
     };

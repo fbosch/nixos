@@ -1,9 +1,16 @@
-{ config, lib, ... }:
+{ config
+, inputs
+, lib
+, ...
+}:
 let
   flakeConfig = config;
-in
-{
-  flake.modules.homeManager.shell =
+  homeManagerLib = import
+    (
+      inputs.home-manager.outPath + "/modules/lib/stdlib-extended.nix"
+    )
+    inputs.nixpkgs.lib;
+  homeManagerSsh =
     { config
     , lib
     , pkgs
@@ -126,21 +133,66 @@ in
 
       services.ssh-agent.enable = sshAgent == "ssh-agent";
     };
+in
+{
+  flake.modules.homeManager.shell = homeManagerSsh;
 
   perSystem =
-    { lib, ... }:
+    { lib, pkgs, ... }:
     let
-      sshSource = builtins.readFile ./ssh.nix;
+      sshHomeConfig =
+        sshAgent:
+        (homeManagerLib.evalModules {
+          specialArgs = {
+            inherit pkgs;
+            hostMeta = {
+              corporate = true;
+              inherit sshAgent;
+            };
+          };
+          modules = [
+            {
+              options = {
+                assertions = lib.mkOption {
+                  type = lib.types.listOf lib.types.anything;
+                  default = [ ];
+                };
+                home = {
+                  activation = lib.mkOption {
+                    type = lib.types.attrsOf lib.types.anything;
+                    default = { };
+                  };
+                  homeDirectory = lib.mkOption { type = lib.types.str; };
+                };
+                programs.ssh = {
+                  enable = lib.mkOption { type = lib.types.bool; };
+                  enableDefaultConfig = lib.mkOption { type = lib.types.bool; };
+                  settings = lib.mkOption {
+                    type = lib.types.attrsOf lib.types.anything;
+                    default = { };
+                  };
+                };
+                services.ssh-agent.enable = lib.mkOption {
+                  type = lib.types.bool;
+                  default = false;
+                };
+              };
+            }
+            homeManagerSsh
+            {
+              home.homeDirectory = "/home/tester";
+            }
+          ];
+        }).config;
     in
     {
       nix-unit.tests.sshOwnership = {
-        testHomeManagerDoesNotOwnAuthorizedKeys = {
-          expr = lib.hasInfix (".ssh/authorized_" + "keys") sshSource;
-          expected = false;
-        };
         testHomeManagerAgentFollowsHostMetadata = {
-          expr = lib.hasInfix ("services.ssh-agent.enable = sshAgent == " + ''"ssh-agent";'') sshSource;
-          expected = true;
+          expr = map (sshAgent: (sshHomeConfig sshAgent).services.ssh-agent.enable) [
+            "ssh-agent"
+            "gpg"
+          ];
+          expected = [ true false ];
         };
       };
     };

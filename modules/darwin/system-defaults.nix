@@ -30,9 +30,9 @@
         InitialKeyRepeat = 15;
         KeyRepeat = 2;
         NSAutomaticCapitalizationEnabled = false;
-        NSAutomaticWindowAnimationsEnabled = false;
+        NSAutomaticWindowAnimationsEnabled = true;
         NSAutomaticPeriodSubstitutionEnabled = false;
-        NSScrollAnimationEnabled = false;
+        NSScrollAnimationEnabled = true;
         NSWindowShouldDragOnGesture = true;
         "com.apple.swipescrolldirection" = false;
       };

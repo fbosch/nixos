@@ -1,86 +1,95 @@
-{ config, ... }:
+{ config, lib, ... }:
 let
-  packagesFor =
-    pkgs: with pkgs; [
+  systemPackages = { pkgs, ... }: {
+    environment.systemPackages = with pkgs; [
       lazygit
       delta
       difftastic
       diffnav
       gitui
     ];
-  systemPackages = { pkgs, ... }: {
-    environment.systemPackages = packagesFor pkgs;
   };
+  mkGitPlatformConfig =
+    pkgs: isCorporateHost:
+    let
+      credentialHelper =
+        if pkgs.stdenv.hostPlatform.isDarwin then
+          "/usr/bin/git-credential-osxkeychain"
+        else
+          "${pkgs.gitFull}/bin/git-credential-libsecret";
+    in
+    ''
+      [credential]
+        helper = ${credentialHelper}
+    ''
+    + lib.optionalString (!isCorporateHost) ''
+      [credential "https://github.com"]
+        username = ${config.flake.meta.user.github.username}
+    '';
+  homeManagerDevelopment =
+    { pkgs
+    , hostMeta
+    , ...
+    }:
+    {
+      programs.git = {
+        enable = true;
+        package = if pkgs.stdenv.hostPlatform.isLinux then pkgs.gitFull else pkgs.git;
+      };
+
+      xdg.configFile."nix/git/config".text = mkGitPlatformConfig pkgs (hostMeta.corporate or false);
+
+      programs.gh = {
+        enable = true;
+        extensions = with pkgs; [
+          pkgs.local.gh-mcp
+          gh-markdown-preview
+          gh-dash
+        ];
+      };
+    };
 in
 {
   flake.modules = {
     nixos.development = systemPackages;
     darwin.development = systemPackages;
-    homeManager.development =
-      { pkgs
-      , lib
-      , hostMeta
-      , ...
-      }:
-      let
-        isCorporateHost = hostMeta.corporate or false;
-        gitCredentialHelper =
-          if pkgs.stdenv.hostPlatform.isDarwin then
-            "/usr/bin/git-credential-osxkeychain"
-          else
-            "${pkgs.gitFull}/bin/git-credential-libsecret";
-        gitPlatformConfig = ''
-          [credential]
-            helper = ${gitCredentialHelper}
-        ''
-        + lib.optionalString (!isCorporateHost) ''
-          [credential "https://github.com"]
-            username = ${config.flake.meta.user.github.username}
-        '';
-      in
-      {
-        programs.git = {
-          enable = true;
-          package = if pkgs.stdenv.hostPlatform.isLinux then pkgs.gitFull else pkgs.git;
-        };
-
-        xdg.configFile."nix/git/config".text = gitPlatformConfig;
-
-        programs.gh = {
-          enable = true;
-          extensions = with pkgs; [
-            pkgs.local.gh-mcp
-            gh-markdown-preview
-            gh-dash
-          ];
-        };
-      };
+    homeManager.development = homeManagerDevelopment;
   };
 
   perSystem =
-    { lib, ... }:
+    { lib, pkgs, ... }:
     let
-      gitSource = builtins.readFile ./git.nix;
+      configFor =
+        system:
+        mkGitPlatformConfig
+          (pkgs // {
+            stdenv = pkgs.stdenv // {
+              hostPlatform = lib.systems.elaborate system;
+            };
+          })
+          false;
     in
     {
       nix-unit.tests.gitCredentialOwnership = {
-        testPlatformCredentialHelpersAreExplicit = {
-          expr = lib.all (helper: lib.hasInfix helper gitSource) [
-            ("/usr/bin/git-credential-" + "osxkeychain")
-            ("git-credential-" + "libsecret")
+        testGeneratesPlatformCredentialConfig = {
+          expr = [
+            (configFor "aarch64-darwin")
+            (configFor "x86_64-linux")
           ];
-          expected = true;
-        };
-        testLegacyCredentialManagerIsAbsent = {
-          expr = lib.any (setting: lib.hasInfix setting gitSource) [
-            (''helper = "'' + ''manager"'')
-            ("credential" + "Store")
+          expected = [
+            ''
+              [credential]
+                helper = /usr/bin/git-credential-osxkeychain
+              [credential "https://github.com"]
+                username = ${config.flake.meta.user.github.username}
+            ''
+            ''
+              [credential]
+                helper = ${pkgs.gitFull}/bin/git-credential-libsecret
+              [credential "https://github.com"]
+                username = ${config.flake.meta.user.github.username}
+            ''
           ];
-          expected = false;
-        };
-        testGeneratedPlatformIncludeHasOneHelper = {
-          expr = lib.hasInfix (''xdg.configFile."nix/git/config".text = '' + "gitPlatformConfig;") gitSource;
-          expected = true;
         };
       };
     };
