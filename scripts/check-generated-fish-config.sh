@@ -50,7 +50,6 @@ check_activation() {
       flake = builtins.getFlake \"$repo_url\";
       pkgs = import flake.inputs.nixpkgs { system = builtins.currentSystem; };
       hostMeta = {
-        name = \"$host_name\";
         system = \"$host_system\";
       };
       homeManager = flake.inputs.home-manager.lib.homeManagerConfiguration {
