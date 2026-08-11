@@ -1,11 +1,6 @@
 { inputs, config, ... }:
 let
   flakeConfig = config;
-  homeManagerLib = import
-    (
-      inputs.home-manager.outPath + "/modules/lib/stdlib-extended.nix"
-    )
-    inputs.nixpkgs.lib;
   homeManagerDotfiles =
     { config
     , pkgs
@@ -87,25 +82,16 @@ in
     { lib, pkgs, ... }:
     let
       dotfilesHomeConfig =
-        (homeManagerLib.evalModules {
-          specialArgs = { inherit pkgs; };
+        (inputs.home-manager.lib.homeManagerConfiguration {
+          inherit pkgs;
           modules = [
-            {
-              options.home = {
-                activation = lib.mkOption {
-                  type = lib.types.attrsOf lib.types.anything;
-                  default = { };
-                };
-                homeDirectory = lib.mkOption { type = lib.types.str; };
-                packages = lib.mkOption {
-                  type = lib.types.listOf lib.types.anything;
-                  default = [ ];
-                };
-              };
-            }
             homeManagerDotfiles
             {
-              home.homeDirectory = "/home/tester";
+              home = {
+                username = "tester";
+                homeDirectory = "/home/tester";
+                stateVersion = "25.05";
+              };
             }
           ];
         }).config;

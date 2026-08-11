@@ -5,29 +5,36 @@ in
 {
   flake.modules.nixos."hosts/rvn-srv/home" =
     { config, ... }:
+    let
+      surgeSystem = {
+        inherit (config.services.surge) package outputDir;
+      };
+    in
     {
-      home-manager.users.${flakeConfig.flake.meta.user.username} = {
-        imports = flakeConfig.flake.lib.resolveHm [
-          # Server preset modules for Home Manager
-          "users"
-          "dotfiles"
-          "security"
-          "development"
-          "shell"
-          "applications/surge"
+      home-manager = {
+        extraSpecialArgs = { inherit surgeSystem; };
 
-          # Secrets for home-manager context
-          "secrets"
-        ];
-
-        services.surge = {
-          inherit (config.services.surge) package outputDir;
-          autostart = true;
-          settings = {
-            general.default_download_dir = config.services.surge.outputDir;
-            network.proxy_url = "http://127.0.0.1:8889";
-          };
-        };
+        users.${flakeConfig.flake.meta.user.username}.imports =
+          flakeConfig.flake.lib.resolveHm [
+            "presets/server"
+            "applications/surge"
+            "secrets"
+          ]
+          ++ [
+            (
+              { surgeSystem, ... }:
+              {
+                services.surge = {
+                  inherit (surgeSystem) package outputDir;
+                  autostart = true;
+                  settings = {
+                    general.default_download_dir = surgeSystem.outputDir;
+                    network.proxy_url = "http://127.0.0.1:8889";
+                  };
+                };
+              }
+            )
+          ];
       };
     };
 }

@@ -23,7 +23,10 @@
           hostSystem = import ../../lib/host-system.nix { inherit lib; };
         };
 
-        hostConfigurations = import ../../tests/nix-unit/host-configurations.nix { inherit lib; };
+        hostConfigurations = import ../../tests/nix-unit/host-configurations.nix {
+          inherit lib;
+          inherit (config) hosts;
+        };
 
         ownershipBoundaries = import ../../tests/nix-unit/ownership-boundaries.nix {
           inherit lib;

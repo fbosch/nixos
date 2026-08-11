@@ -1,4 +1,4 @@
-{ lib }:
+{ lib, hosts }:
 let
   inputs = {
     nixpkgs.lib.nixosSystem = args: args // { builder = "nixos"; };
@@ -70,6 +70,28 @@ let
   declaration = system: {
     metadata = { inherit system; };
     modules = [ "example" ];
+  };
+  rolePresets = [
+    "presets/desktop"
+    "presets/server"
+  ];
+  expectedPresetByRole = {
+    desktop = "presets/desktop";
+    server = "presets/server";
+  };
+  hasConsistentRolePreset =
+    host:
+    let
+      expectedPreset = expectedPresetByRole.${host.metadata.role} or null;
+      selectedRolePresets = lib.filter
+        (module: builtins.isString module && lib.elem module rolePresets)
+        host.modules;
+    in
+    lib.length selectedRolePresets <= 1
+    && (expectedPreset == null || selectedRolePresets == [ expectedPreset ]);
+  roleHost = role: modules: {
+    metadata = { inherit role; };
+    inherit modules;
   };
 in
 {
@@ -179,5 +201,40 @@ in
         })
         true)).success;
     expected = false;
+  };
+
+  testDeclaredHostsHaveConsistentRolePresets = {
+    expr = lib.all hasConsistentRolePreset (lib.attrValues hosts);
+    expected = true;
+  };
+
+  testDesktopRejectsServerPreset = {
+    expr = hasConsistentRolePreset (roleHost "desktop" [ "presets/server" ]);
+    expected = false;
+  };
+
+  testServerRejectsDesktopPreset = {
+    expr = hasConsistentRolePreset (roleHost "server" [ "presets/desktop" ]);
+    expected = false;
+  };
+
+  testVmMayUseDesktopPreset = {
+    expr = hasConsistentRolePreset (roleHost "vm" [ "presets/desktop" ]);
+    expected = true;
+  };
+
+  testVmRejectsMultipleRolePresets = {
+    expr = hasConsistentRolePreset (
+      roleHost "vm" [
+        "presets/desktop"
+        "presets/server"
+      ]
+    );
+    expected = false;
+  };
+
+  testLaptopMayOmitPreset = {
+    expr = hasConsistentRolePreset (roleHost "laptop" [ ]);
+    expected = true;
   };
 }
