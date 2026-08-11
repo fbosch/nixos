@@ -255,4 +255,4 @@ sh | bash)
 esac
 
 printf -v command '%q ' "${command_parts[@]}"
-(cd "$(dirname "$file")" && faugus-run "$command")
+(cd "$(dirname "$file")" && faugus-launcher --run "$command")
