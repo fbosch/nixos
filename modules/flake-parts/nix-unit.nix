@@ -27,6 +27,13 @@
 
         ownershipBoundaries = import ../../tests/nix-unit/ownership-boundaries.nix {
           inherit lib;
+          serverSshOwnership = {
+            selectedOwner = config.flake.meta.hosts.rvn-srv.sshAgent;
+            gpgSshSupport =
+              config.flake.nixosConfigurations.rvn-srv.config.programs.gnupg.agent.enableSSHSupport;
+            homeManagerSshAgent =
+              config.flake.nixosConfigurations.rvn-srv.config.home-manager.users.${config.flake.meta.user.username}.services.ssh-agent.enable;
+          };
         };
 
       };

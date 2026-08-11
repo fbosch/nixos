@@ -1,4 +1,4 @@
-{ lib }:
+{ lib, serverSshOwnership }:
 let
   modulesRoot = ../../modules;
   nixFilesIn =
@@ -22,22 +22,16 @@ let
   literalHomePackageOwners = map (path: lib.removePrefix "${toString modulesRoot}/" (toString path)) (
     lib.filter (path: lib.hasInfix "home.packages" (builtins.readFile path)) (nixFilesIn modulesRoot)
   );
-  serverSource = builtins.readFile ../../modules/hosts/rvn-srv/default.nix;
-  serverSystemSource = builtins.readFile ../../modules/hosts/rvn-srv/platform/system.nix;
   gnomeSource = builtins.readFile ../../modules/desktop/gnome/default.nix;
 in
 {
-  ssh = {
-    testServerSelectsGpgAgent = {
-      expr = lib.hasInfix ''sshAgent = "gpg";'' serverSource;
-      expected = true;
+  ssh.testServerSelectsSingleAgentOwner = {
+    expr = serverSshOwnership;
+    expected = {
+      selectedOwner = "gpg";
+      gpgSshSupport = true;
+      homeManagerSshAgent = false;
     };
-
-    testGpgAgentFollowsHostMetadata = {
-      expr = lib.hasInfix ''enableSSHSupport = hostMeta.sshAgent == "gpg";'' serverSystemSource;
-      expected = true;
-    };
-
   };
 
   gtk = {
