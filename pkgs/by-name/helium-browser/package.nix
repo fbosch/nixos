@@ -22,7 +22,7 @@ let
     hash = "sha256-dX8As09QbMdBlDf2KVHa10GecnCumWWPe1VLo6Ofnt0=";
   };
 
-  appimageContents = appimageTools.extractType2 { inherit pname version src; };
+  appimageContents = appimageTools.extract { inherit pname version src; };
   widevineSetup = writeShellApplication {
     name = "helium-widevine-setup";
     runtimeInputs = [

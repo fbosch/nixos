@@ -9,183 +9,87 @@
       flakeCheckScript = pkgs.writeShellScriptBin "flake-check-updates" ''
         set -euo pipefail
 
-        CACHE_FILE="''${XDG_CACHE_HOME:-$HOME/.cache}/flake-updates.json"
-        FLATPAK_CACHE_FILE="''${XDG_CACHE_HOME:-$HOME/.cache}/flatpak-updates.json"
-        LOG_FILE="''${XDG_CACHE_HOME:-$HOME/.cache}/flake-updates.log"
+        CACHE_DIR="''${XDG_CACHE_HOME:-$HOME/.cache}"
+        CACHE_FILE="$CACHE_DIR/flake-updates.json"
+        FLATPAK_CACHE_FILE="$CACHE_DIR/flatpak-updates.json"
         FLAKE_PATH="''${1:-$HOME/nixos}"
 
-        # Ensure cache directory exists
-        mkdir -p "$(dirname "$CACHE_FILE")"
-
-        # Log execution
-        echo "[$(${pkgs.coreutils}/bin/date -Iseconds)] Starting flake update check" >> "$LOG_FILE"
-
-        # Check if flake.lock exists
+        ${pkgs.coreutils}/bin/mkdir -p "$CACHE_DIR"
         if [ ! -f "$FLAKE_PATH/flake.lock" ]; then
-          echo '{"count": 0, "updates": [], "error": "No flake.lock found"}' > "$CACHE_FILE"
-          echo "[$(${pkgs.coreutils}/bin/date -Iseconds)] ERROR: No flake.lock found at $FLAKE_PATH" >> "$LOG_FILE"
+          echo "flake-check-updates: no flake.lock found at $FLAKE_PATH" >&2
           exit 1
         fi
 
-        cd "$FLAKE_PATH" || exit 1
+        UPDATES_JSON="[]"
+        while IFS=$'\t' read -r name type owner repo current_rev ref; do
+          [ "$type" = "github" ] || continue
+          [ -n "$owner" ] && [ -n "$repo" ] && [ -n "$current_rev" ] || continue
 
-        # Check write permissions
-        if [ ! -w "$FLAKE_PATH/flake.lock" ]; then
-          echo '{"count": 0, "updates": [], "error": "No write permission for flake.lock"}' > "$CACHE_FILE"
-          echo "[$(${pkgs.coreutils}/bin/date -Iseconds)] ERROR: No write permission for flake.lock" >> "$LOG_FILE"
-          exit 1
-        fi
+          new_rev=""
+          while IFS=$'\t' read -r candidate_rev candidate_ref; do
+            new_rev="$candidate_rev"
+            case "$candidate_ref" in
+              *'^{}') break ;;
+            esac
+          done < <(${pkgs.coreutils}/bin/timeout 15s ${pkgs.git}/bin/git ls-remote "https://github.com/$owner/$repo.git" "''${ref:-HEAD}" "''${ref:-HEAD}^{}" 2>/dev/null)
 
-        # Calculate current flake.lock hash
-        CURRENT_HASH=$(${pkgs.nix}/bin/nix-hash --type sha256 --flat flake.lock)
+          [ -n "$new_rev" ] && [ "$new_rev" != "$current_rev" ] || continue
 
-        # Check if cache exists and has the same hash
-        SKIP_FLAKE_CHECK=false
-        if [ -f "$CACHE_FILE" ]; then
-          CACHED_HASH=$(${pkgs.jq}/bin/jq -r '.flakeHash // empty' "$CACHE_FILE" 2>/dev/null)
-          if [ "$CACHED_HASH" = "$CURRENT_HASH" ]; then
-            # Hash matches, no need to check flake again
-            echo "[$(${pkgs.coreutils}/bin/date -Iseconds)] Cache hit - hash matches, skipping flake check" >> "$LOG_FILE"
-            SKIP_FLAKE_CHECK=true
-          else
-            echo "[$(${pkgs.coreutils}/bin/date -Iseconds)] Cache miss - hash changed from $CACHED_HASH to $CURRENT_HASH" >> "$LOG_FILE"
-          fi
-        else
-          echo "[$(${pkgs.coreutils}/bin/date -Iseconds)] No cache file found, running full check" >> "$LOG_FILE"
-        fi
+          update=$(${pkgs.jq}/bin/jq -n \
+            --arg name "$name" \
+            --arg currentRev "$current_rev" \
+            --arg currentShort "''${current_rev:0:7}" \
+            --arg newRev "$new_rev" \
+            --arg newShort "''${new_rev:0:7}" \
+            '{name: $name, currentRev: $currentRev, currentShort: $currentShort, newRev: $newRev, newShort: $newShort}')
+          UPDATES_JSON=$(printf '%s' "$UPDATES_JSON" | ${pkgs.jq}/bin/jq --argjson update "$update" '. + [$update]')
+        done < <(${pkgs.jq}/bin/jq -r '
+          .nodes as $nodes
+          | .nodes.root.inputs
+          | to_entries[]
+          | select(.value | type == "string")
+          | .key as $name
+          | $nodes[.value] as $node
+          | [
+              $name,
+              $node.locked.type // "",
+              $node.locked.owner // "",
+              $node.locked.repo // "",
+              $node.locked.rev // "",
+              $node.original.ref // "HEAD"
+            ]
+          | @tsv
+        ' "$FLAKE_PATH/flake.lock")
 
-        # Check flake updates only if needed
-        if [ "$SKIP_FLAKE_CHECK" = false ]; then
-          echo "[$(${pkgs.coreutils}/bin/date -Iseconds)] Checking for flake updates..." >> "$LOG_FILE"
-          # Get all inputs from flake metadata
-          # Get all inputs from flake metadata
-          FLAKE_DATA=$(${pkgs.jq}/bin/jq '.' flake.lock 2>/dev/null)
-          ROOT_INPUTS=$(echo "$FLAKE_DATA" | ${pkgs.jq}/bin/jq -r '.nodes.root.inputs' 2>/dev/null)
+        timestamp=$(${pkgs.coreutils}/bin/date -Iseconds)
+        cache_tmp=$(${pkgs.coreutils}/bin/mktemp "$CACHE_DIR/flake-updates.json.XXXXXX")
+        ${pkgs.jq}/bin/jq -n \
+          --argjson updates "$UPDATES_JSON" \
+          --arg timestamp "$timestamp" \
+          '{count: ($updates | length), updates: $updates, timestamp: $timestamp}' \
+          > "$cache_tmp"
+        ${pkgs.coreutils}/bin/mv "$cache_tmp" "$CACHE_FILE"
 
-          if [ -z "$ROOT_INPUTS" ] || [ "$ROOT_INPUTS" = "null" ]; then
-            echo '{"count": 0, "updates": [], "error": "Failed to get flake inputs"}' > "$CACHE_FILE"
-            echo "[$(${pkgs.coreutils}/bin/date -Iseconds)] ERROR: Failed to get flake inputs" >> "$LOG_FILE"
-          else
-            INPUT_LIST=$(echo "$ROOT_INPUTS" | ${pkgs.jq}/bin/jq -r 'keys[]' 2>/dev/null)
-            INPUT_COUNT=$(echo "$INPUT_LIST" | wc -l)
-            echo "[$(${pkgs.coreutils}/bin/date -Iseconds)] Checking $INPUT_COUNT inputs..." >> "$LOG_FILE"
+        FLATPAK_JSON="[]"
+        while IFS=$'\t' read -r app version branch; do
+          [ -n "$app" ] || continue
+          current_version=$(${pkgs.flatpak}/bin/flatpak info --show-version "$app" 2>/dev/null || true)
+          update=$(${pkgs.jq}/bin/jq -n \
+            --arg app "$app" \
+            --arg currentVersion "$current_version" \
+            --arg newVersion "$version" \
+            --arg branch "$branch" \
+            '{app: $app, currentVersion: $currentVersion, newVersion: $newVersion, branch: $branch}')
+          FLATPAK_JSON=$(printf '%s' "$FLATPAK_JSON" | ${pkgs.jq}/bin/jq --argjson update "$update" '. + [$update]')
+        done < <(${pkgs.flatpak}/bin/flatpak remote-ls --app --updates --columns=application,version,branch 2>/dev/null || true)
 
-            # Create temporary backup of lock file
-            LOCK_BACKUP=$(${pkgs.coreutils}/bin/mktemp)
-            ${pkgs.coreutils}/bin/cp flake.lock "$LOCK_BACKUP"
-
-            # Check each input for available updates
-            UPDATES_JSON="[]"
-
-            for INPUT in $INPUT_LIST; do
-              # Restore original lock file before each check
-              ${pkgs.coreutils}/bin/cp "$LOCK_BACKUP" flake.lock
-
-              # Get current revision from lock file
-              NODE_NAME=$(echo "$ROOT_INPUTS" | ${pkgs.jq}/bin/jq -r ".[\"$INPUT\"]" 2>/dev/null)
-              [ -z "$NODE_NAME" ] || [ "$NODE_NAME" = "null" ] && continue
-
-              NODE_DATA=$(echo "$FLAKE_DATA" | ${pkgs.jq}/bin/jq ".nodes.\"$NODE_NAME\"" 2>/dev/null)
-              [ -z "$NODE_DATA" ] || [ "$NODE_DATA" = "null" ] && continue
-
-              CURRENT_REV=$(echo "$NODE_DATA" | ${pkgs.jq}/bin/jq -r '.locked.rev // empty' 2>/dev/null)
-              [ -z "$CURRENT_REV" ] || [ "$CURRENT_REV" = "null" ] && continue
-
-              # Try to update this input (completely silent)
-              ${pkgs.nix}/bin/nix flake update --update-input "$INPUT" >/dev/null 2>&1
-
-              # Check if the lock file changed by comparing the revision
-              UPDATED_FLAKE_DATA=$(${pkgs.jq}/bin/jq '.' flake.lock 2>/dev/null)
-              UPDATED_NODE_DATA=$(echo "$UPDATED_FLAKE_DATA" | ${pkgs.jq}/bin/jq ".nodes.\"$NODE_NAME\"" 2>/dev/null)
-
-              if [ -n "$UPDATED_NODE_DATA" ] && [ "$UPDATED_NODE_DATA" != "null" ]; then
-                NEW_REV=$(echo "$UPDATED_NODE_DATA" | ${pkgs.jq}/bin/jq -r '.locked.rev // empty' 2>/dev/null)
-
-                if [ -n "$NEW_REV" ] && [ "$NEW_REV" != "null" ] && [ "$NEW_REV" != "$CURRENT_REV" ]; then
-                  # Get short versions for display
-                  CURRENT_SHORT=$(echo "$CURRENT_REV" | ${pkgs.coreutils}/bin/cut -c1-7)
-                  NEW_SHORT=$(echo "$NEW_REV" | ${pkgs.coreutils}/bin/cut -c1-7)
-
-                  # Add update info to JSON array
-                  UPDATE_OBJ=$(${pkgs.jq}/bin/jq -n \
-                    --arg name "$INPUT" \
-                    --arg currentRev "$CURRENT_REV" \
-                    --arg currentShort "$CURRENT_SHORT" \
-                    --arg newRev "$NEW_REV" \
-                    --arg newShort "$NEW_SHORT" \
-                    '{name: $name, currentRev: $currentRev, currentShort: $currentShort, newRev: $newRev, newShort: $newShort}')
-
-                  UPDATES_JSON=$(echo "$UPDATES_JSON" | ${pkgs.jq}/bin/jq --argjson item "$UPDATE_OBJ" '. += [$item]')
-                fi
-              fi
-            done
-
-            # Restore original lock file
-            ${pkgs.coreutils}/bin/cp "$LOCK_BACKUP" flake.lock
-            ${pkgs.coreutils}/bin/rm -f "$LOCK_BACKUP"
-
-            # Build final JSON output with timestamp and flake hash
-            UPDATE_COUNT=$(echo "$UPDATES_JSON" | ${pkgs.jq}/bin/jq 'length')
-            TIMESTAMP=$(${pkgs.coreutils}/bin/date -Iseconds)
-            RESULT=$(${pkgs.jq}/bin/jq -n \
-              --argjson count "$UPDATE_COUNT" \
-              --argjson updates "$UPDATES_JSON" \
-              --arg timestamp "$TIMESTAMP" \
-              --arg flakeHash "$CURRENT_HASH" \
-              '{count: $count, updates: $updates, timestamp: $timestamp, flakeHash: $flakeHash}')
-
-            echo "$RESULT" > "$CACHE_FILE"
-            echo "[$(${pkgs.coreutils}/bin/date -Iseconds)] Flake check complete - found $UPDATE_COUNT updates" >> "$LOG_FILE"
-          fi
-        fi
-
-        # Always check for Flatpak updates (independent of flake check)
-        if command -v ${pkgs.flatpak}/bin/flatpak >/dev/null 2>&1; then
-          echo "[$(${pkgs.coreutils}/bin/date -Iseconds)] Checking for Flatpak updates..." >> "$LOG_FILE"
-          FLATPAK_UPDATES=$(${pkgs.flatpak}/bin/flatpak remote-ls --app --updates --columns=application,version,branch 2>/dev/null)
-
-          if [ -n "$FLATPAK_UPDATES" ]; then
-            FLATPAK_JSON="[]"
-
-            while IFS=$'\t' read -r app version branch; do
-              # Skip empty lines
-              [ -z "$app" ] && continue
-
-              # Get current installed version
-              CURRENT_VERSION=$(${pkgs.flatpak}/bin/flatpak list --app --columns=application,version 2>/dev/null | ${pkgs.gnugrep}/bin/grep "^$app" | ${pkgs.coreutils}/bin/cut -f2)
-
-              UPDATE_OBJ=$(${pkgs.jq}/bin/jq -n \
-                --arg app "$app" \
-                --arg currentVersion "$CURRENT_VERSION" \
-                --arg newVersion "$version" \
-                --arg branch "$branch" \
-                '{app: $app, currentVersion: $currentVersion, newVersion: $newVersion, branch: $branch}')
-
-              FLATPAK_JSON=$(echo "$FLATPAK_JSON" | ${pkgs.jq}/bin/jq --argjson item "$UPDATE_OBJ" '. += [$item]')
-            done <<< "$FLATPAK_UPDATES"
-
-            FLATPAK_COUNT=$(echo "$FLATPAK_JSON" | ${pkgs.jq}/bin/jq 'length')
-            FLATPAK_TIMESTAMP=$(${pkgs.coreutils}/bin/date -Iseconds)
-            FLATPAK_RESULT=$(${pkgs.jq}/bin/jq -n \
-              --argjson count "$FLATPAK_COUNT" \
-              --argjson updates "$FLATPAK_JSON" \
-              --arg timestamp "$FLATPAK_TIMESTAMP" \
-              '{count: $count, updates: $updates, timestamp: $timestamp}')
-
-            echo "$FLATPAK_RESULT" > "$FLATPAK_CACHE_FILE"
-            echo "[$(${pkgs.coreutils}/bin/date -Iseconds)] Flatpak check complete - found $FLATPAK_COUNT updates" >> "$LOG_FILE"
-          else
-            # No updates available
-            echo '{"count": 0, "updates": [], "timestamp": "'$(${pkgs.coreutils}/bin/date -Iseconds)'"}' > "$FLATPAK_CACHE_FILE"
-            echo "[$(${pkgs.coreutils}/bin/date -Iseconds)] No Flatpak updates available" >> "$LOG_FILE"
-          fi
-        else
-          # Flatpak not available
-          echo '{"count": 0, "updates": [], "error": "Flatpak not installed"}' > "$FLATPAK_CACHE_FILE"
-          echo "[$(${pkgs.coreutils}/bin/date -Iseconds)] Flatpak not installed" >> "$LOG_FILE"
-        fi
-
-        echo "[$(${pkgs.coreutils}/bin/date -Iseconds)] Update check completed successfully" >> "$LOG_FILE"
+        flatpak_cache_tmp=$(${pkgs.coreutils}/bin/mktemp "$CACHE_DIR/flatpak-updates.json.XXXXXX")
+        ${pkgs.jq}/bin/jq -n \
+          --argjson updates "$FLATPAK_JSON" \
+          --arg timestamp "$timestamp" \
+          '{count: ($updates | length), updates: $updates, timestamp: $timestamp}' \
+          > "$flatpak_cache_tmp"
+        ${pkgs.coreutils}/bin/mv "$flatpak_cache_tmp" "$FLATPAK_CACHE_FILE"
       '';
     in
     {
