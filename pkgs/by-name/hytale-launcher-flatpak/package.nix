@@ -8,13 +8,14 @@
 , writeShellScript
 ,
 }:
-stdenvNoCC.mkDerivation (finalAttrs: {
+stdenvNoCC.mkDerivation {
   pname = "hytale-launcher-flatpak";
-  version = "2026.07.29-8228f98";
+  version = "2026.08.11-f021bf9";
 
   src = fetchurl {
-    url = "https://launcher.hytale.com/builds/release/linux/amd64/hytale-launcher-${finalAttrs.version}.flatpak";
-    hash = "sha256-bBoeuEqeA7Ju1EPinr7GRlBDVcBESchMfS6T4vvPSHM=";
+    # Hytale publishes only the latest Flatpak; release-specific URLs expire.
+    url = "https://launcher.hytale.com/builds/release/linux/amd64/hytale-launcher-latest.flatpak";
+    hash = "sha256-2Zlebk51V1c6Yc7/bF5M3HfIid6GSIjfU5AY6KpXq8Q=";
   };
 
   dontUnpack = true;
@@ -42,4 +43,4 @@ stdenvNoCC.mkDerivation (finalAttrs: {
     platforms = [ "x86_64-linux" ];
     sourceProvenance = with sourceTypes; [ binaryNativeCode ];
   };
-})
+}
