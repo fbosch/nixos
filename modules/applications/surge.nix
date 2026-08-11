@@ -1,12 +1,5 @@
 { inputs, ... }:
 let
-  homeManagerLib = import
-    (
-      inputs.home-manager.outPath + "/modules/lib/stdlib-extended.nix"
-    )
-    inputs.nixpkgs.lib;
-  homeManagerSystemd = inputs.home-manager.outPath + "/modules/systemd.nix";
-
   homeManagerSurge =
     { config
     , lib
@@ -215,42 +208,16 @@ in
     let
       surgeHomeConfig =
         exitWhenDone:
-        (homeManagerLib.evalModules {
-          specialArgs = { inherit pkgs; };
+        (inputs.home-manager.lib.homeManagerConfiguration {
+          inherit pkgs;
           modules = [
-            {
-              options = {
-                assertions = lib.mkOption {
-                  type = lib.types.listOf lib.types.anything;
-                  default = [ ];
-                };
-                home.activation = lib.mkOption {
-                  type = lib.types.attrsOf lib.types.anything;
-                  default = { };
-                };
-                home.homeDirectory = lib.mkOption { type = lib.types.str; };
-                meta = lib.mkOption {
-                  type = lib.types.attrsOf lib.types.anything;
-                  default = { };
-                };
-                xdg = {
-                  configHome = lib.mkOption { type = lib.types.str; };
-                  configFile = lib.mkOption {
-                    type = lib.types.attrsOf lib.types.anything;
-                    default = { };
-                  };
-                  dataFile = lib.mkOption {
-                    type = lib.types.attrsOf lib.types.anything;
-                    default = { };
-                  };
-                };
-              };
-            }
-            homeManagerSystemd
             homeManagerSurge
             {
-              home.homeDirectory = "/home/tester";
-              xdg.configHome = "/home/tester/.config";
+              home = {
+                username = "tester";
+                homeDirectory = "/home/tester";
+                stateVersion = "25.05";
+              };
               systemd.user.enable = false;
               services.surge = {
                 package = pkgs.hello;
