@@ -261,7 +261,6 @@ in
             templates."openmemory-api-key-env" = {
               content = ''
                 OM_API_KEY=${config.sops.placeholder.openmemory-api-key}
-                OM_OPENAI_API_KEY=${config.sops.placeholder.openai-api-key}
               '';
               mode = "0400";
             };

@@ -37,8 +37,6 @@ in
         secretNamesByEnv = {
           GITHUB_TOKEN = "github-token";
           COPILOT_TOKEN = "github-token";
-          KAGI_API_TOKEN = "kagi-api-token";
-          OPENAI_API_KEY = "openai-api-key";
           EXA_API_KEY = "exa-api-key";
         };
 

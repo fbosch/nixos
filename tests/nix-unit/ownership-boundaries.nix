@@ -53,7 +53,7 @@ in
     expected = [
       "applications/gaming/steam/theme.nix"
       "applications/windows.nix"
-      "desktop/flake-updates.nix"
+      "desktop/update-checker.nix"
       "dotfiles.nix"
     ];
   };

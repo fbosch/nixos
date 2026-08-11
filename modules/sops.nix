@@ -66,8 +66,6 @@ in
 
               # API secrets
               (mkSecrets apisFile [
-                "kagi-api-token"
-                "openai-api-key"
                 "exa-api-key"
               ])
 
@@ -131,12 +129,6 @@ in
               "github-token"
             ])
 
-            # API secrets - wheel readable
-            (mkSecretsWithOpts apisFile wheelReadable [
-              "kagi-api-token"
-              "openai-api-key"
-            ])
-
             # Special cases
             {
               ssh-private-key = mkSecret commonFile userOwned;
@@ -197,8 +189,6 @@ in
 
             # API secrets - wheel readable
             (mkSecretsWithOpts apisFile wheelReadable [
-              "kagi-api-token"
-              "openai-api-key"
               "wakapi-password-salt"
             ])
 
