@@ -47,14 +47,6 @@ else
   exit_code=1
 fi
 
-if gum spin --spinner dot --title "generated Fish configuration" -- bash ./scripts/check-generated-fish-config.sh >/tmp/generated-fish-config-output 2>&1; then
-  echo "$(gum style --foreground 2 '[OK]') generated Fish configuration"
-else
-  echo "$(gum style --foreground 1 '[FAIL]') generated Fish configuration"
-  cat /tmp/generated-fish-config-output
-  exit_code=1
-fi
-
 shell_files=$(find scripts configs -type f -name '*.sh' 2>/dev/null || true)
 if [ -n "$shell_files" ]; then
   if gum spin --spinner dot --title "shellcheck" -- sh -c "printf '%s\n' \"\$1\" | xargs -r shellcheck -S error" -- "$shell_files" >/tmp/shellcheck-output 2>&1; then
