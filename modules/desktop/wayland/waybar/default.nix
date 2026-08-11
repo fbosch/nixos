@@ -5,6 +5,7 @@
         patches = (old.patches or [ ]) ++ [
           ./patches/waybar-slide-visibility.patch
           ./patches/waybar-taskbar-truncate.patch
+          ./patches/waybar-taskbar-icon-resolution.patch
         ];
         postPatch = (old.postPatch or "") + ''
           substituteInPlace src/modules/hyprland/workspace.cpp \
