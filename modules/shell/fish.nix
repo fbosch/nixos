@@ -23,6 +23,16 @@ in
         ];
       };
 
-    darwin.shell = systemPackages;
+    darwin.shell =
+      { pkgs, ... }:
+      {
+        imports = [ systemPackages ];
+
+        programs.fish = {
+          enable = true;
+          useBabelfish = true;
+          package = pkgs.fish;
+        };
+      };
   };
 }

@@ -17,7 +17,7 @@ Each managed file has one writer. Avoid Home Manager child files below directori
 | Path or responsibility | Owner |
 | --- | --- |
 | `~/.config/fish/**` hand-maintained configuration | Stow |
-| `~/.config/fish/private.fish` ignored generated Fish host and secret state | Home Manager |
+| Darwin machine context (`NH_DARWIN_HOST`, and `CORPORATE=1` on corporate hosts) | nix-darwin `environment.variables`, loaded through its Fish integration |
 | `~/.gitconfig` portable identity, aliases, signing, and GitHub username | Stow |
 | `~/.config/nix/git/config` generated platform helper and host maintenance include | Home Manager |
 | GTK roots, CSS, and Nemo bookmarks on managed Linux desktops | Home Manager |

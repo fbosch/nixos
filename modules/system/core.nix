@@ -40,6 +40,18 @@ let
     backupFileExtension = "hm-backup";
     overwriteBackup = true;
   };
+
+  mkDarwinEnvironmentVariables =
+    hostKey: hostMeta:
+    lib.mkMerge [
+      {
+        NH_DARWIN_HOST = hostKey;
+        NH_FLAKE = "/Users/${hostMeta.primaryUser}/nixos";
+      }
+      (lib.optionalAttrs (hostMeta.corporate or false) {
+        CORPORATE = "1";
+      })
+    ];
 in
 {
   flake.modules.nixos.system = {
@@ -118,10 +130,7 @@ in
       # Allow unfree packages (using simple allowUnfree for Darwin)
       nixpkgs.config.allowUnfree = true;
 
-      environment.variables = {
-        NH_DARWIN_HOST = hostKey;
-        NH_FLAKE = "/Users/${hostMeta.primaryUser}/nixos";
-      };
+      environment.variables = mkDarwinEnvironmentVariables hostKey hostMeta;
 
       nix = lib.mkIf (!usesDeterminateNix) {
         settings = lib.mkMerge [
@@ -142,4 +151,5 @@ in
 
       home-manager = sharedHomeManagerConfig;
     };
+
 }
