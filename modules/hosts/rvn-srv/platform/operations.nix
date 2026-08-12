@@ -37,10 +37,6 @@
         };
       };
 
-      openmemory-container = {
-        buildImages = true;
-      };
-
       pihole-container = {
         listenAddress = hostMeta.local;
         webPort = 8082;

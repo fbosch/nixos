@@ -7,7 +7,6 @@
         rdtclient.tier = "standard";
         flaresolverr.tier = "standard";
         linkwarden.tier = "standard";
-        openmemory.tier = "standard";
       };
     };
   };
