@@ -1,6 +1,7 @@
 { config, ... }:
 let
   inherit (config.flake.lib) sopsHelpers startupPolicy;
+  sharedTodoModule = config.flake.modules.nixos."services/glance-shared-todo";
 in
 {
   flake.modules.nixos."services/containers/glance" =
@@ -14,7 +15,7 @@ in
       assetsDir = if cfg.assetsDir != null then cfg.assetsDir else "${configDir}/assets";
       # Only mount assets separately if it's not inside configDir
       assetsDirIsSubdir = lib.hasPrefix "${configDir}/" assetsDir;
-      containersFile = ../../../secrets/containers.yaml;
+      containersFile = ../../../../secrets/containers.yaml;
 
       secretNamesByEnv = {
         KOMODO_API_KEY = "komodo-web-api-key";
@@ -57,6 +58,8 @@ in
         + "\n";
     in
     {
+      imports = [ sharedTodoModule ];
+
       options.services.glance-container = {
         port = lib.mkOption {
           type = lib.types.port;
