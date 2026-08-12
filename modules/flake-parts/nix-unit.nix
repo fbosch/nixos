@@ -30,6 +30,16 @@
 
         ownershipBoundaries = import ../../tests/nix-unit/ownership-boundaries.nix {
           inherit lib;
+          darwinMachineContexts = {
+            personal = {
+              inherit (config.flake.darwinConfigurations.rvn-mac.config.environment) variables;
+              inherit (config.flake.darwinConfigurations.rvn-mac.config.programs) fish;
+            };
+            corporate = {
+              inherit (config.flake.darwinConfigurations.kmd-mac.config.environment) variables;
+              inherit (config.flake.darwinConfigurations.kmd-mac.config.programs) fish;
+            };
+          };
           serverSshOwnership = {
             selectedOwner = config.flake.meta.hosts.rvn-srv.sshAgent;
             gpgSshSupport =

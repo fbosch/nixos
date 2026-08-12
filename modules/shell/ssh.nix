@@ -5,11 +5,6 @@
 }:
 let
   flakeConfig = config;
-  homeManagerLib = import
-    (
-      inputs.home-manager.outPath + "/modules/lib/stdlib-extended.nix"
-    )
-    inputs.nixpkgs.lib;
   homeManagerSsh =
     { config
     , lib
@@ -142,45 +137,22 @@ in
     let
       sshHomeConfig =
         sshAgent:
-        (homeManagerLib.evalModules {
-          specialArgs = {
-            inherit pkgs;
+        (inputs.home-manager.lib.homeManagerConfiguration {
+          inherit pkgs;
+          extraSpecialArgs = {
             hostMeta = {
               corporate = true;
               inherit sshAgent;
             };
           };
           modules = [
-            {
-              options = {
-                assertions = lib.mkOption {
-                  type = lib.types.listOf lib.types.anything;
-                  default = [ ];
-                };
-                home = {
-                  activation = lib.mkOption {
-                    type = lib.types.attrsOf lib.types.anything;
-                    default = { };
-                  };
-                  homeDirectory = lib.mkOption { type = lib.types.str; };
-                };
-                programs.ssh = {
-                  enable = lib.mkOption { type = lib.types.bool; };
-                  enableDefaultConfig = lib.mkOption { type = lib.types.bool; };
-                  settings = lib.mkOption {
-                    type = lib.types.attrsOf lib.types.anything;
-                    default = { };
-                  };
-                };
-                services.ssh-agent.enable = lib.mkOption {
-                  type = lib.types.bool;
-                  default = false;
-                };
-              };
-            }
             homeManagerSsh
             {
-              home.homeDirectory = "/home/tester";
+              home = {
+                username = "tester";
+                homeDirectory = "/home/tester";
+                stateVersion = "25.05";
+              };
             }
           ];
         }).config;

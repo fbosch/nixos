@@ -1,4 +1,4 @@
-{ lib, serverSshOwnership }:
+{ lib, darwinMachineContexts, serverSshOwnership }:
 let
   modulesRoot = ../../modules;
   nixFilesIn =
@@ -31,6 +31,38 @@ in
       selectedOwner = "gpg";
       gpgSshSupport = true;
       homeManagerSshAgent = false;
+    };
+  };
+
+  darwinMachineContext = {
+    testPersonalHostExportsOnlyPersonalContext = {
+      expr = {
+        corporate = darwinMachineContexts.personal.variables ? CORPORATE;
+        fishEnabled = darwinMachineContexts.personal.fish.enable;
+        host = darwinMachineContexts.personal.variables.NH_DARWIN_HOST;
+        usesBabelfish = darwinMachineContexts.personal.fish.useBabelfish;
+      };
+      expected = {
+        corporate = false;
+        fishEnabled = true;
+        host = "rvn-mac";
+        usesBabelfish = true;
+      };
+    };
+
+    testCorporateHostExportsCorporateContext = {
+      expr = {
+        corporate = darwinMachineContexts.corporate.variables.CORPORATE;
+        fishEnabled = darwinMachineContexts.corporate.fish.enable;
+        host = darwinMachineContexts.corporate.variables.NH_DARWIN_HOST;
+        usesBabelfish = darwinMachineContexts.corporate.fish.useBabelfish;
+      };
+      expected = {
+        corporate = "1";
+        fishEnabled = true;
+        host = "kmd-mac";
+        usesBabelfish = true;
+      };
     };
   };
 
