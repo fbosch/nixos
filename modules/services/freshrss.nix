@@ -1,6 +1,6 @@
 { config, ... }:
 let
-  inherit (config.flake.lib) sopsHelpers;
+  inherit (config.flake.lib) sopsFiles sopsHelpers;
 in
 {
   flake.modules.nixos."services/freshrss" =
@@ -75,7 +75,7 @@ in
 
         # SOPS secret configuration (only if sops is available)
         (lib.mkIf (config ? sops) {
-          sops.secrets.freshrss-admin-password = sopsHelpers.mkSecret ../../secrets/containers.yaml {
+          sops.secrets.freshrss-admin-password = sopsHelpers.mkSecret sopsFiles.containers {
             mode = "0440";
             owner = "freshrss";
             group = "freshrss";

@@ -1,6 +1,7 @@
 { config, ... }:
 let
-  inherit (config.flake.lib) sopsHelpers startupPolicy;
+  inherit (config.flake.lib) sopsFiles sopsHelpers startupPolicy;
+  sharedTodoModule = config.flake.modules.nixos."services/glance-shared-todo";
 in
 {
   flake.modules.nixos."services/containers/glance" =
@@ -14,7 +15,6 @@ in
       assetsDir = if cfg.assetsDir != null then cfg.assetsDir else "${configDir}/assets";
       # Only mount assets separately if it's not inside configDir
       assetsDirIsSubdir = lib.hasPrefix "${configDir}/" assetsDir;
-      containersFile = ../../../secrets/containers.yaml;
 
       secretNamesByEnv = {
         KOMODO_API_KEY = "komodo-web-api-key";
@@ -57,11 +57,19 @@ in
         + "\n";
     in
     {
+      imports = [ sharedTodoModule ];
+
       options.services.glance-container = {
         port = lib.mkOption {
           type = lib.types.port;
           default = 8080;
-          description = "Port for Glance web interface";
+          description = "LAN port for the nginx frontend";
+        };
+
+        backendPort = lib.mkOption {
+          type = lib.types.port;
+          default = 8083;
+          description = "Loopback port for the Glance container";
         };
 
         imageTag = lib.mkOption {
@@ -155,21 +163,62 @@ in
           exposedPorts = lib.mkAfter [
             {
               service = "glance-container";
-              tcpPorts = [ cfg.port ];
+              tcpPorts = [
+                cfg.port
+                cfg.backendPort
+              ];
             }
           ];
+
+          nginx = {
+            enable = true;
+            recommendedProxySettings = true;
+            virtualHosts."glance-proxy" = {
+              listen = [
+                {
+                  addr = "0.0.0.0";
+                  inherit (cfg) port;
+                }
+              ];
+              locations = {
+                "/api/shared-todo/" = {
+                  proxyPass = "http://${config.services.glance-shared-todo.listenAddress}:${toString config.services.glance-shared-todo.port}";
+                  recommendedProxySettings = false;
+                  extraConfig = ''
+                    proxy_buffering off;
+                    proxy_cache off;
+                    proxy_read_timeout 1h;
+                    proxy_set_header Host $host;
+                    proxy_set_header X-Forwarded-Host $host;
+                    proxy_set_header X-Forwarded-Proto https;
+                  '';
+                };
+
+                "/" = {
+                  proxyPass = "http://127.0.0.1:${toString cfg.backendPort}";
+                  recommendedProxySettings = false;
+                  extraConfig = ''
+                    proxy_buffering off;
+                    proxy_set_header Host $host;
+                    proxy_set_header X-Forwarded-Host $host;
+                    proxy_set_header X-Forwarded-Proto https;
+                  '';
+                };
+              };
+            };
+          };
         };
 
         assertions = [
           {
-            assertion = cfg.port == 8080;
-            message = "glance-container: host networking requires port 8080 because Glance binds directly on the host";
+            assertion = cfg.port != cfg.backendPort;
+            message = "glance-container: frontend and backend ports must differ";
           }
         ];
 
         sops = {
           secrets = lib.mkMerge [
-            (sopsHelpers.mkSecretsWithOpts containersFile sopsHelpers.rootOnly [
+            (sopsHelpers.mkSecretsWithOpts sopsFiles.containers sopsHelpers.rootOnly [
               "rpi-pihole-password-token"
               "synology-api-username"
               "synology-api-password"
@@ -185,7 +234,7 @@ in
               "plex-token"
               "mdb-list-api-key"
             ])
-            (sopsHelpers.mkSecretsWithOpts containersFile sopsHelpers.wheelReadable [
+            (sopsHelpers.mkSecretsWithOpts sopsFiles.containers sopsHelpers.wheelReadable [
               "komodo-web-api-key"
               "komodo-web-api-secret"
               "portainer-api-key"

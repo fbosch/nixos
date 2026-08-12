@@ -1,6 +1,6 @@
 { config, ... }:
 let
-  inherit (config.flake.lib) sopsHelpers startupPolicy;
+  inherit (config.flake.lib) sopsFiles sopsHelpers startupPolicy;
 in
 {
   flake.modules.nixos."services/containers/speedtest-tracker" =
@@ -115,7 +115,7 @@ in
 
         # Wire APP_KEY through sops
         sops = {
-          secrets.speedtest-tracker-app-key = sopsHelpers.mkSecret ../../../secrets/containers.yaml sopsHelpers.rootOnly;
+          secrets.speedtest-tracker-app-key = sopsHelpers.mkSecret sopsFiles.containers sopsHelpers.rootOnly;
 
           templates."speedtest-tracker-env" = {
             content = ''

@@ -1,7 +1,7 @@
 { config, ... }:
 let
   flakeConfig = config;
-  inherit (flakeConfig.flake.lib) sopsHelpers;
+  inherit (flakeConfig.flake.lib) sopsFiles sopsHelpers;
 in
 {
   flake.modules.nixos.nas =
@@ -73,7 +73,7 @@ in
     in
     {
       sops = {
-        secrets = sopsHelpers.mkSecretsWithOpts ../secrets/common.yaml sopsHelpers.rootOnly [
+        secrets = sopsHelpers.mkSecretsWithOpts sopsFiles.common sopsHelpers.rootOnly [
           "smb-username"
           "smb-password"
         ];

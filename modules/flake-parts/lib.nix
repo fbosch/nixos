@@ -4,6 +4,13 @@
 }:
 {
   config.flake.lib = {
+    sopsFiles = {
+      apis = ../../secrets/apis.yaml;
+      common = ../../secrets/common.yaml;
+      containers = ../../secrets/containers.yaml;
+      development = ../../secrets/development.yaml;
+    };
+
     # Dendritic pattern helpers for module path resolution
     # These helpers allow using string paths in imports while maintaining dendritic pattern compliance
 

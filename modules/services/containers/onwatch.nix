@@ -1,6 +1,6 @@
 { config, ... }:
 let
-  inherit (config.flake.lib) sopsHelpers startupPolicy;
+  inherit (config.flake.lib) sopsFiles sopsHelpers startupPolicy;
   inherit (config.flake.meta.user) username;
 in
 {
@@ -28,7 +28,7 @@ in
     }:
     let
       cfg = config.services.onwatch-container;
-      containersFile = ../../../secrets/containers.yaml;
+      containersFile = sopsFiles.containers;
 
       # Script that reads local auth state files and writes provider tokens into
       # a runtime env file that the container picks up via EnvironmentFile.

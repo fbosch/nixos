@@ -6,7 +6,7 @@
 let
   flakeConfig = config;
   user = flakeConfig.flake.meta.user.username;
-  inherit (flakeConfig.flake.lib) sopsHelpers;
+  inherit (flakeConfig.flake.lib) sopsFiles sopsHelpers;
   systemPackages = { pkgs, ... }: {
     environment.systemPackages = with pkgs; [
       sops
@@ -14,9 +14,7 @@ let
     ];
   };
 
-  # Secret file paths
-  commonFile = ../secrets/common.yaml;
-  apisFile = ../secrets/apis.yaml;
+  inherit (sopsFiles) apis common;
 
   # Permission presets
   inherit (sopsHelpers)
@@ -52,26 +50,26 @@ in
           imports = [ inputs.sops-nix.homeManagerModules.sops ];
 
           sops = {
-            defaultSopsFile = commonFile;
+            defaultSopsFile = common;
             age.keyFile = "${hmConfig.home.homeDirectory}/.config/sops/age/keys.txt";
             age.generateKey = true;
 
             secrets = lib.mkMerge [
               # Common secrets (no special options needed for HM)
-              (mkSecrets commonFile [
+              (mkSecrets common [
                 "github-token"
                 "smb-username"
                 "smb-password"
               ])
 
               # API secrets
-              (mkSecrets apisFile [
+              (mkSecrets apis [
                 "exa-api-key"
               ])
 
               # Special cases with custom options
               {
-                ssh-private-key = mkSecret commonFile {
+                ssh-private-key = mkSecret common {
                   path = "${hmConfig.home.homeDirectory}/.ssh/id_ed25519";
                 };
               }
@@ -119,19 +117,19 @@ in
         imports = [ inputs.sops-nix.nixosModules.sops ];
 
         sops = {
-          defaultSopsFile = commonFile;
+          defaultSopsFile = common;
           age.keyFile = "/var/lib/sops-nix/key.txt";
           age.generateKey = true;
 
           secrets = lib.mkMerge [
             # Common secrets
-            (mkSecretsWithOpts commonFile rootOnly [
+            (mkSecretsWithOpts common rootOnly [
               "github-token"
             ])
 
             # Special cases
             {
-              ssh-private-key = mkSecret commonFile userOwned;
+              ssh-private-key = mkSecret common userOwned;
             }
           ];
 
@@ -171,30 +169,30 @@ in
         imports = [ inputs.sops-nix.darwinModules.sops ];
 
         sops = {
-          defaultSopsFile = commonFile;
+          defaultSopsFile = common;
           age.keyFile = "/var/lib/sops-nix/key.txt";
           age.generateKey = true;
 
           secrets = lib.mkMerge [
             # Common secrets - root only
-            (mkSecretsWithOpts commonFile rootOnly [
+            (mkSecretsWithOpts common rootOnly [
               "smb-username"
               "smb-password"
             ])
 
             # Common secrets
-            (mkSecretsWithOpts commonFile rootOnly [
+            (mkSecretsWithOpts common rootOnly [
               "github-token"
             ])
 
             # API secrets - wheel readable
-            (mkSecretsWithOpts apisFile wheelReadable [
+            (mkSecretsWithOpts apis wheelReadable [
               "wakapi-password-salt"
             ])
 
             # Special cases
             {
-              ssh-private-key = mkSecret commonFile userOwned;
+              ssh-private-key = mkSecret common userOwned;
             }
           ];
 

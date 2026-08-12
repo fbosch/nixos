@@ -12,7 +12,8 @@ Declared exposed ports for `rvn-srv` are linted against this document.
 | atticd                    | `8081/tcp`                     | Default atticd API port      |
 | home-assistant            | `8123/tcp`                     | Home automation web UI       |
 | freshrss                  | `8084/tcp`                     | RSS reader web interface     |
-| glance-container          | `8080/tcp`                     | Container web UI             |
+| glance-container (nginx)  | `8080/tcp`                     | LAN web UI and API router    |
+| glance-container          | `8083/tcp`                     | Loopback Glance backend      |
 | pihole-container          | `8082/tcp`, `53/tcp`, `53/udp` | Web UI + DNS                 |
 | dozzle                    | `8090/tcp`                     | Container log viewer         |
 | gluetun-container         | `8889/tcp`, `8000/tcp`         | Proxy + control API          |
@@ -29,6 +30,7 @@ Declared exposed ports for `rvn-srv` are linted against this document.
 | speedtest-tracker         | `8085/tcp`                     | Web UI                       |
 | termix-container          | `7310/tcp`                     | Container web port           |
 | priceghost-container      | `8089/tcp`                     | Price tracking web UI        |
+| glance-shared-todo        | `8091/tcp`                     | Loopback shared task API     |
 | plex (nginx)              | `32402/tcp`                    | Reverse proxy port           |
 | onwatch-container         | `9211/tcp`                     | API quota tracker dashboard  |
 | rsshub-container          | `1200/tcp`                     | RSS feed aggregation service |
