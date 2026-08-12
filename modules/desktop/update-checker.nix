@@ -21,17 +21,31 @@
         fi
 
         UPDATES_JSON="[]"
-        while IFS=$'\t' read -r name type owner repo current_rev ref; do
-          [ "$type" = "github" ] || continue
-          [ -n "$owner" ] && [ -n "$repo" ] && [ -n "$current_rev" ] || continue
+        while IFS= read -r name; do
+          current_rev=$(${pkgs.jq}/bin/jq -r --arg name "$name" '
+            .nodes as $nodes
+            | .nodes.root.inputs[$name] as $node_name
+            | $nodes[$node_name].locked.rev // ""
+          ' "$FLAKE_PATH/flake.lock")
+          [ -n "$current_rev" ] || continue
 
-          new_rev=""
-          while IFS=$'\t' read -r candidate_rev candidate_ref; do
-            new_rev="$candidate_rev"
-            case "$candidate_ref" in
-              *'^{}') break ;;
-            esac
-          done < <(${pkgs.coreutils}/bin/timeout 15s ${pkgs.git}/bin/git ls-remote "https://github.com/$owner/$repo.git" "''${ref:-HEAD}" "''${ref:-HEAD}^{}" 2>/dev/null)
+          candidate_lock=$(${pkgs.coreutils}/bin/mktemp "$CACHE_DIR/flake-update-lock.XXXXXX")
+          if ! ${pkgs.coreutils}/bin/timeout 60s ${pkgs.nix}/bin/nix flake update "$name" \
+            --flake "$FLAKE_PATH" \
+            --reference-lock-file "$FLAKE_PATH/flake.lock" \
+            --output-lock-file "$candidate_lock" \
+            >/dev/null 2>&1
+          then
+            ${pkgs.coreutils}/bin/rm -f "$candidate_lock"
+            continue
+          fi
+
+          new_rev=$(${pkgs.jq}/bin/jq -r --arg name "$name" '
+            .nodes as $nodes
+            | .nodes.root.inputs[$name] as $node_name
+            | $nodes[$node_name].locked.rev // ""
+          ' "$candidate_lock")
+          ${pkgs.coreutils}/bin/rm -f "$candidate_lock"
 
           [ -n "$new_rev" ] && [ "$new_rev" != "$current_rev" ] || continue
 
@@ -44,21 +58,10 @@
             '{name: $name, currentRev: $currentRev, currentShort: $currentShort, newRev: $newRev, newShort: $newShort}')
           UPDATES_JSON=$(printf '%s' "$UPDATES_JSON" | ${pkgs.jq}/bin/jq --argjson update "$update" '. + [$update]')
         done < <(${pkgs.jq}/bin/jq -r '
-          .nodes as $nodes
-          | .nodes.root.inputs
+          .nodes.root.inputs
           | to_entries[]
           | select(.value | type == "string")
-          | .key as $name
-          | $nodes[.value] as $node
-          | [
-              $name,
-              $node.locked.type // "",
-              $node.locked.owner // "",
-              $node.locked.repo // "",
-              $node.locked.rev // "",
-              $node.original.ref // "HEAD"
-            ]
-          | @tsv
+          | .key
         ' "$FLAKE_PATH/flake.lock")
 
         timestamp=$(${pkgs.coreutils}/bin/date -Iseconds)
@@ -120,6 +123,10 @@
         Service = {
           Type = "oneshot";
           ExecStart = "${flakeCheckScript}/bin/flake-check-updates ${config.home.homeDirectory}/nixos";
+          Nice = 19;
+          CPUWeight = 10;
+          IOSchedulingClass = "idle";
+          IOWeight = 10;
           # Run in a sandbox-like environment
           PrivateTmp = true;
           # Continue even if check fails
