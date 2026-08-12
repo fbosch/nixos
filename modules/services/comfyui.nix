@@ -111,9 +111,6 @@ in
 
       environment.systemPackages = [ startComfyUI ];
 
-      home-manager.sharedModules = [
-        flakeConfig.flake.modules.homeManager."services/comfyui"
-      ];
     };
 
   flake.modules.homeManager."services/comfyui" =

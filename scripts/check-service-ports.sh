@@ -15,18 +15,35 @@ mapfile -t declared_ports < <(
     jq -r '[.[] | (.tcpPorts[]? | "\(.)/tcp"), (.udpPorts[]? | "\(.)/udp")] | unique | .[]'
 )
 
-missing_ports=()
+backtick=$'\x60'
+mapfile -t documented_ports < <(
+  grep -oE "${backtick}[0-9]+/(tcp|udp)${backtick}" "$doc_path" |
+    tr -d '`' |
+    sort -u
+)
 
-for port in "${declared_ports[@]}"; do
-  if ! grep -Fq -- "$port" "$doc_path"; then
-    missing_ports+=("$port")
+mapfile -t missing_ports < <(comm -23 \
+  <(printf '%s\n' "${declared_ports[@]}" | sort -u) \
+  <(printf '%s\n' "${documented_ports[@]}" | sort -u))
+
+mapfile -t stale_ports < <(comm -13 \
+  <(printf '%s\n' "${declared_ports[@]}" | sort -u) \
+  <(printf '%s\n' "${documented_ports[@]}" | sort -u))
+
+if [ "${#missing_ports[@]}" -gt 0 ] || [ "${#stale_ports[@]}" -gt 0 ]; then
+  echo "${doc_path} does not match declared exposed ports for ${host}:"
+
+  if [ "${#missing_ports[@]}" -gt 0 ]; then
+    echo "Missing from documentation:"
+    printf '  - %s\n' "${missing_ports[@]}"
   fi
-done
 
-if [ "${#missing_ports[@]}" -gt 0 ]; then
-  echo "${doc_path} is missing documented ports for ${host}:"
-  printf '  - %s\n' "${missing_ports[@]}"
+  if [ "${#stale_ports[@]}" -gt 0 ]; then
+    echo "Missing from services.exposedPorts:"
+    printf '  - %s\n' "${stale_ports[@]}"
+  fi
+
   exit 1
 fi
 
-echo "${doc_path} covers all declared exposed ports for ${host}"
+echo "${doc_path} exactly matches declared exposed ports for ${host}"

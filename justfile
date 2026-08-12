@@ -18,12 +18,8 @@ build-srv:
 build-helium:
     sudo build-helium-images
 
-# Build custom container images for openmemory
-build-openmemory:
-    sudo build-openmemory-images
-
 # Build all custom container images
-build-images: build-helium build-openmemory
+build-images: build-helium
 
 # Pre-pull the pinned PriceGhost PostgreSQL image before a server switch
 pull-priceghost-postgres:

@@ -56,18 +56,6 @@ in
       description = "Synology configuration";
     };
 
-    unfree = lib.mkOption {
-      type = lib.types.submodule {
-        options.allowList = lib.mkOption {
-          type = lib.types.listOf lib.types.str;
-          default = [ ];
-          description = "Package names allowed to be unfree";
-        };
-      };
-      default = { };
-      description = "Unfree package policy";
-    };
-
     hosts = lib.mkOption {
       type = lib.types.attrsOf hostMetadataType;
       default = { };

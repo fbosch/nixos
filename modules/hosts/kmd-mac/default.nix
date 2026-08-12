@@ -30,18 +30,7 @@ in
       inputs.determinate.darwinModules.default
       "hosts/kmd-mac/platform"
       "hosts/kmd-mac/home"
-      "system"
-      "development"
-      "shell"
-      "virtualization/podman"
-      "aerospace"
-      "alt-tab"
-      "cleanshot"
-      "fonts"
-      "hazeover"
-      "system-defaults"
-      "security"
-      "homebrew"
+      "presets/osx"
     ];
   };
 }

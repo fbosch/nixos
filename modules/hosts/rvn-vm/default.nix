@@ -109,19 +109,7 @@ in
             xdg-utils
           ];
 
-          # Home Manager configuration for user
-          home-manager.users.${config.flake.meta.user.username}.imports =
-            config.flake.lib.resolveHm [
-              # Desktop preset (includes users, dotfiles, fonts, security, desktop, applications, development, shell)
-              "presets/desktop"
-
-              # Shared modules with Home Manager components
-              "secrets"
-            ]
-            ++ [
-              # External Home Manager modules
-              inputs.flatpaks.homeManagerModules.nix-flatpak
-            ];
+          home-manager.users.${config.flake.meta.user.username} = { };
 
           # VirtualBox-specific environment variables for software rendering
           environment.sessionVariables = {

@@ -7,17 +7,24 @@
     }:
     {
       config = {
-        services.startupPolicy.applications.home-assistant = {
-          tier = lib.mkDefault "background";
-          units = [
+        services = {
+          exposedPorts = lib.mkAfter [
             {
-              name = "home-assistant.service";
-              provider = "nixos";
+              service = "home-assistant";
+              tcpPorts = [ 8123 ];
             }
           ];
-        };
 
-        services = {
+          startupPolicy.applications.home-assistant = {
+            tier = lib.mkDefault "background";
+            units = [
+              {
+                name = "home-assistant.service";
+                provider = "nixos";
+              }
+            ];
+          };
+
           home-assistant = {
             enable = lib.mkDefault true;
 

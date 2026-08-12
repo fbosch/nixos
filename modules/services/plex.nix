@@ -57,21 +57,21 @@
       };
 
       config = {
-        services.startupPolicy.applications.plex = {
-          tier = lib.mkDefault "background";
-          units =
-            map
-              (name: {
-                inherit name;
-                provider = "nixos";
-              })
-              [
-                "plex.service"
-                "nginx.service"
-              ];
-        };
-
         services = {
+          startupPolicy.applications.plex = {
+            tier = lib.mkDefault "background";
+            units =
+              map
+                (name: {
+                  inherit name;
+                  provider = "nixos";
+                })
+                [
+                  "plex.service"
+                  "nginx.service"
+                ];
+          };
+
           plex = {
             enable = lib.mkDefault true;
             openFirewall = lib.mkDefault true;
@@ -240,6 +240,15 @@
               nice = 0;
             }
           ];
+
+          exposedPorts = lib.mkIf cfg.nginx.enable (
+            lib.mkAfter [
+              {
+                service = "plex-nginx";
+                tcpPorts = [ cfg.nginx.port ];
+              }
+            ]
+          );
         };
 
         users.users.plex.extraGroups = [ "media" ];
@@ -278,6 +287,7 @@
         networking.firewall.allowedTCPPorts = lib.mkIf cfg.nginx.enable [
           cfg.nginx.port
         ];
+
       };
     };
 }

@@ -27,6 +27,14 @@ let
             darwin.example = {
               _testMarker = "darwin";
             };
+            homeManager = {
+              example = {
+                _testMarker = "home-manager-example";
+              };
+              home-only = {
+                _testMarker = "home-manager-only";
+              };
+            };
           };
         };
       };
@@ -39,37 +47,41 @@ let
       modules = [
         ../../modules/flake-parts/meta
         ../../modules/flake-parts/host-configurations.nix
-        (
-          _:
-          {
-            options.flake = {
-              modules = lib.mkOption {
-                type = lib.types.attrsOf lib.types.raw;
-                default = { };
-              };
-              nixosConfigurations = lib.mkOption {
-                type = lib.types.lazyAttrsOf lib.types.raw;
-                default = { };
-              };
+        (_: {
+          options.flake = {
+            modules = lib.mkOption {
+              type = lib.types.attrsOf lib.types.raw;
+              default = { };
             };
+            nixosConfigurations = lib.mkOption {
+              type = lib.types.lazyAttrsOf lib.types.raw;
+              default = { };
+            };
+          };
 
-            config = {
-              inherit hosts;
-              flake = {
-                modules = {
-                  nixos.example = { };
-                  darwin.example = { };
-                };
+          config = {
+            inherit hosts;
+            flake = {
+              modules = {
+                nixos.example = { };
+                darwin.example = { };
               };
             };
-          }
-        )
+          };
+        })
       ];
     }).config.flake.meta.hosts;
 
   declaration = system: {
     metadata = { inherit system; };
     modules = [ "example" ];
+  };
+  homeOnlyDeclaration = system: {
+    metadata = { inherit system; };
+    modules = [
+      "example"
+      "home-only"
+    ];
   };
   rolePresets = [
     "presets/desktop"
@@ -84,7 +96,9 @@ let
     let
       expectedPreset = expectedPresetByRole.${host.metadata.role} or null;
       selectedRolePresets = lib.filter
-        (module: builtins.isString module && lib.elem module rolePresets)
+        (
+          module: builtins.isString module && lib.elem module rolePresets
+        )
         host.modules;
     in
     lib.length selectedRolePresets <= 1
@@ -120,18 +134,20 @@ in
 
   testRejectsMetadataName = {
     expr =
-      (builtins.tryEval (builtins.deepSeq
-        (normalizedHosts {
-          host = {
-            metadata = {
-              name = "conflicting-host";
-              role = "desktop";
-              system = "x86_64-linux";
+      (builtins.tryEval (
+        builtins.deepSeq
+          (normalizedHosts {
+            host = {
+              metadata = {
+                name = "conflicting-host";
+                role = "desktop";
+                system = "x86_64-linux";
+              };
+              modules = [ ];
             };
-            modules = [ ];
-          };
-        })
-        true)).success;
+          })
+          true
+      )).success;
     expected = false;
   };
 
@@ -155,6 +171,9 @@ in
               system = "x86_64-linux";
             };
             extraSpecialArgs.hostKey = "host";
+            sharedModules = [
+              { _testMarker = "home-manager-example"; }
+            ];
           };
         }
       ];
@@ -181,25 +200,52 @@ in
               system = "aarch64-darwin";
             };
             extraSpecialArgs.hostKey = "host";
+            sharedModules = [
+              { _testMarker = "home-manager-example"; }
+            ];
           };
         }
       ];
     };
   };
 
+  testAcceptsHomeManagerOnlyAspect = {
+    expr = (collector { host = homeOnlyDeclaration "x86_64-linux"; }).nixosConfigurations.host.modules;
+    expected = [
+      { _testMarker = "nixos"; }
+      { _testMarker = "nixos-home-manager"; }
+      {
+        home-manager = {
+          useGlobalPkgs = true;
+          useUserPackages = true;
+          extraSpecialArgs.hostMeta = {
+            system = "x86_64-linux";
+          };
+          extraSpecialArgs.hostKey = "host";
+          sharedModules = [
+            { _testMarker = "home-manager-example"; }
+            { _testMarker = "home-manager-only"; }
+          ];
+        };
+      }
+    ];
+  };
+
   testRejectsUnsupportedSystems = {
     expr =
-      (builtins.tryEval (builtins.deepSeq
-        (normalizedHosts {
-          host = {
-            metadata = {
-              role = "desktop";
-              system = "x86_64-windows";
+      (builtins.tryEval (
+        builtins.deepSeq
+          (normalizedHosts {
+            host = {
+              metadata = {
+                role = "desktop";
+                system = "x86_64-windows";
+              };
+              modules = [ ];
             };
-            modules = [ ];
-          };
-        })
-        true)).success;
+          })
+          true
+      )).success;
     expected = false;
   };
 

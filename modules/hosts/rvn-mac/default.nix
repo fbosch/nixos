@@ -34,23 +34,9 @@ in
       "hosts/rvn-mac/platform"
       "hosts/rvn-mac/home"
 
-      # Darwin core system configuration (Cachix, nix settings, home-manager)
-      "system"
-      "development"
-      "shell"
       "users"
-      "virtualization/podman"
-
-      # Darwin-specific modules
-      "aerospace"
-      "alt-tab"
-      "cleanshot"
-      "fonts"
-      "hazeover"
-      "system-defaults"
-      "security"
       "secrets"
-      "homebrew"
+      "presets/osx"
     ]
     ++ [
       ({ hostKey, ... }: {

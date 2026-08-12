@@ -169,11 +169,10 @@
       "separateMinorPatch": false
     },
     {
-      "description": "Local-only images (helium, openmemory) cannot be updated via registries",
+      "description": "Local-only Helium images cannot be updated via registries",
       "enabled": false,
       "matchPackageNames": [
-        "/^helium-/",
-        "/^localhost/openmemory/"
+        "/^helium-/"
       ]
     },
     {

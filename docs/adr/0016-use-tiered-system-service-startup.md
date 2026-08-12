@@ -9,7 +9,7 @@
 
 ## Decision
 
-Use three startup tiers declared by the modules that own each application. Essential services start during boot; Standard services start after `multi-user.target` without gating it; Background application groups start sequentially after Standard settles and receive lower CPU and I/O weights. The initial policy keeps DNS, VPN, and Helium Essential; places the media stack, Linkwarden, and OpenMemory in Standard; and assigns remaining application services to Background.
+Use three startup tiers declared by the modules that own each application. Essential services start during boot; Standard services start after `multi-user.target` without gating it; Background application groups start sequentially after Standard settles and receive lower CPU and I/O weights. The initial policy keeps DNS, VPN, and Helium Essential; places the media stack and Linkwarden in Standard; and assigns remaining application services to Background.
 
 ## Alternatives Considered
 

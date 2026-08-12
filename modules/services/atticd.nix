@@ -37,6 +37,13 @@ in
           services.atticd.enable = lib.mkDefault true;
         }
         (lib.mkIf cfg.enable {
+          services.exposedPorts = lib.mkAfter [
+            {
+              service = "atticd";
+              tcpPorts = [ 8081 ];
+            }
+          ];
+
           sops.templates."atticd-env" = {
             content = "ATTIC_SERVER_TOKEN_RS256_SECRET_BASE64=${config.sops.placeholder.atticd-jwt}\n";
             mode = "0400";

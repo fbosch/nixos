@@ -5,6 +5,8 @@
     services.flatpak.enable = true;
   };
   flake.modules.homeManager.applications = { lib, ... }: {
+    imports = [ inputs.flatpaks.homeManagerModules.nix-flatpak ];
+
     services.flatpak = {
       enable = true;
       uninstallUnmanaged = true;

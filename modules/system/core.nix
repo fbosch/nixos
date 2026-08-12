@@ -77,17 +77,7 @@ in
     environment.localBinInPath = true;
     environment.variables.NH_FLAKE = "/home/${config.flake.meta.user.username}/nixos";
 
-    nixpkgs.config = {
-      allowUnfreePredicate =
-        pkg:
-        let
-          name = lib.getName pkg;
-        in
-        builtins.elem name config.flake.meta.unfree.allowList;
-
-      # See modules/flake-parts/nixpkgs.nix bitwarden-desktop overlay for removal condition.
-      permittedInsecurePackages = [ "electron-39.8.10" ];
-    };
+    nixpkgs.config.permittedInsecurePackages = [ "electron-39.8.10" ];
 
     nix = {
       settings = lib.mkMerge [

@@ -21,6 +21,13 @@
           };
         }
         {
+          services.exposedPorts = lib.mkAfter [
+            {
+              service = "atuin";
+              tcpPorts = [ port ];
+            }
+          ];
+
           services.atuin = {
             enable = lib.mkDefault true;
             host = lib.mkDefault "0.0.0.0";

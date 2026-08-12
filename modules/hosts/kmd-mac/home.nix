@@ -12,16 +12,6 @@
           homeDirectory = lib.mkForce "/Users/${username}";
           stateVersion = "25.05";
         };
-
-        imports = config.flake.lib.resolveHm [
-          "dotfiles"
-          "fonts"
-          "security"
-          "development"
-          "worktrunk"
-          "shell"
-          "virtualization/podman"
-        ];
       };
     };
 }

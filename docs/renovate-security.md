@@ -65,7 +65,6 @@ Triggered automatically on PRs that modify files in `modules/services/containers
 
 These images are built locally and won't be tracked by Renovate:
 - `helium` (custom build)
-- `openmemory` (custom build)
 
 You must manually update their upstream dependencies.
 
@@ -277,7 +276,7 @@ If Trivy reports vulnerabilities that don't apply:
 - Check Trivy scan results
 
 ### Quarterly (Manual)
-- Review excluded local images (`helium`, `openmemory`)
+- Review excluded local images (`helium`)
 - Check upstream repos for security advisories
 - Audit `renovate.json` for stale configurations
 

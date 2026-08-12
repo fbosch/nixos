@@ -78,7 +78,6 @@ in
       "services/containers/pihole"
       "services/containers/helium"
       "services/containers/komodo"
-      "services/containers/openmemory"
       "services/containers/linkwarden"
       "services/containers/rdtclient"
       "services/containers/flaresolverr"

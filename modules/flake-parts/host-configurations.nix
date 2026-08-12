@@ -13,19 +13,40 @@ let
   hostMetadata = lib.mapAttrs (_name: host: host.metadata) hosts;
   systems = lib.mapAttrs (_name: host: host.metadata.system) hosts;
 
-  resolveModules =
+  platformModules =
     name:
-    builtins.map (
-      module:
-      if builtins.isString module then
-        (
-          if lib.hasSuffix "-darwin" systems.${name} then
-            config.flake.modules.darwin
-          else
-            config.flake.modules.nixos
-        ).${module}
-      else
-        module
+    if lib.hasSuffix "-darwin" systems.${name} then
+      config.flake.modules.darwin
+    else
+      config.flake.modules.nixos;
+
+  resolveModules =
+    name: modules:
+    let
+      platform = platformModules name;
+      homeManager = config.flake.modules.homeManager or { };
+      resolve =
+        module:
+        if !builtins.isString module then
+          module
+        else if builtins.hasAttr module platform then
+          platform.${module}
+        else if builtins.hasAttr module homeManager then
+          null
+        else
+          throw "Host `${name}` references unknown module aspect `${module}`";
+    in
+    lib.filter (module: module != null) (map resolve modules);
+
+  resolveHomeManagerModules =
+    modules:
+    let
+      homeManager = config.flake.modules.homeManager or { };
+    in
+    map (module: homeManager.${module}) (
+      lib.unique (
+        lib.filter (module: builtins.isString module && builtins.hasAttr module homeManager) modules
+      )
     );
 
   mkConfiguration =
@@ -58,6 +79,7 @@ let
             useGlobalPkgs = true;
             useUserPackages = true;
             extraSpecialArgs = hostArgs;
+            sharedModules = resolveHomeManagerModules host.modules;
           };
         }
       ];
@@ -80,7 +102,10 @@ in
 
               modules = lib.mkOption {
                 type = lib.types.listOf lib.types.raw;
-                description = "NixOS or nix-darwin module names and values";
+                description = ''
+                  Module aspect names and raw platform modules. Named aspects load their
+                  NixOS or nix-darwin module and, when present, their matching Home Manager module.
+                '';
               };
             };
           }

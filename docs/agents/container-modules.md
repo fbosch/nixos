@@ -10,7 +10,6 @@ If the upstream does not publish images (source-only project), ship a **build he
 - Use `pkgs.writeShellScriptBin "build-<name>-images"` for the script
 - Expose it via `environment.systemPackages`
 - Reference locally built images with `Image=localhost/<name>:latest` and `Pull=never`
-- See `modules/services/containers/openmemory.nix` for the full pattern
 
 **Never use a custom systemd service to build images.** This creates ordering problems, makes rebuilds hard to reason about, and violates the Quadlet model.
 

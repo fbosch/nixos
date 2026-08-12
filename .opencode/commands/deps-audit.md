@@ -36,7 +36,7 @@ Current container inventory:
 !`rg --files modules/services/containers -g '*.nix' | sort`
 
 Container image signals:
-!`rg -n 'Image=|imageTag\s*=\s*lib\.mkOption|image\s*=\s*lib\.mkOption|redisImageTag\s*=\s*lib\.mkOption|default\s*=\s*"latest"|gitRev\s*=|openmemoryRev\s*=' modules/services/containers`
+!`rg -n 'Image=|imageTag\s*=\s*lib\.mkOption|image\s*=\s*lib\.mkOption|redisImageTag\s*=\s*lib\.mkOption|default\s*=\s*"latest"|gitRev\s*=' modules/services/containers`
 
 Package source signals:
 !`rg -n 'version\s*=|fetchFromGitHub|fetchurl|fetchzip|mkChromiumApp|url\s*=\s*"https://github\.com/' pkgs/by-name/*/package.nix`
@@ -126,7 +126,7 @@ Output rules by mode:
 Important repo-specific expectations:
 
 - Treat Chromium app packages under `pkgs/by-name/chromium-*` as wrappers unless the file clearly pins a real upstream artifact.
-- Treat `modules/services/containers/helium.nix` and `modules/services/containers/openmemory.nix` as local-build flows aligned with Renovate's disabled local-image rule.
+- Treat `modules/services/containers/helium.nix` as a local-build flow aligned with Renovate's disabled local-image rule.
 - Treat modules like `linkwarden`, `komodo`, and `rsshub` as potentially multi-target because they may pin sidecars separately.
 - Treat `pkgs/by-name/font-zenbones/package.nix` and `pkgs/by-name/nemo-image-converter/package.nix` as likely `ambiguous` unless you can prove a clean Renovate match.
 - Call out mismatches between declared `version` and embedded release URL or rev when found.

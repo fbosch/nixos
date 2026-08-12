@@ -55,6 +55,7 @@ in
       "services/comfyui"
       "services/nextdns"
       "applications/surge"
+      "worktrunk"
 
       # hardware
       "hardware/usb-automount"
@@ -68,7 +69,6 @@ in
 
       # virtualization
       "virtualization/podman"
-
     ]
     ++ [
       inputs.nixos-hardware.nixosModules.common-cpu-intel

@@ -97,6 +97,15 @@ in
             passwordFile = lib.mkIf (config ? sops) config.sops.secrets.freshrss-admin-password.path;
           };
 
+          services.exposedPorts = lib.mkIf cfg.openFirewall (
+            lib.mkAfter [
+              {
+                service = "freshrss";
+                tcpPorts = [ cfg.port ];
+              }
+            ]
+          );
+
           networking.firewall.allowedTCPPorts = lib.mkIf cfg.openFirewall [ cfg.port ];
 
           # Fix systemd service ordering - ensure SOPS secrets are installed before FreshRSS config
