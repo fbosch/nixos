@@ -2,7 +2,7 @@
 , ...
 }:
 let
-  inherit (config.flake.lib) sopsHelpers;
+  inherit (config.flake.lib) sopsFiles sopsHelpers;
 in
 {
   flake.modules.nixos."services/wakapi" =
@@ -42,7 +42,7 @@ in
           };
         }
         (lib.mkIf (config ? sops) {
-          sops.secrets.wakapi-password-salt = sopsHelpers.mkSecret ../../secrets/apis.yaml sopsHelpers.rootOnly;
+          sops.secrets.wakapi-password-salt = sopsHelpers.mkSecret sopsFiles.apis sopsHelpers.rootOnly;
 
           sops.templates."wakapi-env" = {
             content = ''

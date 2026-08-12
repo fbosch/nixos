@@ -1,6 +1,6 @@
 { config, ... }:
 let
-  inherit (config.flake.lib) sopsHelpers startupPolicy;
+  inherit (config.flake.lib) sopsFiles sopsHelpers startupPolicy;
 in
 {
   # Linkwarden - Self-hosted collaborative bookmark manager
@@ -31,7 +31,7 @@ in
     }:
     let
       cfg = config.services.linkwarden-container;
-      containersFile = ../../../secrets/containers.yaml;
+      containersFile = sopsFiles.containers;
     in
     {
       options.services.linkwarden-container = {

@@ -1,6 +1,6 @@
 { config, ... }:
 let
-  inherit (config.flake.lib) sopsHelpers;
+  inherit (config.flake.lib) sopsFiles sopsHelpers;
 in
 {
   flake.modules.nixos."services/attic" =
@@ -131,7 +131,7 @@ in
         };
 
         sops.secrets.attic-admin-token = lib.mkIf cfg.watchStore.enable (
-          sopsHelpers.mkSecret ../../../secrets/development.yaml sopsHelpers.rootOnly
+          sopsHelpers.mkSecret sopsFiles.development sopsHelpers.rootOnly
         );
       };
     };

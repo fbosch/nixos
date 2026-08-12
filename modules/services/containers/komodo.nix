@@ -1,6 +1,6 @@
 { config, ... }:
 let
-  inherit (config.flake.lib) startupPolicy;
+  inherit (config.flake.lib) sopsFiles startupPolicy;
 in
 {
   flake.modules.nixos."services/containers/komodo" =
@@ -303,22 +303,22 @@ in
           secrets = {
             komodo-passkey = lib.mkIf cfg.periphery.requirePasskey {
               mode = "0440";
-              sopsFile = ../../../secrets/containers.yaml;
+              sopsFile = sopsFiles.containers;
             };
 
             komodo-db-username = {
               mode = "0400";
-              sopsFile = ../../../secrets/containers.yaml;
+              sopsFile = sopsFiles.containers;
             };
 
             komodo-db-password = {
               mode = "0400";
-              sopsFile = ../../../secrets/containers.yaml;
+              sopsFile = sopsFiles.containers;
             };
 
             komodo-admin-password = lib.mkIf (cfg.core.initAdminUsername != null) {
               mode = "0400";
-              sopsFile = ../../../secrets/containers.yaml;
+              sopsFile = sopsFiles.containers;
             };
           };
 

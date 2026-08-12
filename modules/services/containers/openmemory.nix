@@ -1,6 +1,6 @@
 { config, ... }:
 let
-  inherit (config.flake.lib) sopsHelpers startupPolicy;
+  inherit (config.flake.lib) sopsFiles sopsHelpers startupPolicy;
 in
 {
   flake.modules.nixos."services/containers/openmemory" =
@@ -12,7 +12,7 @@ in
     let
       # OpenMemory source from GitHub
       openmemoryRev = "v1.2.3";
-      openmemorySecretsFile = ../../../secrets/containers.yaml;
+      openmemorySecretsFile = sopsFiles.containers;
       openmemorySource = pkgs.fetchFromGitHub {
         owner = "CaviraOSS";
         repo = "OpenMemory";

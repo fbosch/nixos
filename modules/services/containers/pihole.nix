@@ -1,6 +1,6 @@
 { config, ... }:
 let
-  inherit (config.flake.lib) sopsHelpers startupPolicy;
+  inherit (config.flake.lib) sopsFiles sopsHelpers startupPolicy;
 in
 {
   flake.modules.nixos."services/containers/pihole" =
@@ -97,7 +97,7 @@ in
         };
 
         sops.secrets."pihole-default-password" =
-          sopsHelpers.mkSecret ../../../secrets/containers.yaml sopsHelpers.rootOnly;
+          sopsHelpers.mkSecret sopsFiles.containers sopsHelpers.rootOnly;
 
         sops.templates."pihole-webpassword" = {
           content = ''

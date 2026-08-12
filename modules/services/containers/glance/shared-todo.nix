@@ -13,8 +13,8 @@ _:
       options.services.glance-shared-todo = {
         listenAddress = lib.mkOption {
           type = lib.types.str;
-          default = "192.168.1.46";
-          description = "LAN address used by the HTTPS reverse proxy";
+          default = "127.0.0.1";
+          description = "Loopback address used by the local nginx frontend";
         };
 
         port = lib.mkOption {
@@ -59,7 +59,7 @@ _:
             GLANCE_SHARED_TODO_PORT = toString cfg.port;
           };
           serviceConfig = {
-            ExecStart = "${pkgs.bun}/bin/bun ${./shared-todo/server.ts}";
+            ExecStart = "${pkgs.bun}/bin/bun ${./shared-todo}/server.ts";
             DynamicUser = true;
             StateDirectory = "glance-shared-todo";
             StateDirectoryMode = "0750";
@@ -88,7 +88,6 @@ _:
           };
         };
 
-        networking.firewall.allowedTCPPorts = [ cfg.port ];
       };
     };
 }

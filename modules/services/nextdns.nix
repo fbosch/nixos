@@ -1,6 +1,6 @@
 { config, ... }:
 let
-  inherit (config.flake.lib) sopsHelpers;
+  inherit (config.flake.lib) sopsFiles sopsHelpers;
 in
 {
   flake.modules.nixos."services/nextdns" =
@@ -10,7 +10,6 @@ in
     }:
     let
       cfg = config.services.nextdns;
-      commonFile = ../../secrets/common.yaml;
     in
     {
       options.services.nextdns.listenAddress = lib.mkOption {
@@ -36,7 +35,7 @@ in
         ];
 
         sops.secrets."nextdns-profile-id" = lib.mkDefault (
-          sopsHelpers.mkSecret commonFile sopsHelpers.rootOnly
+          sopsHelpers.mkSecret sopsFiles.common sopsHelpers.rootOnly
         );
 
         systemd.services.nextdns = {

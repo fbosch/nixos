@@ -1,7 +1,7 @@
 { config, ... }:
 let
-  inherit (config.flake.lib) sopsHelpers startupPolicy;
-  containersFile = ../../../secrets/containers.yaml;
+  inherit (config.flake.lib) sopsFiles sopsHelpers startupPolicy;
+  containersFile = sopsFiles.containers;
 in
 {
   # PriceGhost - Self-hosted price tracking application

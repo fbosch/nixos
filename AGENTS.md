@@ -29,6 +29,7 @@ Do not run `sops` commands directly; they break the TUI. Instruct the user to ru
 - `config.flake.lib.resolve`: resolve NixOS module paths from string names.
 - `config.flake.lib.resolveHm`: resolve Home Manager module paths from string names.
 - `config.flake.lib.resolveDarwin`: resolve Darwin module paths from string names.
+- `config.flake.lib.sopsFiles`: canonical paths for `apis`, `common`, `containers`, and `development` SOPS files.
 - `config.flake.lib.sopsHelpers`: SOPS helper set with `rootOnly`, `wheelReadable`, `worldReadable`, `mkSecrets`, `mkSecretsWithOpts`, and `mkSecret`.
 
 ## Host Machine Metadata

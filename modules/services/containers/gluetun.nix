@@ -1,6 +1,6 @@
 { config, ... }:
 let
-  inherit (config.flake.lib) sopsHelpers startupPolicy;
+  inherit (config.flake.lib) sopsFiles sopsHelpers startupPolicy;
 in
 {
   flake.modules.nixos."services/containers/gluetun" =
@@ -19,7 +19,7 @@ in
       allPublishPorts = publishPorts ++ controlServerPorts;
       publishPortBlock = lib.concatStringsSep "\n" allPublishPorts;
       serverCountries = lib.concatStringsSep "," cfg.serverCountries;
-      containersFile = ../../../secrets/containers.yaml;
+      containersFile = sopsFiles.containers;
     in
     {
       options.services.gluetun-container = {

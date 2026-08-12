@@ -167,20 +167,19 @@ Reference in container: `Volume=${cfg.dataDir}:/data`
 
 ## SOPS / Secrets
 
-Wire secrets through `sops.secrets` + `sops.templates`. Use `sopsHelpers` from `config.flake.lib`:
+Wire secrets through `sops.secrets` + `sops.templates`. Use the canonical `sopsFiles` paths and `sopsHelpers` from `config.flake.lib`:
 
 ```nix
 { config, ... }:
-let inherit (config.flake.lib) sopsHelpers; in
+let inherit (config.flake.lib) sopsFiles sopsHelpers; in
 {
   flake.modules.nixos."services/containers/myapp" = { config, lib, ... }:
     let
       cfg = config.services.myapp-container;
-      containersFile = ../../../secrets/containers.yaml;
     in {
       config = {
         sops = {
-          secrets = sopsHelpers.mkSecretsWithOpts containersFile sopsHelpers.rootOnly [
+          secrets = sopsHelpers.mkSecretsWithOpts sopsFiles.containers sopsHelpers.rootOnly [
             "myapp-api-key"
             "myapp-secret"
           ];
