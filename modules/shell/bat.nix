@@ -1,10 +1,5 @@
 { inputs, ... }:
 let
-  homeManagerLib = import
-    (
-      inputs.home-manager.outPath + "/modules/lib/stdlib-extended.nix"
-    )
-    inputs.nixpkgs.lib;
   systemPackages = { pkgs, ... }: {
     environment.systemPackages = [ pkgs.glow ];
   };
@@ -64,36 +59,15 @@ in
     { lib, pkgs, ... }:
     let
       batHomeConfig =
-        (homeManagerLib.evalModules {
-          specialArgs = { inherit pkgs; };
+        (inputs.home-manager.lib.homeManagerConfiguration {
+          inherit pkgs;
           modules = [
-            {
-              options = {
-                home.activation = lib.mkOption {
-                  type = lib.types.attrsOf lib.types.anything;
-                  default = { };
-                };
-                programs.bat = {
-                  enable = lib.mkOption {
-                    type = lib.types.bool;
-                    default = false;
-                  };
-                  package = lib.mkOption {
-                    type = lib.types.package;
-                    default = pkgs.bat;
-                  };
-                };
-                xdg = {
-                  cacheHome = lib.mkOption { type = lib.types.str; };
-                  configHome = lib.mkOption { type = lib.types.str; };
-                };
-              };
-            }
             homeManagerBat
             {
-              xdg = {
-                cacheHome = "/home/tester/.cache";
-                configHome = "/home/tester/.config";
+              home = {
+                username = "tester";
+                homeDirectory = "/home/tester";
+                stateVersion = "25.05";
               };
             }
           ];
