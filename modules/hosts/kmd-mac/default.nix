@@ -28,9 +28,9 @@ in
     metadata = hostMetadata;
     modules = [
       inputs.determinate.darwinModules.default
+      "presets/osx"
       "hosts/kmd-mac/platform"
       "hosts/kmd-mac/home"
-      "presets/osx"
     ];
   };
 }

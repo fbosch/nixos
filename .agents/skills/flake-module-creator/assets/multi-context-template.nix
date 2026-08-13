@@ -1,13 +1,11 @@
-{ config, ... }:
-{
+_: {
   # NixOS system-level module. Use the Darwin class for a Darwin-only feature.
   # This aspect owns package availability and machine state.
   flake.modules.nixos."<category>/<NAME>" =
-    {
-      config,
-      lib,
-      pkgs,
-      ...
+    { config
+    , lib
+    , pkgs
+    , ...
     }:
     {
       config = {
@@ -21,14 +19,12 @@
         #   # Desktop packages
         # ];
 
-        # Include Home Manager auxiliary module
-        home-manager.sharedModules = [
-          config.flake.modules.homeManager."<category>/<NAME>"
-        ];
+        # The host collector wires the matching Home Manager aspect when this
+        # named aspect appears in hosts.<name>.modules.
       };
     };
 
-  # Home Manager user-level module (auxiliary). This aspect owns user
+  # Home Manager user-level sibling. This aspect owns user
   # configuration, generated files, services, and session state.
   flake.modules.homeManager."<category>/<NAME>" =
     { config, lib, ... }:

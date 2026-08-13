@@ -31,12 +31,11 @@ in
   hosts.rvn-mac = {
     metadata = hostMetadata;
     modules = [
+      "presets/osx"
       "hosts/rvn-mac/platform"
       "hosts/rvn-mac/home"
-
       "users"
       "secrets"
-      "presets/osx"
     ]
     ++ [
       ({ hostKey, ... }: {

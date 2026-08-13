@@ -168,19 +168,27 @@ config = lib.mkIf cfg.enable {
 
 ### 6. Add to Host Configuration
 
-Guide the user to import the new module:
+Guide the user to add the named aspect to the host declaration:
 
-**Via host module imports**:
+**Via `hosts.<name>.modules`**:
 ```nix
-# In modules/hosts/<hostname>.nix
-imports = config.flake.lib.resolve [
+# In modules/hosts/<hostname>/default.nix
+hosts.<hostname>.modules = [
   "services/myapp"
 ];
 ```
 
+The host collector resolves the named aspect for the host platform and adds its
+matching `flake.modules.homeManager` aspect to `home-manager.sharedModules`
+when one exists. Do not resolve host entries manually or pair same-named
+Home Manager siblings in the feature module.
+
 **Override defaults if needed**:
 ```nix
-services.myapp.port = 9090;
+hosts.<hostname>.modules = [
+  "services/myapp"
+  { services.myapp.port = 9090; }
+];
 ```
 
 ## Dendritic-Specific Edge Cases
@@ -206,47 +214,51 @@ flake.modules.nixos.myapp = {
   services.myapp.port = lib.mkDefault 8080;
 };
 
-# Collector in host file (modules/hosts/server.nix)
-flake.modules.nixos.myapp = {
-  services.myapp.extraConfig = "...";  # Add, don't override port
-};
-
-# Host override (in host imports section, NOT collector)
-services.myapp.port = 9090;  # Override default
+# Host override (in modules/hosts/server/default.nix)
+hosts.server.modules = [
+  "services/myapp"
+  { services.myapp.port = 9090; }
+];
 ```
 
 **Why this matters**: Collector merging is for additive config (devices, hosts, routes), not for overriding values.
 
-### Edge Case 2: Multi-Context Module Inheritance Trap
+### Edge Case 2: Multi-Context Aspect Matching
 
-**Problem**: Inheriting multi-context module duplicates Home Manager import
+**Problem**: Manually adding a same-named Home Manager sibling duplicates the
+host collector's work.
 
 ```nix
-# Base module
+# WRONG: do not wire a matching sibling from its NixOS aspect
 flake.modules.nixos.gnome = {
   services.xserver.desktopManager.gnome.enable = true;
-  
+
   home-manager.sharedModules = [
-    config.flake.modules.homeManager.gnome  # HM module included here
+    config.flake.modules.homeManager.gnome
   ];
 };
 
-# Inherited module - WRONG
-flake.modules.nixos.gnome-tweaked = {
-  imports = [ config.flake.modules.nixos.gnome ];
-  
-  # DON'T add to sharedModules again!
-  # home-manager.sharedModules = [ ... ];  # Already inherited from parent!
+flake.modules.homeManager.gnome = {
+  dconf.settings = { };
 };
 ```
 
-**Why this fails**: 
-- Parent already includes Home Manager module in `sharedModules`
-- Inheritance brings `sharedModules` along
-- Adding again causes duplicate module imports
-- Results in "duplicate definition" errors for Home Manager options
+**Correct approach**: Declare same-named system and Home Manager aspects, then
+list the aspect name once in `hosts.<name>.modules`:
 
-**Correct approach**: Only add to `sharedModules` in base module, never in inheritors.
+```nix
+hosts.<hostname>.modules = [ "gnome" ];
+```
+
+**How it works**:
+- The host collector resolves `gnome` in the host's NixOS or Darwin module set.
+- When `flake.modules.homeManager.gnome` exists, the collector adds it to
+  `home-manager.sharedModules` once.
+- A Home-Manager-only aspect may also appear in `hosts.<name>.modules`; it is
+  added to Home Manager without requiring a platform sibling.
+
+Use `home-manager.sharedModules` directly only for modules that named-aspect
+matching cannot resolve, such as an external Home Manager module from an input.
 
 ### Edge Case 3: Conditional Config vs Conditional Imports
 
@@ -378,23 +390,32 @@ config = lib.mkIf cfg.enable { ... };
 
 ---
 
-**NEVER import auxiliary modules directly**
+**NEVER manually pair matching Home Manager siblings**
 
 ```nix
-# ❌ WRONG - Importing Home Manager module in NixOS context
-imports = config.flake.lib.resolve [
-  "desktop/gnome"  # NixOS module (OK)
-  "desktop/gnome"  # Trying to import HM module too (WRONG)
+# WRONG: the collector already adds the matching sibling
+flake.modules.nixos."desktop/gnome" = {
+  home-manager.sharedModules = [
+    config.flake.modules.homeManager."desktop/gnome"
+  ];
+};
+```
+
+**Correct approach**: Declare both siblings and list the aspect name in the
+host declaration:
+
+```nix
+hosts.<hostname>.modules = [ "desktop/gnome" ];
+```
+
+For an unmatched external Home Manager module, use `sharedModules` explicitly:
+
+```nix
+home-manager.sharedModules = [
+  inputs.some-input.homeModules.default
 ];
 ```
 
-**Why this fails**: 
-- Home Manager modules expect HM context (access to `home.*` options)
-- NixOS context doesn't have `home.*` options
-- Results in "option does not exist" errors
-- Auxiliary modules are private - only imported via `home-manager.sharedModules`
-
-**Correct approach**: Only import via `sharedModules` in parent module.
 
 ---
 
@@ -485,7 +506,9 @@ Before finalizing the module, verify:
 - [ ] No `specialArgs` usage
 - [ ] File location matches: `modules/<category>/<name>.nix`
 - [ ] Aspect name matches semantic purpose
-- [ ] If multi-context, auxiliary module only in `sharedModules`, never imported directly
+- [ ] Host aspects are listed by name in `hosts.<name>.modules`, not resolved through host `imports`
+- [ ] If multi-context, sibling aspects share a name and are not manually paired
+- [ ] `home-manager.sharedModules` is limited to unmatched concrete modules, such as external inputs
 - [ ] Generally available packages are NixOS/Darwin-owned
 - [ ] Any Home Manager-installed package directly supports a user lifecycle or is intentionally user-scoped
 

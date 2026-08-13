@@ -175,10 +175,8 @@ _:
           # Desktop packages
         ];
         
-        # Include Home Manager auxiliary module
-        home-manager.sharedModules = [
-          config.flake.modules.homeManager."desktop/<name>"
-        ];
+        # The host collector wires the matching Home Manager aspect when this
+        # named aspect appears in hosts.<name>.modules.
       };
     };
 
@@ -202,10 +200,13 @@ _:
 
 **Key Points**:
 - Both modules in same file
-- NixOS module includes Home Manager module via `sharedModules`
+- Hosts list the shared aspect name in `hosts.<name>.modules`
+- The host collector resolves the NixOS or Darwin aspect and automatically
+  adds the matching Home Manager aspect to `sharedModules`
 - NixOS or Darwin owns package availability and machine state
 - Home Manager owns user configuration, generated files, services, and session state
-- Auxiliary module is private (only imported by parent)
+- Use `home-manager.sharedModules` directly only for unmatched concrete modules,
+  such as external Home Manager modules from inputs
 
 ## Pattern 5: Containerized Service
 

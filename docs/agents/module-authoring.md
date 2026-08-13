@@ -6,7 +6,9 @@
 2. **Keep NixOS and Home Manager siblings together when related**
    - Co-locate system-level and user-level logic in the same file by populating both `flake.modules.nixos.*` and `flake.modules.homeManager.*` entries.
 3. **Derive host builds from module lists**
-   - Host definitions only list module keys; the loader handles expansion, Home Manager wiring, and installer-specific extras.
+   - Host definitions declare named aspects in `hosts.<name>.modules`; raw platform modules may appear alongside them.
+   - The loader resolves named aspects for the host platform and adds a matching Home Manager aspect through `home-manager.sharedModules`.
+   - Do not manually resolve host entries or pair matching NixOS/Darwin and Home Manager siblings. Use explicit `home-manager.sharedModules` only for unmatched concrete modules, such as external Home Manager modules from inputs.
 4. **Use metadata instead of literals**
    - Pull shared strings, secrets, and UI options from `config.flake.meta` so replacements propagate automatically.
 5. **Route dependencies through the tree**
@@ -62,11 +64,13 @@ flake.modules.nixos."services/myapp" = {
   };
 };
 
-# Host just imports - no enable needed!
-imports = [ "services/myapp" ];
+# Host lists named aspects - no enable needed!
+hosts.my-server.modules = [
+  "services/myapp"
 
-# Only override if different from defaults
-services.myapp.port = 9000;
+  # Only override if different from defaults
+  { services.myapp.port = 9000; }
+];
 ```
 
 ### Namespace Guidelines
@@ -139,22 +143,48 @@ services.myapp.port = 9000;
 ```
 
 ```nix
-# modules/hosts/my-server.nix
+# modules/hosts/my-server/default.nix
 {
-  imports = [
-    "services/tinyproxy"  # Enabled with defaults!
-    "services/plex"       # Enabled with defaults!
-  ];
+  hosts.my-server = {
+    metadata.system = "x86_64-linux";
+    modules = [
+      "services/tinyproxy"  # Enabled with defaults!
+      "services/plex"       # Enabled with defaults!
 
-  # Only override what's different from defaults
-  services.tinyproxy.port = 9999;
-  services.plex.nginx.port = 32402;
+      # Only override what's different from defaults
+      {
+        services.tinyproxy.port = 9999;
+        services.plex.nginx.port = 32402;
+      }
+    ];
+  };
 }
+```
+
+When `flake.modules.homeManager."services/tinyproxy"` or
+`flake.modules.homeManager."services/plex"` exists, the host collector adds it
+to `home-manager.sharedModules` automatically. A feature should declare the
+sibling aspect, not inject it itself.
+
+```nix
+flake.modules = {
+  nixos."services/tinyproxy" = { ... };
+  homeManager."services/tinyproxy" = { ... };
+};
+```
+
+Explicit `home-manager.sharedModules` remains correct for a concrete module
+without a matching named aspect:
+
+```nix
+home-manager.sharedModules = [
+  inputs.some-input.homeModules.default
+];
 ```
 
 ### Benefits
 
-1. **Host files stay clean** - Just import, no boilerplate enable calls
+1. **Host files stay clean** - List aspects, no boilerplate enable calls
 2. **DRY principle** - Configuration lives in one place (the module)
 3. **Good defaults** - Services work out of the box
 4. **Easy overrides** - Use `lib.mkDefault` so hosts can override

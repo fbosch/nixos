@@ -6,7 +6,7 @@ This guide describes how to migrate a host from `machines/<machine>/` files to c
 
 - Keeps host-specific behavior next to the host aggregator module.
 - Reduces ambiguity between shared feature modules and machine-local details.
-- Makes host refactors safer by aligning module keys, paths, and imports.
+- Makes host refactors safer by aligning module keys, paths, and host module entries.
 
 ## Target layout
 
@@ -36,7 +36,7 @@ Keep names aligned across all three layers:
 
 - File location: `modules/hosts/<host>/platform/services.nix`
 - Module key: `flake.modules.nixos."hosts/<host>/platform"`
-- Import in host aggregator: `"hosts/<host>/platform"`
+- Entry in `hosts.<host>.modules`: `"hosts/<host>/platform"`
 
 If these drift, resolution and maintenance become error-prone.
 
@@ -46,7 +46,7 @@ If these drift, resolution and maintenance become error-prone.
 2. Move content from `machines/<machine>/configuration.nix` into host leaves (`boot`, `platform`, `home`, `storage`) based on concern boundaries.
 3. Move generated hardware scan content into `modules/hosts/<host>/hardware.nix`.
 4. Update module keys to `hosts/<host>/...` and keep import names aligned.
-5. Update `modules/hosts/<host>/default.nix` imports to host-local modules.
+5. Update `modules/hosts/<host>/default.nix` `hosts.<host>.modules` entries to host-local aspects.
 6. Remove obsolete `machines/<machine>/` files and empty directories.
 7. Stage new files before evaluation: `git add -A modules/hosts/<host>`.
 8. Run eval checks (below).
