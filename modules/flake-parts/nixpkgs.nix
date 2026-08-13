@@ -97,7 +97,19 @@
             }
           );
         in
-        localOverlay;
+        localOverlay
+        // {
+          ananicy-cpp = prev.ananicy-cpp.overrideAttrs (old: {
+            postPatch = (old.postPatch or "") + ''
+              substituteInPlace src/platform/linux/backtrace.cpp \
+                --replace-fail '#include <cstdlib>' $'#include <cstdint>\n#include <cstdlib>'
+                substituteInPlace src/utility/argument_parsing/argument.cpp \
+                  --replace-fail '#include <cstdlib>' $'#include <cstdint>\n#include <cstring>\n#include <cstdlib>'
+                substituteInPlace src/platform/linux/singleton_process.cpp \
+                  --replace-fail '#include <cerrno>' $'#include <cerrno>\n#include <cstdint>\n#include <cstring>'
+            '';
+          });
+        };
 
   };
 }

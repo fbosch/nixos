@@ -1,5 +1,4 @@
-_:
-{
+_: {
   flake.modules.nixos."system/ananicy" =
     { config
     , pkgs
