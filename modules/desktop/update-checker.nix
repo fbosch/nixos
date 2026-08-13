@@ -106,7 +106,7 @@
           ${pkgs.coreutils}/bin/rm -f \
             "''${XDG_CACHE_HOME:-$HOME/.cache}/flake-updates.json" \
             "''${XDG_CACHE_HOME:-$HOME/.cache}/flatpak-updates.json"
-          systemctl --user start flake-update-checker.service 2>/dev/null || true &
+          ${pkgs.systemd}/bin/systemctl --user start --no-block flake-update-checker.service
         fi
       '';
 
