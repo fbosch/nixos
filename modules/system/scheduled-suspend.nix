@@ -92,7 +92,7 @@
                 wantedBy = [ "timers.target" ];
                 timerConfig = {
                   OnCalendar = "${schedule.days} ${schedule.suspendTime}";
-                  Persistent = true;
+                  Persistent = false;
                 };
               };
             };

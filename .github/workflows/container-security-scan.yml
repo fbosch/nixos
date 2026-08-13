@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   extract-images:
-    name: Extract Container Images from Nix Files
+    name: Extract Evaluated Container Images
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
@@ -29,34 +29,17 @@ jobs:
         with:
           fetch-depth: 0
 
+      - uses: ./.github/actions/setup-nix
+        with:
+          cachix-name: fbosch
+          cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
       - name: Extract container images
         id: extract
         run: |
           set -euo pipefail
 
-          base_ref="${{ github.base_ref }}"
-          if [ -z "$base_ref" ]; then
-            base_ref="${{ github.event.repository.default_branch }}"
-          fi
-
-          diff_range="origin/${base_ref}...HEAD"
-
-          # Extract images from changed files
-          IMAGES=$(git diff --unified=0 "$diff_range" -- modules/services/containers/ modules/hosts/ | \
-            grep -E '^\+.*Image=' | \
-            sed 's/.*Image=//' | \
-            grep -Fv "\${" | \
-            sort -u || true)
-
-          # Also extract image references from option defaults and image attrs
-          IMAGE_OPTIONS=$(git diff --unified=0 "$diff_range" -- modules/services/containers/ modules/hosts/ | \
-            grep -E '^\+.*(default|image)\s*=\s*".*:.*"' | \
-            sed -E 's/.*(default|image)\s*=\s*"([^"]+)".*/\2/' | \
-            grep ':' | \
-            grep -Fv "\${" | \
-            sort -u || true)
-
-          ALL_IMAGES=$(printf '%s\n%s\n' "$IMAGES" "$IMAGE_OPTIONS" | grep -v '^$' | sort -u || echo "")
+          ALL_IMAGES=$(./scripts/ci/container-images.sh)
 
           if [ -z "$ALL_IMAGES" ]; then
             echo "No container images found in changes"

@@ -46,17 +46,12 @@
       byNameLegacyPackages = extractPackages scope;
       flattenPkgs =
         separator: path: value:
-        let
-          evaluated = builtins.tryEval value;
-        in
-        if !evaluated.success then
-          { }
-        else if lib.isDerivation evaluated.value then
+        if lib.isDerivation value then
           {
-            ${lib.concatStringsSep separator path} = evaluated.value;
+            ${lib.concatStringsSep separator path} = value;
           }
-        else if lib.isAttrs evaluated.value then
-          lib.concatMapAttrs (name: flattenPkgs separator (path ++ [ name ])) evaluated.value
+        else if lib.isAttrs value then
+          lib.concatMapAttrs (name: flattenPkgs separator (path ++ [ name ])) value
         else
           { };
     in

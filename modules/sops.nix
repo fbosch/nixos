@@ -185,11 +185,6 @@ in
               "github-token"
             ])
 
-            # API secrets - wheel readable
-            (mkSecretsWithOpts apis wheelReadable [
-              "wakapi-password-salt"
-            ])
-
             # Special cases
             {
               ssh-private-key = mkSecret common userOwned;

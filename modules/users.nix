@@ -9,9 +9,7 @@
       let
         inherit (config.flake.meta.user) username;
         managedHosts = lib.attrValues (
-          lib.filterAttrs (_name: host: (host.corporate or false) == false) (
-            config.flake.meta.hosts or { }
-          )
+          lib.filterAttrs (_name: host: (host.corporate or false) == false) (config.flake.meta.hosts or { })
         );
         authorizedKeys =
           config.flake.meta.user.ssh.authorizedKeys
@@ -47,9 +45,7 @@
       let
         inherit (config.flake.meta.user) username;
         managedHosts = lib.attrValues (
-          lib.filterAttrs (_name: host: (host.corporate or false) == false) (
-            config.flake.meta.hosts or { }
-          )
+          lib.filterAttrs (_name: host: (host.corporate or false) == false) (config.flake.meta.hosts or { })
         );
         authorizedKeys =
           config.flake.meta.user.ssh.authorizedKeys

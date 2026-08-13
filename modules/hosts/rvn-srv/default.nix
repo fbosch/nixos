@@ -66,7 +66,6 @@ in
       "services/servarr"
       "services/tinyproxy"
       "services/nextdns"
-      "services/wakapi"
       "services/freshrss"
 
       # containerized services
