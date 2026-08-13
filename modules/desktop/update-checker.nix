@@ -98,19 +98,15 @@
     {
       home.packages = [ flakeCheckScript ];
 
-      # Trigger update check after rebuild to ensure cache is current
-      home.activation.flakeUpdatesCache = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-        if [ -n "''${oldGenPath:-}" ] && [ "''${oldGenPath}" = "''${newGenPath:-}" ]; then
-          echo "Home Manager generation unchanged, skipping flake update cache trigger"
+      # Flatpak reconciliation may replace installed versions during activation.
+      home.activation.flakeUpdatesCache = lib.hm.dag.entryAfter [ "flatpak-managed-install" ] ''
+        if [ -n "''${DRY_RUN:-}" ]; then
+          echo "Would refresh update caches"
         else
-          if [ -n "''${DRY_RUN:-}" ]; then
-            echo "Would trigger flake update check"
-          else
-            # Reload systemd user daemon to pick up any service changes
-            systemctl --user daemon-reload 2>/dev/null || true
-            # Trigger async check in background (don't wait for completion)
-            systemctl --user start flake-update-checker.service 2>/dev/null || true &
-          fi
+          ${pkgs.coreutils}/bin/rm -f \
+            "''${XDG_CACHE_HOME:-$HOME/.cache}/flake-updates.json" \
+            "''${XDG_CACHE_HOME:-$HOME/.cache}/flatpak-updates.json"
+          systemctl --user start flake-update-checker.service 2>/dev/null || true &
         fi
       '';
 
