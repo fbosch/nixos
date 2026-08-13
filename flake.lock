@@ -263,29 +263,6 @@
         "url": "https://install.determinate.systems/determinate-nixd/tag/v3.22.0/x86_64-linux"
       }
     },
-    "distro-grub-themes": {
-      "inputs": {
-        "flake-utils": [
-          "dedupe_flake-utils"
-        ],
-        "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1774698239,
-        "narHash": "sha256-9gL1K1pKJ5P/KVnpcZusGXhF4LuL4yBdjUy2ZAi5GB4=",
-        "owner": "AdisonCavani",
-        "repo": "distro-grub-themes",
-        "rev": "6e9e018abf38c0b3ed2bff1912ecf30a94e0c917",
-        "type": "github"
-      },
-      "original": {
-        "owner": "AdisonCavani",
-        "repo": "distro-grub-themes",
-        "type": "github"
-      }
-    },
     "dotfiles": {
       "flake": false,
       "locked": {
@@ -1993,7 +1970,6 @@
         "dedupe_flake-utils": "dedupe_flake-utils",
         "dedupe_systems": "dedupe_systems",
         "determinate": "determinate",
-        "distro-grub-themes": "distro-grub-themes",
         "dotfiles": "dotfiles",
         "flake-parts": "flake-parts_2",
         "flatpaks": "flatpaks",

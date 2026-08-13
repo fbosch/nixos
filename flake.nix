@@ -154,12 +154,6 @@
       url = "github:vinceliuice/grub2-themes";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    distro-grub-themes = {
-      url = "github:AdisonCavani/distro-grub-themes";
-      inputs.nixpkgs.follows = "nixpkgs";
-      inputs.flake-utils.follows = "dedupe_flake-utils";
-    };
-
     # Inputs used only for deduplication via .follows
     # These are targets of at least one <input>.inputs.<input>.follows above.
     # If all .follows targeting these are removed, these inputs should be removed too.
