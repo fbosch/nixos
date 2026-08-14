@@ -20,9 +20,8 @@
           # Add user to trusted users (core already adds @admin)
           trusted-users = [ config.flake.meta.user.username ];
 
-          # Leave five cores and unified memory capacity for foreground work.
-          max-jobs = 3;
-          cores = 3;
+          max-jobs = "auto";
+          cores = 0;
         };
       };
 
