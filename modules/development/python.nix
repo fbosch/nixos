@@ -8,7 +8,7 @@ let
           (python3.withPackages (pythonPackages: [ pythonPackages.pyyaml ]))
           uv
         ]
-        ++ lib.optionals stdenv.isLinux [
+        ++ lib.optionals stdenv.hostPlatform.isLinux [
           python3Packages.evdev
         ];
     };

@@ -10,7 +10,7 @@
         inputs.ags.homeManagerModules.default
       ];
 
-      programs.ags = lib.mkIf pkgs.stdenv.isLinux {
+      programs.ags = lib.mkIf pkgs.stdenv.hostPlatform.isLinux {
         enable = true;
         package = inputs.ags.packages.${system}.default;
         extraPackages = [

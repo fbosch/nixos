@@ -13,7 +13,7 @@ let
           ncdu
           fastfetch
         ]
-        ++ lib.optionals stdenv.isLinux [
+        ++ lib.optionals stdenv.hostPlatform.isLinux [
           s-tui
           microfetch
           below
