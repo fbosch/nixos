@@ -9,6 +9,7 @@
         global = {
           # Disable the hints about using direnv allow
           warn_timeout = "24h";
+          hide_env_diff = true;
         };
       };
     };

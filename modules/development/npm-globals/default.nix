@@ -8,7 +8,7 @@
     let
       npmGlobalsRepoDir = "$HOME/nixos/modules/development/npm-globals";
       pnpmPackage = pkgs.local.pnpm or pkgs.pnpm;
-      pnpmHome = if pkgs.stdenv.isDarwin then "$HOME/Library/pnpm" else "$HOME/.local/share/pnpm";
+      pnpmHome = if pkgs.stdenv.hostPlatform.isDarwin then "$HOME/Library/pnpm" else "$HOME/.local/share/pnpm";
       pnpmStoreDir = "${pnpmHome}/store";
       stateDir = "$HOME/.local/state/pnpm-globals";
       pnpmGlobalBinDir = "${stateDir}/current/node_modules/.bin";

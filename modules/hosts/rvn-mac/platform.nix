@@ -20,9 +20,9 @@
           # Add user to trusted users (core already adds @admin)
           trusted-users = [ config.flake.meta.user.username ];
 
-          # Two small builds leave CPU and unified memory for macOS.
-          max-jobs = 2;
-          cores = 2;
+          # Leave five cores and unified memory capacity for foreground work.
+          max-jobs = 3;
+          cores = 3;
         };
       };
 
