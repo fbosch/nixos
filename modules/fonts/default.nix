@@ -1,13 +1,14 @@
 let
-  baseFonts = pkgs: with pkgs; [
-    nerd-fonts.symbols-only
-    nerd-fonts.jetbrains-mono
-    mononoki
-    dejavu_fonts
-    noto-fonts
-    noto-fonts-cjk-sans
-    unifont
-  ];
+  baseFonts =
+    pkgs: with pkgs; [
+      nerd-fonts.symbols-only
+      nerd-fonts.jetbrains-mono
+      mononoki
+      dejavu_fonts
+      noto-fonts
+      noto-fonts-cjk-sans
+      unifont
+    ];
 
   localFonts =
     pkgs: with pkgs.local; [
@@ -17,9 +18,13 @@ let
       font-ionicons
     ];
 
-  proprietaryFonts = pkgs: with pkgs.local; [
-    font-microsoft
-  ] ++ pkgs.lib.optional pkgs.stdenv.hostPlatform.isLinux font-apple;
+  proprietaryFonts =
+    pkgs:
+      with pkgs.local;
+      [
+        font-microsoft
+      ]
+      ++ pkgs.lib.optional pkgs.stdenv.hostPlatform.isLinux font-apple;
 
 in
 {
@@ -46,7 +51,11 @@ in
       };
 
     darwin.fonts =
-      { pkgs, lib, config, ... }:
+      { pkgs
+      , lib
+      , config
+      , ...
+      }:
       let
         allowProprietary = config.nixpkgs.config.allowUnfree or false;
       in
@@ -62,9 +71,8 @@ in
         };
       };
 
-    homeManager.fonts =
-      {
-        xdg.configFile."fontconfig/fonts.conf".text = builtins.readFile ./fonts.conf;
-      };
+    homeManager.fonts = {
+      xdg.configFile."fontconfig/fonts.conf".text = builtins.readFile ./fonts.conf;
+    };
   };
 }
