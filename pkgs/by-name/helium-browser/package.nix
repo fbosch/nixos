@@ -40,6 +40,7 @@ appimageTools.wrapType2 rec {
   extraInstallCommands = ''
     wrapProgram "$out/bin/${pname}" \
       --add-flags "\''${NIXOS_OZONE_WL:+\''${WAYLAND_DISPLAY:+--ozone-platform=wayland --enable-features=WaylandWindowDecorations,UseOzonePlatform --enable-wayland-ime=true}}" \
+      --add-flags --force-renderer-accessibility \
       --add-flags --enable-gpu-rasterization \
       --add-flags --enable-zero-copy
 

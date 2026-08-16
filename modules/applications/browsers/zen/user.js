@@ -88,7 +88,7 @@ user_pref("mousewheel.scroll_series_timeout", 10);
 user_pref("dom.ipc.processCount", 8);
 user_pref("dom.ipc.keepProcessesAlive.web", 4);
 user_pref("dom.ipc.processPriorityManager.backgroundUsesEcoQoS", false);
-user_pref("accessibility.force_disabled", 1);
+user_pref("accessibility.force_disabled", 0);
 
 // 9. Media & Codecs
 user_pref("dom.media.webcodecs.h265.enabled", true);

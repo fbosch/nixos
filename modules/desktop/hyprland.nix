@@ -1,6 +1,10 @@
 { inputs, ... }:
 {
   flake.modules = {
+    homeManager.desktop = {
+      dconf.settings."org/gnome/desktop/interface".toolkit-accessibility = true;
+    };
+
     nixos = {
       desktop =
         { pkgs
@@ -86,6 +90,7 @@
               pkgs.grim
               # Atspi's GJS binding depends on the DBus typelib.
               pkgs.gobject-introspection-unwrapped
+              pkgs.gsettings-desktop-schemas
               luaWithSocket
               inputs.hyprland-contrib.packages.${system}.grimblast
               inputs.hyprlock.packages.${system}.hyprlock
