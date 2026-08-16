@@ -51,6 +51,9 @@
             xwayland.enable = true;
           };
 
+          # Expose semantic UI bounds to the AGS AI Pointer through AT-SPI.
+          services.gnome.at-spi2-core.enable = true;
+
           systemd.tmpfiles.rules = [
             "d /usr/share 0755 root root - -"
             "d /usr/share/hypr 0755 root root - -"
@@ -81,7 +84,8 @@
               pkgs.hyprprop
               pkgs.hyprpicker
               pkgs.grim
-              pkgs.slurp
+              # Atspi's GJS binding depends on the DBus typelib.
+              pkgs.gobject-introspection-unwrapped
               luaWithSocket
               inputs.hyprland-contrib.packages.${system}.grimblast
               inputs.hyprlock.packages.${system}.hyprlock
