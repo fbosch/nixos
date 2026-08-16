@@ -377,21 +377,6 @@
         themeName = "Win11";
       };
 
-      winsurCursors = pkgs.stdenv.mkDerivation {
-        name = "WinSur-white-cursors";
-        src = pkgs.fetchFromGitHub {
-          owner = "yeyushengfan258";
-          repo = "WinSur-white-cursors";
-          rev = "master";
-          sha256 = "sha256-EdliC9jZcFmRBq3KCNiev5ECyCWdNlb0lA9c2/JVqwo=";
-        };
-        dontBuild = true;
-        installPhase = ''
-          mkdir -p $out/share/icons
-          cp -ar dist/. $out/share/icons/WinSur-white-cursors/
-        '';
-      };
-
       we10xIcons = pkgs.stdenv.mkDerivation {
         name = "We10X";
         src = pkgs.fetchFromGitHub {
@@ -426,7 +411,7 @@
     {
       environment.systemPackages = [
         win11Icons
-        winsurCursors
+        pkgs.simp1e-cursors
         we10xIcons
         mkosBigSurIcons
       ];

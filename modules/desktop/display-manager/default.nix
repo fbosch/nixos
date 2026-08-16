@@ -139,7 +139,7 @@ in
       };
 
       systemd.services.display-manager.environment = {
-        XCURSOR_THEME = "WinSur-white-cursors";
+        XCURSOR_THEME = "Simp1e";
         XCURSOR_SIZE = "24";
         XCURSOR_PATH = "/run/current-system/sw/share/icons";
       };

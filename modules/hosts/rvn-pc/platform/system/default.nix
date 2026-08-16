@@ -5,7 +5,7 @@
       environment.etc."xdg/weston/weston.ini".text = ''
         [core]
         shell=kiosk
-        cursor-theme=WinSur-white-cursors
+        cursor-theme=Simp1e
         cursor-size=24
 
         [output]
@@ -19,7 +19,7 @@
 
       services.displayManager.sddm.settings = {
         Theme = {
-          CursorTheme = "WinSur-white-cursors";
+          CursorTheme = "Simp1e";
           CursorSize = 24;
         };
         Wayland.CompositorCommand = "${pkgs.weston}/bin/weston --shell=kiosk -c /etc/xdg/weston/weston.ini";
