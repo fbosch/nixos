@@ -51,7 +51,7 @@
             xwayland.enable = true;
           };
 
-          # Expose semantic UI bounds to the AGS AI Pointer through AT-SPI.
+          # Expose semantic UI bounds (ags)
           services.gnome.at-spi2-core.enable = true;
 
           systemd.tmpfiles.rules = [
