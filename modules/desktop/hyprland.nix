@@ -81,6 +81,7 @@
               pkgs.hyprprop
               pkgs.hyprpicker
               pkgs.grim
+              pkgs.slurp
               luaWithSocket
               inputs.hyprland-contrib.packages.${system}.grimblast
               inputs.hyprlock.packages.${system}.hyprlock
