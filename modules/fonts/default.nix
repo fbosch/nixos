@@ -71,8 +71,37 @@ in
         };
       };
 
-    homeManager.fonts = {
-      xdg.configFile."fontconfig/fonts.conf".text = builtins.readFile ./fonts.conf;
-    };
+    homeManager.fonts =
+      { pkgs
+      , lib
+      , config
+      , osConfig
+      , ...
+      }:
+      let
+        allowProprietary =
+          osConfig.nixpkgs.config.allowUnfree or config.nixpkgs.config.allowUnfree or false;
+        installProprietaryFonts = pkgs.stdenv.hostPlatform.isLinux && allowProprietary;
+        proprietaryFontsPackage = pkgs.symlinkJoin {
+          name = "proprietary-fonts";
+          paths = proprietaryFonts pkgs;
+        };
+      in
+      {
+        xdg.configFile."fontconfig/fonts.conf".text = builtins.readFile ./fonts.conf;
+
+        xdg.dataFile = lib.mkIf installProprietaryFonts {
+          "fonts/proprietary" = {
+            source = "${proprietaryFontsPackage}/share/fonts";
+            recursive = true;
+          };
+        };
+
+        home.activation = lib.mkIf installProprietaryFonts {
+          refreshFontCache = config.lib.dag.entryAfter [ "linkGeneration" ] ''
+            ${pkgs.fontconfig}/bin/fc-cache -f "''${XDG_DATA_HOME:-$HOME/.local/share}/fonts"
+          '';
+        };
+      };
   };
 }
