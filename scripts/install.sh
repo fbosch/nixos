@@ -11,4 +11,4 @@ trap cleanup EXIT
 
 curl -fsSL "$bootstrap_url" -o "$tmp_script"
 
-nix-shell -p gh git gum --run "bash \"$tmp_script\""
+nix-shell -p gh git gum openssh --run "bash \"$tmp_script\""

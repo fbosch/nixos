@@ -14,6 +14,11 @@ validate_name() {
     exit 1
   fi
 
+  if [ "$value" = "." ] || [ "$value" = ".." ]; then
+    gum style --foreground 1 "$label cannot be . or .."
+    exit 1
+  fi
+
   if [[ $value =~ [^a-zA-Z0-9._-] ]]; then
     gum style --foreground 1 "$label may only contain letters, numbers, ., _, and -"
     exit 1
@@ -25,54 +30,79 @@ render_host_module() {
   local host_name="$2"
   local role="$3"
   local system="$4"
-  local machine_name="$5"
-  local host_file="$6"
-
-  local nixos_imports=""
-  local hm_imports=""
+  local host_file="$5"
 
   case "$preset" in
-  minimal | desktop | server)
-    nixos_imports="
-          \"presets/${preset}\""
-    hm_imports="
-          \"presets/${preset}\""
-    ;;
+  minimal | desktop | server) ;;
   *)
     gum style --foreground 1 "Unsupported preset: $preset"
     exit 1
     ;;
   esac
 
-  cat >"$host_file" <<EOF
-{ inputs
-, config
-, ...
-}:
-let
+  cat >"$host_file" <<EOF_HOST
+{ ... }:
+{
   hosts."${host_name}" = {
     metadata = {
       role = "${role}";
       system = "${system}";
-      sshAlias = null;
-      tailscale = null;
-      local = null;
-      sshPublicKey = null;
     };
 
-    modules = [${nixos_imports}
-      ../../../machines/${machine_name}/configuration.nix
-      ../../../machines/${machine_name}/hardware-configuration.nix
-      ({ config, ... }: {
-        home-manager.users.\${config.flake.meta.user.username}.imports =
-          config.flake.lib.resolveHm [${hm_imports}
-        ];
-      })
+    modules = [
+      "hosts/${host_name}/configuration"
+      "hosts/${host_name}/hardware"
+      "presets/${preset}"
     ];
   };
 }
-EOF
+EOF_HOST
 }
+
+render_wrapped_nixos_module() {
+  local source_file="$1"
+  local module_name="$2"
+  local output_file="$3"
+  local strip_hardware_import="${4:-false}"
+
+  {
+    cat <<EOF_MODULE
+{ ... }:
+{
+  flake.modules.nixos."${module_name}" =
+    (
+EOF_MODULE
+
+    if [ "$strip_hardware_import" = "true" ]; then
+      sed -e 's#\./hardware-configuration\.nix##g' -e 's/^/      /' "$source_file"
+    else
+      sed -e 's/^/      /' "$source_file"
+    fi
+
+    cat <<'EOF_MODULE'
+    );
+}
+EOF_MODULE
+  } >"$output_file"
+}
+
+validate_generated_module() {
+  local module_file="$1"
+
+  if nix-instantiate --parse "$module_file" >/dev/null; then
+    return
+  fi
+
+  gum style --foreground 1 "Generated module is invalid: $module_file"
+  exit 1
+}
+
+if [ "${BOOTSTRAP_MACHINE_LIB_ONLY:-false}" = "true" ]; then
+  if [ "${BASH_SOURCE[0]}" != "$0" ]; then
+    return 0
+  fi
+  exit 0
+fi
 
 reuse_existing_repo="false"
 if [ -d "$target_dir" ]; then
@@ -97,10 +127,33 @@ if [ -z "$default_host_name" ]; then
   exit 1
 fi
 
+if [ "$reuse_existing_repo" = "true" ] && [ "${BOOTSTRAP_MACHINE_REEXECUTED:-false}" != "true" ]; then
+  running_script_hash="$(git hash-object "$0")"
+
+  gum style --foreground 244 "Updating $target_dir before continuing..."
+  if ! git -C "$target_dir" pull --ff-only; then
+    gum style --foreground 1 "Failed to fast-forward $target_dir"
+    gum style --foreground 244 "Resolve the repository state before rerunning bootstrap."
+    exit 1
+  fi
+
+  repo_script="$target_dir/scripts/bootstrap-machine.sh"
+  if [ ! -f "$repo_script" ]; then
+    gum style --foreground 1 "Error: expected $repo_script after updating the repository"
+    exit 1
+  fi
+
+  repo_script_hash="$(git hash-object "$repo_script")"
+  if [ "$running_script_hash" != "$repo_script_hash" ]; then
+    gum style --foreground 244 "Restarting with the bootstrap script from the updated repository."
+    BOOTSTRAP_MACHINE_REEXECUTED=true exec bash "$repo_script"
+  fi
+fi
+
 gum style --border rounded --padding "1 2" \
   "NixOS bootstrap" \
   "This flow will authenticate GitHub, clone $repo, copy /etc/nixos configs," \
-  "and generate a host module template."
+  "and generate host modules."
 
 host_name="$(gum input --prompt "Host name: " --value "$default_host_name")"
 validate_name "$host_name" "Host name"
@@ -114,17 +167,7 @@ else
   exit 0
 fi
 
-if [ "$reuse_existing_repo" = "true" ]; then
-  gum style --foreground 244 ""
-  if gum confirm "Pull latest changes in $target_dir now?"; then
-    if git -C "$target_dir" pull --ff-only; then
-      :
-    else
-      gum style --foreground 1 "Failed to pull latest changes in $target_dir"
-      gum style --foreground 244 "Continuing with existing local scripts."
-    fi
-  fi
-else
+if [ "$reuse_existing_repo" = "false" ]; then
   gum style --foreground 244 ""
   gum style --foreground 244 "Authenticating GitHub CLI (device flow)."
   gum style --foreground 244 "Use the printed code on another device (phone/laptop)."
@@ -133,7 +176,7 @@ else
   if gh auth status >/dev/null 2>&1; then
     gum style --foreground 2 "GitHub CLI already authenticated."
   else
-    gh auth login --git-protocol ssh --web --scopes admin:public_key
+    gh auth login --git-protocol ssh --web --skip-ssh-key --scopes admin:public_key
   fi
 
   if gh auth token >/dev/null 2>&1; then
@@ -153,27 +196,39 @@ else
   if [ -f "$HOME/.ssh/known_hosts" ] && grep -q '^github.com ' "$HOME/.ssh/known_hosts"; then
     :
   else
-    cat >>"$HOME/.ssh/known_hosts" <<'EOF'
+    cat >>"$HOME/.ssh/known_hosts" <<'EOF_KNOWN_HOSTS'
 github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl
 github.com ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBEmKSENjQEezOmxkZMy7opKgwFB9nkt5YRrYMjNuG5N87uRgg6CLrbo5wAdT/y6v0mKV0U2w0WZ2YB/++Tpockg=
-EOF
+EOF_KNOWN_HOSTS
     chmod 600 "$HOME/.ssh/known_hosts"
   fi
 
   ssh_key_path="$HOME/.ssh/id_ed25519"
   ssh_pub_path="${ssh_key_path}.pub"
 
-  if [ -f "$ssh_key_path" ] && [ -f "$ssh_pub_path" ]; then
-    :
+  if [ -f "$ssh_key_path" ]; then
+    if [ ! -f "$ssh_pub_path" ]; then
+      gum style --foreground 244 "Recreating missing public key from $ssh_key_path."
+      ssh-keygen -y -f "$ssh_key_path" >"$ssh_pub_path"
+      chmod 644 "$ssh_pub_path"
+    fi
+  elif [ -f "$ssh_pub_path" ]; then
+    gum style --foreground 1 "Error: $ssh_pub_path exists without its private key"
+    exit 1
   else
     gum style --foreground 244 "No SSH key found at $ssh_key_path; generating one."
     ssh-keygen -t ed25519 -N "" -f "$ssh_key_path"
   fi
 
-  local_pubkey="$(tr -d '\n' <"$ssh_pub_path")"
-  key_added="false"
+  local_pubkey="$(awk 'NF >= 2 { print $1 " " $2; exit }' "$ssh_pub_path")"
+  if [ -z "$local_pubkey" ]; then
+    gum style --foreground 1 "Error: could not read an SSH public key from $ssh_pub_path"
+    exit 1
+  fi
 
-  if gh api user/keys --jq '.[].key' | grep -Fqx "$local_pubkey"; then
+  remote_pubkeys="$(gh api user/keys --jq '.[].key')"
+  key_added="false"
+  if printf '%s\n' "$remote_pubkeys" | awk 'NF >= 2 { print $1 " " $2 }' | grep -Fqx "$local_pubkey"; then
     :
   else
     gum style --foreground 244 "Adding SSH public key to GitHub account."
@@ -208,59 +263,80 @@ EOF
   fi
 fi
 
-host_dir="$target_dir/modules/hosts/$host_name"
-host_file="$host_dir/default.nix"
+hosts_dir="$target_dir/modules/hosts"
+if [ ! -d "$hosts_dir" ]; then
+  gum style --foreground 1 "Error: expected directory-based hosts at $hosts_dir"
+  exit 1
+fi
+
+host_rel_dir="modules/hosts/$host_name"
+host_rel_file="$host_rel_dir/default.nix"
+host_dir="$target_dir/$host_rel_dir"
+host_file="$target_dir/$host_rel_file"
 use_existing_host="false"
-machine_name=""
 preset=""
 role=""
 system=""
-machine_dir=""
 
 if [ -f "$host_file" ]; then
-  use_existing_host="true"
-  gum style --foreground 244 "Host module $host_file exists; using existing host and skipping file generation."
+  if git -C "$target_dir" ls-files --error-unmatch -- "$host_rel_file" >/dev/null 2>&1; then
+    use_existing_host="true"
+    gum style --foreground 244 "Host module $host_file exists; using existing host and skipping file generation."
+  else
+    gum style --foreground 1 "Error: untracked host module exists at $host_file"
+    gum style --foreground 244 "Review, stage, or remove the incomplete host directory before rerunning bootstrap."
+    exit 1
+  fi
+elif [ -e "$host_dir" ]; then
+  gum style --foreground 1 "Error: incomplete host directory exists at $host_dir"
+  gum style --foreground 244 "Review or remove it before rerunning bootstrap."
+  exit 1
 else
-  machine_name="$(gum input --prompt "Machine name: " --value "$default_host_name" --placeholder "directory under machines/")"
   preset="$(gum choose --header "Select host preset" "minimal" "desktop" "server")"
   role="$(gum choose --header "Select host role" "server" "desktop" "laptop" "vm")"
   system="$(nix-instantiate --eval --expr builtins.currentSystem | tr -d '"')"
 
-  validate_name "$machine_name" "Machine name"
-
-  gum style --foreground 244 "Machine name: $machine_name"
   gum style --foreground 244 "Preset: $preset"
   gum style --foreground 244 "Role: $role"
   gum style --foreground 244 "System: $system"
-  machine_dir="$target_dir/machines/$machine_name"
-fi
-
-if [ "$use_existing_host" = "false" ] && { [ -e "$machine_dir/configuration.nix" ] || [ -e "$machine_dir/hardware-configuration.nix" ]; }; then
-  if gum confirm "Machine files in $machine_dir already exist. Overwrite?"; then
-    :
-  else
-    gum style --foreground 3 "Aborted."
-    exit 0
-  fi
 fi
 
 if [ "$use_existing_host" = "false" ]; then
   gum style --foreground 244 ""
-  gum style --foreground 244 "Copying machine config into $machine_dir"
-  mkdir -p "$machine_dir" "$host_dir"
-  cp -f /etc/nixos/configuration.nix "$machine_dir/"
-  cp -f /etc/nixos/hardware-configuration.nix "$machine_dir/"
+  gum style --foreground 244 "Generating host modules in $host_dir"
 
-  gum style --foreground 244 "Generating host module at $host_file"
-  render_host_module "$preset" "$host_name" "$role" "$system" "$machine_name" "$host_file"
+  generated_dir="$(mktemp -d "$target_dir/.bootstrap-machine.XXXXXX")"
+  cleanup_generated_dir() {
+    rm -rf "$generated_dir"
+  }
+  trap cleanup_generated_dir EXIT
+
+  render_host_module "$preset" "$host_name" "$role" "$system" "$generated_dir/default.nix"
+  render_wrapped_nixos_module \
+    /etc/nixos/configuration.nix \
+    "hosts/$host_name/configuration" \
+    "$generated_dir/configuration.nix" \
+    true
+  render_wrapped_nixos_module \
+    /etc/nixos/hardware-configuration.nix \
+    "hosts/$host_name/hardware" \
+    "$generated_dir/hardware.nix"
+
+  validate_generated_module "$generated_dir/default.nix"
+  validate_generated_module "$generated_dir/configuration.nix"
+  validate_generated_module "$generated_dir/hardware.nix"
+
+  mv "$generated_dir" "$host_dir"
+  trap - EXIT
+
+  gum style --foreground 244 "Staging generated host modules in git index..."
+  git -C "$target_dir" add -- \
+    "$host_rel_dir/default.nix" \
+    "$host_rel_dir/configuration.nix" \
+    "$host_rel_dir/hardware.nix"
 fi
 
 cd "$target_dir"
-
-if [ "$use_existing_host" = "false" ]; then
-  gum style --foreground 244 "Staging generated host and machine files in git index..."
-  git add "$host_file" "$machine_dir/configuration.nix" "$machine_dir/hardware-configuration.nix"
-fi
 
 gpg_status="skipped"
 gpg_key_id="fbb.privacy+gpg@protonmail.com"
@@ -298,7 +374,8 @@ fi
 
 gum style --foreground 244 ""
 if gum confirm "Run rebuild now?"; then
-  sudo nixos-rebuild switch --accept-flake-config --flake ".#$host_name"
+  sudo env NIX_CONFIG="extra-experimental-features = nix-command flakes" \
+    nixos-rebuild switch --accept-flake-config --flake ".#$host_name"
   rebuild_status="completed"
 else
   rebuild_status="skipped"
