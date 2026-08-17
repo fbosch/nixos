@@ -86,6 +86,7 @@ in
       "applications/gaming/steam/theme.nix"
       "applications/windows.nix"
       "desktop/update-checker.nix"
+      "desktop/wayland/ags.nix"
       "dotfiles.nix"
     ];
   };
