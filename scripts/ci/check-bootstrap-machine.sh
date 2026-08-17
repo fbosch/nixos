@@ -9,7 +9,7 @@ cleanup() {
 trap cleanup EXIT
 
 export BOOTSTRAP_MACHINE_LIB_ONLY=true
-# shellcheck source=../bootstrap-machine.sh
+# shellcheck disable=SC1091 -- resolved dynamically from the repository root.
 source "$repo_root/scripts/bootstrap-machine.sh"
 unset BOOTSTRAP_MACHINE_LIB_ONLY
 
