@@ -61,8 +61,8 @@ let
     };
 
     modules = [${nixos_imports}
-      ../../machines/${machine_name}/configuration.nix
-      ../../machines/${machine_name}/hardware-configuration.nix
+      ../../../machines/${machine_name}/configuration.nix
+      ../../../machines/${machine_name}/hardware-configuration.nix
       ({ config, ... }: {
         home-manager.users.\${config.flake.meta.user.username}.imports =
           config.flake.lib.resolveHm [${hm_imports}
@@ -208,7 +208,8 @@ EOF
   fi
 fi
 
-host_file="$target_dir/modules/hosts/$host_name.nix"
+host_dir="$target_dir/modules/hosts/$host_name"
+host_file="$host_dir/default.nix"
 use_existing_host="false"
 machine_name=""
 preset=""
@@ -216,9 +217,9 @@ role=""
 system=""
 machine_dir=""
 
-if [ -e "$host_file" ]; then
+if [ -f "$host_file" ]; then
   use_existing_host="true"
-  gum style --foreground 244 "Host file $host_file exists; using existing host and skipping file generation."
+  gum style --foreground 244 "Host module $host_file exists; using existing host and skipping file generation."
 else
   machine_name="$(gum input --prompt "Machine name: " --value "$default_host_name" --placeholder "directory under machines/")"
   preset="$(gum choose --header "Select host preset" "minimal" "desktop" "server")"
@@ -246,7 +247,7 @@ fi
 if [ "$use_existing_host" = "false" ]; then
   gum style --foreground 244 ""
   gum style --foreground 244 "Copying machine config into $machine_dir"
-  mkdir -p "$machine_dir"
+  mkdir -p "$machine_dir" "$host_dir"
   cp -f /etc/nixos/configuration.nix "$machine_dir/"
   cp -f /etc/nixos/hardware-configuration.nix "$machine_dir/"
 
