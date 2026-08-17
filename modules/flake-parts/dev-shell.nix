@@ -26,6 +26,7 @@
           shellcheck
           fish
           gum
+          nix
         ];
         text = builtins.readFile ../../scripts/lint.sh;
       };
@@ -36,6 +37,8 @@
           gh
           git
           gum
+          nix
+          openssh
         ];
         text = builtins.readFile ../../scripts/bootstrap-machine.sh;
       };

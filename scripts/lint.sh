@@ -47,6 +47,14 @@ else
   exit_code=1
 fi
 
+if gum spin --spinner dot --title "bootstrap machine" -- bash ./scripts/ci/check-bootstrap-machine.sh >/tmp/bootstrap-machine-output 2>&1; then
+  echo "$(gum style --foreground 2 '[OK]') bootstrap machine"
+else
+  echo "$(gum style --foreground 1 '[FAIL]') bootstrap machine"
+  cat /tmp/bootstrap-machine-output
+  exit_code=1
+fi
+
 shell_files=$(find scripts configs -type f -name '*.sh' 2>/dev/null || true)
 if [ -n "$shell_files" ]; then
   if gum spin --spinner dot --title "shellcheck" -- sh -c "printf '%s\n' \"\$1\" | xargs -r shellcheck -S error" -- "$shell_files" >/tmp/shellcheck-output 2>&1; then
