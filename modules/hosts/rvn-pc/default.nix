@@ -69,6 +69,7 @@ in
 
       # virtualization
       "virtualization/podman"
+      "virtualization/libvirt"
     ]
     ++ [
       inputs.nixos-hardware.nixosModules.common-cpu-intel
