@@ -223,7 +223,7 @@ else
   machine_name="$(gum input --prompt "Machine name: " --value "$default_host_name" --placeholder "directory under machines/")"
   preset="$(gum choose --header "Select host preset" "minimal" "desktop" "server")"
   role="$(gum choose --header "Select host role" "server" "desktop" "laptop" "vm")"
-  system="$(nix eval --impure --raw --expr builtins.currentSystem)"
+  system="$(nix-instantiate --eval --expr builtins.currentSystem | tr -d '"')"
 
   validate_name "$machine_name" "Machine name"
 
