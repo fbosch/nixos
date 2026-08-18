@@ -61,12 +61,6 @@ in
       default = { };
       description = "Network and SSH metadata keyed by host declaration";
     };
-
-    vpn = lib.mkOption {
-      type = lib.types.unspecified;
-      default = { };
-      description = "VPN configuration";
-    };
   };
 
   config.flake.meta = {
@@ -83,14 +77,6 @@ in
 
     synology = {
       domain = "corvus-corax.synology.me";
-    };
-
-    # Mullvad exposes no NixOS options for these; scripts/network/network-restore-dns.sh
-    # applies them to the running daemon via the mullvad CLI.
-    # scripts/network/network-recover.sh mirrors these as recovery-safe fallbacks.
-    vpn.mullvad = {
-      allowLan = true;
-      lockdownMode = false;
     };
   };
 }

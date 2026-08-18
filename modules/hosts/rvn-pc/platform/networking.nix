@@ -39,11 +39,12 @@
           #            │ everything else, in order
           #            v
           #   192.168.1.46 ──fail──> 192.168.1.202 ──fail──> 127.0.0.1:5553
-          #        │                                                  │
-          #        │ blocked by Mullvad firewall while VPN is up        │ DoH via
-          #        v                                                  v tunnel
-          #   (timeout, fall through)                        NextDNS upstream
+          #                                                       │
+          #                                                       v
+          #                                                 NextDNS (DoH)
           #
+          # Mullvad runs with dns=default (modules/vpn.nix) so the LAN
+          # resolvers stay reachable while the VPN is connected.
           server = hostMeta.dnsServers ++ [ "127.0.0.1#5553" ];
         };
       };

@@ -57,7 +57,7 @@ network-status domain='example.com':
 network-recovery-check domain='example.com':
     bash ./scripts/network/network-recovery-check.sh "{{domain}}"
 
-# Align running Mullvad settings with flake.meta.vpn.mullvad, then verify DNS
+# Align running Mullvad settings with services.mullvad-vpn.runtimeSettings, then verify DNS
 network-restore-dns domain='example.com':
     bash ./scripts/network/network-restore-dns.sh "{{domain}}"
 
