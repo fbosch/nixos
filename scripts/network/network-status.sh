@@ -2,10 +2,13 @@
 
 set -uo pipefail
 
-# shellcheck source=SCRIPTDIR/lib/output.sh
-. "$(dirname "$0")/lib/output.sh"
+# shellcheck source=SCRIPTDIR/../lib/output.sh
+. "$(dirname "$0")/../lib/output.sh"
+# shellcheck source=SCRIPTDIR/../lib/network.sh
+. "$(dirname "$0")/../lib/network.sh"
 
 domain="${1:-example.com}"
+local_domain="${LOCAL_DOMAIN:-$DEFAULT_LOCAL_DOMAIN}"
 failures=0
 
 check_fail() {
@@ -49,6 +52,21 @@ for service in dnsmasq.service nextdns.service; do
     check_fail "$service is inactive"
   fi
 done
+
+section "Local split-horizon DNS"
+if local_addresses="$(timeout 10 dig @127.0.0.1 "$local_domain" A +time=2 +tries=1 +short)" &&
+  [ -n "$local_addresses" ]; then
+  first_local="$(printf '%s\n' "$local_addresses" | head -n 1)"
+  if is_private_ipv4 "$first_local"; then
+    ok "dnsmasq resolves ${local_domain} to LAN address ${first_local}"
+  else
+    check_fail "dnsmasq resolves ${local_domain} to public address ${first_local}"
+    hint "dnsmasq must forward the local zone to the LAN upstreams, not NextDNS."
+  fi
+else
+  check_fail "dnsmasq cannot resolve ${local_domain}"
+  hint "The LAN DNS upstreams or dnsmasq domain rules may be the problem."
+fi
 
 section "VPN"
 for service in mullvad-daemon.service tailscaled.service; do

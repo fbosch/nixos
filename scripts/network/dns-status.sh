@@ -2,8 +2,8 @@
 
 set -uo pipefail
 
-# shellcheck source=SCRIPTDIR/lib/output.sh
-. "$(dirname "$0")/lib/output.sh"
+# shellcheck source=SCRIPTDIR/../lib/output.sh
+. "$(dirname "$0")/../lib/output.sh"
 
 domain="${1:-example.com}"
 

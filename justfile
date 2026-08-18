@@ -47,23 +47,27 @@ check-service-ports:
 
 # Show local DNS resolver and service diagnostics
 dns-status domain='example.com':
-    bash ./scripts/dns-status.sh "{{domain}}"
+    bash ./scripts/network/dns-status.sh "{{domain}}"
 
 # Show network, DNS, and VPN health diagnostics
 network-status domain='example.com':
-    bash ./scripts/network-status.sh "{{domain}}"
+    bash ./scripts/network/network-status.sh "{{domain}}"
 
 # Compare public Cloudflare DNS against the system resolver
 network-recovery-check domain='example.com':
-    bash ./scripts/network-recovery-check.sh "{{domain}}"
+    bash ./scripts/network/network-recovery-check.sh "{{domain}}"
+
+# Align running Mullvad settings with flake.meta.vpn.mullvad, then verify DNS
+network-restore-dns domain='example.com':
+    bash ./scripts/network/network-restore-dns.sh "{{domain}}"
 
 # Restart local DNS services (Mullvad-aware), then verify public and system DNS
 network-restart-dns domain='example.com':
-    sudo bash ./scripts/network-recover.sh dns "{{domain}}"
+    sudo bash ./scripts/network/network-recover.sh dns "{{domain}}"
 
 # Restart NetworkManager and local DNS services (Mullvad-aware), then verify connectivity
 network-reset domain='example.com':
-    sudo bash ./scripts/network-recover.sh full "{{domain}}"
+    sudo bash ./scripts/network/network-recover.sh full "{{domain}}"
 
 # Format all files
 fmt:

@@ -1,4 +1,4 @@
-{ lib, ... }:
+{ config, lib, ... }:
 {
   flake.modules.nixos."hosts/rvn-pc/platform" = { hostMeta, ... }: {
     networking = {
@@ -24,7 +24,12 @@
           listen-address = "127.0.0.1";
           bind-interfaces = true;
           log-queries = "extra";
-          server = hostMeta.dnsServers ++ [ "127.0.0.1#5553" ];
+          # Split-horizon: the Synology zone must always resolve via the LAN
+          # upstreams (which know the private address), never via NextDNS.
+          server =
+            map (dns: "/${config.flake.meta.synology.domain}/${dns}") hostMeta.dnsServers
+            ++ hostMeta.dnsServers
+            ++ [ "127.0.0.1#5553" ];
         };
       };
 
