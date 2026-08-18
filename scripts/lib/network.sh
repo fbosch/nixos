@@ -3,6 +3,8 @@
 # Source this file: . "$(dirname "$0")/lib/network.sh"
 
 # Local split-horizon domain that should resolve to a LAN address.
+# Consumed by scripts that source this file.
+# shellcheck disable=SC2034
 DEFAULT_LOCAL_DOMAIN="glance.corvus-corax.synology.me"
 
 # Whether an IPv4 address is RFC1918 private (LAN-routable).

@@ -4,6 +4,7 @@ set -uo pipefail
 
 # shellcheck source=SCRIPTDIR/../lib/output.sh
 . "$(dirname "$0")/../lib/output.sh"
+# shellcheck disable=SC1091
 # shellcheck source=SCRIPTDIR/../lib/network.sh
 . "$(dirname "$0")/../lib/network.sh"
 
