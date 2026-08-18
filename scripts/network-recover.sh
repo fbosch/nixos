@@ -16,7 +16,7 @@ wait_for_default_route() {
   return 1
 }
 
-report_mullvad_state() {
+ensure_mullvad_dns() {
   if ! systemctl is-active --quiet mullvad-daemon.service; then
     if ip link show wg0-mullvad >/dev/null 2>&1; then
       printf 'Removing leftover wg0-mullvad link (mullvad-daemon is not running).\n'
@@ -27,14 +27,17 @@ report_mullvad_state() {
 
   printf 'Mullvad: %s\n' "$(mullvad status 2>/dev/null | head -n 1)"
 
+  # Lockdown mode blocks all traffic (including DNS) while disconnected,
+  # and blocked LAN sharing makes the dnsmasq LAN upstreams unreachable.
+  # Recovery enforces the known-good values for both.
   if mullvad lockdown-mode get 2>/dev/null | grep -q ': on$'; then
-    printf 'Mullvad lockdown-mode is on: all traffic is blocked while disconnected.\n' >&2
-    printf 'Fix with: mullvad lockdown-mode set off\n' >&2
+    printf 'Disabling Mullvad lockdown-mode (blocks all traffic while disconnected).\n'
+    mullvad lockdown-mode set off
   fi
 
   if mullvad lan get 2>/dev/null | grep -q ': block$'; then
-    printf 'Mullvad LAN sharing is blocked: LAN DNS upstreams are unreachable.\n' >&2
-    printf 'Fix with: mullvad lan set allow\n' >&2
+    printf 'Allowing Mullvad LAN sharing (LAN DNS upstreams must be reachable).\n'
+    mullvad lan set allow
   fi
 }
 
@@ -47,9 +50,20 @@ restart_dns_services() {
   resolvectl flush-caches
 }
 
+wait_for_dns() {
+  for _ in {1..15}; do
+    if timeout 5 getent ahosts "$domain" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 1
+  done
+
+  return 1
+}
+
 case "$mode" in
 dns)
-  report_mullvad_state
+  ensure_mullvad_dns
   restart_dns_services
   ;;
 full)
@@ -60,7 +74,7 @@ full)
   else
     printf 'No default route after 20 seconds.\n' >&2
   fi
-  report_mullvad_state
+  ensure_mullvad_dns
   restart_dns_services
   ;;
 *)
@@ -68,5 +82,11 @@ full)
   exit 64
   ;;
 esac
+
+if wait_for_dns; then
+  printf 'System resolver recovered.\n'
+else
+  printf 'System resolver did not recover within 15 seconds.\n' >&2
+fi
 
 bash "$(dirname "$0")/network-recovery-check.sh" "$domain"
