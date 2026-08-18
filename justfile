@@ -57,11 +57,11 @@ network-status domain='example.com':
 network-recovery-check domain='example.com':
     bash ./scripts/network-recovery-check.sh "{{domain}}"
 
-# Restart local DNS services, then verify public and system DNS
+# Restart local DNS services (Mullvad-aware), then verify public and system DNS
 network-restart-dns domain='example.com':
     sudo bash ./scripts/network-recover.sh dns "{{domain}}"
 
-# Restart NetworkManager and local DNS services, then verify connectivity
+# Restart NetworkManager and local DNS services (Mullvad-aware), then verify connectivity
 network-reset domain='example.com':
     sudo bash ./scripts/network-recover.sh full "{{domain}}"
 
