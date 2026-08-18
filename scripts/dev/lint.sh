@@ -39,7 +39,7 @@ else
   exit_code=1
 fi
 
-if gum spin --spinner dot --title "service ports" -- bash ./scripts/check-service-ports.sh >/tmp/service-ports-output 2>&1; then
+if gum spin --spinner dot --title "service ports" -- bash ./scripts/ci/check-service-ports.sh >/tmp/service-ports-output 2>&1; then
   echo "$(gum style --foreground 2 '[OK]') service ports"
 else
   echo "$(gum style --foreground 1 '[FAIL]') service ports"

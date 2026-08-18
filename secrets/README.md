@@ -27,7 +27,7 @@
 3. **Add age key to .sops.yaml**:
 
    ```bash
-   ./scripts/bootstrap-age.sh
+   ./scripts/bootstrap/bootstrap-age.sh
    ```
 
 4. **Commit and rebuild**:
@@ -85,7 +85,7 @@ sops -d secrets/common.yaml
 ## Recipient changes
 
 Recipient rules are separated by secret class. After changing `.sops.yaml`, run
-`./scripts/update-sops-keys.sh` from a machine that can decrypt every affected
+`./scripts/maintenance/update-sops-keys.sh` from a machine that can decrypt every affected
 file. The script updates temporary copies first and replaces the repository
 files only after every update succeeds.
 
@@ -104,5 +104,5 @@ installed at the configured Home Manager age-key path before removing it. The
 `nextdns-profile-id` belongs in `common.yaml` because both the PC and server
 consume it. Before activating this configuration, use SOPS to copy the value
 from `containers.yaml` into `common.yaml`, then remove it from
-`containers.yaml`. Run `./scripts/update-sops-keys.sh` afterwards to apply the
+`containers.yaml`. Run `./scripts/maintenance/update-sops-keys.sh` afterwards to apply the
 recipient rules.

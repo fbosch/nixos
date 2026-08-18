@@ -31,7 +31,7 @@ push-attic target='' jobs='3':
 
 # Collect read-only Atticd and SQLite lock diagnostics from rvn-srv's repository clone
 atticd-diagnose host='srv':
-    ssh -tt -o BatchMode=yes "{{host}}" 'bash ~/nixos/scripts/atticd-diagnose.sh'
+    ssh -tt -o BatchMode=yes "{{host}}" 'bash ~/nixos/scripts/maintenance/atticd-diagnose.sh'
 
 # Run linter (statix, deadnix, treefmt, actionlint, shellcheck)
 lint:
@@ -39,11 +39,11 @@ lint:
 
 # Interactively inspect disk usage and reclaim Nix garbage or Trash contents
 cleanup-disk:
-    bash ./scripts/cleanup-disk.sh
+    bash ./scripts/maintenance/cleanup-disk.sh
 
 # Validate documented service ports against rvn-srv declarations
 check-service-ports:
-    bash ./scripts/check-service-ports.sh
+    bash ./scripts/ci/check-service-ports.sh
 
 # Show local DNS resolver and service diagnostics
 dns-status domain='example.com':
@@ -75,31 +75,31 @@ fmt:
 
 # Re-encrypt all secrets with current .sops.yaml recipients
 update-sops-keys:
-    bash ./scripts/update-sops-keys.sh
+    bash ./scripts/maintenance/update-sops-keys.sh
 
 # Add/update current host age key in .sops.yaml and re-encrypt secrets
 update-host-age-key:
-    bash ./scripts/bootstrap-age.sh
+    bash ./scripts/bootstrap/bootstrap-age.sh
 
 # Update GitHub avatar hash in flake metadata
 update-avatar:
-    bash ./scripts/update-avatar.sh
+    bash ./scripts/maintenance/update-avatar.sh
 
 # Sync SDDM wallpaper from hyprpaper config
 sync-wallpaper config="$HOME/.config/hypr/hyprpaper.conf" output="$HOME/.local/share/wallpaper.png" monitor="DP-2":
-    bash ./scripts/sync-wallpaper.sh "{{config}}" "{{output}}" "{{monitor}}"
+    bash ./scripts/desktop/sync-wallpaper.sh "{{config}}" "{{output}}" "{{monitor}}"
 
 # Update a local by-name package (optionally pass surge)
 update-local-package package='':
-    if [ -n "{{package}}" ]; then bash ./scripts/update-local-package.sh "{{package}}"; else bash ./scripts/update-local-package.sh; fi
+    if [ -n "{{package}}" ]; then bash ./scripts/packages/update-local-package.sh "{{package}}"; else bash ./scripts/packages/update-local-package.sh; fi
 
 # Download the Parakeet ONNX model used by hyprwhspr-rs
 download-hyprwhspr-parakeet target="$HOME/.local/share/hyprwhspr-rs/models/parakeet/parakeet-tdt-0.6b-v3-onnx":
-    bash ./scripts/download-hyprwhspr-parakeet-model.sh "{{target}}"
+    bash ./scripts/desktop/download-hyprwhspr-parakeet-model.sh "{{target}}"
 
 # Register U2F key for current user (optionally set rp=pam://rvn-pc)
 setup-u2f rp='':
-    if [ -n "{{rp}}" ]; then bash ./scripts/setup-u2f.sh "{{rp}}"; else bash ./scripts/setup-u2f.sh; fi
+    if [ -n "{{rp}}" ]; then bash ./scripts/maintenance/setup-u2f.sh "{{rp}}"; else bash ./scripts/maintenance/setup-u2f.sh; fi
 
 # Rotate the encrypted GPG backup gist from the current local key
 rotate-gpg-gist:

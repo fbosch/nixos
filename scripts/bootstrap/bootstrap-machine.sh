@@ -137,7 +137,7 @@ if [ "$reuse_existing_repo" = "true" ] && [ "${BOOTSTRAP_MACHINE_REEXECUTED:-fal
     exit 1
   fi
 
-  repo_script="$target_dir/scripts/bootstrap-machine.sh"
+  repo_script="$target_dir/scripts/bootstrap/bootstrap-machine.sh"
   if [ ! -f "$repo_script" ]; then
     gum style --foreground 1 "Error: expected $repo_script after updating the repository"
     exit 1
@@ -356,17 +356,17 @@ if [ "$gpg_key_present" = "false" ]; then
   fi
 fi
 
-if [ "$gpg_key_present" = "true" ] && [ -f "./scripts/bootstrap-gpg.sh" ]; then
+if [ "$gpg_key_present" = "true" ] && [ -f "./scripts/bootstrap/bootstrap-gpg.sh" ]; then
   gum style --foreground 244 ""
   gpg_reimport_choice="$(gum choose --header "GPG key already exists. Re-import it?" "No" "Yes")"
   if [ "$gpg_reimport_choice" = "Yes" ]; then
-    nix-shell -p gh gnupg --run "bash ./scripts/bootstrap-gpg.sh </dev/tty >/dev/tty"
+    nix-shell -p gh gnupg --run "bash ./scripts/bootstrap/bootstrap-gpg.sh </dev/tty >/dev/tty"
   fi
 fi
 
-if [ "$gpg_status" = "skipped" ] && [ -f "./scripts/bootstrap-gpg.sh" ]; then
+if [ "$gpg_status" = "skipped" ] && [ -f "./scripts/bootstrap/bootstrap-gpg.sh" ]; then
   if gum confirm "Run GPG bootstrap now?"; then
-    nix-shell -p gh gnupg --run "bash ./scripts/bootstrap-gpg.sh </dev/tty >/dev/tty"
+    nix-shell -p gh gnupg --run "bash ./scripts/bootstrap/bootstrap-gpg.sh </dev/tty >/dev/tty"
     gpg_status="completed"
     gpg_key_present="true"
   fi

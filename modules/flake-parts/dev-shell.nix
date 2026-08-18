@@ -28,7 +28,7 @@
           gum
           nix
         ];
-        text = builtins.readFile ../../scripts/lint.sh;
+        text = builtins.readFile ../../scripts/dev/lint.sh;
       };
 
       installScript = pkgs.writeShellApplication {
@@ -40,7 +40,7 @@
           nix
           openssh
         ];
-        text = builtins.readFile ../../scripts/bootstrap-machine.sh;
+        text = builtins.readFile ../../scripts/bootstrap/bootstrap-machine.sh;
       };
 
       rotateGpgGistScript = pkgs.writeShellApplication {
@@ -50,7 +50,7 @@
           gnupg
           xkcdpass
         ];
-        text = builtins.readFile ../../scripts/rotate-gpg-gist.sh;
+        text = builtins.readFile ../../scripts/maintenance/rotate-gpg-gist.sh;
       };
     in
     {
@@ -166,8 +166,8 @@
             mv .git/hooks/pre-commit .git/hooks/pre-commit-checks
           fi
 
-           ln -sf "$(git rev-parse --show-toplevel)/scripts/pre-commit-wrapper.sh" .git/hooks/pre-commit
-           ln -sf "$(git rev-parse --show-toplevel)/scripts/pre-push-wrapper.sh" .git/hooks/pre-push
+           ln -sf "$(git rev-parse --show-toplevel)/scripts/dev/pre-commit-wrapper.sh" .git/hooks/pre-commit
+           ln -sf "$(git rev-parse --show-toplevel)/scripts/dev/pre-push-wrapper.sh" .git/hooks/pre-push
         '';
       };
     };

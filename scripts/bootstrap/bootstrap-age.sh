@@ -5,7 +5,7 @@
 # It works with auto-generated keys (via sops.age.generateKey = true)
 # or can be used to set up keys before the first build.
 #
-# Usage: ./scripts/bootstrap-age.sh
+# Usage: ./scripts/bootstrap/bootstrap-age.sh
 #
 # Workflow:
 # 1. Build the system (auto-generates key if missing)

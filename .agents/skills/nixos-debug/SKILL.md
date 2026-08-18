@@ -119,7 +119,7 @@ nix-shell -p sops --run "sops -d secrets/common.yaml"
 
 ```bash
 # Bootstrap age key into .sops.yaml
-./scripts/bootstrap-age.sh
+./scripts/bootstrap/bootstrap-age.sh
 
 # Commit updated .sops.yaml
 git add .sops.yaml && git commit -m "Add age key for hostname"
@@ -321,7 +321,7 @@ After fixing primary error:
 ### SOPS Setup
 
 - Age key auto-generated at `/var/lib/sops-nix/key.txt` on first build
-- Must run `./scripts/bootstrap-age.sh` to add key to `.sops.yaml`
+- Must run `./scripts/bootstrap/bootstrap-age.sh` to add key to `.sops.yaml`
 - GPG key for manual editing (optional, from Bitwarden)
 
 See [docs/agents/sops-secrets.md](../../../docs/agents/sops-secrets.md) for workflow.

@@ -11,7 +11,7 @@ trap cleanup EXIT
 export BOOTSTRAP_MACHINE_LIB_ONLY=true
 # The source path is resolved dynamically from the repository root.
 # shellcheck disable=SC1091
-source "$repo_root/scripts/bootstrap-machine.sh"
+source "$repo_root/scripts/bootstrap/bootstrap-machine.sh"
 unset BOOTSTRAP_MACHINE_LIB_ONLY
 
 if (validate_name "." "Host name" >/dev/null 2>&1); then

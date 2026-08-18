@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Bootstrap GPG key from an encrypted secret gist
-# Usage: ./scripts/bootstrap-gpg.sh [gist-id]
+# Usage: ./scripts/bootstrap/bootstrap-gpg.sh [gist-id]
 # If no gist ID is provided, resolves it by searching your gists for the
 # expected filename (requires gh auth).
 

@@ -141,13 +141,13 @@ sops -i --show-keys secrets/common.yaml
 sudo nixos-rebuild switch --flake .#hostname
 
 # Then bootstrap it into .sops.yaml
-./scripts/bootstrap-age.sh
+./scripts/bootstrap/bootstrap-age.sh
 ```
 
 **Age key not in .sops.yaml**:
 ```bash
 # Run bootstrap script
-./scripts/bootstrap-age.sh
+./scripts/bootstrap/bootstrap-age.sh
 
 # Commit updated .sops.yaml
 git add .sops.yaml

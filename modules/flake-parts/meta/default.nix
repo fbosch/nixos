@@ -23,7 +23,7 @@ let
       source = null;
       # SHA256 hash of the GitHub avatar
       # To update: nix-prefetch-url https://github.com/fbosch.png
-      # Or run: ./scripts/update-avatar.sh
+      # Or run: ./scripts/maintenance/update-avatar.sh
       sha256 = "13yl42iqd2a37k8cilssky8dw182cma5cq57jzaw1m7bnxdcf421";
       # URL is constructed from github.username
       url = "https://github.com/${github.username}.png";

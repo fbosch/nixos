@@ -4,7 +4,7 @@ set -euo pipefail
 
 if [[ ${1:-} == "-h" || ${1:-} == "--help" ]]; then
   cat <<'EOF'
-Usage: ./scripts/setup-u2f.sh [pam://rp-id]
+Usage: ./scripts/maintenance/setup-u2f.sh [pam://rp-id]
 
 Registers one U2F credential for the current user and writes it to:
   ~/.config/Yubico/u2f_keys
