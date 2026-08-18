@@ -1,12 +1,12 @@
 # NixOS flake task runner
 # Usage: just <recipe>
+#
+# Recipes run in a plain shell so they stay usable when the network is down.
+# Recipes needing the flake dev shell opt in with `nix develop -c`.
 
 # List available recipes
 default:
     @just --list
-
-# Run recipes in the flake dev shell when it is not already active.
-set shell := ["bash", "-eu", "-o", "pipefail", "-c", "[ -n \"${IN_NIX_SHELL:-}\" ] || exec nix develop --command bash -eu -o pipefail -c \"$0\"; exec bash -eu -o pipefail -c \"$0\""]
 
 build-pc:
     nh os build .#rvn-pc
@@ -27,7 +27,7 @@ pull-priceghost-postgres:
 
 # Push a Nix closure to Attic (defaults to current host system)
 push-attic target='' jobs='3':
-    if [ -n "{{target}}" ]; then nix path-info -r "{{target}}" | attic push --jobs "{{jobs}}" --no-closure nix-cache --stdin; else nix path-info -r ".#nixosConfigurations.$(hostname).config.system.build.toplevel" | attic push --jobs "{{jobs}}" --no-closure nix-cache --stdin; fi
+    nix develop -c bash -euo pipefail -c 'if [ -n "{{target}}" ]; then nix path-info -r "{{target}}" | attic push --jobs "{{jobs}}" --no-closure nix-cache --stdin; else nix path-info -r ".#nixosConfigurations.$(hostname).config.system.build.toplevel" | attic push --jobs "{{jobs}}" --no-closure nix-cache --stdin; fi'
 
 # Collect read-only Atticd and SQLite lock diagnostics from rvn-srv's repository clone
 atticd-diagnose host='srv':
@@ -67,7 +67,7 @@ network-reset domain='example.com':
 
 # Format all files
 fmt:
-    treefmt --no-cache
+    nix develop -c treefmt --no-cache
 
 # Re-encrypt all secrets with current .sops.yaml recipients
 update-sops-keys:
