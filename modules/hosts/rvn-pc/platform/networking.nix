@@ -1,6 +1,6 @@
 { config, lib, ... }:
 {
-  flake.modules.nixos."hosts/rvn-pc/platform" = _: {
+  flake.modules.nixos."hosts/rvn-pc/platform" = { hostMeta, ... }: {
     networking = {
       hostName = "rvn-pc";
       networkmanager = {
@@ -28,7 +28,23 @@
           address = [
             "/${config.flake.meta.synology.domain}/${config.flake.meta.nas.ipAddress}"
           ];
-          server = [ "127.0.0.1#5553" ];
+          # DNS flow (strict-order):
+          #
+          #   query 127.0.0.1:53
+          #          │
+          #          v
+          #   ┌──────────────────┐   Synology zone
+          #   │     dnsmasq      │──────────────────> 192.168.1.2 (local answer)
+          #   └────────┬─────────┘
+          #            │ everything else, in order
+          #            v
+          #   192.168.1.46 ──fail──> 192.168.1.202 ──fail──> 127.0.0.1:5553
+          #        │                                                  │
+          #        │ blocked by Mullvad firewall while VPN is up        │ DoH via
+          #        v                                                  v tunnel
+          #   (timeout, fall through)                        NextDNS upstream
+          #
+          server = hostMeta.dnsServers ++ [ "127.0.0.1#5553" ];
         };
       };
 
