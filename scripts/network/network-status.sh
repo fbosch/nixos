@@ -2,6 +2,7 @@
 
 set -uo pipefail
 
+# shellcheck disable=SC1091
 # shellcheck source=SCRIPTDIR/../lib/output.sh
 . "$(dirname "$0")/../lib/output.sh"
 # shellcheck disable=SC1091
