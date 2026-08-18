@@ -164,7 +164,7 @@ if [ "$#" -gt 1 ]; then
 fi
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-repo_root="$(dirname "$script_dir")"
+repo_root="$(cd "$script_dir/../.." && pwd)"
 packages_dir="$repo_root/pkgs/by-name"
 
 if [ ! -d "$packages_dir" ]; then
