@@ -28,6 +28,7 @@
           address = [
             "/${config.flake.meta.synology.domain}/${config.flake.meta.nas.ipAddress}"
           ];
+          #
           # DNS flow (strict-order):
           #
           #   query 127.0.0.1:53
@@ -42,6 +43,7 @@
           #                                                       │
           #                                                       v
           #                                                 NextDNS (DoH)
+          #
           server = hostMeta.dnsServers ++ [ "127.0.0.1#5553" ];
         };
       };
