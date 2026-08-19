@@ -3,7 +3,7 @@
     environment.systemPackages = with pkgs; [
       vscodium
       gimp
-      local."webapp/chatgpt"
+      local.chatgpt
       local."webapp/notion"
       local."webapp/icloud-notes"
       local."webapp/protonmail"
