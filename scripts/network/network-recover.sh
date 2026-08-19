@@ -29,8 +29,9 @@ ensure_mullvad_dns() {
 
   # Lockdown mode blocks all traffic (including DNS) while disconnected,
   # blocked LAN sharing makes the dnsmasq LAN upstreams unreachable, and
-  # custom DNS makes mullvad-daemon block plain port-53 to the LAN resolvers.
-  # Recovery enforces the known-good values for all three.
+  # default DNS lets Mullvad program 10.64.0.1 on wg0-mullvad with a `~.`
+  # routing domain that bypasses the local dnsmasq funnel. Recovery enforces
+  # the known-good values for all three.
   if mullvad lockdown-mode get 2>/dev/null | grep -q ': on$'; then
     printf 'Disabling Mullvad lockdown-mode (blocks all traffic while disconnected).\n'
     mullvad lockdown-mode set off
@@ -41,9 +42,9 @@ ensure_mullvad_dns() {
     mullvad lan set allow
   fi
 
-  if mullvad dns get 2>/dev/null | grep -q '^Custom DNS: yes$'; then
-    printf 'Setting Mullvad DNS to default (custom DNS blocks LAN resolvers).\n'
-    mullvad dns set default
+  if mullvad dns get 2>/dev/null | grep -q '^Custom DNS: no$'; then
+    printf 'Setting Mullvad DNS to custom 127.0.0.1 (default DNS bypasses dnsmasq).\n'
+    mullvad dns set custom 127.0.0.1
   fi
 }
 

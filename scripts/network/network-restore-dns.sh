@@ -27,6 +27,7 @@ fi
 want_lan="$(printf '%s' "$desired" | python3 -c 'import json,sys; print("allow" if json.load(sys.stdin)["allowLan"] else "block")')"
 want_lockdown="$(printf '%s' "$desired" | python3 -c 'import json,sys; print("on" if json.load(sys.stdin)["lockdownMode"] else "off")')"
 want_dns="$(printf '%s' "$desired" | python3 -c 'import json,sys; print(json.load(sys.stdin)["dnsMode"])')"
+want_dns_servers="$(printf '%s' "$desired" | python3 -c 'import json,sys; print(" ".join(json.load(sys.stdin)["customDnsServers"]))')"
 
 section "Mullvad alignment with services.mullvad-vpn.runtimeSettings"
 printf 'Mullvad: %s\n' "$(mullvad status 2>/dev/null | head -n 1)"
@@ -51,7 +52,12 @@ if mullvad dns get 2>/dev/null | grep -qi "^${want_dns} DNS: yes\$"; then
   ok "DNS mode already ${want_dns}"
 else
   printf 'Setting DNS mode to %s...\n' "$want_dns"
-  mullvad dns set "$want_dns"
+  if [ "$want_dns" = "custom" ]; then
+    # shellcheck disable=SC2086
+    mullvad dns set custom $want_dns_servers
+  else
+    mullvad dns set "$want_dns"
+  fi
   ok "DNS mode set to ${want_dns}"
 fi
 

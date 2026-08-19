@@ -24,12 +24,21 @@
             "default"
             "custom"
           ];
-          default = "default";
+          default = "custom";
           description = ''
-            DNS handling. "default" disables Mullvad's DNS-leak protection so
-            dnsmasq can reach the LAN resolvers while connected; the declarative
-            dnsmasq chain is the leak control instead.
+            DNS handling. "default" lets Mullvad's own resolvers handle DNS
+            (10.64.0.1 programmed on wg0-mullvad with a `~.` routing domain);
+            this gives a clean mullvad.net/check but bypasses the local
+            dnsmasq funnel, so local zone overrides (Synology domain) do not
+            apply while connected. "custom" points the tunnel DNS at the
+            local dnsmasq funnel (customDnsServers) instead.
           '';
+        };
+
+        customDnsServers = lib.mkOption {
+          type = lib.types.listOf lib.types.str;
+          default = [ "127.0.0.1" ];
+          description = "DNS servers passed to `mullvad dns set custom` when dnsMode is \"custom\".";
         };
       };
 

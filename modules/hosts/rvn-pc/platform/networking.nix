@@ -42,9 +42,6 @@
           #                                                       │
           #                                                       v
           #                                                 NextDNS (DoH)
-          #
-          # Mullvad runs with dns=default (modules/vpn.nix) so the LAN
-          # resolvers stay reachable while the VPN is connected.
           server = hostMeta.dnsServers ++ [ "127.0.0.1#5553" ];
         };
       };
