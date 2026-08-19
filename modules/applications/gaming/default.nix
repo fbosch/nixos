@@ -1,3 +1,4 @@
+{ inputs, ... }:
 {
   # NixOS module: Generic gaming system configuration
   flake.modules.nixos.gaming =
@@ -28,6 +29,7 @@
         # sgdboop - disabled due to build error in nixpkgs (function signature mismatch)
         nvitop
         prismlauncher # Minecraft launcher
+        inputs.hytale-launcher.packages.${pkgs.stdenv.hostPlatform.system}.hytale-launcher
       ];
 
       hardware.graphics.enable = true;
@@ -61,14 +63,9 @@
         "org.freedesktop.Platform.VulkanLayer.vkBasalt//25.08" # Vulkan post-processing
         "org.freedesktop.Platform.VulkanLayer.MangoHud//25.08" # MangoHud overlay
         "io.mgba.mGBA" # GBA emulator
-        {
-          appId = "com.hypixel.HytaleLauncher";
-          bundle = "${pkgs.local.hytale-launcher-flatpak}/hytale-launcher.flatpak";
-          sha256 = "${pkgs.local.hytale-launcher-flatpak.src.outputHash}";
-        }
       ];
 
-      xdg.dataFile."icons/hicolor/512x512/apps/com.hypixel.HytaleLauncher.png".source =
+      xdg.dataFile."icons/hicolor/512x512/apps/hytale-launcher.png".source =
         hytaleLauncherIcon;
 
       xdg.desktopEntries.wowup-cf = {
