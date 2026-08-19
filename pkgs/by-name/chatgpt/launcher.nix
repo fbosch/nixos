@@ -41,9 +41,9 @@ writeShellApplication {
     waylandFlags=()
     if [[ -n "''${NIXOS_OZONE_WL:-}" && -n "''${WAYLAND_DISPLAY:-}" ]]; then
       waylandFlags=(
-        --ozone-platform-hint=auto
+        --ozone-platform=wayland
         --enable-features=WaylandWindowDecorations
-        --enable-wayland-ime=true
+        --enable-wayland-ime
       )
     fi
 
