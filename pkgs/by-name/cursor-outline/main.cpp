@@ -67,7 +67,7 @@ void main() {
         }
     }
 
-    float outline = center <= 0.01 ? dilated : 0.0;
+    float outline = dilated * (1.0 - center);
     if (outline <= 0.01)
         discard;
 
