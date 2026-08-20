@@ -3,6 +3,8 @@ name: Container Security Scan
 on:
   pull_request:
     paths:
+      - ".github/actions/trivy-scan/**"
+      - ".github/workflows/container-security-scan.yml"
       - "modules/services/containers/**/*.nix"
       - "modules/hosts/**/*.nix"
   workflow_dispatch:
@@ -76,14 +78,20 @@ jobs:
           echo "safe-name=$SAFE_NAME" >> "$GITHUB_OUTPUT"
 
       - name: Pull container image
+        id: pull
         run: |
+          set -euo pipefail
+
           echo "Pulling ${{ matrix.image }}"
-          docker pull "${{ matrix.image }}" || {
+          if docker pull "${{ matrix.image }}"; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
             echo "::warning::Failed to pull ${{ matrix.image }} - may be a local image or invalid reference"
-            exit 0
-          }
+          fi
 
       - name: Scan image with Trivy
+        if: steps.pull.outputs.available == 'true'
         uses: ./.github/actions/trivy-scan
         with:
           image-ref: ${{ matrix.image }}
@@ -102,9 +110,10 @@ jobs:
           if [ "${{ needs.extract-images.outputs.has-images }}" == "true" ]; then
             echo "✅ Container security scan completed"
             echo ""
-            echo "Scanned images:"
+            echo "Discovered images:"
             echo "${{ needs.extract-images.outputs.images }}" | jq -r '.[]' | sed 's/^/  - /'
             echo ""
+            echo "Pullable images were scanned; unavailable references were skipped with warnings."
             echo "Check the Security tab for detailed vulnerability reports."
           else
             echo "ℹ️ No container images to scan in this PR"
