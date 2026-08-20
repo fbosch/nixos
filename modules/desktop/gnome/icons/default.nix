@@ -364,6 +364,12 @@
           context = "apps";
         }
         {
+          name = "chatgpt";
+          source = ./codex.svg;
+          sizes = [ "scalable" ];
+          context = "apps";
+        }
+        {
           name = "io.github.ilya_zlobintsev.LACT";
           source = lactIcon;
           sizes = [ "scalable" ];
