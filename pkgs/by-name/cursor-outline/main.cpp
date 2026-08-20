@@ -21,7 +21,7 @@ using namespace Render::GL;
 
 namespace {
 
-    constexpr auto                  EXPECTED_HYPRLAND_COMMIT       = "5751911091d2bbcd580597d489a1ec0b9dd542bd";
+    constexpr auto                  EXPECTED_HYPRLAND_COMMIT       = GIT_COMMIT_HASH;
     constexpr int                   DEFAULT_OUTLINE_LOGICAL_PIXELS = 3;
     constexpr int                   MAXIMUM_OUTLINE_LOGICAL_PIXELS = 4;
     constexpr int                   MAXIMUM_OUTLINE_PIXELS         = 8;
