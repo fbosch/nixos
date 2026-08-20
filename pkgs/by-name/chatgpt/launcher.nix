@@ -6,12 +6,19 @@ writeShellApplication {
 
   text = ''
     : "''${CHATGPT_EXECUTABLE:?}"
+    : "''${CHATGPT_HATCH_PET_SOURCE:?}"
     : "''${CHATGPT_RESOURCES_SOURCE:?}"
     : "''${CHATGPT_RESOURCES_CACHE_KEY:?}"
 
     cacheHome="''${XDG_CACHE_HOME:-''${HOME:?XDG_CACHE_HOME and HOME are unset}/.cache}"
+    codexHome="''${CODEX_HOME:-''${HOME:?CODEX_HOME and HOME are unset}/.codex}"
     cacheRoot="$cacheHome/chatgpt/bundled-plugins"
     resourcesPath="$cacheRoot/$CHATGPT_RESOURCES_CACHE_KEY"
+
+    if [[ ! -f "$codexHome/skills/hatch-pet/SKILL.md" ]]; then
+      mkdir -p "$codexHome/skills/hatch-pet"
+      cp -R "$CHATGPT_HATCH_PET_SOURCE"/. "$codexHome/skills/hatch-pet"
+    fi
 
     if [[ ! -f "$resourcesPath/.complete" ]]; then
       mkdir -p "$cacheRoot"

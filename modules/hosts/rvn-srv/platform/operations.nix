@@ -55,6 +55,8 @@
         shmSize = "128m";
       };
 
+      glance-shared-todo.mcpListenAddress = hostMeta.local;
+
       dozzle = {
         port = 8090;
         hostname = "rvn-srv";

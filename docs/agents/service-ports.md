@@ -30,7 +30,7 @@ Declared exposed ports for `rvn-srv` are linted against this document.
 | speedtest-tracker         | `8085/tcp`                     | Web UI                       |
 | termix-container          | `7310/tcp`                     | Container web port           |
 | priceghost-container      | `8089/tcp`                     | Price tracking web UI        |
-| glance-shared-todo        | `8091/tcp`                     | Loopback shared task API     |
+| glance-shared-todo        | `8091/tcp`, `8092/tcp`         | Loopback API + LAN MCP       |
 | plex (nginx)              | `32402/tcp`                    | Reverse proxy port           |
 | onwatch-container         | `9211/tcp`                     | API quota tracker dashboard  |
 | rsshub-container          | `1200/tcp`                     | RSS feed aggregation service |

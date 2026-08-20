@@ -1,5 +1,19 @@
-_:
-{
+_: {
+  perSystem = { pkgs, ... }: {
+    checks.glance-shared-todo =
+      pkgs.runCommand "glance-shared-todo-tests"
+        {
+          nativeBuildInputs = [ pkgs.bun ];
+        }
+        ''
+          cp -r ${./shared-todo} source
+          chmod -R u+w source
+          cd source
+          bun test
+          touch $out
+        '';
+  };
+
   flake.modules.nixos."services/glance-shared-todo" =
     { config
     , lib
@@ -23,6 +37,18 @@ _:
           description = "TCP port for the shared Glance todo API";
         };
 
+        mcpListenAddress = lib.mkOption {
+          type = lib.types.str;
+          default = "127.0.0.1";
+          description = "Address used by the shared todo MCP listener";
+        };
+
+        mcpPort = lib.mkOption {
+          type = lib.types.port;
+          default = 8092;
+          description = "TCP port for the shared todo MCP listener";
+        };
+
         allowedOrigin = lib.mkOption {
           type = lib.types.str;
           default = "https://glance.corvus-corax.synology.me";
@@ -42,7 +68,10 @@ _:
           exposedPorts = lib.mkAfter [
             {
               service = "glance-shared-todo";
-              tcpPorts = [ cfg.port ];
+              tcpPorts = [
+                cfg.port
+                cfg.mcpPort
+              ];
             }
           ];
         };
@@ -56,6 +85,8 @@ _:
             GLANCE_SHARED_TODO_ALLOWED_ORIGIN = cfg.allowedOrigin;
             GLANCE_SHARED_TODO_DATABASE = "/var/lib/glance-shared-todo/todo.sqlite";
             GLANCE_SHARED_TODO_HOST = cfg.listenAddress;
+            GLANCE_SHARED_TODO_MCP_HOST = cfg.mcpListenAddress;
+            GLANCE_SHARED_TODO_MCP_PORT = toString cfg.mcpPort;
             GLANCE_SHARED_TODO_PORT = toString cfg.port;
           };
           serviceConfig = {
@@ -88,6 +119,14 @@ _:
           };
         };
 
+        networking.firewall.allowedTCPPorts = [ cfg.mcpPort ];
+
+        assertions = [
+          {
+            assertion = cfg.listenAddress != cfg.mcpListenAddress || cfg.port != cfg.mcpPort;
+            message = "glance-shared-todo: API and MCP listeners must use different addresses or ports";
+          }
+        ];
       };
     };
 }
