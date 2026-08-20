@@ -19,6 +19,7 @@ Declared exposed ports for `rvn-srv` are linted against this document.
 | gluetun-container         | `8889/tcp`, `8000/tcp`         | Proxy + control API          |
 | tinyproxy                 | `8888/tcp`                     | Local/TS proxy               |
 | uptime-kuma               | `3001/tcp`                     | Monitoring web UI            |
+| forgejo                   | `3000/tcp`                     | LAN Git mirror and recovery UI |
 | prowlarr                  | `9696/tcp`                     | *arr indexer manager         |
 | glances                   | `61208/tcp`                    | Monitoring web UI            |
 | tailscale-relay           | `40000/udp`                    | DERP relay server port       |

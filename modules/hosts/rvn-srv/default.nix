@@ -67,6 +67,7 @@ in
       "services/tinyproxy"
       "services/nextdns"
       "services/freshrss"
+      "services/forgejo"
 
       # containerized services
       "virtualization/podman"

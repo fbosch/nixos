@@ -14,23 +14,26 @@ Create an independently recoverable local mirror of the GitHub repositories owne
 
 Do not place live Forgejo state, SQLite, repositories, or LFS objects on CIFS. Do not treat GitHub issues, pull requests, Actions artifacts, packages, secrets, repository settings, or protection rules as covered by the initial mirror.
 
+Phase one mirrors `fbosch`-owned repositories only. Third-party upstreams such as `NixOS/nixpkgs` require an explicit selection rule and are deferred.
+
 ## Decisions Required Before Implementation
 
 1. GitHub remains the source of truth; Forgejo is a pull-only mirror and recovery target.
 2. Mirror every repository visible to the dedicated credential whose owner is exactly `fbosch`, including private, archived, and forked repositories unless explicitly denied.
 3. Discover repositories from the GitHub API rather than maintaining a hand-written repository list.
-4. Reconcile hourly because this environment is behind CGNAT and should not depend on inbound GitHub webhooks.
-5. Never delete or overwrite a Forgejo repository merely because the upstream repository disappears, becomes inaccessible, or is renamed.
-6. Keep `services.forgejo.stateDir`, `repositoryRoot`, SQLite, and LFS content on local `rvn-srv` storage under `/var/lib/forgejo`.
-7. Use the native NixOS `services.forgejo` module and its pinned `forgejo-lts` package rather than downloading release binaries.
-8. Use SQLite while Forgejo remains a small single-user mirror instance.
-9. Use a dedicated read-only GitHub credential; do not reuse the existing `github-token` consumed by Nix.
-10. Disable public registration and expose Forgejo only through existing LAN/Tailscale access. Public exposure and a public reverse proxy are out of scope.
-11. Treat Git data as the required initial coverage. GitHub-native metadata migration is a separate feature and must not be represented as continuously synchronized.
-12. Enable LFS support, but do not claim LFS coverage until a repository with real LFS objects passes a restore test.
-13. Perform a daily consistent backup during a short Forgejo maintenance window, then export the completed archive to Synology in a separate step.
-14. Target a one-hour Git mirror recovery point and a 24-hour off-host backup recovery point.
-15. Require a successful restore drill before describing the system as a backup.
+4. Defer third-party repository mirroring until the owned-repository workflow is proven; add those repositories through a later explicit allowlist.
+5. Reconcile hourly because this environment is behind CGNAT and should not depend on inbound GitHub webhooks.
+6. Never delete or overwrite a Forgejo repository merely because the upstream repository disappears, becomes inaccessible, or is renamed.
+7. Keep `services.forgejo.stateDir`, `repositoryRoot`, SQLite, and LFS content on local `rvn-srv` storage under `/var/lib/forgejo`.
+8. Use the native NixOS `services.forgejo` module and its pinned `forgejo-lts` package rather than downloading release binaries.
+9. Use SQLite while Forgejo remains a small single-user mirror instance.
+10. Use a dedicated read-only fine-grained GitHub PAT; do not reuse the existing `github-token` consumed by Nix.
+11. Disable public registration and expose Forgejo only through existing LAN/Tailscale access. Public exposure and a public reverse proxy are out of scope.
+12. Treat Git data as the required initial coverage. GitHub-native metadata migration is a separate feature and must not be represented as continuously synchronized.
+13. Enable LFS support, but do not claim LFS coverage until a repository with real LFS objects passes a restore test.
+14. Perform a daily consistent backup during a short Forgejo maintenance window, then export the completed archive to Synology in a separate step.
+15. Target a one-hour Git mirror recovery point and a 24-hour off-host backup recovery point.
+16. Require a successful restore drill before describing the system as a backup.
 
 ## Slice 1: Record the Backup Contract and Inventory
 
@@ -285,9 +288,9 @@ Do not place live Forgejo state, SQLite, repositories, or LFS objects on CIFS. D
 
 ## Rollout Order
 
-1. Slice 1: record the contract and produce the initial inventory.
+1. Slice 1: record the contract and create the dedicated credential needed for the authoritative private-repository inventory.
 2. Slice 2: deploy Forgejo with one manually created public canary mirror.
-3. Slice 3: bootstrap dedicated credentials and the local automation identity.
+3. Slice 3: bootstrap the local automation identity and produce the inventory.
 4. Slice 4: reconcile the canary, then private repositories, then the full inventory.
 5. Slice 5: produce and validate consistent local backups.
 6. Slice 6: export archives to Synology and verify cloud versioning.
