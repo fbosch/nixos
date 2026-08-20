@@ -15,6 +15,7 @@
 
           luaWithSocket = pkgs.luajit.withPackages (ps: [ ps.luasocket ]);
           hyprlandPackage = inputs.hyprland.packages.${system}.hyprland;
+          cursorOutlinePlugin = pkgs.local.cursor-outline;
           xdgDesktopPortalHyprlandPackage =
             inputs.hyprland.packages.${system}.xdg-desktop-portal-hyprland.override
               {
@@ -74,6 +75,7 @@
               GSK_RENDERER = "ngl";
               ADW_DEBUG_COLOR_SCHEME = "prefer-dark";
               WLR_NO_HARDWARE_CURSORS = "1";
+              HYPR_CURSOR_OUTLINE_PLUGIN = "${cursorOutlinePlugin}/lib/libcursor-outline.so";
               __GL_GSYNC_ALLOWED = "1";
               __GL_VRR_ALLOWED = "1";
               QT_QPA_PLATFORM = "wayland;xcb";
@@ -84,6 +86,7 @@
             };
 
             systemPackages = [
+              cursorOutlinePlugin
               inputs.hyprpaper.packages.${system}.hyprpaper
               pkgs.hyprprop
               pkgs.hyprpicker
