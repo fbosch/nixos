@@ -3,6 +3,8 @@ name: Container Security Scan
 on:
   pull_request:
     paths:
+      - ".github/actions/trivy-scan/**"
+      - ".github/workflows/container-security-scan.yml"
       - "modules/services/containers/**/*.nix"
       - "modules/hosts/**/*.nix"
   workflow_dispatch:
@@ -108,9 +110,10 @@ jobs:
           if [ "${{ needs.extract-images.outputs.has-images }}" == "true" ]; then
             echo "✅ Container security scan completed"
             echo ""
-            echo "Scanned images:"
+            echo "Discovered images:"
             echo "${{ needs.extract-images.outputs.images }}" | jq -r '.[]' | sed 's/^/  - /'
             echo ""
+            echo "Pullable images were scanned; unavailable references were skipped with warnings."
             echo "Check the Security tab for detailed vulnerability reports."
           else
             echo "ℹ️ No container images to scan in this PR"
