@@ -76,14 +76,20 @@ jobs:
           echo "safe-name=$SAFE_NAME" >> "$GITHUB_OUTPUT"
 
       - name: Pull container image
+        id: pull
         run: |
+          set -euo pipefail
+
           echo "Pulling ${{ matrix.image }}"
-          docker pull "${{ matrix.image }}" || {
+          if docker pull "${{ matrix.image }}"; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
             echo "::warning::Failed to pull ${{ matrix.image }} - may be a local image or invalid reference"
-            exit 0
-          }
+          fi
 
       - name: Scan image with Trivy
+        if: steps.pull.outputs.available == 'true'
         uses: ./.github/actions/trivy-scan
         with:
           image-ref: ${{ matrix.image }}
