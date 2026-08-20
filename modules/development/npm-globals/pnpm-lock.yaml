@@ -24,8 +24,8 @@ importers:
   .:
     dependencies:
       '@fbb.sh/pkdx':
-        specifier: 0.7.0
-        version: 0.7.0
+        specifier: 0.7.1
+        version: 0.7.1
       docs-cache:
         specifier: 0.7.0
         version: 0.7.0
@@ -291,35 +291,35 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@fbb.sh/pkdx-darwin-arm64@0.7.0':
-    resolution: {integrity: sha512-bVhscRCSw7b0z91iOjE8yuGy1BnMbkEvopJkKeMa/S/YcLne6TyUl+WVD2OmIKuie9gkFxqusHdmZl7HmbHCRw==}
+  '@fbb.sh/pkdx-darwin-arm64@0.7.1':
+    resolution: {integrity: sha512-K/L5RfbuwGPAqKO+xExTMzb2VynarkAbolbs6dHWPDhUl8thmboBuxM160odFc2UDKBnCT6MZpt0UMuuNUQojQ==}
     cpu: [arm64]
     os: [darwin]
 
-  '@fbb.sh/pkdx-darwin-x64@0.7.0':
-    resolution: {integrity: sha512-nV6VPrn1tneovLpTWZjGRMJr9NzhoY3MpjDXlNowYV6xLowLefrpmJdrsELcVCPQjYg+/mbtEgIACqN28ytG/w==}
+  '@fbb.sh/pkdx-darwin-x64@0.7.1':
+    resolution: {integrity: sha512-jZ8j6RU1FTqeb26Pxj2xrtVy1yfMcaW/i0PTHPCGjmlatEOca5N/dN8vG50DHMUwPuEsJcj1xoXX84aS0RsGPg==}
     cpu: [x64]
     os: [darwin]
 
-  '@fbb.sh/pkdx-linux-arm64@0.7.0':
-    resolution: {integrity: sha512-j4dxjSvxRdOrmzd2EvxaH9RHJKgNta2S/Jo8fJ4bIlNetyFdxtpfS29wleSLvvoRVr5JcVAqGs5zmxfmjALTqQ==}
+  '@fbb.sh/pkdx-linux-arm64@0.7.1':
+    resolution: {integrity: sha512-0Gldd2f0878XZAVVaFieiirT23WuTv+0kwzdwOsUJ3/jWrU/kqHlER+sF0/h+GUfUs/OxJ3LxZJjaHTtSMfdaA==}
     cpu: [arm64]
     os: [linux]
     libc: [glibc]
 
-  '@fbb.sh/pkdx-linux-x64@0.7.0':
-    resolution: {integrity: sha512-thAKWR5YzryHMVfjJhXeCHuu/3BqpuR+D3rIp0H7Q/9SdxP5pVm7gfkE0JOOAI8bq/6Q6pkjZnAlNZKaeuhNXg==}
+  '@fbb.sh/pkdx-linux-x64@0.7.1':
+    resolution: {integrity: sha512-cL/nb+D9xYSM1Zmgk/kFkDvRoNEvjwCxwoq5megpNOBhWxHfxNRBJB5S7HOcNwOG8Vkg3aCYOEDJMrCvvkQ29Q==}
     cpu: [x64]
     os: [linux]
     libc: [glibc]
 
-  '@fbb.sh/pkdx-win32-x64@0.7.0':
-    resolution: {integrity: sha512-NJ01jL0R+XupADSzca29LuhnJjl3P87N+GfWc2tP7giy5rYlZXRRGTJ7yePJuC4VPp54CMlGjTGe6PaJZXDlog==}
+  '@fbb.sh/pkdx-win32-x64@0.7.1':
+    resolution: {integrity: sha512-TqLDprA7ST0qe1/TF8xc3b1UlKD5Q1yWqErfyJacIwlemo5d9tFbM7mhC8ECyz4cTf/qEa08415GaxM518iZCg==}
     cpu: [x64]
     os: [win32]
 
-  '@fbb.sh/pkdx@0.7.0':
-    resolution: {integrity: sha512-2+ZX2Y1iMeTwLt+yuzpq6jwq6AbQ43flfGANVW8EZqxq65m8yt0MQ6ru2l+hvG1hhQeRKyq1whT3ass1h0i+cw==}
+  '@fbb.sh/pkdx@0.7.1':
+    resolution: {integrity: sha512-fhzfgBQYpAEMAptIJVbtaAdwrDcjIw4I4O8FF5mgCytwMsrMYAmYojPLaHTlLft54Cz/inbR99t692WYwpo+Ew==}
     engines: {node: '>=18'}
     hasBin: true
 
@@ -936,6 +936,7 @@ packages:
   '@xmldom/xmldom@0.9.10':
     resolution: {integrity: sha512-A9gOqLdi6cV4ibazAjcQufGj0B1y/vDqYrcuP6d/6x8P27gRS8643Dj9o1dEKtB6O7fwxb2FgBmJS2mX7gpvdw==}
     engines: {node: '>=14.6'}
+    deprecated: this version has critical issues, please update to the latest version
 
   abbrev@3.0.1:
     resolution: {integrity: sha512-AO2ac6pjRB3SJmGJo+v5/aK6Omggp6fsLrs6wN9bd35ulu4cCwaAU9+7ZhXjeqHVkaHThLuzH0nZr0YpCDhygg==}
@@ -2178,28 +2179,28 @@ snapshots:
   '@fallow-cli/win32-x64-msvc@3.12.0':
     optional: true
 
-  '@fbb.sh/pkdx-darwin-arm64@0.7.0':
+  '@fbb.sh/pkdx-darwin-arm64@0.7.1':
     optional: true
 
-  '@fbb.sh/pkdx-darwin-x64@0.7.0':
+  '@fbb.sh/pkdx-darwin-x64@0.7.1':
     optional: true
 
-  '@fbb.sh/pkdx-linux-arm64@0.7.0':
+  '@fbb.sh/pkdx-linux-arm64@0.7.1':
     optional: true
 
-  '@fbb.sh/pkdx-linux-x64@0.7.0':
+  '@fbb.sh/pkdx-linux-x64@0.7.1':
     optional: true
 
-  '@fbb.sh/pkdx-win32-x64@0.7.0':
+  '@fbb.sh/pkdx-win32-x64@0.7.1':
     optional: true
 
-  '@fbb.sh/pkdx@0.7.0':
+  '@fbb.sh/pkdx@0.7.1':
     optionalDependencies:
-      '@fbb.sh/pkdx-darwin-arm64': 0.7.0
-      '@fbb.sh/pkdx-darwin-x64': 0.7.0
-      '@fbb.sh/pkdx-linux-arm64': 0.7.0
-      '@fbb.sh/pkdx-linux-x64': 0.7.0
-      '@fbb.sh/pkdx-win32-x64': 0.7.0
+      '@fbb.sh/pkdx-darwin-arm64': 0.7.1
+      '@fbb.sh/pkdx-darwin-x64': 0.7.1
+      '@fbb.sh/pkdx-linux-arm64': 0.7.1
+      '@fbb.sh/pkdx-linux-x64': 0.7.1
+      '@fbb.sh/pkdx-win32-x64': 0.7.1
 
   '@isaacs/fs-minipass@4.0.1':
     dependencies:
