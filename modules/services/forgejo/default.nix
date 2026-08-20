@@ -47,7 +47,7 @@ in
           settings = {
             actions.ENABLED = false;
             migrations = {
-              ALLOWED_DOMAINS = "github.com";
+              ALLOWED_DOMAINS = "api.github.com,github.com";
               ALLOW_LOCALNETWORKS = false;
               LOCKED_DOMAINS = true;
             };
