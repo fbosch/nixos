@@ -4,7 +4,11 @@
 
   perSystem = { lib, ... }: {
     nix-unit = {
-      inputs = builtins.mapAttrs (_name: input: input.outPath) (builtins.removeAttrs inputs [ "self" ]);
+      inputs =
+        (builtins.mapAttrs (_name: input: input.outPath) (builtins.removeAttrs inputs [ "self" ]))
+        // {
+          "hyprland/nixpkgs" = inputs.hyprland.inputs.nixpkgs.outPath;
+        };
 
       tests = {
         sopsHelpers = import ../../tests/nix-unit/sops-helpers.nix {

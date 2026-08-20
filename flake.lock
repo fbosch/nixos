@@ -266,11 +266,11 @@
     "dotfiles": {
       "flake": false,
       "locked": {
-        "lastModified": 1787239183,
-        "narHash": "sha256-8/zZnor5DRIC+PoiNu3ZKNj8dXooi7K4c6DJifcQWUc=",
+        "lastModified": 1787247703,
+        "narHash": "sha256-ywqmoeIbRBE736hBHtzTR9IX3e8dLA+8RZQsSgejM0c=",
         "owner": "fbosch",
         "repo": "dotfiles",
-        "rev": "46363fecb17d8ab0fb90bcb6dbceda00e131c92d",
+        "rev": "6bb1ce9490bf29053458d96ff7e7617419b29b81",
         "type": "github"
       },
       "original": {
@@ -1518,11 +1518,11 @@
         "treefmt-nix": "treefmt-nix"
       },
       "locked": {
-        "lastModified": 1787216589,
-        "narHash": "sha256-XtBw86QXg9HtTU1IlD3yTpIHAG0r5df6SCrpDVG/1Cc=",
+        "lastModified": 1787252197,
+        "narHash": "sha256-6K9jl0sl257ppTU+RG1eVIwEtkx7KEPutae+CMNtAW4=",
         "owner": "numtide",
         "repo": "llm-agents.nix",
-        "rev": "5aad5f64e621fc35fed0fddcc2b6e17ab662cf78",
+        "rev": "ab1f750326fab54710dcdbbf25cc1b37e2fc7347",
         "type": "github"
       },
       "original": {
