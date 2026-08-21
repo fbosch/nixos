@@ -14,10 +14,6 @@ build-pc:
 build-srv:
     nh os build .#rvn-srv
 
-# Build a local Hyprland plugin against the pinned compositor toolchain
-build-hyprland-plugin plugin:
-    HYPRLAND_PLUGIN="{{plugin}}" nix build --impure --expr 'let root = ./.; flake = builtins.getFlake ("git+file://" + toString root); pkgs = import flake.inputs.nixpkgs { system = builtins.currentSystem; }; package = root + "/pkgs/by-name/${builtins.getEnv "HYPRLAND_PLUGIN"}/package.nix"; in pkgs.callPackage package { inputs = flake.inputs; }' --no-link --print-out-paths
-
 # Build custom container images for helium
 build-helium:
     sudo build-helium-images
