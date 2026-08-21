@@ -154,7 +154,11 @@ in
           forgejo-backup = {
             description = "Create a consistent Forgejo backup";
             serviceConfig = {
+              CPUWeight = 25;
               ExecStart = "${forgejoBackup}/bin/forgejo-backup";
+              IOWeight = 25;
+              IOSchedulingClass = "idle";
+              Nice = 19;
               Type = "oneshot";
             };
           };
@@ -164,7 +168,11 @@ in
             after = [ "forgejo-backup.service" ];
             unitConfig.RequiresMountsFor = [ "/mnt/nas/cloud-backup" ];
             serviceConfig = {
+              CPUWeight = 25;
               ExecStart = "${forgejoBackupExport}/bin/forgejo-backup-export";
+              IOWeight = 25;
+              IOSchedulingClass = "idle";
+              Nice = 19;
               Type = "oneshot";
             };
           };
