@@ -173,6 +173,8 @@ in
               IOWeight = 25;
               IOSchedulingClass = "idle";
               Nice = 19;
+              Restart = "on-failure";
+              RestartSec = "30min";
               Type = "oneshot";
             };
           };

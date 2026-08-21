@@ -3,7 +3,7 @@
 set -euo pipefail
 
 archive_dir="@archiveDir@"
-work_dir="$(mktemp -d)"
+work_dir="$(runuser -u forgejo -- mktemp -d)"
 archive="${archive_dir}/forgejo-dump.tar.zst"
 partial_archive="${archive}.partial"
 forgejo_stopped=false
