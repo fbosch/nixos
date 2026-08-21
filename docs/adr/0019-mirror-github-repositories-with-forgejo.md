@@ -13,7 +13,7 @@ Run Forgejo natively on `rvn-srv` as a pull-only mirror and recovery target. Kee
 
 Phase one discovers and mirrors repositories whose GitHub owner is exactly `fbosch`. It uses a dedicated fine-grained, read-only GitHub PAT and does not reuse the root-only Nix `github-token`. Third-party upstream repositories require a later explicit allowlist.
 
-Reconciliation reports unavailable, renamed, and removed upstream repositories but never deletes or overwrites local repositories automatically. Daily consistent Forgejo dumps are stored locally, then completed archives are exported independently to `/mnt/nas/cloud-backup/forgejo` for Synology-managed retention.
+Reconciliation reports unavailable, renamed, and removed upstream repositories but never deletes or overwrites local repositories automatically. One consistent Forgejo dump is stored locally and replaced only after a successful new dump, then exported independently to `/mnt/nas/cloud-backup/forgejo`. Synology snapshots provide versioned retention.
 
 The initial recovery claim covers commits, branches, tags, visibility, and cloneability. LFS is covered only after a restore test with real LFS content. Issues, pull requests, releases, Actions data, packages, secrets, repository settings, and protection rules are excluded from continuous synchronization.
 

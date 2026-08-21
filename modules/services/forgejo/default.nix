@@ -13,6 +13,7 @@ in
     }:
     let
       adminUser = flakeConfig.flake.meta.user;
+      archiveDir = "/var/backup/forgejo";
       forgejoAdmin = pkgs.writeShellApplication {
         name = "forgejo-admin";
         runtimeInputs = [ pkgs.forgejo-lts ];
@@ -21,6 +22,34 @@ in
           export FORGEJO_WORK_DIR=/var/lib/forgejo
           exec forgejo "$@"
         '';
+      };
+      forgejoBackup = pkgs.writeShellApplication {
+        name = "forgejo-backup";
+        runtimeInputs = with pkgs; [
+          coreutils
+          systemd
+          util-linux
+        ];
+        text =
+          builtins.replaceStrings
+            [
+              "@archiveDir@"
+              "@forgejo@"
+            ]
+            [
+              archiveDir
+              "${pkgs.forgejo-lts}/bin/forgejo"
+            ]
+            (builtins.readFile ./scripts/backup.sh);
+      };
+      forgejoBackupExport = pkgs.writeShellApplication {
+        name = "forgejo-backup-export";
+        runtimeInputs = with pkgs; [
+          coreutils
+        ];
+        text = builtins.replaceStrings [ "@archiveDir@" ] [ archiveDir ] (
+          builtins.readFile ./scripts/export.sh
+        );
       };
     in
     {
@@ -46,6 +75,7 @@ in
           };
           settings = {
             actions.ENABLED = false;
+            "git.timeout".MIGRATE = 7200;
             migrations = {
               ALLOWED_DOMAINS = "api.github.com,github.com";
               ALLOW_LOCALNETWORKS = false;
@@ -117,6 +147,54 @@ in
           ProtectProc = "invisible";
           User = "forgejo";
         };
+      };
+
+      systemd = {
+        services = {
+          forgejo-backup = {
+            description = "Create a consistent Forgejo backup";
+            serviceConfig = {
+              ExecStart = "${forgejoBackup}/bin/forgejo-backup";
+              Type = "oneshot";
+            };
+          };
+
+          forgejo-backup-export = {
+            description = "Export completed Forgejo backups to Synology";
+            after = [ "forgejo-backup.service" ];
+            unitConfig.RequiresMountsFor = [ "/mnt/nas/cloud-backup" ];
+            serviceConfig = {
+              ExecStart = "${forgejoBackupExport}/bin/forgejo-backup-export";
+              Type = "oneshot";
+            };
+          };
+        };
+
+        timers = {
+          forgejo-backup = {
+            wantedBy = [ "timers.target" ];
+            timerConfig = {
+              OnCalendar = "*-*-* 03:00:00";
+              Persistent = true;
+              RandomizedDelaySec = "15m";
+              Unit = "forgejo-backup.service";
+            };
+          };
+
+          forgejo-backup-export = {
+            wantedBy = [ "timers.target" ];
+            timerConfig = {
+              OnCalendar = "*-*-* 05:00:00";
+              Persistent = true;
+              RandomizedDelaySec = "15m";
+              Unit = "forgejo-backup-export.service";
+            };
+          };
+        };
+
+        tmpfiles.rules = [
+          "d ${archiveDir} 0750 forgejo forgejo -"
+        ];
       };
     };
 }

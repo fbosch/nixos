@@ -176,7 +176,7 @@ Phase one mirrors `fbosch`-owned repositories only. Third-party upstreams such a
   - starts Forgejo again even when the dump fails;
   - records the archive path and result for monitoring.
 - Use a compressed archive format supported by the pinned Forgejo package.
-- Retain at least 14 days of local archives.
+- Keep one complete local archive; replace it only after a new dump succeeds.
 - Keep local backup success independent from NAS availability.
 
 **Acceptance criteria**
@@ -184,7 +184,7 @@ Phase one mirrors `fbosch`-owned repositories only. Third-party upstreams such a
 - No mirror or Forgejo process writes live state while the consistent dump is taken.
 - A failed dump restarts Forgejo and leaves the previous valid backup untouched.
 - A successful dump produces one complete archive outside `/var/lib/forgejo`.
-- Local retention removes only archives older than the configured window.
+- A failed dump leaves the previous complete local archive unchanged.
 - Forgejo downtime remains limited to the backup operation and is observable in the journal.
 
 **Risk:** High. A backup that has never restored successfully is not evidence of recoverability.
@@ -198,10 +198,11 @@ Phase one mirrors `fbosch`-owned repositories only. Third-party upstreams such a
 - Add a separate root-owned export service and timer for `/mnt/nas/cloud-backup/forgejo`.
 - Require `/mnt/nas/cloud-backup` only for the export unit.
 - Create the destination directory through the export unit or a root-owned tmpfiles rule after the mount is available.
-- Copy only completed local archives.
+- Copy only the completed local archive.
 - Stage each transfer under a temporary name and rename it after a successful copy so Synology never observes a partially named final archive.
 - Do not use destructive synchronization or `--delete`.
-- Preserve local archives when the NAS is unavailable and retry export independently.
+- Preserve the local archive when the NAS is unavailable and retry export independently.
+- Keep Synology snapshots as the only version-history layer; do not retain dated archive sets locally or on the share.
 - Document the required Synology configuration:
   - versioned Hyper Backup or equivalent, not plain synchronization;
   - client-side encryption;
@@ -214,8 +215,8 @@ Phase one mirrors `fbosch`-owned repositories only. Third-party upstreams such a
 
 - Forgejo continues running when the NAS is offline.
 - A NAS outage fails only the export unit and does not invalidate the local backup.
-- Completed archives appear below `/mnt/nas/cloud-backup/forgejo` without partial final filenames.
-- Synology retains historical versions after a newer archive is exported.
+- The completed archive appears below `/mnt/nas/cloud-backup/forgejo` without a partial final filename.
+- Synology snapshots retain historical versions after the latest archive is replaced.
 - At least one archive can be retrieved from the cloud destination independently of `rvn-srv`.
 
 **Risk:** Medium. The NixOS side cannot guarantee that Synology cloud versioning or encryption is configured correctly.
