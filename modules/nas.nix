@@ -19,6 +19,7 @@ in
         "video"
         "web"
         "downloads"
+        "backup"
         "cloud-backup"
         "FrederikDocs"
         "websites"

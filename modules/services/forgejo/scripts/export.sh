@@ -3,7 +3,7 @@
 set -euo pipefail
 
 archive_dir="@archiveDir@"
-destination_dir="/mnt/nas/cloud-backup/forgejo"
+destination_dir="/mnt/nas/backup/forgejo"
 archive="${archive_dir}/forgejo-dump.tar.zst"
 destination="${destination_dir}/forgejo-dump.tar.zst"
 

@@ -166,7 +166,7 @@ in
           forgejo-backup-export = {
             description = "Export completed Forgejo backups to Synology";
             after = [ "forgejo-backup.service" ];
-            unitConfig.RequiresMountsFor = [ "/mnt/nas/cloud-backup" ];
+            unitConfig.RequiresMountsFor = [ "/mnt/nas/backup" ];
             serviceConfig = {
               CPUWeight = 25;
               ExecStart = "${forgejoBackupExport}/bin/forgejo-backup-export";

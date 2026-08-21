@@ -8,7 +8,7 @@ Create an independently recoverable local mirror of the GitHub repositories owne
 - Forgejo runs natively on `rvn-srv` and provides local browsing and cloning.
 - Forgejo pull mirrors preserve Git commits, branches, and tags.
 - Live Forgejo state stays on the local `rvn-srv` ext4 filesystem.
-- Consistent backup archives are exported to `/mnt/nas/cloud-backup/forgejo`.
+- Consistent backup archives are exported to `/mnt/nas/backup/forgejo`.
 - Synology provides versioned off-host and cloud retention.
 - Recovery is verified by restoring into a disposable instance and cloning from it.
 
@@ -94,7 +94,7 @@ Phase one mirrors `fbosch`-owned repositories only. Third-party upstreams such a
 - The existing port validation accepts the assigned port.
 - Forgejo starts with SQLite and stores all live data below local `/var/lib/forgejo`.
 - Registration is disabled and Forgejo Actions are not enabled.
-- The UI and a test repository remain available while `/mnt/nas/cloud-backup` is unavailable.
+- The UI and a test repository remain available while `/mnt/nas/backup` is unavailable.
 - Forgejo appears in the startup-policy background tier and the server healthcheck.
 
 **Risk:** Medium. This adds a stateful network service and an SSH/HTTP Git endpoint.
@@ -195,8 +195,8 @@ Phase one mirrors `fbosch`-owned repositories only. Third-party upstreams such a
 
 **Changes**
 
-- Add a separate root-owned export service and timer for `/mnt/nas/cloud-backup/forgejo`.
-- Require `/mnt/nas/cloud-backup` only for the export unit.
+- Add a separate root-owned export service and timer for `/mnt/nas/backup/forgejo`.
+- Require `/mnt/nas/backup` only for the export unit.
 - Create the destination directory through the export unit or a root-owned tmpfiles rule after the mount is available.
 - Copy only the completed local archive.
 - Stage each transfer under a temporary name and rename it after a successful copy so Synology never observes a partially named final archive.
@@ -215,7 +215,7 @@ Phase one mirrors `fbosch`-owned repositories only. Third-party upstreams such a
 
 - Forgejo continues running when the NAS is offline.
 - A NAS outage fails only the export unit and does not invalidate the local backup.
-- The completed archive appears below `/mnt/nas/cloud-backup/forgejo` without a partial final filename.
+- The completed archive appears below `/mnt/nas/backup/forgejo` without a partial final filename.
 - Synology snapshots retain historical versions after the latest archive is replaced.
 - At least one archive can be retrieved from the cloud destination independently of `rvn-srv`.
 
