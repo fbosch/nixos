@@ -10,6 +10,7 @@
   ],
   "automerge": false,
   "platformAutomerge": false,
+  "rebaseWhen": "behind-base-branch",
   "prConcurrentLimit": 5,
   "prHourlyLimit": 2,
   "osvVulnerabilityAlerts": true,
