@@ -46,6 +46,7 @@ in
         name = "forgejo-backup-export";
         runtimeInputs = with pkgs; [
           coreutils
+          rsync
         ];
         text = builtins.replaceStrings [ "@archiveDir@" ] [ archiveDir ] (
           builtins.readFile ./scripts/export.sh

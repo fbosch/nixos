@@ -5,7 +5,7 @@ set -euo pipefail
 archive_dir="@archiveDir@"
 work_dir="$(runuser -u forgejo -- mktemp -d)"
 archive="${archive_dir}/forgejo-dump.tar.zst"
-partial_archive="${archive}.partial"
+partial_archive="${archive_dir}/forgejo-dump.partial.tar.zst"
 forgejo_stopped=false
 
 restore_forgejo() {
@@ -19,13 +19,13 @@ trap restore_forgejo EXIT
 
 systemctl stop forgejo.service
 forgejo_stopped=true
+rm -f "$partial_archive"
 
 runuser -u forgejo -- @forgejo@ dump \
   --work-path /var/lib/forgejo \
   --custom-path /var/lib/forgejo/custom \
   --type tar.zst \
-  --file "$partial_archive" \
-  --quiet \
+  --file "${archive_dir}/forgejo-dump.partial" \
   --tempdir "$work_dir"
 
 test -s "$partial_archive"
