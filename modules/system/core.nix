@@ -8,9 +8,11 @@ let
     isCorporateHost:
     lib.optionalAttrs (!isCorporateHost) {
       extra-substituters = lib.mkBefore [
+        "https://devenv.cachix.org"
         "https://fbosch.cachix.org"
       ];
       extra-trusted-public-keys = [
+        "devenv.cachix.org-1:w1cLUi8dv3hnoSPGAuibQv+f9TZLr6cv/Hm9XgU50cw="
         "fbosch.cachix.org-1:QGKDLpPb1MY7YtcCvFpDNqQzGsYtDgE3YyC6IXK1nO8="
       ];
     };

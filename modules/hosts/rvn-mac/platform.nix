@@ -13,15 +13,12 @@
       };
 
       nix = {
-        # Let macOS throttle Nix CPU and I/O activity behind interactive work.
-        daemonProcessType = "Background";
-
         settings = {
           # Add user to trusted users (core already adds @admin)
           trusted-users = [ config.flake.meta.user.username ];
 
           max-jobs = "auto";
-          cores = 0;
+          cores = 4;
         };
       };
 
