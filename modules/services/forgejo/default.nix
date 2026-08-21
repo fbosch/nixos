@@ -174,7 +174,7 @@ in
           forgejo-backup = {
             wantedBy = [ "timers.target" ];
             timerConfig = {
-              OnCalendar = "*-*-* 03:00:00";
+              OnCalendar = "*-*-* 10:00:00";
               Persistent = true;
               RandomizedDelaySec = "15m";
               Unit = "forgejo-backup.service";
@@ -184,7 +184,7 @@ in
           forgejo-backup-export = {
             wantedBy = [ "timers.target" ];
             timerConfig = {
-              OnCalendar = "*-*-* 05:00:00";
+              OnCalendar = "*-*-* 12:00:00";
               Persistent = true;
               RandomizedDelaySec = "15m";
               Unit = "forgejo-backup-export.service";
