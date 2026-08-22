@@ -15,8 +15,8 @@
 
           luaWithSocket = pkgs.luajit.withPackages (ps: [ ps.luasocket ]);
           hyprlandPackage = inputs.hyprland.packages.${system}.hyprland;
-          cursorOutlinePlugin = pkgs.local.cursor-outline;
-          hyprlandInsetBorderPlugin = pkgs.local.hyprland-inset-border;
+          cursorOutlinePlugin = pkgs.local."hyprland-plugins/cursor-outline";
+          hyprlandInsetBorderPlugin = pkgs.local."hyprland-plugins/hyprland-inset-border";
           xdgDesktopPortalHyprlandPackage =
             inputs.hyprland.packages.${system}.xdg-desktop-portal-hyprland.override
               {

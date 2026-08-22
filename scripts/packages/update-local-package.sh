@@ -118,6 +118,7 @@ run_update() {
 usage() {
   echo "Usage: $0 [--all | package-name]" >&2
   echo "Example: $0 lightpanda" >&2
+  echo "         $0 hyprland-plugins/cursor-outline" >&2
   echo "       $0 --all" >&2
   echo "       $0" >&2
 }
@@ -166,6 +167,8 @@ fi
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "$script_dir/../.." && pwd)"
 packages_dir="$repo_root/pkgs/by-name"
+
+shopt -s globstar nullglob
 
 if [ ! -d "$packages_dir" ]; then
   error "expected directory not found at $packages_dir" >&2
@@ -223,7 +226,7 @@ fetch_pr_updates() {
   # The jq expression deliberately contains jq interpolation syntax.
   # shellcheck disable=SC2016
   gh api "repos/{owner}/{repo}/pulls/$pr_number/files?per_page=100" --paginate \
-    --jq '.[] | select(.filename | test("^pkgs/by-name/[^/]+/package\\.nix$")) | .filename as $file | ([.patch | split("\n")[] | select(test("^-\\s*version\\s*=")) | capture("^-\\s*version\\s*=\\s*\\\"(?<version>[^\\\"]+)\\\";").version][0]) as $old | ([.patch | split("\n")[] | select(test("^\\+\\s*version\\s*=")) | capture("^\\+\\s*version\\s*=\\s*\\\"(?<version>[^\\\"]+)\\\";").version][0]) as $new | "\($file)\t\($old)\t\($new)"' 2>/dev/null
+    --jq '.[] | select(.filename | test("^pkgs/by-name/.+/package\\.nix$")) | .filename as $file | ([.patch | split("\n")[] | select(test("^-\\s*version\\s*=")) | capture("^-\\s*version\\s*=\\s*\\\"(?<version>[^\\\"]+)\\\";").version][0]) as $old | ([.patch | split("\n")[] | select(test("^\\+\\s*version\\s*=")) | capture("^\\+\\s*version\\s*=\\s*\\\"(?<version>[^\\\"]+)\\\";").version][0]) as $new | "\($file)\t\($old)\t\($new)"' 2>/dev/null
 }
 
 fetch_pending_update_pr_numbers() {
@@ -324,12 +327,12 @@ select_package_with_gum() {
   fi
 
   mapfile -t package_names < <(
-    for dir in "$packages_dir"/*; do
-      package_name="$(basename "$dir")"
-      if [ -f "$dir/package.nix" ] &&
-        is_update_candidate "$dir/package.nix" &&
+    for package_file in "$packages_dir"/**/package.nix; do
+      package_name="${package_file#"$packages_dir"/}"
+      package_name="${package_name%/package.nix}"
+      if is_update_candidate "$package_file" &&
         { "$show_all" || [ -n "${package_update_prs[$package_name]:-}" ]; }; then
-        basename "$dir"
+        printf '%s\n' "$package_name"
       fi
     done | sort
   )
@@ -389,11 +392,6 @@ else
 fi
 
 for package_name in "${selected_packages[@]}"; do
-  if [[ $package_name == *"/"* ]]; then
-    error "package name must be a by-name key (for example: lightpanda), not a path" >&2
-    exit 1
-  fi
-
   package_file="$packages_dir/$package_name/package.nix"
 
   if [ ! -f "$package_file" ]; then
