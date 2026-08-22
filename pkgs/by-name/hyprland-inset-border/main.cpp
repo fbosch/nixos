@@ -1,7 +1,7 @@
 #include <hyprland/src/Compositor.hpp>
 #include <hyprland/src/config/shared/complex/ComplexDataTypes.hpp>
 #include <hyprland/src/config/values/types/BoolValue.hpp>
-#include <hyprland/src/config/values/types/ColorValue.hpp>
+#include <hyprland/src/config/values/types/GradientValue.hpp>
 #include <hyprland/src/config/values/types/IntValue.hpp>
 #include <hyprland/src/desktop/state/FocusState.hpp>
 #include <hyprland/src/desktop/state/WindowState.hpp>
@@ -26,16 +26,16 @@ namespace {
     constexpr int             DEFAULT_INSET             = 0;
     constexpr int             MAXIMUM_INSET             = 8;
     constexpr int             DAMAGE_BAND               = MAXIMUM_INSET + MAXIMUM_THICKNESS + 2;
-    constexpr Config::INTEGER DEFAULT_ACTIVE_COLOR      = 0x73FFFFFF;
-    constexpr Config::INTEGER DEFAULT_INACTIVE_COLOR    = 0x1AFFFFFF;
+    constexpr uint64_t        DEFAULT_ACTIVE_COLOR      = 0x73FFFFFF;
+    constexpr uint64_t        DEFAULT_INACTIVE_COLOR    = 0x1AFFFFFF;
 
-    HANDLE                          g_handle = nullptr;
-    SP<Config::Values::CBoolValue>  g_enabled;
-    SP<Config::Values::CIntValue>   g_thickness;
-    SP<Config::Values::CIntValue>   g_inset;
-    SP<Config::Values::CColorValue> g_activeColor;
-    SP<Config::Values::CColorValue> g_inactiveColor;
-    CHyprSignalListener             g_windowOpenListener;
+    HANDLE                             g_handle = nullptr;
+    SP<Config::Values::CBoolValue>     g_enabled;
+    SP<Config::Values::CIntValue>      g_thickness;
+    SP<Config::Values::CIntValue>      g_inset;
+    SP<Config::Values::CGradientValue> g_activeColor;
+    SP<Config::Values::CGradientValue> g_inactiveColor;
+    CHyprSignalListener                g_windowOpenListener;
 
     int thickness() {
         return std::clamp(static_cast<int>(g_thickness->value()), 1, MAXIMUM_THICKNESS);
@@ -45,9 +45,8 @@ namespace {
         return std::clamp(static_cast<int>(g_inset->value()), 0, MAXIMUM_INSET);
     }
 
-    CHyprColor colorForWindow(PHLWINDOW window) {
-        const auto raw = window == Desktop::focusState()->window() ? g_activeColor->value() : g_inactiveColor->value();
-        return CHyprColor{static_cast<uint64_t>(raw)};
+    const Config::CGradientValueData& colorForWindow(PHLWINDOW window) {
+        return window == Desktop::focusState()->window() ? g_activeColor->value() : g_inactiveColor->value();
     }
 
     class CInsetBorderDecoration final : public IHyprWindowDecoration {
@@ -101,7 +100,7 @@ namespace {
 
             CBorderPassElement::SBorderData data;
             data.box           = windowBox;
-            data.grad1         = Config::CGradientValueData{colorForWindow(window)};
+            data.grad1         = colorForWindow(window);
             data.round         = static_cast<int>(innerRounding * monitor->m_scale);
             data.outerRound    = static_cast<int>(outerRounding * monitor->m_scale);
             data.roundingPower = static_cast<float>(roundingPower);
@@ -223,9 +222,10 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
                                                         Config::Values::SIntValueOptions{.min = 1, .max = MAXIMUM_THICKNESS});
     g_inset = makeShared<Config::Values::CIntValue>("plugin:inset_border:inset", "Distance from the client edge in logical pixels", DEFAULT_INSET,
                                                     Config::Values::SIntValueOptions{.min = 0, .max = MAXIMUM_INSET});
-    g_activeColor = makeShared<Config::Values::CColorValue>("plugin:inset_border:active_color", "Inset keyline color for the focused window", DEFAULT_ACTIVE_COLOR);
-    g_inactiveColor =
-        makeShared<Config::Values::CColorValue>("plugin:inset_border:inactive_color", "Inset keyline color for unfocused windows", DEFAULT_INACTIVE_COLOR);
+    g_activeColor = makeShared<Config::Values::CGradientValue>("plugin:inset_border:active_color", "Inset keyline color for the focused window",
+                                                               CHyprColor{DEFAULT_ACTIVE_COLOR});
+    g_inactiveColor = makeShared<Config::Values::CGradientValue>("plugin:inset_border:inactive_color", "Inset keyline color for unfocused windows",
+                                                                 CHyprColor{DEFAULT_INACTIVE_COLOR});
 
     if (!HyprlandAPI::addConfigValueV2(handle, g_enabled) || !HyprlandAPI::addConfigValueV2(handle, g_thickness) || !HyprlandAPI::addConfigValueV2(handle, g_inset) ||
         !HyprlandAPI::addConfigValueV2(handle, g_activeColor) || !HyprlandAPI::addConfigValueV2(handle, g_inactiveColor))

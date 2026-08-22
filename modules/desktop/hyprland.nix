@@ -57,19 +57,6 @@
             xwayland.enable = true;
           };
 
-          systemd.user.services.hyprland-inset-border = {
-            description = "Load the Hyprland inset border plugin";
-            wantedBy = [ "graphical-session.target" ];
-            after = [ "graphical-session.target" ];
-            partOf = [ "graphical-session.target" ];
-            serviceConfig = {
-              Type = "oneshot";
-              RemainAfterExit = true;
-              ExecStart = "${hyprlandPackage}/bin/hyprctl plugin load ${hyprlandInsetBorderPlugin}/lib/libhyprland-inset-border.so";
-              ExecStop = "-${hyprlandPackage}/bin/hyprctl plugin unload ${hyprlandInsetBorderPlugin}/lib/libhyprland-inset-border.so";
-            };
-          };
-
           # Expose semantic UI bounds (ags)
           services.gnome.at-spi2-core.enable = true;
 
@@ -90,6 +77,7 @@
               ADW_DEBUG_COLOR_SCHEME = "prefer-dark";
               WLR_NO_HARDWARE_CURSORS = "1";
               HYPR_CURSOR_OUTLINE_PLUGIN = "${cursorOutlinePlugin}/lib/libcursor-outline.so";
+              HYPR_INSET_BORDER_PLUGIN = "${hyprlandInsetBorderPlugin}/lib/libhyprland-inset-border.so";
               __GL_GSYNC_ALLOWED = "1";
               __GL_VRR_ALLOWED = "1";
               QT_QPA_PLATFORM = "wayland;xcb";
