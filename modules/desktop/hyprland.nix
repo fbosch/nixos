@@ -69,7 +69,7 @@
           environment = {
             sessionVariables = {
               EMOJI_FONT = "Apple Color Emoji";
-              XCURSOR_THEME = "Bibata-Modern-Ice";
+              XCURSOR_THEME = "Win11OSX";
               XCURSOR_SIZE = "24";
               NIXOS_OZONE_WL = "1";
               GDK_BACKEND = "wayland,x11";
