@@ -14,9 +14,12 @@ in
     let
       adminUser = flakeConfig.flake.meta.user;
       archiveDir = "/var/backup/forgejo";
+      forgejoPackage = config.services.forgejo.package;
+      forgejoExecutable = "${forgejoPackage}/bin/forgejo";
+      synologyDomain = flakeConfig.flake.meta.synology.domain;
       forgejoAdmin = pkgs.writeShellApplication {
         name = "forgejo-admin";
-        runtimeInputs = [ pkgs.forgejo-lts ];
+        runtimeInputs = [ forgejoPackage ];
         text = ''
           export FORGEJO_CUSTOM=/var/lib/forgejo/custom
           export FORGEJO_WORK_DIR=/var/lib/forgejo
@@ -38,7 +41,7 @@ in
             ]
             [
               archiveDir
-              "${pkgs.forgejo-lts}/bin/forgejo"
+              forgejoExecutable
             ]
             (builtins.readFile ./scripts/backup.sh);
       };
@@ -87,7 +90,7 @@ in
               DOMAIN = "rvn-srv";
               HTTP_ADDR = hostMeta.local;
               HTTP_PORT = 3000;
-              ROOT_URL = "https://forgejo.corvus-corax.synology.me/";
+              ROOT_URL = "https://forgejo.${synologyDomain}/";
             };
             service = {
               DISABLE_REGISTRATION = true;
@@ -131,7 +134,7 @@ in
 
           email="$(<"$CREDENTIALS_DIRECTORY/admin-email")"
           password="$(<"$CREDENTIALS_DIRECTORY/admin-password")"
-          exec ${pkgs.forgejo-lts}/bin/forgejo admin user create \
+          exec ${forgejoExecutable} admin user create \
             --username '${adminUser.username}' \
             --email "$email" \
             --fullname '${adminUser.fullName}' \
