@@ -13,7 +13,7 @@ let
         pkgs.buildGoModule (
           attrs
           // {
-            vendorHash = "sha256-uZrSOcwfXJ9LwuHi+0wIjPBIsAdULU60GbWrJNV923s=";
+            vendorHash = "sha256-5iS75LoN9FC57XRAbIU+Pia1gcXyeiF7bqF3pndYXwM=";
             postPatch = (attrs.postPatch or "") + ''
               rm -rf vendor
             '';
