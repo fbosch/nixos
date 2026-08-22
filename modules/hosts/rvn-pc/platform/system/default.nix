@@ -6,7 +6,7 @@
         [core]
         shell=kiosk
         cursor-theme=Win11OSX
-        cursor-size=24
+        cursor-size=20
 
         [output]
         name=DP-2
@@ -20,7 +20,7 @@
       services.displayManager.sddm.settings = {
         Theme = {
           CursorTheme = "Win11OSX";
-          CursorSize = 24;
+          CursorSize = 20;
         };
         Wayland.CompositorCommand = "${pkgs.weston}/bin/weston --shell=kiosk -c /etc/xdg/weston/weston.ini";
       };
