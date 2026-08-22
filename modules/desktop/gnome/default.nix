@@ -11,7 +11,7 @@ in
         monospace-font-name = "SF Mono 11";
         gtk-theme = "MonoThemeDark";
         icon-theme = "Win11-dark";
-        cursor-theme = "Vision-White";
+        cursor-theme = "Bibata-Modern-Ice";
         cursor-size = 24;
         font-name = "SF Pro Display 11";
         text-scaling-factor = 1.0;
