@@ -119,7 +119,7 @@
     };
     llm-agents.url = "github:numtide/llm-agents.nix";
     herdr = {
-      url = "github:herdrdev/herdr/v0.8.0";
+      url = "github:herdrdev/herdr/master";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
