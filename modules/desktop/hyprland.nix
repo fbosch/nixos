@@ -16,6 +16,7 @@
           luaWithSocket = pkgs.luajit.withPackages (ps: [ ps.luasocket ]);
           hyprlandPackage = inputs.hyprland.packages.${system}.hyprland;
           cursorOutlinePlugin = pkgs.local.cursor-outline;
+          hyprlandInsetBorderPlugin = pkgs.local.hyprland-inset-border;
           xdgDesktopPortalHyprlandPackage =
             inputs.hyprland.packages.${system}.xdg-desktop-portal-hyprland.override
               {
@@ -56,6 +57,19 @@
             xwayland.enable = true;
           };
 
+          systemd.user.services.hyprland-inset-border = {
+            description = "Load the Hyprland inset border plugin";
+            wantedBy = [ "graphical-session.target" ];
+            after = [ "graphical-session.target" ];
+            partOf = [ "graphical-session.target" ];
+            serviceConfig = {
+              Type = "oneshot";
+              RemainAfterExit = true;
+              ExecStart = "${hyprlandPackage}/bin/hyprctl plugin load ${hyprlandInsetBorderPlugin}/lib/libhyprland-inset-border.so";
+              ExecStop = "-${hyprlandPackage}/bin/hyprctl plugin unload ${hyprlandInsetBorderPlugin}/lib/libhyprland-inset-border.so";
+            };
+          };
+
           # Expose semantic UI bounds (ags)
           services.gnome.at-spi2-core.enable = true;
 
@@ -87,6 +101,7 @@
 
             systemPackages = [
               cursorOutlinePlugin
+              hyprlandInsetBorderPlugin
               inputs.hyprpaper.packages.${system}.hyprpaper
               pkgs.hyprprop
               pkgs.hyprpicker
