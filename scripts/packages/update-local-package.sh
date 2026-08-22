@@ -117,7 +117,7 @@ run_update() {
 
 usage() {
   echo "Usage: $0 [--all | package-name]" >&2
-  echo "Example: $0 surge" >&2
+  echo "Example: $0 lightpanda" >&2
   echo "       $0 --all" >&2
   echo "       $0" >&2
 }
@@ -319,7 +319,7 @@ select_package_with_gum() {
 
   if ! command -v gum >/dev/null 2>&1; then
     error "no package argument provided and 'gum' is not installed" >&2
-    echo "Pass a package name explicitly, for example: $0 surge" >&2
+    echo "Pass a package name explicitly, for example: $0 lightpanda" >&2
     exit 1
   fi
 
@@ -390,7 +390,7 @@ fi
 
 for package_name in "${selected_packages[@]}"; do
   if [[ $package_name == *"/"* ]]; then
-    error "package name must be a by-name key (for example: surge), not a path" >&2
+    error "package name must be a by-name key (for example: lightpanda), not a path" >&2
     exit 1
   fi
 
