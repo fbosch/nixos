@@ -1,5 +1,5 @@
 {
   flake.modules.nixos.desktop = { pkgs, ... }: {
-    environment.systemPackages = [ pkgs.bibata-cursors ];
+    environment.systemPackages = [ pkgs.local.win11osx-cursors ];
   };
 }
