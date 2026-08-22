@@ -2147,7 +2147,8 @@
       "original": {
         "owner": "SurgeDM",
         "repo": "Surge",
-        "type": "github"
+        "type": "github",
+        "ref": "v0.12.0"
       }
     },
     "systems": {

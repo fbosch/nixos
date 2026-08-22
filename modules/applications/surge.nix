@@ -1,17 +1,13 @@
 { inputs, ... }:
 let
-  upstreamSurgePackage = pkgs: inputs.surge.packages.${pkgs.stdenv.hostPlatform.system}.default;
   surgePackage =
     pkgs:
-    let
-      upstreamPackage = upstreamSurgePackage pkgs;
-    in
     pkgs.callPackage "${inputs.surge}/package.nix" {
       src = inputs.surge;
-      inherit (upstreamPackage) version;
+      version = "0.12.0";
 
-      # Upstream currently carries a stale vendor tree and targets the wrong version symbol.
-      # Keep its package definition and version authoritative while correcting those build defects.
+      # The release tag still carries a stale vendor tree and reports 0.11.2 from its flake.
+      # Keep the tagged source while correcting its release metadata and vendored dependencies.
       buildGoModule =
         attrs:
         pkgs.buildGoModule (
@@ -24,7 +20,7 @@ let
             ldflags = [
               "-s"
               "-w"
-              "-X github.com/SurgeDM/Surge/cmd.Version=${upstreamPackage.version}"
+              "-X main.version=0.12.0"
             ];
           }
         );
@@ -324,9 +320,9 @@ in
           expr = defaultSurgePackage.src.outPath;
           expected = inputs.surge.outPath;
         };
-        testDefaultPackageTracksUpstreamVersion = {
+        testDefaultPackageUsesPinnedVersion = {
           expr = defaultSurgePackage.version;
-          expected = (upstreamSurgePackage pkgs).version;
+          expected = "0.12.0";
         };
         testStaleUpstreamVendorTreeIsDiscarded = {
           expr = lib.hasInfix "rm -rf vendor" defaultSurgePackage.postPatch;
