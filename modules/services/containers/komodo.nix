@@ -166,7 +166,7 @@ in
 
                 [Container]
                 ContainerName=komodo-mongo
-                Image=mongo:8.3.7
+                Image=mongo:8.3.8
                 Exec=--quiet --wiredTigerCacheSizeGB 0.25
                 Network=komodo.network
                 EnvironmentFile=${composeEnvPath}
