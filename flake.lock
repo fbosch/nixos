@@ -2016,6 +2016,7 @@
         "silentSDDM": "silentSDDM",
         "sops-nix": "sops-nix",
         "steam-config-nix": "steam-config-nix",
+        "surge": "surge",
         "treefmt-nix": "treefmt-nix_4",
         "winapps": "winapps",
         "worktrunk": "worktrunk"
@@ -2126,6 +2127,26 @@
       "original": {
         "owner": "different-name",
         "repo": "steam-config-nix",
+        "type": "github"
+      }
+    },
+    "surge": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1787242971,
+        "narHash": "sha256-8AhG0GL85CYuaqAAdkcrQoC0gL7Petnpt2ONwyGTiLI=",
+        "owner": "SurgeDM",
+        "repo": "Surge",
+        "rev": "d6ad433fedd34809f9b773bed98a126c36396fb1",
+        "type": "github"
+      },
+      "original": {
+        "owner": "SurgeDM",
+        "repo": "Surge",
         "type": "github"
       }
     },

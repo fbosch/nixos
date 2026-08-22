@@ -1,5 +1,35 @@
 { inputs, ... }:
 let
+  upstreamSurgePackage = pkgs: inputs.surge.packages.${pkgs.stdenv.hostPlatform.system}.default;
+  surgePackage =
+    pkgs:
+    let
+      upstreamPackage = upstreamSurgePackage pkgs;
+    in
+    pkgs.callPackage "${inputs.surge}/package.nix" {
+      src = inputs.surge;
+      inherit (upstreamPackage) version;
+
+      # Upstream currently carries a stale vendor tree and targets the wrong version symbol.
+      # Keep its package definition and version authoritative while correcting those build defects.
+      buildGoModule =
+        attrs:
+        pkgs.buildGoModule (
+          attrs
+          // {
+            vendorHash = "sha256-5iS75LoN9FC57XRAbIU+Pia1gcXyeiF7bqF3pndYXwM=";
+            postPatch = (attrs.postPatch or "") + ''
+              rm -rf vendor
+            '';
+            ldflags = [
+              "-s"
+              "-w"
+              "-X github.com/SurgeDM/Surge/cmd.Version=${upstreamPackage.version}"
+            ];
+          }
+        );
+    };
+
   homeManagerSurge =
     { config
     , lib
@@ -31,7 +61,7 @@ let
       options.services.surge = {
         package = lib.mkOption {
           type = lib.types.package;
-          default = pkgs.local.surge;
+          default = surgePackage pkgs;
           description = "Surge package to install and run.";
         };
 
@@ -128,7 +158,7 @@ let
       options.services.surge = {
         package = lib.mkOption {
           type = lib.types.package;
-          default = pkgs.local.surge;
+          default = surgePackage pkgs;
           description = "Surge package to install and confine.";
         };
 
@@ -272,6 +302,7 @@ in
       surgeTestExe = builtins.unsafeDiscardStringContext (lib.getExe pkgs.hello);
       surgeProfile = surgeNixosConfig.security.apparmor.policies.surge.profile;
       surgeProfileLines = lib.splitString "\n" surgeProfile;
+      defaultSurgePackage = surgePackage pkgs;
       isBroadWriteRule =
         rule:
         let
@@ -289,6 +320,18 @@ in
     in
     {
       nix-unit.tests.surgeService = {
+        testDefaultPackageUsesUpstreamSource = {
+          expr = defaultSurgePackage.src.outPath;
+          expected = inputs.surge.outPath;
+        };
+        testDefaultPackageTracksUpstreamVersion = {
+          expr = defaultSurgePackage.version;
+          expected = (upstreamSurgePackage pkgs).version;
+        };
+        testStaleUpstreamVendorTreeIsDiscarded = {
+          expr = lib.hasInfix "rm -rf vendor" defaultSurgePackage.postPatch;
+          expected = true;
+        };
         testExitWhenDoneDoesNotRestart = {
           expr = (surgeHomeConfig true).systemd.user.services.surge-server.Service.Restart;
           expected = "no";
