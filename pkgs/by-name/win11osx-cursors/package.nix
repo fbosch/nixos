@@ -37,7 +37,12 @@ pkgs.stdenvNoCC.mkDerivation {
   inherit src;
   dontUnpack = true;
 
-  nativeBuildInputs = [ pkgs.unzip ];
+  nativeBuildInputs = [
+    pkgs.unzip
+    pkgs.xcur2png
+    pkgs.imagemagick
+    pkgs.xcursorgen
+  ];
 
   installPhase = ''
     runHook preInstall
@@ -45,6 +50,36 @@ pkgs.stdenvNoCC.mkDerivation {
     unzip -q "$src" -d "$TMPDIR/win11osx"
     install -d "$out/share/icons/Win11OSX"
     cp -a "$TMPDIR/win11osx/Win11OSX/Win11OSX/." "$out/share/icons/Win11OSX/"
+
+    # Upstream provides no 24 px frames, so 24 px requests select 32 px instead.
+    for cursor in "$out/share/icons/Win11OSX/cursors/"*; do
+      [ -L "$cursor" ] && continue
+
+      cursorName="$(basename "$cursor")"
+      cursorDir="$TMPDIR/cursors/$cursorName"
+      install -d "$cursorDir/images"
+      xcur2png -q -c "$cursorDir/original.conf" -d "$cursorDir/images" "$cursor"
+
+      minSize="$(awk 'NR == 2 || $1 < min { min = $1 } END { print min }' "$cursorDir/original.conf")"
+      [ "$minSize" -le 24 ] && continue
+
+      while read -r size xhot yhot image delay; do
+        [ "$size" = "#size" ] && continue
+        [ "$size" = "$minSize" ] || continue
+
+        scaledImage="$cursorDir/images/24-$(basename "$image")"
+        magick "$image" -resize 24x24 "$scaledImage"
+        printf '24\t%s\t%s\t%s\t%s\n' \
+          "$((xhot * 24 / minSize))" \
+          "$((yhot * 24 / minSize))" \
+          "$scaledImage" \
+          "$delay" \
+          >> "$cursorDir/scaled.conf"
+      done < "$cursorDir/original.conf"
+
+      tail -n +2 "$cursorDir/original.conf" >> "$cursorDir/scaled.conf"
+      xcursorgen "$cursorDir/scaled.conf" "$cursor"
+    done
 
     runHook postInstall
   '';

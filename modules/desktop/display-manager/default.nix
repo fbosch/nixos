@@ -140,7 +140,7 @@ in
 
       systemd.services.display-manager.environment = {
         XCURSOR_THEME = "Win11OSX";
-        XCURSOR_SIZE = "20";
+        XCURSOR_SIZE = "24";
         XCURSOR_PATH = "/run/current-system/sw/share/icons";
       };
     };
