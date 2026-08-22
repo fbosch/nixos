@@ -56,9 +56,10 @@ void main() {
     vec2 centerUv = sourcePixel / fullSize;
     float center = sourceAlpha(centerUv);
     float dilated = 0.0;
+    int pixelRadius = int(radius);
 
-    for (int y = -maximumRadius; y <= maximumRadius; ++y) {
-        for (int x = -maximumRadius; x <= maximumRadius; ++x) {
+    for (int y = -pixelRadius; y <= pixelRadius; ++y) {
+        for (int x = -pixelRadius; x <= pixelRadius; ++x) {
             vec2 offset = vec2(float(x), float(y));
             if (dot(offset, offset) > radius * radius)
                 continue;
