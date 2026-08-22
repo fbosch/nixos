@@ -125,7 +125,7 @@
 
     # Applications
     surge = {
-      url = "github:SurgeDM/Surge";
+      url = "github:SurgeDM/Surge/v0.12.0";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     hytale-launcher = {
