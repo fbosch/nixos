@@ -10,7 +10,7 @@ let
   hyprland = inputs.hyprland.packages.${stdenv.hostPlatform.system}.hyprland;
 in
 pkgs.gcc16Stdenv.mkDerivation {
-  pname = "hyprland-inset-border";
+  pname = "inset-border";
   version = "0.1.0";
 
   src = ./.;
@@ -24,7 +24,7 @@ pkgs.gcc16Stdenv.mkDerivation {
 
   installPhase = ''
     runHook preInstall
-    install -Dm755 libhyprland-inset-border.so $out/lib/libhyprland-inset-border.so
+    install -Dm755 libinset-border.so $out/lib/libinset-border.so
     runHook postInstall
   '';
 

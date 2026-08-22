@@ -16,7 +16,7 @@
           luaWithSocket = pkgs.luajit.withPackages (ps: [ ps.luasocket ]);
           hyprlandPackage = inputs.hyprland.packages.${system}.hyprland;
           cursorOutlinePlugin = pkgs.local."hyprland-plugins/cursor-outline";
-          hyprlandInsetBorderPlugin = pkgs.local."hyprland-plugins/hyprland-inset-border";
+          insetBorderPlugin = pkgs.local."hyprland-plugins/inset-border";
           xdgDesktopPortalHyprlandPackage =
             inputs.hyprland.packages.${system}.xdg-desktop-portal-hyprland.override
               {
@@ -77,7 +77,7 @@
               ADW_DEBUG_COLOR_SCHEME = "prefer-dark";
               WLR_NO_HARDWARE_CURSORS = "1";
               HYPR_CURSOR_OUTLINE_PLUGIN = "${cursorOutlinePlugin}/lib/libcursor-outline.so";
-              HYPR_INSET_BORDER_PLUGIN = "${hyprlandInsetBorderPlugin}/lib/libhyprland-inset-border.so";
+              HYPR_INSET_BORDER_PLUGIN = "${insetBorderPlugin}/lib/libinset-border.so";
               __GL_GSYNC_ALLOWED = "1";
               __GL_VRR_ALLOWED = "1";
               QT_QPA_PLATFORM = "wayland;xcb";
@@ -89,7 +89,7 @@
 
             systemPackages = [
               cursorOutlinePlugin
-              hyprlandInsetBorderPlugin
+              insetBorderPlugin
               inputs.hyprpaper.packages.${system}.hyprpaper
               pkgs.hyprprop
               pkgs.hyprpicker

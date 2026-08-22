@@ -213,7 +213,7 @@ APICALL EXPORT std::string PLUGIN_API_VERSION() {
 APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     const auto version = HyprlandAPI::getHyprlandVersion(handle);
     if (version.hash != EXPECTED_HYPRLAND_COMMIT)
-        throw std::runtime_error("hyprland-inset-border: unsupported Hyprland commit");
+        throw std::runtime_error("inset-border: unsupported Hyprland commit");
 
     g_handle = handle;
 
@@ -229,7 +229,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
 
     if (!HyprlandAPI::addConfigValueV2(handle, g_enabled) || !HyprlandAPI::addConfigValueV2(handle, g_thickness) || !HyprlandAPI::addConfigValueV2(handle, g_inset) ||
         !HyprlandAPI::addConfigValueV2(handle, g_activeColor) || !HyprlandAPI::addConfigValueV2(handle, g_inactiveColor))
-        throw std::runtime_error("hyprland-inset-border: failed to register configuration");
+        throw std::runtime_error("inset-border: failed to register configuration");
 
     g_windowOpenListener = Event::bus()->m_events.window.open.listen([](PHLWINDOW window) { attachDecoration(window); });
 
@@ -239,7 +239,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     HyprlandAPI::reloadConfig();
 
     return {
-        "hyprland-inset-border",
+        "inset-border",
         "Draw a focus-aware keyline inside Hyprland window content",
         "local",
         "0.1.0",
