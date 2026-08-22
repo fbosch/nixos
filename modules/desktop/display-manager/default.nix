@@ -139,7 +139,7 @@ in
       };
 
       systemd.services.display-manager.environment = {
-        XCURSOR_THEME = "Vision-White";
+        XCURSOR_THEME = "Bibata-Modern-Ice";
         XCURSOR_SIZE = "24";
         XCURSOR_PATH = "/run/current-system/sw/share/icons";
       };
