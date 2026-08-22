@@ -25,7 +25,6 @@ namespace {
     constexpr int             MAXIMUM_THICKNESS         = 4;
     constexpr int             DEFAULT_INSET             = 0;
     constexpr int             MAXIMUM_INSET             = 8;
-    constexpr int             DAMAGE_BAND               = MAXIMUM_INSET + MAXIMUM_THICKNESS + 2;
     constexpr uint64_t        DEFAULT_ACTIVE_COLOR      = 0x73FFFFFF;
     constexpr uint64_t        DEFAULT_INACTIVE_COLOR    = 0x1AFFFFFF;
 
@@ -136,12 +135,7 @@ namespace {
             CBox windowBox = {m_lastWindowPos.x, m_lastWindowPos.y, m_lastWindowSize.x, m_lastWindowSize.y};
             windowBox.translate(workspaceOffset + window->presentation().floatingOffset());
 
-            CRegion damage{windowBox};
-            const auto inner = windowBox.copy().expand(-DAMAGE_BAND);
-            if (inner.width > 0 && inner.height > 0)
-                damage.subtract(inner);
-
-            g_pHyprRenderer->damageRegion(damage);
+            g_pHyprRenderer->damageBox(windowBox);
         }
 
         eDecorationLayer getDecorationLayer() override {

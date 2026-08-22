@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <optional>
 #include <stdexcept>
 #include <utility>
 #include <vector>
@@ -41,8 +42,6 @@ uniform float radius;
 
 layout(location = 0) out vec4 fragColor;
 
-const int maximumRadius = 8;
-
 float sourceAlpha(vec2 uv) {
     if (any(lessThan(uv, vec2(0.0))) || any(greaterThan(uv, vec2(1.0))))
         return 0.0;
@@ -61,10 +60,8 @@ void main() {
     for (int y = -pixelRadius; y <= pixelRadius; ++y) {
         for (int x = -pixelRadius; x <= pixelRadius; ++x) {
             vec2 offset = vec2(float(x), float(y));
-            if (dot(offset, offset) > radius * radius)
-                continue;
-
-            dilated = max(dilated, sourceAlpha(centerUv + offset / fullSize));
+            float kernelCoverage = 1.0 - smoothstep(radius - 0.5, radius + 0.5, length(offset));
+            dilated = max(dilated, kernelCoverage * sourceAlpha(centerUv + offset / fullSize));
         }
     }
 
@@ -85,7 +82,10 @@ void main() {
     CHyprSignalListener             g_renderStageListener;
     CHyprSignalListener             g_monitorAddedListener;
     CHyprSignalListener             g_configReloadedListener;
+    CHyprSignalListener             g_mouseMoveListener;
+    CHyprSignalListener             g_cursorChangedListener;
     std::vector<PHLMONITORREF>      g_lockedMonitors;
+    std::optional<CBox>             g_lastCursorBox;
 
     int                             outlineLogicalPixels() {
         return std::clamp(static_cast<int>(g_outlineThickness->value()), 1, MAXIMUM_OUTLINE_LOGICAL_PIXELS);
@@ -162,9 +162,8 @@ void main() {
             m_texture->bind();
             m_texture->setTexParameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
             m_texture->setTexParameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-            const auto filter = renderData.useNearestNeighbor ? GL_NEAREST : GL_LINEAR;
-            m_texture->setTexParameter(GL_TEXTURE_MAG_FILTER, filter);
-            m_texture->setTexParameter(GL_TEXTURE_MIN_FILTER, filter);
+            m_texture->setTexParameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            m_texture->setTexParameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
             g_pHyprOpenGL->blend(true);
 
             const auto shader = g_pHyprOpenGL->useShader(g_shader);
@@ -218,11 +217,25 @@ void main() {
         g_lockedMonitors.clear();
     }
 
-    void damageCurrentOutline() {
-        if (!g_pHyprRenderer || !Pointer::mgr())
+    void damageOutline(CBox cursorBox) {
+        for (const auto& monitor : State::monitorState()->monitors()) {
+            if (monitor->isMirror() || !monitor->m_enabled || !monitor->m_dpmsStatus)
+                continue;
+
+            CBox pixelBox = cursorBox.copy().translate(-monitor->m_position).scale(monitor->m_scale);
+            pixelBox.x    = std::round(pixelBox.x);
+            pixelBox.y    = std::round(pixelBox.y);
+            monitor->addDamage(pixelBox.round().expand(MAXIMUM_OUTLINE_PIXELS));
+        }
+    }
+
+    void damageOutlines() {
+        if (!Pointer::mgr())
             return;
 
-        g_pHyprRenderer->damageBox(Pointer::mgr()->getCursorBoxGlobal().expand(MAXIMUM_OUTLINE_LOGICAL_PIXELS));
+        if (g_lastCursorBox)
+            damageOutline(*g_lastCursorBox);
+        damageOutline(Pointer::mgr()->getCursorBoxGlobal());
     }
 
     void queueOutlineForMonitor(PHLMONITOR monitor) {
@@ -245,13 +258,14 @@ void main() {
 
         const int radiusPixels = std::clamp(static_cast<int>(std::ceil(outlineLogicalPixels() * monitor->m_scale)), 1, MAXIMUM_OUTLINE_PIXELS);
         g_pHyprRenderer->addPassElement(makeUnique<CCursorOutlinePassElement>(std::move(texture), pixelBox, radiusPixels, monitor->m_scale));
+        g_lastCursorBox = Pointer::mgr()->getCursorBoxGlobal();
     }
 
     void setOutlineEnabled(bool enabled) {
         if (g_outlineEnabled == enabled)
             return;
 
-        damageCurrentOutline();
+        damageOutlines();
         g_outlineEnabled = enabled;
 
         if (enabled) {
@@ -260,7 +274,9 @@ void main() {
         } else
             unlockSoftwareCursors();
 
-        damageCurrentOutline();
+        damageOutlines();
+        if (!enabled)
+            g_lastCursorBox.reset();
     }
 
     int toggleOutline(lua_State*) {
@@ -318,7 +334,15 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     });
     g_configReloadedListener = Event::bus()->m_events.config.reloaded.listen([] {
         if (g_outlineEnabled)
-            damageCurrentOutline();
+            damageOutlines();
+    });
+    g_mouseMoveListener      = Event::bus()->m_events.input.mouse.move.listen([](const auto&, auto&) {
+        if (g_outlineEnabled)
+            damageOutlines();
+    });
+    g_cursorChangedListener  = Pointer::mgr()->m_events.cursorChanged.listen([] {
+        if (g_outlineEnabled)
+            damageOutlines();
     });
     HyprlandAPI::reloadConfig();
 
@@ -334,6 +358,8 @@ APICALL EXPORT void PLUGIN_EXIT() {
     g_renderStageListener.reset();
     g_monitorAddedListener.reset();
     g_configReloadedListener.reset();
+    g_mouseMoveListener.reset();
+    g_cursorChangedListener.reset();
     setOutlineEnabled(false);
 
     if (g_shader) {
@@ -344,5 +370,6 @@ APICALL EXPORT void PLUGIN_EXIT() {
     g_shader.reset();
     g_outlineThickness.reset();
     g_outlineColor.reset();
+    g_lastCursorBox.reset();
     g_shaderFailed = false;
 }
