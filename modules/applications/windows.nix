@@ -17,10 +17,6 @@
         inputs.winapps.packages.${pkgs.stdenv.hostPlatform.system}.winapps-launcher
       ];
 
-      services.flatpak.packages = [
-        "com.usebottles.bottles"
-      ];
-
       # XDG desktop integration
       xdg.mimeApps.enable = true;
 

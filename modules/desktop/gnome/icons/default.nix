@@ -84,10 +84,10 @@
                               *) target_size="16" ;;
                             esac
 
-                            rm -f "$size_dir/${override.name}.svg"
-                            cp "${override.source}" "$size_dir/${override.name}.svg"
+                            rm -f "$size_dir/${override.name}.svg" "$size_dir/${override.name}.png"
+                            cp "${override.source}" "$size_dir/${override.name}.${override.extension or "svg"}"
 
-                            if [ "${size}" != "scalable" ]; then
+                            if [ "${size}" != "scalable" ] && [ "${override.extension or "svg"}" = "svg" ]; then
                               ${pkgs.xmlstarlet}/bin/xmlstarlet ed -L \
                                 -u "//*[local-name()='svg']/@width" -v "$target_size" \
                                 -u "//*[local-name()='svg']/@height" -v "$target_size" \
@@ -365,7 +365,8 @@
         }
         {
           name = "chatgpt";
-          source = ./codex.svg;
+          source = ./codex.png;
+          extension = "png";
           sizes = [ "scalable" ];
           context = "apps";
         }
