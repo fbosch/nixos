@@ -16,7 +16,7 @@
           luaWithSocket = pkgs.luajit.withPackages (ps: [ ps.luasocket ]);
           hyprlandPackage = inputs.hyprland.packages.${system}.hyprland;
           cursorOutlinePlugin = pkgs.local."hyprland-plugins/cursor-outline";
-          customLayoutPointerPlugin = pkgs.local."hyprland-plugins/custom-layout-pointer";
+          customLayoutResizePlugin = pkgs.local."hyprland-plugins/custom-layout-resize";
           insetBorderPlugin = pkgs.local."hyprland-plugins/inset-border";
           xdgDesktopPortalHyprlandPackage =
             inputs.hyprland.packages.${system}.xdg-desktop-portal-hyprland.override
@@ -78,7 +78,7 @@
               ADW_DEBUG_COLOR_SCHEME = "prefer-dark";
               WLR_NO_HARDWARE_CURSORS = "1";
               HYPR_CURSOR_OUTLINE_PLUGIN = "${cursorOutlinePlugin}/lib/libcursor-outline.so";
-              HYPR_CUSTOM_LAYOUT_POINTER_PLUGIN = "${customLayoutPointerPlugin}/lib/libcustom-layout-pointer.so";
+              HYPR_CUSTOM_LAYOUT_RESIZE_PLUGIN = "${customLayoutResizePlugin}/lib/libcustom-layout-resize.so";
               HYPR_INSET_BORDER_PLUGIN = "${insetBorderPlugin}/lib/libinset-border.so";
               __GL_GSYNC_ALLOWED = "1";
               __GL_VRR_ALLOWED = "1";
@@ -91,7 +91,7 @@
 
             systemPackages = [
               cursorOutlinePlugin
-              customLayoutPointerPlugin
+              customLayoutResizePlugin
               insetBorderPlugin
               inputs.hyprpaper.packages.${system}.hyprpaper
               pkgs.hyprprop
