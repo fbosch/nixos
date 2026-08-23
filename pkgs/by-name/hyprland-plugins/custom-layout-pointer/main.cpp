@@ -2,6 +2,7 @@
 #include <hyprland/src/desktop/state/ViewState.hpp>
 #include <hyprland/src/desktop/view/window/Window.hpp>
 #include <hyprland/src/event/EventBus.hpp>
+#include <hyprland/src/layout/algorithm/Algorithm.hpp>
 #include <hyprland/src/layout/space/Space.hpp>
 #include <hyprland/src/layout/supplementary/WorkspaceAlgoMatcher.hpp>
 #include <hyprland/src/managers/input/InputManager.hpp>
@@ -11,6 +12,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <format>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -32,21 +34,21 @@ namespace {
     constexpr int  MAXIMUM_INTERVAL_MS       = 17;
 
     struct SResizeSession {
-        bool                                                    active = false;
-        char                                                    axis = 'x';
-        std::string                                             command;
-        std::string                                             targetId;
-        std::string                                             edge;
-        int                                                     intervalMs = DEFAULT_INTERVAL_MS;
-        std::optional<int>                                      lastPosition;
-        std::optional<std::chrono::steady_clock::time_point>    lastEmission;
+        bool                                                 active = false;
+        char                                                 axis = 'x';
+        std::string                                          command;
+        std::string                                          targetId;
+        std::string                                          edge;
+        int                                                  intervalMs = DEFAULT_INTERVAL_MS;
+        std::optional<int>                                   lastPosition;
+        std::optional<std::chrono::steady_clock::time_point> lastEmission;
     };
 
-    HANDLE                            g_handle = nullptr;
+    HANDLE                             g_handle = nullptr;
     SP<Event::CEventBus::CCustomEvent> g_commandEvent;
-    CHyprSignalListener               g_mouseMoveListener;
-    CHyprSignalListener               g_preReloadListener;
-    SResizeSession                    g_session;
+    CHyprSignalListener                g_mouseMoveListener;
+    CHyprSignalListener                g_preReloadListener;
+    SResizeSession                     g_session;
 
     int returnStartStatus(lua_State* state, bool started, bool handled) {
         lua_pushboolean(state, started);
@@ -195,7 +197,7 @@ namespace {
         } else
             return returnStartStatus(state, false, true);
 
-        const auto geometry = windowGeometry(target);
+        const auto geometry   = windowGeometry(target);
         const auto coordinate = axis == 'x' ? cursor.x : cursor.y;
         const auto midpoint   = axis == 'x' ? geometry.x + geometry.width / 2.0 : geometry.y + geometry.height / 2.0;
 
