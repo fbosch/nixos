@@ -1,31 +1,5 @@
 { inputs, ... }:
 let
-  surgePackage =
-    pkgs:
-    pkgs.callPackage "${inputs.surge}/package.nix" {
-      src = inputs.surge;
-      version = "0.12.0";
-
-      # The release tag still carries a stale vendor tree and reports 0.11.2 from its flake.
-      # Keep the tagged source while correcting its release metadata and vendored dependencies.
-      buildGoModule =
-        attrs:
-        pkgs.buildGoModule (
-          attrs
-          // {
-            vendorHash = "sha256-5iS75LoN9FC57XRAbIU+Pia1gcXyeiF7bqF3pndYXwM=";
-            postPatch = (attrs.postPatch or "") + ''
-              rm -rf vendor
-            '';
-            ldflags = [
-              "-s"
-              "-w"
-              "-X main.version=0.12.0"
-            ];
-          }
-        );
-    };
-
   homeManagerSurge =
     { config
     , lib
@@ -57,7 +31,7 @@ let
       options.services.surge = {
         package = lib.mkOption {
           type = lib.types.package;
-          default = surgePackage pkgs;
+          default = pkgs.local.surge;
           description = "Surge package to install and run.";
         };
 
@@ -154,7 +128,7 @@ let
       options.services.surge = {
         package = lib.mkOption {
           type = lib.types.package;
-          default = surgePackage pkgs;
+          default = pkgs.local.surge;
           description = "Surge package to install and confine.";
         };
 
@@ -298,7 +272,7 @@ in
       surgeTestExe = builtins.unsafeDiscardStringContext (lib.getExe pkgs.hello);
       surgeProfile = surgeNixosConfig.security.apparmor.policies.surge.profile;
       surgeProfileLines = lib.splitString "\n" surgeProfile;
-      defaultSurgePackage = surgePackage pkgs;
+      defaultSurgePackage = pkgs.local.surge;
       isBroadWriteRule =
         rule:
         let
