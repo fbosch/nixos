@@ -14,13 +14,13 @@
         onSteamRunning = "wait";
 
         apps = {
-          Noita = {
-            id = 881100;
+          # Noita
+          "881100" = {
             wrappers = [ "gamemoderun" ];
           };
 
-          "Baldur's Gate 3" = {
-            id = 1086940;
+          # Baldur's Gate 3
+          "1086940" = {
             wrappers = [ "gamemoderun" ];
             args = [ "--vulkan --skip-launcher" ];
           };
