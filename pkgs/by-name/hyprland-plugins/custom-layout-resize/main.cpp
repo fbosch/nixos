@@ -219,6 +219,20 @@ namespace {
         return 1;
     }
 
+    // Re-fires pluginEventAdded so the active Lua config state re-bridges the
+    // command event; config reloads replace the Lua handler without notifying
+    // already-loaded plugins.
+    int rebindCommandEvent(lua_State* state) {
+        if (!g_handle || !g_commandEvent) {
+            lua_pushboolean(state, false);
+            return 1;
+        }
+
+        HyprlandAPI::removeEvent(g_handle, g_commandEvent->m_name);
+        lua_pushboolean(state, HyprlandAPI::addEvent(g_handle, g_commandEvent));
+        return 1;
+    }
+
 } // namespace
 
 APICALL EXPORT std::string PLUGIN_API_VERSION() {
@@ -239,7 +253,8 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
         throw std::runtime_error("custom-layout-resize: failed to register command event");
 
     if (!HyprlandAPI::addLuaFunction(handle, "custom_layout_resize", "start", startResize) ||
-        !HyprlandAPI::addLuaFunction(handle, "custom_layout_resize", "stop", stopResizeLua)) {
+        !HyprlandAPI::addLuaFunction(handle, "custom_layout_resize", "stop", stopResizeLua) ||
+        !HyprlandAPI::addLuaFunction(handle, "custom_layout_resize", "rebind", rebindCommandEvent)) {
         HyprlandAPI::removeEvent(handle, g_commandEvent->m_name);
         g_commandEvent.reset();
         throw std::runtime_error("custom-layout-resize: failed to register Lua functions");
