@@ -11,7 +11,7 @@ let
 in
 pkgs.gcc16Stdenv.mkDerivation {
   pname = "custom-layout-pointer";
-  version = "0.1.0";
+  version = "0.2.0";
 
   src = ./.;
 
@@ -29,7 +29,7 @@ pkgs.gcc16Stdenv.mkDerivation {
   '';
 
   meta = {
-    description = "Throttled pointer-motion bridge for Hyprland Lua layouts";
+    description = "Native pointer-driven drag resize for custom Hyprland Lua layouts";
     license = pkgs.lib.licenses.mit;
     maintainers = [ ];
     platforms = [ "x86_64-linux" ];
