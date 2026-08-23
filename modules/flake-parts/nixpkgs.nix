@@ -91,6 +91,21 @@
               local = config.packages;
             }
           );
+          bunVersion = "1.4.0";
+          bunSources = {
+            "aarch64-darwin" = prev.fetchurl {
+              url = "https://github.com/oven-sh/bun/releases/download/bun-v${bunVersion}/bun-darwin-aarch64.zip";
+              hash = "sha256-xmnpf2Fk4cluBwF0jbmN+ndJKQjL2DlMdVcTSnNd44E=";
+            };
+            "aarch64-linux" = prev.fetchurl {
+              url = "https://github.com/oven-sh/bun/releases/download/bun-v${bunVersion}/bun-linux-aarch64.zip";
+              hash = "sha256-SxozLuhhmD65O8/m93D/+U4+MbLDiL2uo8jtNeWO7Q4=";
+            };
+            "x86_64-linux" = prev.fetchurl {
+              url = "https://github.com/oven-sh/bun/releases/download/bun-v${bunVersion}/bun-linux-x64-baseline.zip";
+              hash = "sha256-GE+0WV8NQBohfPfHjBvEMLqDMU2reouUgFurv3+nCX8=";
+            };
+          };
         in
         localOverlay
         // {
@@ -100,10 +115,23 @@
                 --replace-fail '#include <cstdlib>' $'#include <cstdint>\n#include <cstdlib>'
                 substituteInPlace src/utility/argument_parsing/argument.cpp \
                   --replace-fail '#include <cstdlib>' $'#include <cstdint>\n#include <cstring>\n#include <cstdlib>'
-                substituteInPlace src/platform/linux/singleton_process.cpp \
-                  --replace-fail '#include <cerrno>' $'#include <cerrno>\n#include <cstdint>\n#include <cstring>'
+              substituteInPlace src/platform/linux/singleton_process.cpp \
+                --replace-fail '#include <cerrno>' $'#include <cerrno>\n#include <cstdint>\n#include <cstring>'
             '';
           });
+          bun =
+            if prev.lib.versionAtLeast prev.bun.version "1.4.0" then
+              prev.bun
+            else
+              prev.bun.overrideAttrs (old: {
+                version = bunVersion;
+                src =
+                  bunSources.${prev.stdenvNoCC.hostPlatform.system}
+                    or (throw "Unsupported system: ${prev.stdenvNoCC.hostPlatform.system}");
+                passthru = old.passthru // {
+                  sources = bunSources;
+                };
+              });
         };
 
   };
