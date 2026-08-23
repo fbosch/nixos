@@ -34,8 +34,16 @@ namespace {
     constexpr int  MINIMUM_INTERVAL_MS       = 6;
     constexpr int  MAXIMUM_INTERVAL_MS       = 17;
 
+    struct SResizeConfig {
+        std::string ultrawideLayout;
+        std::string portraitLayout;
+        std::string portraitMonitor;
+        std::string blockedTag;
+    };
+
     struct SResizeSession {
         bool                                                 active = false;
+        SResizeConfig                                        config;
         char                                                 axis = 'x';
         std::string                                          command;
         std::string                                          targetId;
@@ -124,21 +132,93 @@ namespace {
         return Layout::Supplementary::algoMatcher()->getNameForTiledAlgo(algorithm->tiledAlgo().get());
     }
 
+    std::optional<char> resizeAxis(PHLWINDOW window, const SResizeConfig& config) {
+        const auto layout = tiledLayoutName(window);
+        if (!layout)
+            return std::nullopt;
+
+        if (*layout == config.portraitLayout)
+            return 'y';
+
+        if (*layout == config.ultrawideLayout) {
+            const auto monitor = window->m_monitor.lock();
+            return monitor && monitor->m_name == config.portraitMonitor ? 'y' : 'x';
+        }
+
+        return std::nullopt;
+    }
+
+    bool eligibleTarget(PHLWINDOW window, const SResizeConfig& config) {
+        return window && !window->isFloating() && !hasTag(window, config.blockedTag) && resizeAxis(window, config).has_value();
+    }
+
     int pointerInterval(PHLWINDOW window) {
         const auto monitor = window ? window->m_monitor.lock() : nullptr;
         const auto refresh = monitor && monitor->m_refreshRate > 0 ? monitor->m_refreshRate : 60.0;
         return std::clamp(static_cast<int>(std::lround(1000.0 / refresh)), MINIMUM_INTERVAL_MS, MAXIMUM_INTERVAL_MS);
     }
 
+    struct SResizePlan {
+        char        axis;
+        std::string command;
+        std::string targetId;
+        std::string edge;
+        int         intervalMs;
+    };
+
+    std::optional<SResizePlan> resizePlan(PHLWINDOW target, const SResizeConfig& config, const Vector2D& cursor) {
+        const auto axis = resizeAxis(target, config);
+        if (!axis)
+            return std::nullopt;
+
+        const auto geometry   = windowGeometry(target);
+        const auto coordinate = *axis == 'x' ? cursor.x : cursor.y;
+        const auto midpoint   = *axis == 'x' ? geometry.x + geometry.width / 2.0 : geometry.y + geometry.height / 2.0;
+
+        return SResizePlan{
+            .axis       = *axis,
+            .command    = *axis == 'x' ? "resize-x-at" : "resize-y-at",
+            .targetId   = std::format("address:0x{:x}", reinterpret_cast<uintptr_t>(target.get())),
+            .edge       = *axis == 'x' ? (coordinate < midpoint ? "left" : "right") : (coordinate < midpoint ? "up" : "down"),
+            .intervalMs = pointerInterval(target),
+        };
+    }
+
+    void retargetSession(const Vector2D& cursor) {
+        if (!g_session.active || !Desktop::viewState())
+            return;
+
+        const auto active = Desktop::focusState()->window();
+        auto candidate = Desktop::viewState()->hitTest().windowAt(cursor, ALLOW_FLOATING);
+        if (!candidate || candidate == active || !eligibleTarget(candidate, g_session.config))
+            return;
+
+        const auto plan = resizePlan(candidate, g_session.config, cursor);
+        if (!plan)
+            return;
+
+        Desktop::focusState()->fullWindowFocus(candidate, Desktop::FOCUS_REASON_DISPATCH_FOCUSWINDOW);
+
+        g_session.axis       = plan->axis;
+        g_session.command    = plan->command;
+        g_session.targetId   = plan->targetId;
+        g_session.edge       = plan->edge;
+        g_session.intervalMs = plan->intervalMs;
+        g_session.lastPosition.reset();
+        g_session.lastEmission.reset();
+    }
+
     bool emitPosition(bool force) {
         if (!g_session.active || !g_pInputManager)
             return false;
+
+        const auto cursor = g_pInputManager->getMouseCoordsInternal();
+        retargetSession(cursor);
 
         const auto now = std::chrono::steady_clock::now();
         if (!force && g_session.lastEmission && now - *g_session.lastEmission < std::chrono::milliseconds(g_session.intervalMs))
             return true;
 
-        const auto cursor  = g_pInputManager->getMouseCoordsInternal();
         const auto raw     = g_session.axis == 'x' ? cursor.x : cursor.y;
         const auto current = static_cast<int>(std::lround(raw));
         if (g_session.lastPosition && *g_session.lastPosition == current)
@@ -168,10 +248,12 @@ namespace {
     }
 
     int startResize(lua_State* state) {
-        const std::string ultrawideLayout = luaL_checkstring(state, 1);
-        const std::string portraitLayout  = luaL_checkstring(state, 2);
-        const std::string portraitMonitor = luaL_checkstring(state, 3);
-        const std::string blockedTag      = luaL_checkstring(state, 4);
+        const SResizeConfig config{
+            .ultrawideLayout = luaL_checkstring(state, 1),
+            .portraitLayout  = luaL_checkstring(state, 2),
+            .portraitMonitor = luaL_checkstring(state, 3),
+            .blockedTag      = luaL_checkstring(state, 4),
+        };
 
         stopResize(false);
         if (!g_commandEvent || !g_pInputManager || !Desktop::viewState())
@@ -179,35 +261,18 @@ namespace {
 
         const auto cursor = g_pInputManager->getMouseCoordsInternal();
         const auto target = targetWindow(cursor);
-        if (!target)
+        if (!eligibleTarget(target, config))
             return returnStartStatus(state, false, true);
 
-        if (target->isFloating() || hasTag(target, blockedTag))
-            return returnStartStatus(state, false, true);
-
-        const auto layout = tiledLayoutName(target);
-        if (!layout)
-            return returnStartStatus(state, false, true);
-
-        char axis = 'x';
-        if (*layout == portraitLayout)
-            axis = 'y';
-        else if (*layout == ultrawideLayout) {
-            const auto monitor = target->m_monitor.lock();
-            axis = monitor && monitor->m_name == portraitMonitor ? 'y' : 'x';
-        } else
-            return returnStartStatus(state, false, true);
-
-        const auto geometry   = windowGeometry(target);
-        const auto coordinate = axis == 'x' ? cursor.x : cursor.y;
-        const auto midpoint   = axis == 'x' ? geometry.x + geometry.width / 2.0 : geometry.y + geometry.height / 2.0;
+        const auto plan = resizePlan(target, config, cursor);
 
         g_session.active     = true;
-        g_session.axis       = axis;
-        g_session.command    = axis == 'x' ? "resize-x-at" : "resize-y-at";
-        g_session.targetId   = std::format("address:0x{:x}", reinterpret_cast<uintptr_t>(target.get()));
-        g_session.edge       = axis == 'x' ? (coordinate < midpoint ? "left" : "right") : (coordinate < midpoint ? "up" : "down");
-        g_session.intervalMs = pointerInterval(target);
+        g_session.config     = config;
+        g_session.axis       = plan->axis;
+        g_session.command    = plan->command;
+        g_session.targetId   = plan->targetId;
+        g_session.edge       = plan->edge;
+        g_session.intervalMs = plan->intervalMs;
 
         return returnStartStatus(state, true, true);
     }
@@ -267,7 +332,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
         "custom-layout-resize",
         "Drive custom-layout drag resize from native Hyprland pointer state",
         "local",
-        "0.2.0",
+        "0.3.0",
     };
 }
 
