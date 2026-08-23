@@ -41,6 +41,7 @@
           pkgs.coreutils
           pkgs.faugus-launcher
           pkgs.gamemode
+          pkgs.jq
           pkgs.mangohud
           pkgs.umu-launcher
           pkgs.zenity

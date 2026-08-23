@@ -117,7 +117,10 @@ in
       waylandAppId = runtime.waylandAppId or null;
       needsProcessExit = rememberLastPage || waylandAppId != null;
       browserCommand =
-        if waylandAppId == null then "helium-browser" else "/run/current-system/sw/bin/helium-browser";
+        if waylandAppId == null then
+          "helium-browser"
+        else
+          "/run/current-system/sw/bin/helium-browser-firejailed";
       resolvedIcon =
         if icon != null then
           icon

@@ -11,6 +11,18 @@ in
     let
       heliumPackage = makeHeliumPackage pkgs;
       heliumWidevineSetup = heliumPackage.passthru.widevineSetup;
+      heliumFirejailCommand = "helium-browser-firejailed";
+      heliumRelabelLauncher = pkgs.writeShellApplication {
+        name = "helium-browser";
+        runtimeInputs = [ pkgs.local.wl-relabel ];
+        text = ''
+          exec wl-relabel -- /run/current-system/sw/bin/${heliumFirejailCommand} "$@"
+        '';
+      };
+      heliumRelabelDesktop = pkgs.runCommand "helium-browser-desktop" { } ''
+        install -Dm444 ${heliumPackage}/share/applications/helium-browser.desktop \
+          $out/share/applications/helium-browser.desktop
+      '';
       heliumProfile = pkgs.replaceVars ./helium.profile {
         chromiumProfile = "${pkgs.firejail}/etc/firejail/chromium.profile";
         timeZone = config.time.timeZone;
@@ -54,7 +66,12 @@ in
         "chromium/policies/managed/helium-dns.json".text = heliumManagedPolicy;
       };
 
-      environment.systemPackages = [ heliumWidevineSetup ] ++ builtins.attrValues nativeWaylandWebapps;
+      environment.systemPackages = [
+        heliumWidevineSetup
+        heliumRelabelDesktop
+        heliumRelabelLauncher
+      ]
+      ++ builtins.attrValues nativeWaylandWebapps;
 
       programs.firejail.wrappedBinaries =
         lib.mapAttrs'
@@ -70,10 +87,9 @@ in
           })
           firejailedWebapps
         // {
-          helium-browser = {
+          ${heliumFirejailCommand} = {
             executable = "${heliumPackage}/bin/helium-browser";
             profile = "${heliumDrmProfile}";
-            desktop = "${heliumPackage}/share/applications/helium-browser.desktop";
           };
         };
     };

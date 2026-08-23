@@ -1,9 +1,46 @@
 {
   flake.modules.homeManager.applications =
     { config
+    , lib
     , pkgs
     , ...
     }:
+    let
+      zenWaylandClient = pkgs.writeShellScript "zen-wayland-client" ''
+        set -euo pipefail
+
+        : "''${XDG_RUNTIME_DIR:?Zen requires XDG_RUNTIME_DIR}"
+        : "''${WAYLAND_DISPLAY:?Zen requires native Wayland}"
+
+        proxy_socket="$WAYLAND_DISPLAY"
+        case "$proxy_socket" in
+          /*) ;;
+          *) proxy_socket="$XDG_RUNTIME_DIR/$proxy_socket" ;;
+        esac
+
+        if [ ! -S "$proxy_socket" ]; then
+          printf 'Zen Wayland proxy socket is unavailable: %s\n' "$proxy_socket" >&2
+          exit 1
+        fi
+
+        exec /run/wrappers/bin/mullvad-exclude \
+          ${pkgs.flatpak}/bin/flatpak run \
+            --command=sh \
+            --nosocket=wayland \
+            --nosocket=fallback-x11 \
+            --filesystem="$proxy_socket" \
+            app.zen_browser.zen \
+            -c 'export WAYLAND_DISPLAY="$1"; shift; exec /app/bin/launch-script.sh "$@"' \
+            sh "$WAYLAND_DISPLAY" "$@"
+      '';
+      zenLauncher = pkgs.writeShellApplication {
+        name = "zen-wl-relabel";
+        runtimeInputs = [ pkgs.local.wl-relabel ];
+        text = ''
+          exec wl-relabel -- ${zenWaylandClient} "$@"
+        '';
+      };
+    in
     {
       home.activation.zenProfileSetup = config.lib.dag.entryAfter [ "writeBoundary" ] ''
         ZEN_PROFILE="$HOME/.var/app/app.zen_browser.zen/.zen"
@@ -25,6 +62,10 @@
 
       services.flatpak.packages = [
         "app.zen_browser.zen"
+      ];
+
+      home.packages = [
+        zenLauncher
       ];
 
       systemd.user.services.zen-prewarm = {
@@ -127,7 +168,7 @@
 
       xdg.desktopEntries."app.zen_browser.zen" = {
         name = "Zen Browser";
-        exec = "mullvad-exclude flatpak run app.zen_browser.zen %U";
+        exec = "${lib.getExe zenLauncher} %U";
         icon = "app.zen_browser.zen";
         type = "Application";
         categories = [

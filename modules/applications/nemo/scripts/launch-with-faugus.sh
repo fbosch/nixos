@@ -9,7 +9,7 @@ if [[ -z $file ]]; then
   exit 1
 fi
 
-config_file="${XDG_CONFIG_HOME:-$HOME/.config}/faugus-launcher/config.ini"
+config_file="${XDG_CONFIG_HOME:-$HOME/.config}/faugus-launcher/config.json"
 state_file="${XDG_STATE_HOME:-$HOME/.local/state}/faugus-launcher/nemo-launch-with-faugus.tsv"
 runner_cache_file="${XDG_RUNTIME_DIR:-${TMPDIR:-/tmp}}/faugus-launcher/nemo-runners.tsv"
 compatibility_dir="${XDG_DATA_HOME:-$HOME/.local/share}/Steam/compatibilitytools.d"
@@ -18,21 +18,12 @@ file_key="$(realpath -- "$file" 2>/dev/null || printf '%s' "$file")"
 
 config_value() {
   local key="$1"
-  local line value
 
   if [[ ! -f $config_file ]]; then
     return 0
   fi
 
-  while IFS= read -r line; do
-    if [[ $line == "$key="* ]]; then
-      value="${line#*=}"
-      value="${value%\"}"
-      value="${value#\"}"
-      printf '%s' "$value"
-      return 0
-    fi
-  done <"$config_file"
+  jq -r --arg key "$key" '.[$key] // ""' "$config_file"
 }
 
 is_enabled() {
@@ -220,21 +211,34 @@ case "$selected" in
   ;;
 esac
 
+shared_prefix_name="$(
+  printf '%s' "$selected" |
+    tr '[:upper:]' '[:lower:]' |
+    tr -cs '[:alnum:]_.-' '-'
+)"
+shared_prefix_name="${shared_prefix_name#-}"
+shared_prefix_name="${shared_prefix_name%-}"
+
+if [[ -z $shared_prefix_name ]]; then
+  shared_prefix_name="umu-proton-latest"
+fi
+
 command_parts=(
-  "WINEPREFIX=$default_prefix/default"
+  "WINEPREFIX=$default_prefix/nemo-shared/$shared_prefix_name"
   "GAMEID=default"
+  "LOG_DIR=nemo-shared-$shared_prefix_name"
 )
 
 if [[ -n $runner ]]; then
   command_parts+=("PROTONPATH=$runner")
 fi
 
-if is_enabled disable-hidraw; then
-  command_parts+=("PROTON_DISABLE_HIDRAW=1")
+if is_enabled sdl-enabled; then
+  command_parts+=("PROTON_PREFER_SDL=1")
 fi
 
-if is_enabled prevent-sleep; then
-  command_parts+=("PREVENT_SLEEP=1")
+if is_enabled no-sleep-enabled; then
+  command_parts+=("NO_SLEEP=1")
 fi
 
 if is_enabled gamemode; then
