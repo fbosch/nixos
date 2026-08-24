@@ -1,6 +1,7 @@
 { config, ... }:
 let
   inherit (config.flake.lib) sopsFiles startupPolicy;
+  inherit (config.flake.meta.user) username;
 in
 {
   flake.modules.nixos."services/containers/komodo" =
@@ -80,14 +81,17 @@ in
 
           allowSignups = lib.mkOption {
             type = lib.types.bool;
-            default = true;
+            default = false;
             description = "Whether to allow user self-registration";
           };
 
           initAdminUsername = lib.mkOption {
             type = lib.types.nullOr lib.types.str;
-            default = null;
-            description = "Initial admin username to bootstrap when signups are disabled";
+            default = username;
+            description = ''
+              Initial admin username to bootstrap when signups are disabled.
+              Only applied when the database is empty; existing accounts are unaffected.
+            '';
           };
 
           imageTag = lib.mkOption {
