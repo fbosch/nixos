@@ -18,7 +18,7 @@
           cursorOutlinePlugin = pkgs.local."hyprland-plugins/cursor-outline";
           customLayoutResizePlugin = pkgs.local."hyprland-plugins/custom-layout-resize";
           insetBorderPlugin = pkgs.local."hyprland-plugins/inset-border";
-          waybarPointerPlugin = pkgs.local."hyprland-plugins/waybar-pointer";
+          pointerEdgeHooksPlugin = pkgs.local."hyprland-plugins/pointer-edge-hooks";
           xdgDesktopPortalHyprlandPackage =
             inputs.hyprland.packages.${system}.xdg-desktop-portal-hyprland.override
               {
@@ -81,7 +81,7 @@
               HYPR_CURSOR_OUTLINE_PLUGIN = "${cursorOutlinePlugin}/lib/libcursor-outline.so";
               HYPR_CUSTOM_LAYOUT_RESIZE_PLUGIN = "${customLayoutResizePlugin}/lib/libcustom-layout-resize.so";
               HYPR_INSET_BORDER_PLUGIN = "${insetBorderPlugin}/lib/libinset-border.so";
-              HYPR_WAYBAR_POINTER_PLUGIN = "${waybarPointerPlugin}/lib/libwaybar-pointer.so";
+              HYPR_POINTER_EDGE_HOOKS_PLUGIN = "${pointerEdgeHooksPlugin}/lib/libpointer-edge-hooks.so";
               __GL_GSYNC_ALLOWED = "1";
               __GL_VRR_ALLOWED = "1";
               QT_QPA_PLATFORM = "wayland;xcb";
@@ -95,7 +95,7 @@
               cursorOutlinePlugin
               customLayoutResizePlugin
               insetBorderPlugin
-              waybarPointerPlugin
+              pointerEdgeHooksPlugin
               inputs.hyprpaper.packages.${system}.hyprpaper
               pkgs.hyprprop
               pkgs.hyprpicker

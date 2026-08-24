@@ -10,7 +10,7 @@ let
   hyprland = inputs.hyprland.packages.${stdenv.hostPlatform.system}.hyprland;
 in
 pkgs.gcc16Stdenv.mkDerivation {
-  pname = "waybar-pointer";
+  pname = "pointer-edge-hooks";
   version = "0.1.0";
 
   src = ./.;
@@ -24,7 +24,7 @@ pkgs.gcc16Stdenv.mkDerivation {
 
   installPhase = ''
     runHook preInstall
-    install -Dm755 libwaybar-pointer.so $out/lib/libwaybar-pointer.so
+    install -Dm755 libpointer-edge-hooks.so $out/lib/libpointer-edge-hooks.so
     runHook postInstall
   '';
 
