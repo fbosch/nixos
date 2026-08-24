@@ -266,11 +266,11 @@
     "dotfiles": {
       "flake": false,
       "locked": {
-        "lastModified": 1787580093,
-        "narHash": "sha256-EMh8W5vQaBkfnWeMmUvvzGwdDtJglerZyaIeV2hr030=",
+        "lastModified": 1787589811,
+        "narHash": "sha256-TzsE+7MiqKBJgeXrbTgwheD6TkfHKF6yStFFWuYlnc8=",
         "owner": "fbosch",
         "repo": "dotfiles",
-        "rev": "fc52713638f5cee6c0bc3db7db8ef04f97b91d8f",
+        "rev": "c1f97538323968c94c30263e4fe57c60cdd46946",
         "type": "github"
       },
       "original": {
@@ -666,11 +666,11 @@
         "xdph": "xdph"
       },
       "locked": {
-        "lastModified": 1787579332,
-        "narHash": "sha256-wl/7GI3fmvK52cacsE0IQTfWI0oUN+w/WjwgESbZg9M=",
+        "lastModified": 1787584490,
+        "narHash": "sha256-n5pRDrqMLDSoVJ3fc2DR7hL8bxXJwuPm391j+9Vswbk=",
         "owner": "hyprwm",
         "repo": "Hyprland",
-        "rev": "866b8085f93328137fc7cb5d56db232debf89f52",
+        "rev": "d8504461f0e9f95a5df9a0cdc0723d0ca6332888",
         "type": "github"
       },
       "original": {
@@ -2317,11 +2317,11 @@
         "rust-overlay": "rust-overlay_2"
       },
       "locked": {
-        "lastModified": 1787542529,
-        "narHash": "sha256-b/y4u3a7CgUIikHeLE0ef+BQUEU45IPzLTSjwUmpCT4=",
+        "lastModified": 1787587861,
+        "narHash": "sha256-Xui1TcH0z2g/F6GW5P1pw8w5+b778/P/lsmAsTbhTg8=",
         "owner": "max-sixty",
         "repo": "worktrunk",
-        "rev": "8cfe5eaaeecb6c87406607933a739dd196b37395",
+        "rev": "68cc911eb2acd92d6d025a6d2bee26077849d4bd",
         "type": "github"
       },
       "original": {
