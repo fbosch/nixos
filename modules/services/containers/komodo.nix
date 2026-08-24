@@ -130,10 +130,7 @@ in
           lib.mkAfter [
             {
               service = "komodo";
-              tcpPorts = [
-                cfg.core.port
-                8120
-              ];
+              tcpPorts = [ cfg.core.port ];
             }
           ]
         );
@@ -238,7 +235,9 @@ in
                 ContainerName=komodo-periphery
                 Image=docker.io/moghtech/komodo-periphery:${cfg.core.imageTag}
                 Network=komodo.network
-                PublishPort=8120:8120
+                # No PublishPort: Core reaches Periphery over the komodo network
+                # at komodo-periphery:8120, so the API backed by the writable
+                # Podman socket is never exposed to host interfaces.
                 GroupAdd=991
                 Exec=periphery --config-path ${peripheryConfigPath}
                 Environment=DOCKER_HOST=unix:///run/podman/podman.sock
@@ -295,7 +294,6 @@ in
 
         networking.firewall.allowedTCPPorts = lib.mkIf cfg.core.enable [
           cfg.core.port
-          8120
         ];
 
         # Wire passkey and secrets through sops

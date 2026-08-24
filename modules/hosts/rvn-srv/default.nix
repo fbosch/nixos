@@ -94,6 +94,12 @@ in
       {
         services.surge.outputDir = "/mnt/nas/downloads";
 
+        # Bind Termix to the LAN and Tailscale addresses instead of all interfaces.
+        services.termix-container.listenAddresses = [
+          hostMetadata.local
+          hostMetadata.tailscale
+        ];
+
         nix = {
           settings = {
             max-jobs = "auto";

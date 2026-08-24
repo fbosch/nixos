@@ -15,9 +15,22 @@ in
           default = 7310;
           description = "Port for Termix web interface";
         };
+
+        listenAddresses = lib.mkOption {
+          type = lib.types.listOf lib.types.str;
+          default = [ "127.0.0.1" ];
+          description = "Host addresses to bind the Termix port on.";
+        };
       };
 
       config = {
+        assertions = [
+          {
+            assertion = config.services.termix-container.listenAddresses != [ ];
+            message = "services.termix-container.listenAddresses must not be empty";
+          }
+        ];
+
         services.startupPolicy.applications.termix = {
           tier = lib.mkDefault "background";
           units = [
@@ -35,34 +48,41 @@ in
           }
         ];
 
-        environment.etc."containers/systemd/termix.container".text = ''
-          [Unit]
-          After=network-online.target
-          Wants=network-online.target
+        environment.etc."containers/systemd/termix.container".text =
+          let
+            cfg = config.services.termix-container;
+            publishPortBlock = lib.concatStringsSep "\n" (
+              map (addr: "PublishPort=${addr}:${toString cfg.port}:8080") cfg.listenAddresses
+            );
+          in
+          ''
+              [Unit]
+              After=network-online.target
+              Wants=network-online.target
 
-          [Container]
-          ContainerName=termix
-          Image=ghcr.io/lukegus/termix:release-2.0.0
-          PublishPort=${toString config.services.termix-container.port}:8080
-          Volume=termix-data.volume:/app/data
-          Environment=PORT=8080
-          Memory=1g
-          PidsLimit=500
-          Ulimit=nofile=2048:4096
-          LogDriver=journald
-          LogOpt=tag=termix
+              [Container]
+              ContainerName=termix
+              Image=ghcr.io/lukegus/termix:release-2.0.0
+              ${publishPortBlock}
+              Volume=termix-data.volume:/app/data
+            Environment=PORT=8080
+            Memory=1g
+            PidsLimit=500
+            Ulimit=nofile=2048:4096
+            LogDriver=journald
+            LogOpt=tag=termix
 
-          [Service]
-          RestrictAddressFamilies=~AF_ALG
-          SystemCallArchitectures=native
-          CPUQuota=400%
-          Restart=always
-          RestartSec=10
-          TimeoutStartSec=300
+            [Service]
+            RestrictAddressFamilies=~AF_ALG
+            SystemCallArchitectures=native
+            CPUQuota=400%
+            Restart=always
+            RestartSec=10
+            TimeoutStartSec=300
 
-          [Install]
-            WantedBy=${(startupPolicy.quadlet config "termix.service").target}
-        '';
+            [Install]
+              WantedBy=${(startupPolicy.quadlet config "termix.service").target}
+          '';
 
         environment.etc."containers/systemd/termix-data.volume".text = ''
           [Volume]
