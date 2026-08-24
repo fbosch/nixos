@@ -11,7 +11,7 @@ let
 in
 pkgs.gcc16Stdenv.mkDerivation {
   pname = "focus-animation";
-  version = "0.1.7";
+  version = "0.1.8";
 
   src = ./.;
 

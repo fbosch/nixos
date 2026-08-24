@@ -99,14 +99,12 @@ namespace {
         if (!position || !size || position->isBeingAnimated() || size->isBeingAnimated())
             return;
 
-        if (g_pHyprRenderer)
-            g_pHyprRenderer->damageWindow(window, true);
-
         position->value() = position->goal();
         size->value()     = size->goal();
 
-        if (g_pHyprRenderer)
-            g_pHyprRenderer->damageWindow(window, true);
+        const auto monitor = window->m_monitor.lock();
+        if (g_pHyprRenderer && monitor)
+            g_pHyprRenderer->damageMonitor(monitor);
     }
 
     void stopAnimation() {
@@ -139,6 +137,10 @@ namespace {
 
         size->value()     = scaledSize;
         position->value() = goalPosition + goalSize / 2.F - scaledSize / 2.F;
+
+        const auto monitor = window->m_monitor.lock();
+        if (g_pHyprRenderer && monitor)
+            g_pHyprRenderer->damageMonitor(monitor);
     }
 
     void animateFocus(PHLWINDOW window) {
@@ -172,7 +174,9 @@ namespace {
             return;
 
         g_window = window;
-        Animation::mgr()->createAnimation(1.F, g_scale, config, window, AVARDAMAGE_ENTIRE);
+        // Expanded focus geometry is outside Hyprland's layout bounds. Damage
+        // the monitor in updateScale instead of deriving window rectangles.
+        Animation::mgr()->createAnimation(1.F, g_scale, config, AVARDAMAGE_NONE);
         g_scale->setUpdateCallback(updateScale);
 
         if (!g_scale->enabled()) {
@@ -261,7 +265,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
         "focus-animation",
         "Animate focused windows through a native Hyprland animation leaf",
         "local",
-        "0.1.7",
+        "0.1.8",
     };
 }
 
