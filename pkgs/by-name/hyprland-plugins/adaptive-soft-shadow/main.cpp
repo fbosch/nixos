@@ -41,6 +41,7 @@ namespace {
     constexpr int   DEFAULT_RENDER_POWER      = 3;
     constexpr float DEFAULT_STRENGTH          = 0.30F;
     constexpr int   MAXIMUM_RANGE             = 80;
+    constexpr float MAXIMUM_OFFSET            = 250.F;
     constexpr size_t MAXIMUM_GRADIENT_COLORS  = 10;
 
     struct SBlendMode {
@@ -258,6 +259,12 @@ void main() {
         return std::unexpected(
             "expected one of: multiply, screen, overlay, darken, lighten, color-dodge, color-burn, hard-light, soft-light, difference, exclusion, hsl-hue, "
             "hsl-saturation, hsl-color, hsl-luminosity");
+    }
+
+    std::expected<void, std::string> validateOffset(const Config::VEC2& value) {
+        if (!std::isfinite(value.x) || !std::isfinite(value.y) || std::abs(value.x) > MAXIMUM_OFFSET || std::abs(value.y) > MAXIMUM_OFFSET)
+            return std::unexpected("components must be finite and between -250 and 250");
+        return {};
     }
 
     GLenum blendEquation() {
@@ -520,7 +527,12 @@ void main() {
                 return false;
 
             const auto& renderData = g_pHyprRenderer->m_renderData;
-            if (!renderData.currentFB || !renderData.pMonitor)
+            if (!renderData.currentFB || !renderData.pMonitor || renderData.renderingTransformedSource)
+                return false;
+
+            const auto imageDescription = renderData.currentFB->imageDescription();
+            if (!imageDescription || imageDescription->value().transferFunction != NColorManagement::CM_TRANSFER_FUNCTION_GAMMA22 ||
+                imageDescription->value().getPrimaries() != NColorManagement::getPrimaries(NColorManagement::CM_PRIMARIES_SRGB))
                 return false;
 
             return !(renderData.pMonitor->needsUnmodifiedCopy() && renderData.currentFB->getMirrorTexture());
@@ -575,11 +587,6 @@ void main() {
         void renderFallback(const SAdaptiveShadowRenderData& data, float alpha) {
             const auto& color = g_color->value();
             warnAboutTruncatedGradient(color);
-            if (color.m_colors.size() <= MAXIMUM_GRADIENT_COLORS && std::isfinite(color.m_angle)) {
-                g_pHyprRenderer->drawShadow(data.fullBox, data.rounding, data.roundingPower, data.range, color, strength() * alpha);
-                return;
-            }
-
             const auto colorCount = std::min(color.m_colors.size(), MAXIMUM_GRADIENT_COLORS);
             std::vector<CHyprColor> colors{color.m_colors.begin(), color.m_colors.begin() + colorCount};
             const Config::CGradientValueData boundedColor{std::move(colors), normalizedGradientAngle(color.m_angle)};
@@ -691,17 +698,29 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
         throw std::runtime_error("adaptive-soft-shadow: unsupported Hyprland commit");
 
     g_handle = handle;
-    g_enabled = makeShared<Config::Values::CBoolValue>("plugin:adaptive_soft_shadow:enabled", "Draw backdrop-adaptive window shadows", true);
+    g_enabled = makeShared<Config::Values::CBoolValue>("plugin:adaptive_soft_shadow:enabled", "Draw backdrop-adaptive window shadows", true,
+                                                       Config::Values::SBoolValueOptions{.refresh = Config::Supplementary::REFRESH_WINDOW_STATES});
     g_range = makeShared<Config::Values::CIntValue>("plugin:adaptive_soft_shadow:range", "Shadow extent in logical pixels", DEFAULT_RANGE,
-                                                    Config::Values::SIntValueOptions{.min = 1, .max = MAXIMUM_RANGE});
+                                                     Config::Values::SIntValueOptions{.min = 1,
+                                                                                     .max = MAXIMUM_RANGE,
+                                                                                     .refresh = Config::Supplementary::REFRESH_WINDOW_STATES});
     g_renderPower = makeShared<Config::Values::CIntValue>("plugin:adaptive_soft_shadow:render_power", "Shadow falloff exponent", DEFAULT_RENDER_POWER,
-                                                          Config::Values::SIntValueOptions{.min = 1, .max = 4});
-    g_offset = makeShared<Config::Values::CVec2Value>("plugin:adaptive_soft_shadow:offset", "Shadow offset in logical pixels", Config::VEC2{1.F, 1.F});
+                                                           Config::Values::SIntValueOptions{.min = 1,
+                                                                                           .max = 4,
+                                                                                           .refresh = Config::Supplementary::REFRESH_WINDOW_STATES});
+    g_offset = makeShared<Config::Values::CVec2Value>("plugin:adaptive_soft_shadow:offset", "Shadow offset in logical pixels", Config::VEC2{1.F, 1.F},
+                                                       Config::Values::SVec2ValueOptions{.validator = validateOffset,
+                                                                                       .refresh = Config::Supplementary::REFRESH_WINDOW_STATES});
     g_strength = makeShared<Config::Values::CFloatValue>("plugin:adaptive_soft_shadow:strength", "Advanced blend shadow strength", DEFAULT_STRENGTH,
-                                                         Config::Values::SFloatValueOptions{.min = 0.F, .max = 1.F});
-    g_color = makeShared<Config::Values::CGradientValue>("plugin:adaptive_soft_shadow:color", "Shadow color or gradient", CHyprColor{0.F, 0.F, 0.F, 1.F});
+                                                          Config::Values::SFloatValueOptions{.min = 0.F,
+                                                                                            .max = 1.F,
+                                                                                            .refresh = Config::Supplementary::REFRESH_WINDOW_STATES});
+    g_color = makeShared<Config::Values::CGradientValue>("plugin:adaptive_soft_shadow:color", "Shadow color or gradient", CHyprColor{0.F, 0.F, 0.F, 1.F},
+                                                          Config::Values::SGradientValueOptions{.refresh = Config::Supplementary::REFRESH_WINDOW_STATES});
     g_blendMode = makeShared<Config::Values::CStringValue>("plugin:adaptive_soft_shadow:blend_mode", "Advanced shadow blend equation",
-                                                           Config::STRING{DEFAULT_BLEND_MODE.name}, Config::Values::SStringValueOptions{.validator = validateBlendMode});
+                                                            Config::STRING{DEFAULT_BLEND_MODE.name},
+                                                            Config::Values::SStringValueOptions{.validator = validateBlendMode,
+                                                                                               .refresh = Config::Supplementary::REFRESH_WINDOW_STATES});
 
     if (!HyprlandAPI::addConfigValueV2(handle, g_enabled) || !HyprlandAPI::addConfigValueV2(handle, g_range) || !HyprlandAPI::addConfigValueV2(handle, g_renderPower) ||
         !HyprlandAPI::addConfigValueV2(handle, g_offset) || !HyprlandAPI::addConfigValueV2(handle, g_strength) || !HyprlandAPI::addConfigValueV2(handle, g_color) ||
@@ -716,7 +735,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
         "adaptive-soft-shadow",
         "Draw backdrop-adaptive soft-light window shadows",
         "local",
-        "0.2.0",
+        "0.2.1",
     };
 }
 
