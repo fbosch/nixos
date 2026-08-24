@@ -253,6 +253,9 @@ index fe534f69..5857ad16 100644
 -                                 Glib::RefPtr<Gio::DesktopAppInfo> app_info, int size) {
 +                                 Glib::RefPtr<Gio::DesktopAppInfo> app_info,
 +                                 const std::vector<std::string>& fallback_icon_names, int size) {
+@@ -110 +228 @@ bool IconLoader::image_load_icon(Gtk::Image& image, const Glib::RefPtr<Gtk::Icon
+-  std::string ret_icon_name = "unknown";
++  std::string ret_icon_name = fallback_icon_names.empty() ? "unknown" : fallback_icon_names.front();
 @@ -131 +249,5 @@ bool IconLoader::image_load_icon(Gtk::Image& image, const Glib::RefPtr<Gtk::Icon
 -    } else {
 +    }

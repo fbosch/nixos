@@ -364,6 +364,12 @@
           context = "apps";
         }
         {
+          name = "io.Astal.ags";
+          useBuiltin = "preferences-system";
+          sizes = [ "scalable" ];
+          context = "apps";
+        }
+        {
           name = "chatgpt";
           source = ./codex.png;
           extension = "png";
