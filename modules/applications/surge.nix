@@ -204,7 +204,7 @@ in
   };
 
   perSystem =
-    { lib, pkgs, ... }:
+    { config, lib, pkgs, ... }:
     let
       surgeHomeConfig =
         exitWhenDone:
@@ -272,7 +272,7 @@ in
       surgeTestExe = builtins.unsafeDiscardStringContext (lib.getExe pkgs.hello);
       surgeProfile = surgeNixosConfig.security.apparmor.policies.surge.profile;
       surgeProfileLines = lib.splitString "\n" surgeProfile;
-      defaultSurgePackage = pkgs.local.surge;
+      defaultSurgePackage = config.packages.surge;
       isBroadWriteRule =
         rule:
         let

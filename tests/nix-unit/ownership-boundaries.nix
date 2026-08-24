@@ -83,6 +83,8 @@ in
   packageOwnership.testOnlyApprovedLiteralHomePackageOwnersRemain = {
     expr = lib.sort builtins.lessThan literalHomePackageOwners;
     expected = [
+      "applications/browsers/wl-relabel.nix"
+      "applications/browsers/zen/default.nix"
       "applications/gaming/steam/theme.nix"
       "applications/windows.nix"
       "desktop/update-checker.nix"
