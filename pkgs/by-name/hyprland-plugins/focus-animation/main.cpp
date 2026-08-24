@@ -8,7 +8,6 @@
 
 #include <algorithm>
 #include <charconv>
-#include <chrono>
 #include <cmath>
 #include <stdexcept>
 #include <string>
@@ -26,8 +25,7 @@ namespace {
     constexpr const char* FOCUS_ANIMATION_LEAF     = "windowsFocus";
     constexpr float       DEFAULT_START_SCALE      = 0.96F;
     constexpr float       MINIMUM_SCALE            = 0.5F;
-    constexpr float       MAXIMUM_SCALE            = 1.2F;
-    constexpr auto        RAPID_FOCUS_INTERVAL     = std::chrono::milliseconds{120};
+    constexpr float       MAXIMUM_SCALE            = 1.F;
 
     using SAnimationPropertyConfig = Hyprutils::Animation::SAnimationPropertyConfig;
     using AnimationConfigMap       = std::unordered_map<std::string, SP<SAnimationPropertyConfig>>;
@@ -36,7 +34,6 @@ namespace {
     CHyprSignalListener g_destroyListener;
     PHLWINDOWREF        g_window;
     PHLANIMVAR<float>   g_scale;
-    std::chrono::steady_clock::time_point g_lastFocusTrigger;
 
     SP<SAnimationPropertyConfig> prepareAnimationLeaf() {
         // Hyprland has no plugin API for adding animation leaves. Plugins are
@@ -89,6 +86,17 @@ namespace {
         return std::clamp(value / 100.F, MINIMUM_SCALE, MAXIMUM_SCALE);
     }
 
+    bool shouldAnimateFocus(Desktop::eFocusReason reason) {
+        switch (reason) {
+            case Desktop::FOCUS_REASON_KEYBIND:
+            case Desktop::FOCUS_REASON_DISPATCH_FOCUSWINDOW:
+            case Desktop::FOCUS_REASON_SWITCH_TO_WINDOW_SOFT:
+            case Desktop::FOCUS_REASON_SWITCH_TO_WINDOW_HARD:
+            case Desktop::FOCUS_REASON_GROUP_CURRENT_WINDOW_CHANGE: return true;
+            default: return false;
+        }
+    }
+
     void restoreWindowGeometry() {
         const auto window = g_window.lock();
         if (!validMapped(window))
@@ -99,12 +107,14 @@ namespace {
         if (!position || !size || position->isBeingAnimated() || size->isBeingAnimated())
             return;
 
+        if (g_pHyprRenderer)
+            g_pHyprRenderer->damageWindow(window, true);
+
         position->value() = position->goal();
         size->value()     = size->goal();
 
-        const auto monitor = window->m_monitor.lock();
-        if (g_pHyprRenderer && monitor)
-            g_pHyprRenderer->damageMonitor(monitor);
+        if (g_pHyprRenderer)
+            g_pHyprRenderer->damageWindow(window, true);
     }
 
     void stopAnimation() {
@@ -137,10 +147,6 @@ namespace {
 
         size->value()     = scaledSize;
         position->value() = goalPosition + goalSize / 2.F - scaledSize / 2.F;
-
-        const auto monitor = window->m_monitor.lock();
-        if (g_pHyprRenderer && monitor)
-            g_pHyprRenderer->damageMonitor(monitor);
     }
 
     void animateFocus(PHLWINDOW window) {
@@ -157,13 +163,6 @@ namespace {
 
         stopAnimation();
 
-        const auto now = std::chrono::steady_clock::now();
-        const auto isRapidFocus = g_lastFocusTrigger != std::chrono::steady_clock::time_point{} &&
-            now - g_lastFocusTrigger < RAPID_FOCUS_INTERVAL;
-        g_lastFocusTrigger = now;
-        if (isRapidFocus)
-            return;
-
         auto& position = window->positionAnimation();
         auto& size     = window->sizeAnimation();
         if (!position || !size || position->isBeingAnimated() || size->isBeingAnimated())
@@ -174,9 +173,7 @@ namespace {
             return;
 
         g_window = window;
-        // Expanded focus geometry is outside Hyprland's layout bounds. Damage
-        // the monitor in updateScale instead of deriving window rectangles.
-        Animation::mgr()->createAnimation(1.F, g_scale, config, AVARDAMAGE_NONE);
+        Animation::mgr()->createAnimation(1.F, g_scale, config, window, AVARDAMAGE_ENTIRE);
         g_scale->setUpdateCallback(updateScale);
 
         if (!g_scale->enabled()) {
@@ -185,16 +182,6 @@ namespace {
         }
 
         const auto startScale = startScaleFromStyle(g_scale->getStyle());
-        if (startScale > 1.F) {
-            *g_scale = startScale;
-            g_scale->setCallbackOnEnd([](WP<Hyprutils::Animation::CBaseAnimatedVariable> animation) {
-                auto* scaleAnimation = static_cast<CAnimatedVariable<float>*>(animation.get());
-                if (scaleAnimation)
-                    *scaleAnimation = 1.F;
-            });
-            return;
-        }
-
         if (startScale >= 1.F) {
             stopAnimation();
             return;
@@ -214,7 +201,6 @@ namespace {
         g_focusListener.reset();
         g_destroyListener.reset();
         stopAnimation();
-        g_lastFocusTrigger = {};
         disableAnimationLeaf();
     }
 
@@ -252,7 +238,14 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     if (!HyprlandAPI::addLuaFunction(handle, "focus_animation", "prepare", prepareAnimationLeafLua))
         throw std::runtime_error("focus-animation: failed to register Lua function");
 
-    g_focusListener = Event::bus()->m_events.window.active.listen([](PHLWINDOW window, Desktop::eFocusReason) { animateFocus(window); });
+    g_focusListener = Event::bus()->m_events.window.active.listen([](PHLWINDOW window, Desktop::eFocusReason reason) {
+        if (!shouldAnimateFocus(reason)) {
+            stopAnimation();
+            return;
+        }
+
+        animateFocus(window);
+    });
     g_destroyListener = Event::bus()->m_events.window.destroy.listen([](PHLWINDOWREF window) {
         const auto current = g_window.lock();
         const auto closing = window.lock();
@@ -265,7 +258,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
         "focus-animation",
         "Animate focused windows through a native Hyprland animation leaf",
         "local",
-        "0.1.8",
+        "0.1.10",
     };
 }
 
