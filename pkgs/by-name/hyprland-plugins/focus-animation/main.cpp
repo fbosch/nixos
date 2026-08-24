@@ -8,6 +8,8 @@
 
 #include <algorithm>
 #include <charconv>
+#include <chrono>
+#include <cmath>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -23,6 +25,9 @@ namespace {
     constexpr auto        EXPECTED_HYPRLAND_COMMIT = GIT_COMMIT_HASH;
     constexpr const char* FOCUS_ANIMATION_LEAF     = "windowsFocus";
     constexpr float       DEFAULT_START_SCALE      = 0.96F;
+    constexpr float       MINIMUM_SCALE            = 0.5F;
+    constexpr float       MAXIMUM_SCALE            = 1.2F;
+    constexpr auto        RAPID_FOCUS_INTERVAL     = std::chrono::milliseconds{120};
 
     using SAnimationPropertyConfig = Hyprutils::Animation::SAnimationPropertyConfig;
     using AnimationConfigMap       = std::unordered_map<std::string, SP<SAnimationPropertyConfig>>;
@@ -31,6 +36,7 @@ namespace {
     CHyprSignalListener g_destroyListener;
     PHLWINDOWREF        g_window;
     PHLANIMVAR<float>   g_scale;
+    std::chrono::steady_clock::time_point g_lastFocusTrigger;
 
     SP<SAnimationPropertyConfig> prepareAnimationLeaf() {
         // Hyprland has no plugin API for adding animation leaves. Plugins are
@@ -55,9 +61,10 @@ namespace {
         return focus;
     }
 
-    void removeAnimationLeaf() {
-        auto& animations = const_cast<AnimationConfigMap&>(Config::animationTree()->getAnimationConfig());
-        animations.erase(FOCUS_ANIMATION_LEAF);
+    void disableAnimationLeaf() {
+        const auto focus = Config::animationTree()->getAnimationPropertyConfig(FOCUS_ANIMATION_LEAF);
+        if (focus)
+            focus->internalEnabled = 0;
     }
 
     float startScaleFromStyle(std::string_view style) {
@@ -72,14 +79,14 @@ namespace {
         if (separator == std::string_view::npos || separator + 1 >= percent)
             return DEFAULT_START_SCALE;
 
-        int         value = 0;
+        float       value = 0.F;
         const auto* begin = style.data() + separator + 1;
         const auto* end   = style.data() + percent;
         const auto [position, error] = std::from_chars(begin, end, value);
-        if (error != std::errc{} || position != end)
+        if (error != std::errc{} || position != end || !std::isfinite(value))
             return DEFAULT_START_SCALE;
 
-        return std::clamp(value / 100.F, 0.5F, 1.F);
+        return std::clamp(value / 100.F, MINIMUM_SCALE, MAXIMUM_SCALE);
     }
 
     void restoreWindowGeometry() {
@@ -127,7 +134,7 @@ namespace {
 
         const auto goalPosition = position->goal();
         const auto goalSize     = size->goal();
-        const auto scale        = std::clamp(scaleAnimation->value(), 0.5F, 1.2F);
+        const auto scale        = std::clamp(scaleAnimation->value(), MINIMUM_SCALE, MAXIMUM_SCALE);
         const auto scaledSize   = goalSize * scale;
 
         size->value()     = scaledSize;
@@ -135,9 +142,24 @@ namespace {
     }
 
     void animateFocus(PHLWINDOW window) {
+        if (!validMapped(window) || window->isHidden()) {
+            stopAnimation();
+            return;
+        }
+
+        // Cross-monitor cursor warps can re-emit focus for the same window;
+        // preserve its in-flight feedback instead of cancelling it early.
+        const auto animatedWindow = g_window.lock();
+        if (animatedWindow && animatedWindow == window)
+            return;
+
         stopAnimation();
 
-        if (!validMapped(window) || window->isHidden())
+        const auto now = std::chrono::steady_clock::now();
+        const auto isRapidFocus = g_lastFocusTrigger != std::chrono::steady_clock::time_point{} &&
+            now - g_lastFocusTrigger < RAPID_FOCUS_INTERVAL;
+        g_lastFocusTrigger = now;
+        if (isRapidFocus)
             return;
 
         auto& position = window->positionAnimation();
@@ -159,6 +181,16 @@ namespace {
         }
 
         const auto startScale = startScaleFromStyle(g_scale->getStyle());
+        if (startScale > 1.F) {
+            *g_scale = startScale;
+            g_scale->setCallbackOnEnd([](WP<Hyprutils::Animation::CBaseAnimatedVariable> animation) {
+                auto* scaleAnimation = static_cast<CAnimatedVariable<float>*>(animation.get());
+                if (scaleAnimation)
+                    *scaleAnimation = 1.F;
+            });
+            return;
+        }
+
         if (startScale >= 1.F) {
             stopAnimation();
             return;
@@ -178,7 +210,8 @@ namespace {
         g_focusListener.reset();
         g_destroyListener.reset();
         stopAnimation();
-        removeAnimationLeaf();
+        g_lastFocusTrigger = {};
+        disableAnimationLeaf();
     }
 
     class CPluginInitializationGuard final {
@@ -228,7 +261,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
         "focus-animation",
         "Animate focused windows through a native Hyprland animation leaf",
         "local",
-        "0.1.0",
+        "0.1.7",
     };
 }
 
