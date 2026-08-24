@@ -21,7 +21,14 @@
       wl-clip-persist
       wtype
       xdotool
-      swaynotificationcenter
+      (swaynotificationcenter.overrideAttrs (old: {
+        postPatch = (old.postPatch or "") + ''
+          substituteInPlace data/ui/notification.blp \
+            --replace-fail \
+            $'                Overlay {\n                  halign: center;\n                  valign: center;' \
+            $'                Overlay {\n                  halign: center;\n                  valign: start;\n\n                  styles [\n                    "notification-image-overlay",\n                  ]'
+        '';
+      }))
       libnotify
       swayosd
       gsettings-desktop-schemas
