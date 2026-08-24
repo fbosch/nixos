@@ -271,6 +271,18 @@ void main() {
         return blendEquationFor(g_blendMode->value()).value_or(DEFAULT_BLEND_MODE.equation);
     }
 
+    constexpr bool sourceOverEquivalentForSolidBlack(GLenum equation) {
+        return equation == GL_MULTIPLY_KHR || equation == GL_DARKEN_KHR || equation == GL_HARDLIGHT_KHR;
+    }
+
+    bool isSolidBlack(const Config::CGradientValueData& color) {
+        if (color.m_colors.size() != 1)
+            return false;
+
+        const auto& solid = color.m_colors.front();
+        return solid.r == 0.0 && solid.g == 0.0 && solid.b == 0.0;
+    }
+
     float normalizedGradientAngle(float angle) {
         if (!std::isfinite(angle))
             return 0.F;
@@ -531,8 +543,13 @@ void main() {
                 return false;
 
             const auto imageDescription = renderData.currentFB->imageDescription();
-            if (!imageDescription || imageDescription->value().transferFunction != NColorManagement::CM_TRANSFER_FUNCTION_GAMMA22 ||
-                imageDescription->value().getPrimaries() != NColorManagement::getPrimaries(NColorManagement::CM_PRIMARIES_SRGB))
+            if (!imageDescription)
+                return false;
+
+            const auto& description = imageDescription->value();
+            if ((description.transferFunction != NColorManagement::CM_TRANSFER_FUNCTION_GAMMA22 &&
+                 description.transferFunction != NColorManagement::CM_TRANSFER_FUNCTION_SRGB) ||
+                description.getPrimaries() != NColorManagement::getPrimaries(NColorManagement::CM_PRIMARIES_SRGB))
                 return false;
 
             return !(renderData.pMonitor->needsUnmodifiedCopy() && renderData.currentFB->getMirrorTexture());
@@ -653,7 +670,8 @@ void main() {
                 glBindVertexArray(0);
             }};
             glBindVertexArray(shader->getUniformLocation(SHADER_SHADER_VAO));
-            glBlendEquation(blendEquation());
+            const auto equation = blendEquation();
+            glBlendEquation(isSolidBlack(color) && sourceOverEquivalentForSolidBlack(equation) ? GL_FUNC_ADD : equation);
             drawRegion.forEachRect([](const auto& rect) {
                 g_pHyprOpenGL->scissor(&rect, g_pHyprRenderer->m_renderData.transformDamage);
                 glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
@@ -735,7 +753,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
         "adaptive-soft-shadow",
         "Draw backdrop-adaptive soft-light window shadows",
         "local",
-        "0.2.1",
+        "0.2.2",
     };
 }
 

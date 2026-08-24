@@ -11,7 +11,7 @@ let
 in
 pkgs.gcc16Stdenv.mkDerivation {
   pname = "adaptive-soft-shadow";
-  version = "0.2.1";
+  version = "0.2.2";
 
   src = ./.;
 
