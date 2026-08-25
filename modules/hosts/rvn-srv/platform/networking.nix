@@ -20,6 +20,16 @@
       }
     ];
 
+    # Bonded network topology:
+    #
+    #   enp2s0 ─┐
+    #           ├──> bond0 (balance-xor, layer3+4 hash)
+    #   enp3s0 ─┘           │
+    #                       ├──> 192.168.1.46/24
+    #                       ├──> gateway 192.168.1.1
+    #                       └──> host DNS servers
+    #
+    #   bond0 carrier is required before the host is considered online.
     systemd.network = {
       enable = true;
 

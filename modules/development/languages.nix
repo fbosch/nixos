@@ -8,7 +8,6 @@ let
       environment.systemPackages = with pkgs; [
         clang
         go
-        rustc
         rustup
         zig
         luaWithSocket

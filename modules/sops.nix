@@ -34,6 +34,26 @@ let
     ;
 in
 {
+  # SOPS materialization boundaries:
+  #
+  #                       apis
+  #                         │
+  #                         v
+  #   common ─────┬──> Home Manager (Linux + Darwin)
+  #               │      key: ~/.config/sops/age/keys.txt
+  #               │      user secrets + nix token template
+  #               │
+  #               ├──> NixOS
+  #               │      key: /var/lib/sops-nix/key.txt
+  #               │      root/user ownership policies
+  #               │      root-only nix token ──> nix.extraOptions
+  #               │
+  #               └──> Darwin
+  #                      key: /var/lib/sops-nix/key.txt
+  #                      root/user ownership policies
+  #                      ├─ root-only nix token ──> nix.extraOptions
+  #                      └─ user-owned SMB credentials
+  #
   flake.modules = {
     homeManager = {
       # Home Manager SOPS module - works on both NixOS and Darwin

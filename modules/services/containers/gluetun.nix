@@ -105,6 +105,28 @@ in
         };
       };
 
+      # Gluetun service flow:
+      #
+      #   host options                    container SOPS secrets
+      #        │                                   │
+      #        │                                   v
+      #        │                         root-only gluetun-env
+      #        │                                   │
+      #        └─────────────────┬─────────────────┘
+      #                          v
+      #               gluetun.container Quadlet
+      #                          │ essential startup tier
+      #                          v
+      #                   gluetun.service
+      #              ┌───────────┼───────────┐
+      #              v           v           v
+      #         HTTP proxy   control API   Mullvad WireGuard
+      #                        (optional)       tunnel
+      #              │           │
+      #              └─────┬─────┘
+      #                    v
+      #       address bindings + port registry + firewall
+      #
       config = {
         services = {
           startupPolicy.applications.vpn = {

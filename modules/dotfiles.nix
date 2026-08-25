@@ -15,16 +15,38 @@ let
       DOTFILES_BOOTSTRAP_URL = lib.escapeShellArg flakeConfig.flake.meta.dotfiles.url;
       stowFlags = "--restow --verbose";
     in
-    # Manages dotfiles via git clone + GNU Stow.
-      # The flake revision is used only to bootstrap an absent checkout. Existing
-      # checkouts remain mutable and are reconciled by git_pull_system_repos.
     {
       home.packages = with pkgs; [
         stow
       ];
       home.activation = {
-        # Bootstrap after Home Manager creates its links, then restow only when
-        # the generation changed or bootstrap created the checkout.
+        # Dotfiles activation flow:
+        #
+        #   Home Manager creates its links
+        #                │
+        #                v
+        #         checkout exists?
+        #          ┌─────┴─────┐
+        #         no          yes
+        #          │            │
+        #          v            v
+        #   clone + checkout   independent Git root?
+        #   flake revision       ┌────┴────┐
+        #          │            no        yes
+        #          │             │          │
+        #          │             v          v
+        #          │           refuse   preserve mutable checkout
+        #          │                        │
+        #          └───────────┬────────────┘
+        #                      v
+        #       generation changed or bootstrapped?
+        #                ┌─────┴─────┐
+        #               yes         no
+        #                │           │
+        #                v           v
+        #        GNU Stow checkout  skip restow
+        #
+        # Existing checkouts are reconciled separately by git_pull_system_repos.
         dotfiles = lib.hm.dag.entryAfter [ "writeBoundary" "linkGeneration" ] ''
           set -euo pipefail
 
