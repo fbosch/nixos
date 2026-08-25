@@ -11,7 +11,7 @@ let
 in
 pkgs.gcc16Stdenv.mkDerivation {
   pname = "custom-layout-resize";
-  version = "0.3.0";
+  version = "0.3.1";
 
   src = ./.;
 
