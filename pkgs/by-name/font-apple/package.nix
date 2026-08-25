@@ -2,7 +2,7 @@
 
 pkgs.stdenvNoCC.mkDerivation {
   pname = "font-apple";
-  version = "18.4";
+  version = "26.2.1";
 
   dontUnpack = true;
 

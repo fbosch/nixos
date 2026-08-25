@@ -101,7 +101,7 @@ namespace {
             return active;
 
         if (target != active)
-            Desktop::focusState()->fullWindowFocus(target, Desktop::FOCUS_REASON_DISPATCH_FOCUSWINDOW);
+            Desktop::focusState()->fullWindowFocus(target, Desktop::FOCUS_REASON_CLICK);
 
         return target;
     }
@@ -197,7 +197,7 @@ namespace {
         if (!plan)
             return;
 
-        Desktop::focusState()->fullWindowFocus(candidate, Desktop::FOCUS_REASON_DISPATCH_FOCUSWINDOW);
+        Desktop::focusState()->fullWindowFocus(candidate, Desktop::FOCUS_REASON_CLICK);
 
         g_session.axis       = plan->axis;
         g_session.command    = plan->command;
@@ -332,7 +332,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
         "custom-layout-resize",
         "Drive custom-layout drag resize from native Hyprland pointer state",
         "local",
-        "0.3.0",
+        "0.3.1",
     };
 }
 

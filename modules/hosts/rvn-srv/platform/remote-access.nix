@@ -14,8 +14,14 @@
         ignoreIP = [
           "127.0.0.1/8"
           "::1"
-          "192.168.1.0/24"
-          "100.64.0.0/10"
+          # Admin machines only (see flake.meta.hosts): rvn-pc and rvn-mac.
+          "192.168.1.169"
+          "100.124.57.90"
+          "192.168.167.54"
+          "100.118.36.81"
+          # Synology reverse proxy terminates public HTTPS for hosted services;
+          # banning its source IP would cut off external access.
+          "192.168.1.2"
         ];
       };
 

@@ -1,0 +1,55 @@
+diff --git a/include/AModule.hpp b/include/AModule.hpp
+index 557a3a9..63f36ea 100644
+--- a/include/AModule.hpp
++++ b/include/AModule.hpp
+@@ -52,8 +52,10 @@ class AModule : public IModule {
+
+  private:
+   bool handleUserEvent(GdkEventButton* const& ev);
++  void runHoverCommand(const char* config_key);
+   const bool isTooltip;
+   const bool isExpand;
++  gint64 hover_sequence_ = 0;
+   bool hasUserEvents_;
+   gdouble distance_scrolled_y_;
+   gdouble distance_scrolled_x_;
+diff --git a/src/AModule.cpp b/src/AModule.cpp
+index b8bfdde..a638dbd 100644
+--- a/src/AModule.cpp
++++ b/src/AModule.cpp
+@@ -123,7 +123,26 @@ void AModule::setCursor(Gdk::CursorType const& c) {
+   }
+ }
+
++void AModule::runHoverCommand(const char* config_key) {
++  if (!config_[config_key].isString()) return;
++
++  auto sequence = g_get_monotonic_time();
++  if (sequence <= hover_sequence_) sequence = hover_sequence_ + 1;
++  hover_sequence_ = sequence;
++
++  auto command = config_[config_key].asString();
++  const std::string placeholder{"{sequence}"};
++  const auto replacement = std::to_string(sequence);
++  for (auto position = command.find(placeholder); position != std::string::npos;
++       position = command.find(placeholder, position + replacement.size())) {
++    command.replace(position, placeholder.size(), replacement);
++  }
++  pid_children_.push_back(util::command::forkExec(command));
++}
++
+ bool AModule::handleMouseEnter(GdkEventCrossing* const& e) {
++  if (e->detail != GDK_NOTIFY_INFERIOR) runHoverCommand("on-hover");
++
+   if (auto* module = event_box_.get_child(); module != nullptr) {
+     module->set_state_flags(Gtk::StateFlags::STATE_FLAG_PRELIGHT);
+   }
+@@ -136,6 +155,8 @@ bool AModule::handleMouseEnter(GdkEventCrossing* const& e) {
+ }
+
+ bool AModule::handleMouseLeave(GdkEventCrossing* const& e) {
++  if (e->detail != GDK_NOTIFY_INFERIOR) runHoverCommand("on-hover-lost");
++
+   if (auto* module = event_box_.get_child(); module != nullptr) {
+     module->unset_state_flags(Gtk::StateFlags::STATE_FLAG_PRELIGHT);
+   }

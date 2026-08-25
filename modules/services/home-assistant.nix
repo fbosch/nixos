@@ -78,10 +78,10 @@
               http = {
                 server_port = 8123;
                 use_x_forwarded_for = true;
+                # Loopback only: no on-host reverse proxy fronts HA directly.
                 trusted_proxies = [
                   "127.0.0.1"
                   "::1"
-                  "192.168.1.0/24"
                 ];
               };
 

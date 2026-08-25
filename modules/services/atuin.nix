@@ -33,7 +33,7 @@
             host = lib.mkDefault "0.0.0.0";
             port = lib.mkDefault port;
             openFirewall = lib.mkDefault true;
-            openRegistration = lib.mkDefault true;
+            openRegistration = lib.mkDefault false;
             database.createLocally = lib.mkDefault true;
           };
         }

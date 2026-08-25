@@ -1,6 +1,6 @@
 { config, ... }:
 let
-  inherit (config.flake.lib) startupPolicy;
+  inherit (config.flake.lib) sopsFiles startupPolicy;
 in
 {
   flake.modules.nixos."services/containers/dozzle" =
@@ -11,6 +11,8 @@ in
     }:
     let
       cfg = config.services.dozzle;
+      effectiveUsersFile = lib.attrByPath [ "sops" "secrets" "dozzle-users" "path" ] null config;
+      useSimpleAuth = cfg.authProvider == "simple";
     in
     {
       options.services.dozzle = {
@@ -52,8 +54,11 @@ in
               "none"
             ]
           );
-          default = null;
-          description = "Authentication provider: simple (file-based), forward-proxy (e.g., Authelia), or none";
+          default = "simple";
+          description = ''
+            Authentication provider: simple (file-based), forward-proxy (e.g., Authelia),
+            or none. Defaults to simple; unauthenticated access requires an explicit opt-out.
+          '';
         };
 
         noAnalytics = lib.mkOption {
@@ -128,10 +133,13 @@ in
 
                 [Container]
                 ContainerName=dozzle
-                Image=docker.io/amir20/dozzle:v10.7.3
+                Image=docker.io/amir20/dozzle:v10.7.4
                 PublishPort=${toString cfg.port}:8080
                 Volume=/run/podman/podman.sock:/var/run/docker.sock:ro
                 Volume=/var/lib/docker/engine-id:/var/lib/docker/engine-id:ro
+                ${lib.optionalString useSimpleAuth ''
+                  Volume=${effectiveUsersFile}:/data/users.yml:ro
+                ''}
                 HealthCmd=none
                 ${envVars}
                 Memory=256m
@@ -154,6 +162,13 @@ in
         };
 
         networking.firewall.allowedTCPPorts = [ cfg.port ];
+
+        # users.yml for the simple auth provider (bcrypt hashes), rendered
+        # from SOPS and mounted read-only at /data/users.yml.
+        sops.secrets.dozzle-users = lib.mkIf useSimpleAuth {
+          mode = "0400";
+          sopsFile = sopsFiles.containers;
+        };
       };
     };
 }

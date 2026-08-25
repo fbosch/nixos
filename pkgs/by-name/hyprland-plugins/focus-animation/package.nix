@@ -10,8 +10,8 @@ let
   hyprland = inputs.hyprland.packages.${stdenv.hostPlatform.system}.hyprland;
 in
 pkgs.gcc16Stdenv.mkDerivation {
-  pname = "custom-layout-resize";
-  version = "0.3.1";
+  pname = "focus-animation";
+  version = "0.1.10";
 
   src = ./.;
 
@@ -24,12 +24,12 @@ pkgs.gcc16Stdenv.mkDerivation {
 
   installPhase = ''
     runHook preInstall
-    install -Dm755 libcustom-layout-resize.so $out/lib/libcustom-layout-resize.so
+    install -Dm755 libfocus-animation.so $out/lib/libfocus-animation.so
     runHook postInstall
   '';
 
   meta = {
-    description = "Native pointer-driven drag resize for custom Hyprland Lua layouts";
+    description = "Native focus animation leaf for Hyprland";
     license = pkgs.lib.licenses.mit;
     maintainers = [ ];
     platforms = [ "x86_64-linux" ];

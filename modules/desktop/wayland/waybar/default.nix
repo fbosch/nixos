@@ -3,6 +3,7 @@
     environment.systemPackages = [
       (pkgs.waybar.overrideAttrs (old: {
         patches = (old.patches or [ ]) ++ [
+          ./patches/waybar-module-hover-commands.patch
           ./patches/waybar-slide-visibility.patch
           ./patches/waybar-taskbar-truncate.patch
           ./patches/waybar-taskbar-icon-resolution.patch

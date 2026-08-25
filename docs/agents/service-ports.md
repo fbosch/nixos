@@ -25,7 +25,7 @@ Declared exposed ports for `rvn-srv` are linted against this document.
 | tailscale-relay           | `40000/udp`                    | DERP relay server port       |
 | helium-services-container | `8100/tcp`                     | Helium service HTTP port     |
 | linkwarden-container      | `3100/tcp`                     | Web UI                       |
-| komodo                    | `9120/tcp`, `8120/tcp`         | Core UI + periphery          |
+| komodo                    | `9120/tcp`                     | Core UI (periphery is container-network only) |
 | rdtclient                 | `6500/tcp`                     | Web UI/API                   |
 | flaresolverr-container    | `8191/tcp`                     | FlareSolverr API             |
 | speedtest-tracker         | `8085/tcp`                     | Web UI                       |
