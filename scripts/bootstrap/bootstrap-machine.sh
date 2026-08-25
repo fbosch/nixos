@@ -4,6 +4,7 @@ set -euo pipefail
 repo="fbosch/nixos"
 target_dir="$HOME/nixos"
 default_host_name="$(tr -d '\n' </etc/hostname)"
+github_device_url="https://github.com/login/device?skip_account_picker=true"
 
 validate_name() {
   local value="$1"
@@ -168,14 +169,25 @@ else
 fi
 
 if [ "$reuse_existing_repo" = "false" ]; then
-  gum style --foreground 244 ""
-  gum style --foreground 244 "Authenticating GitHub CLI (device flow)."
-  gum style --foreground 244 "Use the printed code on another device (phone/laptop)."
-  gum style --foreground 244 "Open: https://github.com/login/device?skip_account_picker=true"
-
   if gh auth status >/dev/null 2>&1; then
     gum style --foreground 2 "GitHub CLI already authenticated."
   else
+    gum style --foreground 244 ""
+    gum style --foreground 244 "Authenticating GitHub CLI (device flow)."
+    gum style --foreground 244 "Use the printed code on another device (phone/laptop)."
+    gum style --foreground 244 "Open: $github_device_url"
+
+    if [ -t 1 ] && [ "${TERM:-dumb}" != "dumb" ] && command -v qrencode >/dev/null 2>&1; then
+      if ! qrencode \
+        --type=ANSIUTF8 \
+        --level=M \
+        --margin=4 \
+        --output=- \
+        -- "$github_device_url"; then
+        gum style --foreground 3 "QR rendering failed; open the URL above manually."
+      fi
+    fi
+
     gh auth login --git-protocol ssh --web --skip-ssh-key --scopes admin:public_key
   fi
 
