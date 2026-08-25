@@ -2,15 +2,6 @@
   flake.modules.nixos."hosts/rvn-srv/platform" =
     { lib, pkgs, ... }:
     let
-      nasRecoveryMountUnits = [
-        "mnt-nas-video.mount"
-        "mnt-nas-LaCie.mount"
-      ];
-      nasRecoveryAutomountUnits = [
-        "mnt-nas-video.automount"
-        "mnt-nas-LaCie.automount"
-      ];
-      nasRecoveryUnits = nasRecoveryMountUnits ++ nasRecoveryAutomountUnits;
       plexNasMountRecovery = pkgs.writeShellApplication {
         name = "plex-nas-mount-recovery";
         runtimeInputs = with pkgs; [
@@ -18,53 +9,7 @@
           coreutils
           systemd
         ];
-        text = ''
-          set -euo pipefail
-
-          units=(${lib.escapeShellArgs nasRecoveryUnits})
-          mount_units=(${lib.escapeShellArgs nasRecoveryMountUnits})
-          automount_units=(${lib.escapeShellArgs nasRecoveryAutomountUnits})
-          failed=()
-
-          for unit in "''${units[@]}"; do
-            result=$(systemctl show --property=Result --value "$unit")
-            if systemctl is-failed --quiet "$unit" || [ "$result" != success ]; then
-              failed+=("$unit")
-            fi
-          done
-
-          if [ "''${#failed[@]}" -eq 0 ]; then
-            echo "No failed Plex NAS mount units."
-            exit 0
-          fi
-
-          stamp=/run/plex-nas-mount-recovery.last
-          now=$(date +%s)
-          if [ -e "$stamp" ]; then
-            last=$(stat -c %Y "$stamp")
-            elapsed=$((now - last))
-            if [ "$elapsed" -lt 300 ]; then
-              echo "Skipping Plex NAS mount recovery; last attempt was ''${elapsed}s ago."
-              exit 0
-            fi
-          fi
-
-          if ! bash -c 'exec 3<>/dev/tcp/rvn-nas/445' 2>/dev/null; then
-            echo "Skipping Plex NAS mount recovery; rvn-nas:445 is unreachable."
-            exit 0
-          fi
-
-          touch "$stamp"
-          echo "Recovering failed Plex NAS units: ''${failed[*]}"
-          systemctl reset-failed "''${failed[@]}"
-          systemctl start "''${automount_units[@]}"
-
-          for unit in "''${mount_units[@]}"; do
-            systemctl start "$unit"
-          done
-
-          systemctl --no-pager --full status "''${units[@]}" || true
-        '';
+        text = builtins.readFile ./scripts/plex-nas-mount-recovery.sh;
       };
       recoverPlexMounts = pkgs.writeShellApplication {
         name = "recover-plex-mounts";
