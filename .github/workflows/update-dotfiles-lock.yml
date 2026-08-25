@@ -1,0 +1,41 @@
+name: Update adaptive shadow dotfiles lock
+
+on:
+  push:
+    branches:
+      - fix/adaptive-soft-shadow-plugin-handoff
+    paths:
+      - .github/workflows/update-dotfiles-lock.yml
+
+permissions:
+  contents: write
+
+env:
+  NIX_CONFIG: |
+    extra-experimental-features = nix-command flakes
+
+jobs:
+  update-lock:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: ./.github/actions/setup-nix
+        with:
+          cachix-name: fbosch
+          cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
+      - name: Update dotfiles input
+        run: >-
+          nix flake lock
+          --update-input dotfiles
+          --override-input dotfiles github:fbosch/dotfiles/664bfde396321d4a0f57cc0d20cb16e02c61282d
+
+      - name: Commit lock file
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- flake.lock
+          git diff --cached --quiet || git commit -m "chore(deps): update dotfiles lock"
+          git push
