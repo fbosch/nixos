@@ -1,3 +1,21 @@
+{ config
+, lib
+, ...
+}:
+let
+  adminHosts = config.flake.meta.hosts;
+  nasAddress = config.flake.meta.nas.ipAddress;
+  trustedAddresses = lib.filter (address: address != null && address != "") [
+    # Admin machines only.
+    adminHosts.rvn-pc.local
+    adminHosts.rvn-pc.tailscale
+    adminHosts.rvn-mac.local
+    adminHosts.rvn-mac.tailscale
+    # Synology reverse proxy terminates public HTTPS for hosted services;
+    # banning its source IP would cut off external access.
+    nasAddress
+  ];
+in
 {
   flake.modules.nixos."hosts/rvn-srv/platform" = {
     services = {
@@ -14,15 +32,8 @@
         ignoreIP = [
           "127.0.0.1/8"
           "::1"
-          # Admin machines only (see flake.meta.hosts): rvn-pc and rvn-mac.
-          "192.168.1.169"
-          "100.124.57.90"
-          "192.168.167.54"
-          "100.118.36.81"
-          # Synology reverse proxy terminates public HTTPS for hosted services;
-          # banning its source IP would cut off external access.
-          "192.168.1.2"
-        ];
+        ]
+        ++ trustedAddresses;
       };
 
       openssh = {
