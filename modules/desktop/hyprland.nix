@@ -80,6 +80,7 @@
               GSK_RENDERER = "ngl";
               ADW_DEBUG_COLOR_SCHEME = "prefer-dark";
               WLR_NO_HARDWARE_CURSORS = "1";
+              HYPR_ADAPTIVE_SOFT_SHADOW_PLUGIN = "${adaptiveSoftShadowPlugin}/lib/libadaptive-soft-shadow.so";
               HYPR_CURSOR_OUTLINE_PLUGIN = "${cursorOutlinePlugin}/lib/libcursor-outline.so";
               HYPR_CUSTOM_LAYOUT_RESIZE_PLUGIN = "${customLayoutResizePlugin}/lib/libcustom-layout-resize.so";
               HYPR_FOCUS_ANIMATION_PLUGIN = "${focusAnimationPlugin}/lib/libfocus-animation.so";
