@@ -110,6 +110,28 @@ in
         };
       };
 
+      # Komodo service topology:
+      #
+      #   SOPS DB credentials + optional admin/passkey paths
+      #                         │
+      #                         v
+      #            /etc/komodo/compose.env ──> Mongo + Core
+      #   optional passkey file ──────────────> Periphery authentication
+      #
+      #                 komodo.network (private DNS)
+      #              ┌──────────┼──────────┐
+      #              v          v          v
+      #         requires / DB         private API
+      #   Mongo <──────────── Core ─────────────> Periphery
+      #   :27017              :9120                :8120
+      #      │                  │                    │
+      #      v                  v                    v
+      #   persistent     host cfg.core.port   writable Podman socket
+      #     volumes                            (no published port)
+      #
+      #   startup-policy-app-komodo.target (background)
+      #               └──> all three Quadlet services
+      #
       config = {
         services.startupPolicy.applications.komodo = {
           tier = lib.mkDefault "background";
