@@ -39,6 +39,7 @@
           gum
           nix
           openssh
+          qrencode
         ];
         text = builtins.readFile ../../scripts/bootstrap/bootstrap-machine.sh;
       };

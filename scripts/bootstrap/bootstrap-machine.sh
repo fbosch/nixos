@@ -3,7 +3,6 @@ set -euo pipefail
 
 repo="fbosch/nixos"
 target_dir="$HOME/nixos"
-default_host_name="$(tr -d '\n' </etc/hostname)"
 github_device_url="https://github.com/login/device?skip_account_picker=true"
 
 validate_name() {
@@ -98,12 +97,53 @@ validate_generated_module() {
   exit 1
 }
 
+render_github_device_qr() {
+  if ! qrencode \
+    --type=ANSIUTF8 \
+    --level=M \
+    --margin=4 \
+    --output=- \
+    -- "$github_device_url"; then
+    gum style --foreground 3 "QR rendering failed; open the URL above manually."
+  fi
+}
+
+show_github_device_qr() {
+  if [ -t 1 ] && [ "${TERM:-dumb}" != "dumb" ] && command -v qrencode >/dev/null 2>&1; then
+    render_github_device_qr
+  fi
+}
+
+authenticate_github_cli() {
+  if gh auth status >/dev/null 2>&1; then
+    gum style --foreground 2 "GitHub CLI already authenticated."
+  else
+    gum style --foreground 244 ""
+    gum style --foreground 244 "Authenticating GitHub CLI (device flow)."
+    gum style --foreground 244 "Use the printed code on another device (phone/laptop)."
+    gum style --foreground 244 "Open: $github_device_url"
+    show_github_device_qr
+    gh auth login --git-protocol ssh --web --skip-ssh-key --scopes admin:public_key
+  fi
+
+  if gh auth token >/dev/null 2>&1; then
+    if gh api user/keys --jq '.[0].id' >/dev/null 2>&1; then
+      :
+    else
+      gum style --foreground 244 "Refreshing GitHub auth scopes for SSH key management."
+      gh auth refresh -h github.com -s admin:public_key
+    fi
+  fi
+}
+
 if [ "${BOOTSTRAP_MACHINE_LIB_ONLY:-false}" = "true" ]; then
   if [ "${BASH_SOURCE[0]}" != "$0" ]; then
     return 0
   fi
   exit 0
 fi
+
+default_host_name="$(tr -d '\n' </etc/hostname)"
 
 reuse_existing_repo="false"
 if [ -d "$target_dir" ]; then
@@ -169,36 +209,7 @@ else
 fi
 
 if [ "$reuse_existing_repo" = "false" ]; then
-  if gh auth status >/dev/null 2>&1; then
-    gum style --foreground 2 "GitHub CLI already authenticated."
-  else
-    gum style --foreground 244 ""
-    gum style --foreground 244 "Authenticating GitHub CLI (device flow)."
-    gum style --foreground 244 "Use the printed code on another device (phone/laptop)."
-    gum style --foreground 244 "Open: $github_device_url"
-
-    if [ -t 1 ] && [ "${TERM:-dumb}" != "dumb" ] && command -v qrencode >/dev/null 2>&1; then
-      if ! qrencode \
-        --type=ANSIUTF8 \
-        --level=M \
-        --margin=4 \
-        --output=- \
-        -- "$github_device_url"; then
-        gum style --foreground 3 "QR rendering failed; open the URL above manually."
-      fi
-    fi
-
-    gh auth login --git-protocol ssh --web --skip-ssh-key --scopes admin:public_key
-  fi
-
-  if gh auth token >/dev/null 2>&1; then
-    if gh api user/keys --jq '.[0].id' >/dev/null 2>&1; then
-      :
-    else
-      gum style --foreground 244 "Refreshing GitHub auth scopes for SSH key management."
-      gh auth refresh -h github.com -s admin:public_key
-    fi
-  fi
+  authenticate_github_cli
 
   gum style --foreground 244 ""
   gum style --foreground 244 "Cloning $repo into $target_dir"
