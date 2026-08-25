@@ -59,6 +59,7 @@
       pre-commit = {
         check.enable = true;
         settings = {
+          install.enable = false;
           excludes = [
             "^\.?/?\.agents/"
             "^\.?/?\.opencode/skills/"
@@ -161,14 +162,21 @@
           ++ [ config.treefmt.build.wrapper ]
           ++ lib.attrValues config.treefmt.build.programs;
         shellHook = ''
-          ${config.pre-commit.installationScript}
+          repo_root=$(git rev-parse --show-toplevel)
+          config_path="$repo_root/.pre-commit-config.yaml"
+          hooks_dir=$(git rev-parse --path-format=absolute --git-common-dir)/hooks
 
-          if [ ! -e .git/hooks/pre-commit-checks ]; then
-            mv .git/hooks/pre-commit .git/hooks/pre-commit-checks
+          if [ -L "$config_path" ]; then
+            ln -sfn "${config.pre-commit.settings.configFile}" "$config_path"
+          elif [ ! -e "$config_path" ]; then
+            ln -sn "${config.pre-commit.settings.configFile}" "$config_path"
+          else
+            echo "git-hooks.nix: refusing to replace existing $config_path" >&2
           fi
 
-           ln -sf "$(git rev-parse --show-toplevel)/scripts/dev/pre-commit-wrapper.sh" .git/hooks/pre-commit
-           ln -sf "$(git rev-parse --show-toplevel)/scripts/dev/pre-push-wrapper.sh" .git/hooks/pre-push
+          git config --local core.hooksPath "$hooks_dir"
+          ln -sf "$repo_root/scripts/dev/pre-commit-wrapper.sh" "$hooks_dir/pre-commit"
+          ln -sf "$repo_root/scripts/dev/pre-push-wrapper.sh" "$hooks_dir/pre-push"
         '';
       };
     };
