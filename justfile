@@ -8,107 +8,136 @@
 default:
     @just --list
 
+# Build the rvn-pc NixOS configuration
+[group('build')]
 build-pc:
     nh os build .#rvn-pc
 
+# Build the rvn-srv NixOS configuration
+[group('build')]
 build-srv:
     nh os build .#rvn-srv
 
 # Build custom container images for helium
+[group('build')]
 build-helium:
     sudo build-helium-images
 
 # Build all custom container images
+[group('build')]
 build-images: build-helium
 
 # Pre-pull the pinned PriceGhost PostgreSQL image before a server switch
+[group('build')]
 pull-priceghost-postgres:
     sudo podman pull "$(nix eval --raw --impure --expr 'let flake = builtins.getFlake (toString ./.); in flake.nixosConfigurations.rvn-srv.config.services."priceghost-container".postgresImage')"
 
 # Push a Nix closure to Attic (defaults to current host system)
-push-attic target='' jobs='3':
-    nix develop -c bash -euo pipefail -c 'if [ -n "{{target}}" ]; then nix path-info -r "{{target}}" | attic push --jobs "{{jobs}}" --no-closure nix-cache --stdin; else nix path-info -r ".#nixosConfigurations.$(hostname).config.system.build.toplevel" | attic push --jobs "{{jobs}}" --no-closure nix-cache --stdin; fi'
-
-# Collect read-only Atticd and SQLite lock diagnostics from rvn-srv's repository clone
-atticd-diagnose host='srv':
-    ssh -tt -o BatchMode=yes "{{host}}" 'bash ~/nixos/scripts/maintenance/atticd-diagnose.sh'
-
-# Run linter (statix, deadnix, treefmt, actionlint, shellcheck)
-lint:
-    nix run .#lint
-
-# Interactively inspect disk usage and reclaim Nix garbage or Trash contents
-cleanup-disk:
-    bash ./scripts/maintenance/cleanup-disk.sh
+[group('build')]
+push-attic $target='' $jobs='3':
+    nix develop -c bash -euo pipefail -c 'if [[ -z $target ]]; then target=".#nixosConfigurations.$(hostname).config.system.build.toplevel"; fi; nix path-info -r "$target" | attic push --jobs "$jobs" --no-closure nix-cache --stdin'
 
 # Validate documented service ports against rvn-srv declarations
+[group('checks')]
 check-service-ports:
     bash ./scripts/ci/check-service-ports.sh
 
-# Show local DNS resolver and service diagnostics
-dns-status domain='example.com':
-    bash ./scripts/network/dns-status.sh "{{domain}}"
-
-# Show network, DNS, and VPN health diagnostics
-network-status domain='example.com':
-    bash ./scripts/network/network-status.sh "{{domain}}"
-
-# Compare public Cloudflare DNS against the system resolver
-network-recovery-check domain='example.com':
-    bash ./scripts/network/network-recovery-check.sh "{{domain}}"
-
-# Align running Mullvad settings with services.mullvad-vpn.runtimeSettings, then verify DNS
-network-restore-dns domain='example.com':
-    bash ./scripts/network/network-restore-dns.sh "{{domain}}"
-
-# Restart local DNS services (Mullvad-aware), then verify public and system DNS
-network-restart-dns domain='example.com':
-    sudo bash ./scripts/network/network-recover.sh dns "{{domain}}"
-
-# Restart NetworkManager and local DNS services (Mullvad-aware), then verify connectivity
-network-reset domain='example.com':
-    sudo bash ./scripts/network/network-recover.sh full "{{domain}}"
-
 # Format all files
+[group('checks')]
 fmt:
-    nix develop -c treefmt --no-cache
+    nix run .#fmt -- --no-cache
 
-# Re-encrypt all secrets with current .sops.yaml recipients
-update-sops-keys:
-    bash ./scripts/maintenance/update-sops-keys.sh
+# Run linter (statix, deadnix, treefmt, actionlint, shellcheck)
+[group('checks')]
+lint:
+    nix run .#lint
 
-# Add/update current host age key in .sops.yaml and re-encrypt secrets
-update-host-age-key:
-    bash ./scripts/bootstrap/bootstrap-age.sh
+# Collect read-only Atticd and SQLite lock diagnostics from rvn-srv's repository clone
+[group('diagnostics')]
+atticd-diagnose $host='srv':
+    ssh -tt -o BatchMode=yes "$host" 'bash ~/nixos/scripts/maintenance/atticd-diagnose.sh'
 
-# Update GitHub avatar hash in flake metadata
-update-avatar:
-    bash ./scripts/maintenance/update-avatar.sh
-
-# Sync SDDM wallpaper from hyprpaper config
-sync-wallpaper config="$HOME/.config/hypr/hyprpaper.conf" output="$HOME/.local/share/wallpaper.png" monitor="DP-2":
-    bash ./scripts/desktop/sync-wallpaper.sh "{{config}}" "{{output}}" "{{monitor}}"
-
-# Update a local by-name package (optionally pass a package name)
-update-local-package package='':
-    if [ -n "{{package}}" ]; then bash ./scripts/packages/update-local-package.sh "{{package}}"; else bash ./scripts/packages/update-local-package.sh; fi
+# Interactively inspect disk usage and reclaim Nix garbage or Trash contents
+[group('maintenance')]
+cleanup-disk:
+    nix develop -c bash ./scripts/maintenance/cleanup-disk.sh
 
 # Download the Parakeet ONNX model used by hyprwhspr-rs
-download-hyprwhspr-parakeet target="$HOME/.local/share/hyprwhspr-rs/models/parakeet/parakeet-tdt-0.6b-v3-onnx":
-    bash ./scripts/desktop/download-hyprwhspr-parakeet-model.sh "{{target}}"
-
-# Register U2F key for current user (optionally set rp=pam://rvn-pc)
-setup-u2f rp='':
-    if [ -n "{{rp}}" ]; then bash ./scripts/maintenance/setup-u2f.sh "{{rp}}"; else bash ./scripts/maintenance/setup-u2f.sh; fi
+[group('maintenance')]
+download-hyprwhspr-parakeet $target='':
+    bash ./scripts/desktop/download-hyprwhspr-parakeet-model.sh ${target:+"$target"}
 
 # Rotate the encrypted GPG backup gist from the current local key
+[group('maintenance')]
 rotate-gpg-gist:
     nix run .#rotate-gpg-gist
 
 # Show the GPG gist rotation actions without writing to GitHub
+[group('maintenance')]
 rotate-gpg-gist-dry:
     nix run .#rotate-gpg-gist -- --dry-run
 
+# Sync SDDM wallpaper from hyprpaper config
+[group('maintenance')]
+sync-wallpaper $config='' $output='' $monitor='':
+    bash ./scripts/desktop/sync-wallpaper.sh "$config" "$output" "$monitor"
+
+# Update GitHub avatar hash in flake metadata
+[group('maintenance')]
+update-avatar:
+    bash ./scripts/maintenance/update-avatar.sh
+
+# Add/update current host age key in .sops.yaml and re-encrypt secrets
+[group('maintenance')]
+update-host-age-key:
+    bash ./scripts/bootstrap/bootstrap-age.sh
+
+# Update a local by-name package (optionally pass a package name)
+[group('maintenance')]
+update-local-package $package='':
+    bash ./scripts/packages/update-local-package.sh ${package:+"$package"}
+
+# Re-encrypt all secrets with current .sops.yaml recipients
+[group('maintenance')]
+update-sops-keys:
+    bash ./scripts/maintenance/update-sops-keys.sh
+
+# Show local DNS resolver and service diagnostics
+[group('network')]
+dns-status $domain='example.com':
+    bash ./scripts/network/dns-status.sh "$domain"
+
+# Show network, DNS, and VPN health diagnostics
+[group('network')]
+network-status $domain='example.com':
+    bash ./scripts/network/network-status.sh "$domain"
+
+# Compare public Cloudflare DNS against the system resolver
+[group('network')]
+network-recovery-check $domain='example.com':
+    bash ./scripts/network/network-recovery-check.sh "$domain"
+
+# Align running Mullvad settings with services.mullvad-vpn.runtimeSettings, then verify DNS
+[group('network')]
+network-restore-dns $domain='example.com':
+    bash ./scripts/network/network-restore-dns.sh "$domain"
+
+# Restart local DNS services (Mullvad-aware), then verify public and system DNS
+[group('network')]
+network-restart-dns $domain='example.com':
+    sudo bash ./scripts/network/network-recover.sh dns "$domain"
+
+# Restart NetworkManager and local DNS services (Mullvad-aware), then verify connectivity
+[group('network')]
+network-reset $domain='example.com':
+    sudo bash ./scripts/network/network-recover.sh full "$domain"
+
+# Register U2F key for current user (optionally set rp=pam://rvn-pc)
+[group('setup')]
+setup-u2f $rp='':
+    bash ./scripts/maintenance/setup-u2f.sh ${rp:+"$rp"}
+
 # Install flake-managed pre-commit hooks
+[group('setup')]
 install-hooks:
     nix develop --command true
