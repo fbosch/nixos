@@ -158,6 +158,7 @@
             gum
             pre-commit
             lintScript
+            qrencode
           ])
           ++ [ config.treefmt.build.wrapper ]
           ++ lib.attrValues config.treefmt.build.programs;
