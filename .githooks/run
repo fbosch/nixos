@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+hook_type=${1:?missing Git hook type}
+shift
+
+repo_root=$(git rev-parse --show-toplevel)
+cd "$repo_root"
+
+if [[ ${NIXOS_GIT_HOOK_ROOT:-} == "$repo_root" ]] && command -v nixos-git-hook >/dev/null 2>&1; then
+  exec nixos-git-hook "$hook_type" "$@"
+fi
+
+if command -v nix >/dev/null 2>&1; then
+  nix_bin=$(command -v nix)
+elif [[ -x /nix/var/nix/profiles/default/bin/nix ]]; then
+  nix_bin=/nix/var/nix/profiles/default/bin/nix
+else
+  printf 'git hook: Nix is required; run Git from a Nix-enabled environment\n' >&2
+  exit 1
+fi
+
+exec "$nix_bin" develop "$repo_root" --command nixos-git-hook "$hook_type" "$@"

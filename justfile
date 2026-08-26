@@ -140,4 +140,4 @@ setup-u2f $rp='':
 # Install flake-managed pre-commit hooks
 [group('setup')]
 install-hooks:
-    nix develop --command true
+    bash ./scripts/dev/install-git-hooks.sh

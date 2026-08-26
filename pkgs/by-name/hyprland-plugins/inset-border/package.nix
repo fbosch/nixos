@@ -11,7 +11,7 @@ let
 in
 pkgs.gcc16Stdenv.mkDerivation {
   pname = "inset-border";
-  version = "0.1.0";
+  version = "0.2.0";
 
   src = ./.;
 
@@ -29,7 +29,7 @@ pkgs.gcc16Stdenv.mkDerivation {
   '';
 
   meta = {
-    description = "Inset keyline decoration for Hyprland windows";
+    description = "Configurable advanced-blend inset keylines for Hyprland windows";
     license = pkgs.lib.licenses.mit;
     maintainers = [ ];
     platforms = [ "x86_64-linux" ];

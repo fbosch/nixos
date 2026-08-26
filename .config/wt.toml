@@ -1,0 +1,2 @@
+# Ensure each new worktree uses its own checked-in Git hook dispatchers.
+pre-start = "just install-hooks"

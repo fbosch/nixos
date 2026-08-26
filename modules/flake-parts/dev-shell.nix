@@ -1,7 +1,6 @@
 { inputs, ... }:
 {
-  # We keep pre-commit-hooks integration for flake checks.
-  # Local git hook installation is handled by devenv.
+  # git-hooks.nix is the canonical hook configuration for local checks and CI.
   imports = [
     inputs.pre-commit-hooks.flakeModule
     inputs.treefmt-nix.flakeModule
@@ -29,6 +28,34 @@
           nix
         ];
         text = builtins.readFile ../../scripts/dev/lint.sh;
+      };
+
+      gitHookRunner = pkgs.writeShellApplication {
+        name = "nixos-git-hook";
+        runtimeInputs = [
+          config.pre-commit.settings.package
+          pkgs.git
+        ];
+        text = ''
+          hook_type="''${1:-}"
+          shift || true
+
+          case "$hook_type" in
+            pre-commit | pre-push) ;;
+            *)
+              echo "nixos-git-hook: unsupported hook type: $hook_type" >&2
+              exit 2
+              ;;
+          esac
+
+          repo_root=$(git rev-parse --show-toplevel)
+          cd "$repo_root"
+          exec ${lib.getExe config.pre-commit.settings.package} hook-impl \
+            --config=${config.pre-commit.settings.configFile} \
+            --hook-type="$hook_type" \
+            --hook-dir="$repo_root/.githooks" \
+            -- "$@"
+        '';
       };
 
       installScript = pkgs.writeShellApplication {
@@ -60,6 +87,7 @@
         check.enable = true;
         settings = {
           install.enable = false;
+          package = pkgs.prek;
           excludes = [
             "^\.?/?\.agents/"
             "^\.?/?\.opencode/skills/"
@@ -156,38 +184,14 @@
             actionlint
             shellcheck
             gum
-            pre-commit
+            gitHookRunner
             lintScript
             qrencode
           ])
           ++ [ config.treefmt.build.wrapper ]
           ++ lib.attrValues config.treefmt.build.programs;
         shellHook = ''
-          repo_root=$(git rev-parse --show-toplevel)
-          config_path="$repo_root/.pre-commit-config.yaml"
-          hooks_dir=$(git rev-parse --path-format=absolute --git-common-dir)/hooks
-
-          if [ -L "$config_path" ]; then
-            ln -sfn "${config.pre-commit.settings.configFile}" "$config_path"
-          elif [ ! -e "$config_path" ]; then
-            ln -sn "${config.pre-commit.settings.configFile}" "$config_path"
-          else
-            echo "git-hooks.nix: refusing to replace existing $config_path" >&2
-          fi
-
-          git config --local core.hooksPath "$hooks_dir"
-
-          for hook in pre-commit pre-push; do
-            printf '%s\n' \
-              '#!/usr/bin/env bash' \
-              'set -e' \
-              \
-              'repo_root=$(git rev-parse --show-toplevel)' \
-              'hook_name=$(basename "$0")' \
-              'exec "$repo_root/scripts/dev/$hook_name-wrapper.sh" "$@"' \
-              > "$hooks_dir/$hook"
-            chmod +x "$hooks_dir/$hook"
-          done
+          export NIXOS_GIT_HOOK_ROOT="$(git rev-parse --show-toplevel)"
         '';
       };
     };
