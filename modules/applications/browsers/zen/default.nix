@@ -6,6 +6,7 @@
     , ...
     }:
     let
+      profileResolver = "${pkgs.python3}/bin/python3 ${../../../../scripts/lib/resolve-mozilla-profile.py}";
       zenWaylandClient = pkgs.writeShellScript "zen-wayland-client" ''
         set -euo pipefail
 
@@ -45,7 +46,7 @@
       home.activation.zenProfileSetup = config.lib.dag.entryAfter [ "writeBoundary" ] ''
         ZEN_PROFILE="$HOME/.var/app/app.zen_browser.zen/.zen"
         if [ -d "$ZEN_PROFILE" ]; then
-          ${pkgs.findutils}/bin/find "$ZEN_PROFILE" -maxdepth 1 -iname "*default*" -type d ! -name "static-*" | while IFS= read -r PROFILE_DIR; do
+          while IFS= read -r PROFILE_DIR; do
             if ! ${pkgs.diffutils}/bin/cmp -s ${./user.js} "$PROFILE_DIR/user.js"; then
               ${pkgs.coreutils}/bin/install -m 0644 ${./user.js} "$PROFILE_DIR/user.js"
               echo "Zen user.js installed at $PROFILE_DIR/user.js"
@@ -55,8 +56,7 @@
               ${pkgs.coreutils}/bin/install -D -m 0644 ${./userContent.css} "$PROFILE_DIR/chrome/userContent.css"
               echo "Zen userContent.css installed at $PROFILE_DIR/chrome/userContent.css"
             fi
-
-          done
+          done < <(${profileResolver} "$ZEN_PROFILE")
         fi
       '';
 
@@ -101,7 +101,7 @@
             fi
 
             if [ -d "$zen_profile_root" ]; then
-              while IFS= read -r -d "" profile_dir; do
+              while IFS= read -r profile_dir; do
                 profile_targets=(
                   "$profile_dir/addons.json"
                   "$profile_dir/compatibility.ini"
@@ -130,7 +130,7 @@
                     targets+=("$profile_dir/$profile_target")
                   fi
                 done
-              done < <(${pkgs.findutils}/bin/find "$zen_profile_root" -maxdepth 1 -iname "*default*" -type d ! -name "static-*" -print0)
+              done < <(${profileResolver} "$zen_profile_root")
             fi
 
             if [ "''${#targets[@]}" -gt 0 ]; then
