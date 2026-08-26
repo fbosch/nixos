@@ -34,6 +34,12 @@ export BOOTSTRAP_MACHINE_LIB_ONLY=true
 source "$repo_root/scripts/bootstrap/bootstrap-machine.sh"
 unset BOOTSTRAP_MACHINE_LIB_ONLY
 
+github_device_url="${github_device_url-}"
+if [ -z "$github_device_url" ]; then
+  printf 'bootstrap source did not define github_device_url\n' >&2
+  exit 1
+fi
+
 cat >"$tmp_dir/bin/qrencode" <<'EOF_QRENCODE'
 #!/usr/bin/env bash
 printf '%s\n' "$@" >"$BOOTSTRAP_TEST_QRENCODE_ARGS"

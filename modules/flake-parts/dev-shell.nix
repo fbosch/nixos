@@ -176,8 +176,18 @@
           fi
 
           git config --local core.hooksPath "$hooks_dir"
-          ln -sf "$repo_root/scripts/dev/pre-commit-wrapper.sh" "$hooks_dir/pre-commit"
-          ln -sf "$repo_root/scripts/dev/pre-push-wrapper.sh" "$hooks_dir/pre-push"
+
+          for hook in pre-commit pre-push; do
+            printf '%s\n' \
+              '#!/usr/bin/env bash' \
+              'set -e' \
+              \
+              'repo_root=$(git rev-parse --show-toplevel)' \
+              'hook_name=$(basename "$0")' \
+              'exec "$repo_root/scripts/dev/$hook_name-wrapper.sh" "$@"' \
+              > "$hooks_dir/$hook"
+            chmod +x "$hooks_dir/$hook"
+          done
         '';
       };
     };
