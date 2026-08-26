@@ -4,14 +4,17 @@
     , pkgs
     , ...
     }:
+    let
+      profileResolver = "${pkgs.python3}/bin/python3 ${../../../../scripts/lib/resolve-mozilla-profile.py}";
+    in
     {
       home.activation.floorpUserJs = config.lib.dag.entryAfter [ "writeBoundary" ] ''
         FLOORP_PROFILE="$HOME/.var/app/one.ablaze.floorp/.floorp"
         if [ -d "$FLOORP_PROFILE" ]; then
-          ${pkgs.findutils}/bin/find "$FLOORP_PROFILE" -maxdepth 1 -iname "*default*" -type d ! -name "static-*" | while IFS= read -r PROFILE_DIR; do
+          while IFS= read -r PROFILE_DIR; do
             ${pkgs.coreutils}/bin/install -m 0644 ${./user.js} "$PROFILE_DIR/user.js"
             echo "Floorp user.js installed at $PROFILE_DIR/user.js"
-          done
+          done < <(${profileResolver} "$FLOORP_PROFILE")
         fi
       '';
 
