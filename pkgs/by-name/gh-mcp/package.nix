@@ -10,11 +10,11 @@ let
   sources = {
     aarch64-darwin = {
       name = "darwin-arm64";
-      hash = "sha256-+iJFmso3W2i8L2EIdqbC7Q6DqHpRXO66GpJdJ73tqeQ=";
+      hash = "sha256-SLKahF/K/2yJr6n3pjDAaFkDw3ig9ZweuXRjYqRUn30=";
     };
     x86_64-darwin = {
       name = "darwin-amd64";
-      hash = "sha256-q9IcM5MD1xEchP1EMcW3GfNeQ/1W/z0OiXgbEoKMNlQ=";
+      hash = "sha256-gvxL9HMUulZpdb+sGViZCxQDDtUD6DOUSrxFLEC0fdY=";
     };
     aarch64-linux = {
       name = "linux-arm64";
