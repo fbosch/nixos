@@ -192,6 +192,9 @@
           ++ lib.attrValues config.treefmt.build.programs;
         shellHook = ''
           export NIXOS_GIT_HOOK_ROOT="$(git rev-parse --show-toplevel)"
+          if ! bash "$NIXOS_GIT_HOOK_ROOT/scripts/dev/install-git-hooks.sh"; then
+            echo "git hooks were not installed; resolve the reported conflict and run 'just install-hooks'." >&2
+          fi
         '';
       };
     };
