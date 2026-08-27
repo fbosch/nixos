@@ -140,6 +140,9 @@ in
       };
 
       home-manager = sharedHomeManagerConfig;
+    }
+    // lib.optionalAttrs usesDeterminateNix {
+      determinateNix.customSettings.accept-flake-config = true;
     };
 
 }
