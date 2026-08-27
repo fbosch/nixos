@@ -11,7 +11,7 @@ let
 in
 pkgs.gcc16Stdenv.mkDerivation {
   pname = "inset-border";
-  version = "0.2.0";
+  version = "0.3.0";
 
   src = ./.;
 

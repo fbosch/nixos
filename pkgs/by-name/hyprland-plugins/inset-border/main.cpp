@@ -7,6 +7,7 @@
 #include <hyprland/src/desktop/state/FocusState.hpp>
 #include <hyprland/src/desktop/state/WindowState.hpp>
 #include <hyprland/src/desktop/view/window/Window.hpp>
+#include <hyprland/src/desktop/view/window/WindowEffectsController.hpp>
 #include <hyprland/src/desktop/view/window/WindowPresentation.hpp>
 #include <hyprland/src/event/EventBus.hpp>
 #include <hyprland/src/managers/fullscreen/FullscreenController.hpp>
@@ -19,6 +20,8 @@
 #include <hyprland/src/render/pass/BorderPassElement.hpp>
 #include <hyprland/src/render/pass/PassElement.hpp>
 #include <hyprutils/utils/ScopeGuard.hpp>
+
+#include <EGL/egl.h>
 
 #include <algorithm>
 #include <array>
@@ -86,12 +89,28 @@ void main() {
 }
 )GLSL";
 
-    constexpr std::string_view FRAGMENT_SHADER = R"GLSL(#version 300 es
-#extension GL_KHR_blend_equation_advanced : require
-
+    constexpr std::string_view COHERENT_FETCH_SHADER_HEADER = R"GLSL(#version 300 es
+#extension GL_EXT_shader_framebuffer_fetch : require
 precision highp float;
+layout(location = 0) inout vec4 fragColor;
+#define FETCH_DESTINATION() fragColor
+)GLSL";
 
-layout(blend_support_all_equations) out;
+    constexpr std::string_view NON_COHERENT_FETCH_SHADER_HEADER = R"GLSL(#version 300 es
+#extension GL_EXT_shader_framebuffer_fetch_non_coherent : require
+precision highp float;
+layout(noncoherent, location = 0) inout vec4 fragColor;
+#define FETCH_DESTINATION() fragColor
+)GLSL";
+
+    constexpr std::string_view TEXTURE_BARRIER_SHADER_HEADER = R"GLSL(#version 300 es
+precision highp float;
+layout(location = 0) out vec4 fragColor;
+uniform sampler2D tex;
+#define FETCH_DESTINATION() texelFetch(tex, ivec2(gl_FragCoord.xy), 0)
+)GLSL";
+
+    constexpr std::string_view FRAGMENT_SHADER_BODY = R"GLSL(
 
 in vec2 v_texcoord;
 
@@ -102,12 +121,10 @@ uniform float radius;
 uniform float radiusOuter;
 uniform float roundingPower;
 uniform float thick;
-uniform float alpha;
 uniform int gradientLength;
 uniform vec4 gradient[10];
 uniform float angle;
-
-layout(location = 0) out vec4 fragColor;
+uniform int blendMode;
 
 const float SMOOTHING_CONSTANT = 3.14159265358979323846 / 5.34665792551;
 
@@ -157,6 +174,102 @@ vec4 gradientColor(vec2 normalizedCoord) {
     return okLabAToSrgb(mix(gradient[lower], gradient[upper], progress - float(lower)));
 }
 
+float colorDodge(float source, float destination) {
+    if (destination <= 0.0)
+        return 0.0;
+    if (source >= 1.0)
+        return 1.0;
+    return min(1.0, destination / (1.0 - source));
+}
+
+float colorBurn(float source, float destination) {
+    if (destination >= 1.0)
+        return 1.0;
+    if (source <= 0.0)
+        return 0.0;
+    return 1.0 - min(1.0, (1.0 - destination) / source);
+}
+
+float softLight(float source, float destination) {
+    if (source <= 0.5)
+        return destination - (1.0 - 2.0 * source) * destination * (1.0 - destination);
+    if (destination <= 0.25)
+        return destination + (2.0 * source - 1.0) * destination * ((16.0 * destination - 12.0) * destination + 3.0);
+    return destination + (2.0 * source - 1.0) * (sqrt(destination) - destination);
+}
+
+float min3(vec3 color) {
+    return min(min(color.r, color.g), color.b);
+}
+
+float max3(vec3 color) {
+    return max(max(color.r, color.g), color.b);
+}
+
+float luminosity(vec3 color) {
+    return dot(color, vec3(0.30, 0.59, 0.11));
+}
+
+float saturation(vec3 color) {
+    return max3(color) - min3(color);
+}
+
+vec3 clipColor(vec3 color) {
+    float lum = luminosity(color);
+    float minimum = min3(color);
+    float maximum = max3(color);
+    if (minimum < 0.0)
+        color = lum + ((color - lum) * lum) / (lum - minimum);
+    if (maximum > 1.0)
+        color = lum + ((color - lum) * (1.0 - lum)) / (maximum - lum);
+    return color;
+}
+
+vec3 setLuminosity(vec3 base, vec3 source) {
+    return clipColor(base + vec3(luminosity(source) - luminosity(base)));
+}
+
+vec3 setLuminosityAndSaturation(vec3 base, vec3 sourceSaturation, vec3 sourceLuminosity) {
+    float baseMinimum = min3(base);
+    float baseSaturation = saturation(base);
+    vec3 color = baseSaturation > 0.0 ? (base - baseMinimum) * saturation(sourceSaturation) / baseSaturation : vec3(0.0);
+    return setLuminosity(color, sourceLuminosity);
+}
+
+vec3 blendColor(vec3 source, vec3 destination) {
+    if (blendMode == 1)
+        return source * destination;
+    if (blendMode == 2)
+        return source + destination - source * destination;
+    if (blendMode == 3)
+        return mix(2.0 * source * destination, 1.0 - 2.0 * (1.0 - source) * (1.0 - destination), step(vec3(0.5), destination));
+    if (blendMode == 4)
+        return min(source, destination);
+    if (blendMode == 5)
+        return max(source, destination);
+    if (blendMode == 6)
+        return vec3(colorDodge(source.r, destination.r), colorDodge(source.g, destination.g), colorDodge(source.b, destination.b));
+    if (blendMode == 7)
+        return vec3(colorBurn(source.r, destination.r), colorBurn(source.g, destination.g), colorBurn(source.b, destination.b));
+    if (blendMode == 8)
+        return mix(2.0 * source * destination, 1.0 - 2.0 * (1.0 - source) * (1.0 - destination), step(vec3(0.5), source));
+    if (blendMode == 9)
+        return vec3(softLight(source.r, destination.r), softLight(source.g, destination.g), softLight(source.b, destination.b));
+    if (blendMode == 10)
+        return abs(destination - source);
+    if (blendMode == 11)
+        return source + destination - 2.0 * source * destination;
+    if (blendMode == 12)
+        return setLuminosityAndSaturation(source, destination, destination);
+    if (blendMode == 13)
+        return setLuminosityAndSaturation(destination, source, destination);
+    if (blendMode == 14)
+        return setLuminosity(source, destination);
+    if (blendMode == 15)
+        return setLuminosity(destination, source);
+    return source;
+}
+
 void main() {
     vec2 pixel = vec2(gl_FragCoord);
     vec2 outerPixel = pixel;
@@ -197,14 +310,19 @@ void main() {
             discard;
     }
 
-    coverage *= alpha;
     if (coverage <= 0.0)
         discard;
 
-    vec4 color = gradientColor(v_texcoord);
-    color.a *= coverage;
-    color.rgb *= color.a;
-    fragColor = color;
+    vec4 destinationPixel = FETCH_DESTINATION();
+    float destinationAlpha = destinationPixel.a;
+    if (destinationAlpha <= 0.00001)
+        discard;
+
+    vec4 border = gradientColor(v_texcoord);
+    float borderAlpha = clamp(border.a * coverage, 0.0, 1.0);
+    vec3 destination = clamp(destinationPixel.rgb / destinationAlpha, 0.0, 1.0);
+    vec3 blended = clamp(blendColor(clamp(border.rgb, 0.0, 1.0), destination), 0.0, 1.0);
+    fragColor = vec4(mix(destination, blended, borderAlpha) * destinationAlpha, destinationAlpha);
 }
 )GLSL";
 
@@ -217,9 +335,25 @@ void main() {
     SP<Config::Values::CStringValue>   g_blendMode;
     SP<CShader>                        g_advancedBlendShader;
     CHyprSignalListener                g_windowOpenListener;
+    CFunctionHook*                     g_transformHook           = nullptr;
     bool                               g_capabilitiesChecked    = false;
     bool                               g_advancedBlendSupported = false;
     bool                               g_gradientLimitWarned    = false;
+    GLint                              g_blendModeUniform       = -1;
+
+    enum class eFramebufferFetchMode : uint8_t {
+        NONE,
+        COHERENT,
+        NON_COHERENT,
+        TEXTURE_BARRIER,
+    };
+
+    eFramebufferFetchMode g_framebufferFetchMode = eFramebufferFetchMode::NONE;
+    using FramebufferFetchBarrierFn               = void (*)();
+    FramebufferFetchBarrierFn g_framebufferFetchBarrier = nullptr;
+    using TextureBarrierFn = void (*)();
+    TextureBarrierFn g_textureBarrier = nullptr;
+    using HasActiveTransformersFn = bool (*)(const Desktop::View::CWindowEffectsController*);
 
     std::optional<GLenum> blendEquationFor(std::string_view name) {
         const auto mode = std::ranges::find(BLEND_MODES, name, &SBlendMode::name);
@@ -240,16 +374,9 @@ void main() {
         return blendEquationFor(g_blendMode->value()).value_or(DEFAULT_BLEND_MODE.equation);
     }
 
-    constexpr bool sourceOverEquivalentForSolidBlack(GLenum equation) {
-        return equation == GL_MULTIPLY_KHR || equation == GL_DARKEN_KHR || equation == GL_HARDLIGHT_KHR;
-    }
-
-    bool isSolidBlack(const Config::CGradientValueData& color) {
-        if (color.m_colors.size() != 1)
-            return false;
-
-        const auto& solid = color.m_colors.front();
-        return solid.r == 0.0 && solid.g == 0.0 && solid.b == 0.0;
+    int blendModeIndex() {
+        const auto mode = std::ranges::find(BLEND_MODES, g_blendMode->value(), &SBlendMode::name);
+        return mode == BLEND_MODES.end() ? 0 : static_cast<int>(mode - BLEND_MODES.begin());
     }
 
     float normalizedGradientAngle(float angle) {
@@ -289,14 +416,44 @@ void main() {
             return g_advancedBlendSupported;
 
         g_capabilitiesChecked = true;
-        if (!g_pHyprOpenGL || !hasExtension("GL_KHR_blend_equation_advanced") || !hasExtension("GL_KHR_blend_equation_advanced_coherent") ||
-            glIsEnabled(GL_BLEND_ADVANCED_COHERENT_KHR) != GL_TRUE) {
-            HyprlandAPI::addNotification(g_handle, "inset-border: advanced blending unavailable; using normal blending", CHyprColor{1.F, 0.7F, 0.2F, 1.F}, 5000.F);
+        if (!g_pHyprOpenGL || !g_transformHook) {
+            HyprlandAPI::addNotification(g_handle, "inset-border: isolated blending unavailable; using normal blending", CHyprColor{1.F, 0.7F, 0.2F, 1.F}, 5000.F);
             return false;
         }
 
+        std::string fragmentShader;
+        if (hasExtension("GL_EXT_shader_framebuffer_fetch")) {
+            g_framebufferFetchMode = eFramebufferFetchMode::COHERENT;
+            fragmentShader         = COHERENT_FETCH_SHADER_HEADER;
+        } else if (hasExtension("GL_EXT_shader_framebuffer_fetch_non_coherent")) {
+            g_framebufferFetchMode = eFramebufferFetchMode::NON_COHERENT;
+            g_framebufferFetchBarrier = reinterpret_cast<FramebufferFetchBarrierFn>(eglGetProcAddress("glFramebufferFetchBarrierEXT"));
+            if (!g_framebufferFetchBarrier) {
+                HyprlandAPI::addNotification(g_handle, "inset-border: framebuffer fetch barrier unavailable; using normal blending",
+                                             CHyprColor{1.F, 0.7F, 0.2F, 1.F}, 5000.F);
+                return false;
+            }
+            fragmentShader = NON_COHERENT_FETCH_SHADER_HEADER;
+        } else if (hasExtension("GL_NV_texture_barrier")) {
+            g_framebufferFetchMode = eFramebufferFetchMode::TEXTURE_BARRIER;
+            g_textureBarrier       = reinterpret_cast<TextureBarrierFn>(eglGetProcAddress("glTextureBarrierNV"));
+            if (!g_textureBarrier) {
+                HyprlandAPI::addNotification(g_handle, "inset-border: texture barrier unavailable; using normal blending", CHyprColor{1.F, 0.7F, 0.2F, 1.F}, 5000.F);
+                return false;
+            }
+            fragmentShader = TEXTURE_BARRIER_SHADER_HEADER;
+        } else {
+            HyprlandAPI::addNotification(g_handle, "inset-border: framebuffer readback unavailable; using normal blending", CHyprColor{1.F, 0.7F, 0.2F, 1.F}, 5000.F);
+            return false;
+        }
+
+        fragmentShader += FRAGMENT_SHADER_BODY;
         g_advancedBlendShader = makeShared<CShader>();
-        g_advancedBlendSupported = g_advancedBlendShader->createProgram(std::string(VERTEX_SHADER), std::string(FRAGMENT_SHADER), true, true);
+        g_advancedBlendSupported = g_advancedBlendShader->createProgram(std::string(VERTEX_SHADER), fragmentShader, true, true);
+        if (g_advancedBlendSupported) {
+            g_blendModeUniform = glGetUniformLocation(g_advancedBlendShader->program(), "blendMode");
+            g_advancedBlendSupported = g_blendModeUniform >= 0;
+        }
         if (!g_advancedBlendSupported) {
             g_advancedBlendShader.reset();
             HyprlandAPI::addNotification(g_handle, "inset-border: advanced blend shader failed; using normal blending", CHyprColor{1.F, 0.3F, 0.3F, 1.F}, 5000.F);
@@ -310,7 +467,11 @@ void main() {
             return false;
 
         const auto& renderData = g_pHyprRenderer->m_renderData;
-        if (!renderData.currentFB || !renderData.pMonitor || renderData.renderingTransformedSource)
+        if (!renderData.currentFB || !renderData.pMonitor || !renderData.renderingTransformedSource)
+            return false;
+
+        const auto framebufferTexture = renderData.currentFB->getTexture();
+        if (!framebufferTexture || framebufferTexture->m_opaque)
             return false;
 
         const auto imageDescription = renderData.currentFB->imageDescription();
@@ -345,6 +506,8 @@ void main() {
         if (renderData.damage.empty() || data.borderSize < 1)
             return;
 
+        const auto framebufferTexture = renderData.currentFB->getTexture();
+
         CBox innerBox = data.box;
         renderData.renderModif.applyToBox(innerBox);
 
@@ -357,9 +520,8 @@ void main() {
         const auto matrix = g_pHyprRenderer->projectBoxToTarget(box);
 
         const auto previousBlend = g_pHyprOpenGL->blendEnabled();
-        g_pHyprOpenGL->blend(true);
+        g_pHyprOpenGL->blend(false);
         const Hyprutils::Utils::CScopeGuard restoreGlState{[previousBlend] {
-            glBlendEquation(GL_FUNC_ADD);
             glBindVertexArray(0);
             g_pHyprOpenGL->blend(previousBlend);
         }};
@@ -373,7 +535,7 @@ void main() {
         shader->setUniformFloat(SHADER_RADIUS_OUTER, data.outerRound == -1 ? rounding : data.outerRound);
         shader->setUniformFloat(SHADER_ROUNDING_POWER, data.roundingPower);
         shader->setUniformFloat(SHADER_THICK, scaledBorderSize);
-        shader->setUniformFloat(SHADER_ALPHA, data.a);
+        glUniform1i(g_blendModeUniform, blendModeIndex());
 
         const auto& color = data.grad1;
         warnAboutTruncatedGradient(color);
@@ -387,9 +549,17 @@ void main() {
         if (renderData.clipBox.width != 0 && renderData.clipBox.height != 0)
             borderRegion.intersect(renderData.clipBox);
 
+        if (g_framebufferFetchMode == eFramebufferFetchMode::NON_COHERENT)
+            g_framebufferFetchBarrier();
+        else if (g_framebufferFetchMode == eFramebufferFetchMode::TEXTURE_BARRIER) {
+            g_pHyprOpenGL->setActiveTexture(GL_TEXTURE0);
+            framebufferTexture->bind();
+            shader->setUniformInt(SHADER_TEX, 0);
+            // NV_texture_barrier permits one same-texel fetch and write per fragment after this barrier.
+            g_textureBarrier();
+        }
+
         glBindVertexArray(shader->getUniformLocation(SHADER_SHADER_VAO));
-        const auto equation = blendEquation();
-        glBlendEquation(isSolidBlack(color) && sourceOverEquivalentForSolidBlack(equation) ? GL_FUNC_ADD : equation);
         borderRegion.forEachRect([](const auto& rect) {
             g_pHyprOpenGL->scissor(&rect, g_pHyprRenderer->m_renderData.transformDamage);
             glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
@@ -406,6 +576,59 @@ void main() {
 
     const Config::CGradientValueData& colorForWindow(PHLWINDOW window) {
         return window == Desktop::focusState()->window() ? g_activeColor->value() : g_inactiveColor->value();
+    }
+
+    bool borderVisible(PHLWINDOW window) {
+        if (!g_enabled || !g_enabled->value() || !validMapped(window))
+            return false;
+
+        const auto traits = window->backend().traits();
+        if (traits.overrideRedirect || traits.suggestsNoBorder || !window->m_ruleApplicator->decorate().valueOrDefault())
+            return false;
+
+        if (window->presentation().borderSize() <= 0)
+            return false;
+
+        return !window->m_workspace || Fullscreen::controller()->getFullscreenModes(window).internal != Fullscreen::FSMODE_FULLSCREEN;
+    }
+
+    bool hookHasActiveTransformers(const Desktop::View::CWindowEffectsController* controller) {
+        const auto original = g_transformHook ? reinterpret_cast<HasActiveTransformersFn>(g_transformHook->m_original) : nullptr;
+        if (original && original(controller))
+            return true;
+
+        if (!g_blendMode || blendEquation() == GL_FUNC_ADD || (g_capabilitiesChecked && !g_advancedBlendSupported))
+            return false;
+
+        // Isolate the window group so transparent client pixels never expose the desktop to the blend shader.
+        const auto window = g_pHyprRenderer ? g_pHyprRenderer->m_renderData.currentWindow.lock() : nullptr;
+        return window && &window->effects() == controller && borderVisible(window);
+    }
+
+    bool installTransformHook() {
+        constexpr std::string_view EXPECTED_SIGNATURE = "Desktop::View::CWindowEffectsController::hasActiveTransformers() const";
+        const auto                 functions          = HyprlandAPI::findFunctionsByName(g_handle, "hasActiveTransformers");
+        const SFunctionMatch*      match              = nullptr;
+
+        for (const auto& function : functions) {
+            if (function.demangled != EXPECTED_SIGNATURE)
+                continue;
+            if (match)
+                return false;
+            match = &function;
+        }
+
+        if (!match)
+            return false;
+
+        g_transformHook = HyprlandAPI::createFunctionHook(g_handle, match->address, reinterpret_cast<void*>(&hookHasActiveTransformers));
+        if (g_transformHook && g_transformHook->hook())
+            return true;
+
+        if (g_transformHook)
+            HyprlandAPI::removeFunctionHook(g_handle, g_transformHook);
+        g_transformHook = nullptr;
+        return false;
     }
 
     class CInsetBorderPassElement final : public IPassElement {
@@ -563,21 +786,7 @@ void main() {
 
       private:
         bool visible() const {
-            if (!g_enabled || !g_enabled->value())
-                return false;
-
-            const auto window = m_window.lock();
-            if (!validMapped(window))
-                return false;
-
-            const auto traits = window->backend().traits();
-            if (traits.overrideRedirect || traits.suggestsNoBorder || !window->m_ruleApplicator->decorate().valueOrDefault())
-                return false;
-
-            if (window->presentation().borderSize() <= 0)
-                return false;
-
-            return !window->m_workspace || Fullscreen::controller()->getFullscreenModes(window).internal != Fullscreen::FSMODE_FULLSCREEN;
+            return borderVisible(m_window.lock());
         }
 
         PHLWINDOWREF m_window;
@@ -627,6 +836,10 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
         !HyprlandAPI::addConfigValueV2(handle, g_activeColor) || !HyprlandAPI::addConfigValueV2(handle, g_inactiveColor) || !HyprlandAPI::addConfigValueV2(handle, g_blendMode))
         throw std::runtime_error("inset-border: failed to register configuration");
 
+    if (!installTransformHook())
+        HyprlandAPI::addNotification(g_handle, "inset-border: window isolation hook unavailable; advanced modes will use normal blending",
+                                     CHyprColor{1.F, 0.7F, 0.2F, 1.F}, 5000.F);
+
     g_windowOpenListener = Event::bus()->m_events.window.open.listen([](PHLWINDOW window) { attachDecoration(window); });
 
     for (const auto& window : Desktop::windowState()->windows())
@@ -638,7 +851,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
         "inset-border",
         "Draw a focus-aware keyline inside Hyprland window content",
         "local",
-        "0.2.0",
+        "0.3.0",
     };
 }
 
@@ -646,6 +859,9 @@ APICALL EXPORT void PLUGIN_EXIT() {
     g_windowOpenListener.reset();
     if (g_pHyprRenderer)
         g_pHyprRenderer->currentPass().clear();
+    if (g_transformHook)
+        HyprlandAPI::removeFunctionHook(g_handle, g_transformHook);
+    g_transformHook = nullptr;
     if (g_advancedBlendShader && g_pHyprOpenGL)
         g_pHyprOpenGL->makeEGLCurrent();
     g_advancedBlendShader.reset();
