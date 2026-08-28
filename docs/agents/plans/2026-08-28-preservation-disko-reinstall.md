@@ -73,6 +73,8 @@ The current fixed-disk inventory is:
 - [ ] Confirm the external backup location is readable from standard NixOS installer media.
 - [ ] Run `just check-recovery` and resolve every missing source or destination mismatch.
 - [ ] Run `just backup-recovery` and record the returned backup ID outside the target NVMe.
+- [ ] Run `just list-recovery` and confirm the recorded backup appears first with the expected age.
+- [ ] Run `just verify-latest-recovery` as the routine newest-backup check.
 - [ ] Run `just verify-recovery <backup-id>` against the completed archive.
 
 **User-run actions:** privileged backup copies and all SOPS inspection commands.

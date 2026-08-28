@@ -82,10 +82,20 @@ backup-recovery:
 check-recovery:
     sudo bash ./scripts/recovery/local-host-recovery.sh check
 
+# List recovery archives for the current host, newest first
+[group('maintenance')]
+list-recovery:
+    sudo bash ./scripts/recovery/local-host-recovery.sh list
+
 # Verify a recovery archive by its backup ID
 [group('maintenance')]
 verify-recovery $backup_id:
     sudo bash ./scripts/recovery/local-host-recovery.sh verify "$backup_id"
+
+# Verify the newest recovery archive for the current host
+[group('maintenance')]
+verify-latest-recovery:
+    sudo bash ./scripts/recovery/local-host-recovery.sh verify-latest
 
 # Show the GPG gist rotation actions without writing to GitHub
 [group('maintenance')]

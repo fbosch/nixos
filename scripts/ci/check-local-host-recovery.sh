@@ -94,6 +94,13 @@ export TEST_DESTINATION="$test_destination"
 check_output="$(bash "$test_script" check)"
 [[ $check_output == "Recovery check passed: host=test-host sources=1 destination=$test_destination" ]]
 [[ ! -e "$test_destination/test-host" ]]
+empty_list_output="$(bash "$test_script" list)"
+[[ $empty_list_output == "No recovery backups found: host=test-host" ]]
+if bash "$test_script" verify-latest >"$tmp_dir/empty-latest.stdout" 2>"$tmp_dir/empty-latest.stderr"; then
+  printf 'verify-latest accepted an empty backup directory\n' >&2
+  exit 1
+fi
+[[ ! -s "$tmp_dir/empty-latest.stdout" ]]
 
 backup_output="$(bash "$test_script" backup)"
 if [[ $backup_output == *"$test_secret"* ]]; then
@@ -109,10 +116,21 @@ backup_dir="$test_destination/test-host/$backup_id"
 [[ -f "$backup_dir/SHA256SUMS" ]]
 [[ "$(find "$backup_dir" -mindepth 1 -maxdepth 1 -type f | wc -l)" == "3" ]]
 
+older_backup_id="20200101T000000Z-p1"
+cp -a "$backup_dir" "$test_destination/test-host/$older_backup_id"
+mapfile -t list_lines < <(bash "$test_script" list)
+[[ ${list_lines[0]} == "Recovery backups: host=test-host" ]]
+[[ ${list_lines[1]} == "  $backup_id  "*" ago" ]]
+[[ ${list_lines[2]} == "  $older_backup_id  "*" ago" ]]
+mapfile -t installer_list_lines < <(TEST_HOSTNAME=nixos bash "$test_script" list --host test-host)
+[[ ${installer_list_lines[*]} == "${list_lines[*]}" ]]
+
 verify_output="$(bash "$test_script" verify "$backup_id")"
 [[ $verify_output == "Backup verified: host=test-host id=$backup_id" ]]
 installer_verify_output="$(TEST_HOSTNAME=nixos bash "$test_script" verify --host test-host "$backup_id")"
 [[ $installer_verify_output == "Backup verified: host=test-host id=$backup_id" ]]
+latest_verify_output="$(bash "$test_script" verify-latest)"
+[[ $latest_verify_output == "Backup verified: host=test-host id=$backup_id" ]]
 
 ln -s /etc/passwd "$tmp_dir/malicious-link"
 tar \

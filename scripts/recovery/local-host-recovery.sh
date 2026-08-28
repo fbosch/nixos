@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+export LC_ALL=C
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly script_dir
@@ -9,6 +10,7 @@ declare manifest_destination=""
 declare manifest_mount_source=""
 declare -a source_types=()
 declare -a source_paths=()
+declare -a backup_ids=()
 
 staging_dir=""
 list_file=""
@@ -19,7 +21,9 @@ usage() {
 Usage:
   local-host-recovery.sh check
   local-host-recovery.sh backup
+  local-host-recovery.sh list [--host <host>]
   local-host-recovery.sh verify [--host <host>] <backup-id>
+  local-host-recovery.sh verify-latest [--host <host>]
 
 Create or verify a recovery archive using a checked-in host manifest.
 EOF
@@ -322,6 +326,88 @@ verify_backup() {
   printf 'Backup verified: host=%s id=%s\n' "$host" "$backup_id"
 }
 
+collect_backup_ids() {
+  local host="$1"
+  local host_destination="$manifest_destination/$host"
+  local candidate backup_id
+
+  backup_ids=()
+  [[ -e $host_destination ]] || return 0
+  [[ -d $host_destination && ! -L $host_destination ]] ||
+    die "host backup destination is not a directory: $host_destination"
+
+  shopt -s nullglob
+  for candidate in "$host_destination"/*; do
+    backup_id="${candidate##*/}"
+    [[ -d $candidate && ! -L $candidate ]] || die "unexpected entry in host backup destination: $backup_id"
+    [[ $backup_id =~ ^[0-9]{8}T[0-9]{6}Z-p[0-9]+$ ]] || die "invalid backup directory name: $backup_id"
+    backup_ids+=("$backup_id")
+  done
+  shopt -u nullglob
+}
+
+format_backup_age() {
+  local backup_id="$1"
+  local timestamp created_epoch current_epoch delta value unit suffix
+
+  timestamp="${backup_id%%-p*}"
+  if ! created_epoch="$(date -u --date="${timestamp:0:4}-${timestamp:4:2}-${timestamp:6:2} ${timestamp:9:2}:${timestamp:11:2}:${timestamp:13:2} UTC" +%s)"; then
+    die "backup ID contains an invalid timestamp: $backup_id"
+  fi
+  current_epoch="$(date -u +%s)"
+  delta=$((current_epoch - created_epoch))
+  suffix="ago"
+  if ((delta < 0)); then
+    delta=$((-delta))
+    suffix="from now"
+  fi
+
+  if ((delta < 60)); then
+    value="$delta"
+    unit="second"
+  elif ((delta < 3600)); then
+    value=$((delta / 60))
+    unit="minute"
+  elif ((delta < 86400)); then
+    value=$((delta / 3600))
+    unit="hour"
+  else
+    value=$((delta / 86400))
+    unit="day"
+  fi
+  [[ $value == "1" ]] || unit+="s"
+  printf '%s %s %s\n' "$value" "$unit" "$suffix"
+}
+
+list_backups() {
+  local host="$1"
+  local index backup_id age
+
+  collect_backup_ids "$host"
+  if ((${#backup_ids[@]} == 0)); then
+    printf 'No recovery backups found: host=%s\n' "$host"
+    return
+  fi
+
+  printf 'Recovery backups: host=%s\n' "$host"
+  for ((index = ${#backup_ids[@]} - 1; index >= 0; index--)); do
+    backup_id="${backup_ids[$index]}"
+    age="$(format_backup_age "$backup_id")"
+    printf '  %s  %s\n' "$backup_id" "$age"
+  done
+}
+
+verify_latest_backup() {
+  local host="$1"
+  local host_manifest="$2"
+  local latest_index
+
+  collect_backup_ids "$host"
+  ((${#backup_ids[@]} > 0)) || die "no recovery backups found for host: $host"
+  latest_index=$((${#backup_ids[@]} - 1))
+  verify_backup "$host" "$host_manifest" "${backup_ids[$latest_index]}"
+}
+
 main() {
   local operation="${1:-}"
   local running_host selected_host backup_id manifest
@@ -334,6 +420,13 @@ main() {
     ;;
   check | backup)
     (($# == 1)) || usage_error "$operation does not accept additional arguments"
+    ;;
+  list | verify-latest)
+    case "$#:${2:-}" in
+    1:*) selected_host="" ;;
+    3:--host) selected_host="$3" ;;
+    *) usage_error "$operation accepts only [--host <host>]" ;;
+    esac
     ;;
   verify)
     case "$#:${2:-}" in
@@ -374,7 +467,9 @@ main() {
     [[ $selected_host == "$running_host" ]] || die "backup host must match the running host"
     create_backup "$selected_host" "$manifest"
     ;;
+  list) list_backups "$selected_host" ;;
   verify) verify_backup "$selected_host" "$manifest" "$backup_id" ;;
+  verify-latest) verify_latest_backup "$selected_host" "$manifest" ;;
   esac
 }
 
