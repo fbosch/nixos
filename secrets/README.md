@@ -94,6 +94,7 @@ Current runtime recipients are derived from host imports:
 - `common.yaml` and `apis.yaml`: `rvn-pc`, `rvn-srv`, and the Mac system key.
 - `containers.yaml`: `rvn-srv`.
 - `development.yaml`: `rvn-pc`, `rvn-srv`, and the Mac system key.
+- `hosts/rvn-pc.yaml`: `rvn-pc` plus the `admin` GPG recovery key.
 
 `fbb-user` is retained for Home Manager decryption. Verify its private key is
 installed at the configured Home Manager age-key path before removing it. The

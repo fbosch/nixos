@@ -9,6 +9,7 @@
       common = ../../secrets/common.yaml;
       containers = ../../secrets/containers.yaml;
       development = ../../secrets/development.yaml;
+      hosts."rvn-pc" = ../../secrets/hosts/rvn-pc.yaml;
     };
 
     # Dendritic pattern helpers for module path resolution
