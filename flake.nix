@@ -33,6 +33,7 @@
       url = "github:nix-community/disko";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    preservation.url = "github:nix-community/preservation";
     steam-config-nix = {
       url = "github:different-name/steam-config-nix";
       inputs = {
