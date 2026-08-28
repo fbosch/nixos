@@ -9,10 +9,7 @@
   desktopName = "Keychron Launcher";
   wmClass = "Keychron Launcher";
   comment = "Configure Keychron keyboards and mice";
-  icon = pkgs.fetchurl {
-    url = "https://www.keychron.com/cdn/shop/files/Icon-QMK_Launcher.svg?v=7325956401058275962";
-    hash = "sha256-XWNEh7dfsEwpVNBFkQbhqsYfhkk/8LlYlstEhKLahqQ=";
-  };
+  icon = ./icon.png;
   profile = "KeychronLauncherProfile";
   url = "https://launcher.keychron.com/";
   runtime = {
