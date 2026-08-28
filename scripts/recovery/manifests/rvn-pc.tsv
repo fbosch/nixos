@@ -1,0 +1,10 @@
+version	1
+destination	/mnt/nas/backup
+mount-source	//rvn-nas/backup
+source	file	/etc/machine-id
+source	file	/etc/ssh/ssh_host_ed25519_key
+source	file	/etc/ssh/ssh_host_ed25519_key.pub
+source	file	/etc/ssh/ssh_host_rsa_key
+source	file	/etc/ssh/ssh_host_rsa_key.pub
+source	file	/var/lib/sops-nix/key.txt
+source	file	/home/fbb/.config/sops/age/keys.txt

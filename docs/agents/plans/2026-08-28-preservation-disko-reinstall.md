@@ -10,7 +10,7 @@ The installation must erase only:
 /dev/disk/by-id/nvme-WDS200T3X0C-00SJG0_21031B801746
 ```
 
-The NTFS storage and games disks remain outside Disko and should be physically disconnected during installation.
+The NTFS storage and games disks remain connected during installation, but are protected by an explicit hardware inventory and must never appear in Disko's generated commands.
 
 ## Decisions
 
@@ -31,19 +31,32 @@ The NTFS storage and games disks remain outside Disko and should be physically d
 | State migration | Identities and selected personal state only |
 | Remote installer | Separate `rvn-pc` endpoint and flake app |
 | Existing bootstrap | Keep `nix.fbb.sh/install` unchanged |
+| Recovery archive | Plaintext tar on `//rvn-nas/backup`; accepted local-network and NAS access risk |
 
 The unencrypted swap partition can expose memory-resident secrets after hibernation. This is an accepted consequence of the no-encryption decision.
+
+The current fixed-disk inventory is:
+
+| Role | Stable whole-disk ID | Model | Serial | Capacity in bytes | Protected filesystem UUID |
+| --- | --- | --- | --- | --- | --- |
+| Target | `/dev/disk/by-id/nvme-WDS200T3X0C-00SJG0_21031B801746` | `WDS200T3X0C-00SJG0` | `21031B801746` | `2000398934016` | Not applicable; this disk will be erased |
+| Games | `/dev/disk/by-id/ata-KINGSTON_SA400S37960G_50026B7783A2013B` | `KINGSTON SA400S37960G` | `50026B7783A2013B` | `960197124096` | `B86CB0876CB04244` |
+| Storage | `/dev/disk/by-id/ata-ST2000DM001-1ER164_Z4Z13XS1` | `ST2000DM001-1ER164` | `Z4Z13XS1` | `2000398934016` | `AC7674097673D316` |
 
 ## Safety Invariants
 
 - Disko names exactly one disk by its stable `/dev/disk/by-id` path.
 - Disko never accepts a user-supplied target-device override.
 - `/mnt/storage` and `/mnt/games` remain UUID-mounted by `modules/hosts/rvn-pc/storage.nix` and never appear in `disko.devices`.
+- The installer requires the recorded target and protected disks to resolve to the expected model, serial, capacity, partition table, and filesystem UUIDs.
+- The installer refuses to partition when a protected disk is missing, has changed identity, or appears in Disko's generated commands.
+- Additional fixed disks are an error. Removable installer media must be identified and reported separately.
 - Formatting and installation are separate actions. State is restored and SOPS is verified between them.
 - The same immutable Git revision supplies the Disko layout and `nixos-install` configuration.
 - The current installation is never switched to the final cutover revision.
 - The existing system and Home Manager age keys are restored. Missing keys fail loudly instead of being regenerated.
 - Secret values, password hashes, and private keys never enter unencrypted source files or command output.
+- Recovery archives contain plaintext private keys by explicit decision. CIFS access control is the confidentiality boundary, and SHA-256 checks detect corruption rather than malicious replacement.
 - Existing unrelated worktree changes are preserved and excluded from this work.
 - The recovery backup remains available until cold boot and hibernation validation pass.
 
@@ -54,10 +67,13 @@ The unencrypted swap partition can expose memory-resident secrets after hibernat
 - [ ] Record `git status --short`, `git diff`, and the current commit before editing.
 - [ ] Preserve the existing unrelated changes in the browser, productivity, input, and webapp files.
 - [ ] Confirm every required repository commit is pushed to a remote reachable from the installer.
-- [ ] Record the current NVMe model, serial, capacity, partition table, and stable by-id path.
+- [ ] Record the model, serial, capacity, partition table, stable by-id path, and filesystem UUIDs for the target and both protected SATA disks.
 - [ ] Record `/etc/machine-id` and public SSH host-key fingerprints without copying private contents into the repository.
 - [ ] Confirm recovery copies exist for `/var/lib/sops-nix/key.txt` and `/home/fbb/.config/sops/age/keys.txt`.
 - [ ] Confirm the external backup location is readable from standard NixOS installer media.
+- [ ] Run `just check-recovery` and resolve every missing source or destination mismatch.
+- [ ] Run `just backup-recovery` and record the returned backup ID outside the target NVMe.
+- [ ] Run `just verify-recovery <backup-id>` against the completed archive.
 
 **User-run actions:** privileged backup copies and all SOPS inspection commands.
 
@@ -227,12 +243,16 @@ install-rvn-pc install
 - [ ] Errors name the failed check and the safest recovery action.
 - [ ] Child Disko and `nixos-install` output, exit status, and signals remain intact.
 
-### Target checks
+### Disk inventory checks
 
 - [ ] Resolve `/dev/disk/by-id/nvme-WDS200T3X0C-00SJG0_21031B801746`.
 - [ ] Verify model `WDS200T3X0C-00SJG0`, serial `21031B801746`, and expected approximate capacity.
 - [ ] Verify the target is an NVMe whole-disk device rather than a partition.
-- [ ] Refuse operation when the stable ID is missing, ambiguous, or resolves to unexpected hardware.
+- [ ] Resolve the protected games disk as `/dev/disk/by-id/ata-KINGSTON_SA400S37960G_50026B7783A2013B` and verify its model, serial, capacity, partition table, and filesystem UUID `B86CB0876CB04244`.
+- [ ] Resolve the protected storage disk as `/dev/disk/by-id/ata-ST2000DM001-1ER164_Z4Z13XS1` and verify its model, serial, capacity, partition table, and filesystem UUID `AC7674097673D316`.
+- [ ] Refuse operation when any required stable ID is missing, ambiguous, duplicated, or resolves to unexpected hardware.
+- [ ] Refuse unexpected fixed disks while identifying removable installer media separately.
+- [ ] Inspect Disko's generated commands and refuse operation if any whole-disk path, by-id alias, partition, or filesystem UUID belonging to a protected disk appears.
 - [ ] Require the phrase `ERASE nvme-WDS200T3X0C-00SJG0_21031B801746` immediately before Disko runs.
 - [ ] Refuse `--yes-wipe-all-disks` in the interactive workflow.
 
@@ -247,7 +267,7 @@ install-rvn-pc install
 
 ### Validation
 
-- [ ] Test `--help`, inspection success, inspection failure, cancellation, missing TTY, wrong disk, missing disk, wrong model, wrong serial, and wrong capacity.
+- [ ] Test `--help`, inspection success, inspection failure, cancellation, missing TTY, wrong disk, missing disk, wrong model, wrong serial, wrong capacity, missing protected disk, changed protected UUID, unexpected fixed disk, and protected-disk references in generated commands.
 - [ ] Stub Disko, `nixos-install`, `sudo`, and block-device commands in shell contract tests.
 - [ ] Prove `inspect` cannot reach a mutating command.
 - [ ] Prove `install` cannot reach Disko formatting.
@@ -282,6 +302,7 @@ install-rvn-pc install
 
 ### Recovery manifest
 
+- [ ] Treat `scripts/recovery/manifests/rvn-pc.tsv` as the checked-in identity allowlist and add personal-state paths only after inventory review.
 - [ ] Record `/etc/machine-id` to `/persist/etc/machine-id`.
 - [ ] Record `/var/lib/sops-nix/key.txt` to `/persist/var/lib/sops-nix/key.txt` with `root:root` and mode `0600`.
 - [ ] Record SSH host private and public keys to `/persist/etc/ssh/` with private keys mode `0600` and public keys mode `0644`.
@@ -293,6 +314,7 @@ install-rvn-pc install
 ### Backup validation
 
 - [ ] Mount or open the backup from installer media.
+- [ ] Run `local-host-recovery.sh verify --host rvn-pc <backup-id>` because installer media normally uses a different hostname.
 - [ ] Verify ownership and mode metadata can be restored.
 - [ ] Verify the system age key can decrypt `secrets/common.yaml` with plaintext discarded.
 - [ ] Verify `user-password-hash` exists and decrypts without printing its value.
@@ -347,14 +369,14 @@ All commands that use `sudo`, Disko, SOPS, or `nixos-install` in this phase are 
 
 ### Installer preflight
 
-1. Disconnect the NTFS storage and games disks.
-2. Boot standard NixOS installer media in UEFI mode.
+1. Leave the NTFS storage and games disks connected and boot standard NixOS installer media in UEFI mode.
+2. Confirm the installer reports its removable boot media separately from the three fixed disks.
 3. Connect networking and verify the approved Git revision is reachable.
 4. Download the `rvn-pc` installer launcher without executing an unreviewed mutable branch.
 5. Run `install-rvn-pc inspect`.
-6. Compare model, serial, capacity, by-id path, and current partitions with the recovery record.
+6. Compare the target and protected disks' model, serial, capacity, by-id path, partition table, and filesystem UUIDs with the recovery record.
 7. Verify the recovery set is readable before any disk write.
-8. Stop if any target identity differs or another disk appears in the Disko plan.
+8. Stop if any required identity differs, a protected disk is missing, an unexpected fixed disk is present, or Disko's generated commands reference anything except the target NVMe.
 
 ### Partition
 
@@ -398,7 +420,7 @@ All commands that use `sudo`, Disko, SOPS, or `nixos-install` in this phase are 
 
 ### First cold boot
 
-- [ ] Boot with the external NTFS disks still disconnected.
+- [ ] Boot with the protected NTFS disks connected.
 - [ ] Verify GRUB starts in UEFI mode.
 - [ ] Verify `/` is tmpfs with the intended limit.
 - [ ] Verify `/nix` and `/persist` are the expected Btrfs subvolumes.
@@ -419,10 +441,9 @@ All commands that use `sudo`, Disko, SOPS, or `nixos-install` in this phase are 
 - [ ] Confirm machine ID, SOPS keys, login, NetworkManager state, Tailscale state, repositories, and selected personal paths survive.
 - [ ] Inspect persistent logs for Preservation, mount, SOPS, user creation, and boot errors.
 
-### External disks
+### Protected disks
 
-- [ ] Power down before reconnecting the NTFS storage and games disks.
-- [ ] Verify their UUIDs and contents before enabling normal use.
+- [ ] Verify the protected disks still have their recorded identities, partition tables, filesystem UUIDs, and contents.
 - [ ] Verify `/mnt/storage` and `/mnt/games` retain their existing automount behavior.
 - [ ] Verify Disko did not modify either disk.
 

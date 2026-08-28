@@ -72,6 +72,21 @@ download-hyprwhspr-parakeet $target='':
 rotate-gpg-gist:
     nix run .#rotate-gpg-gist
 
+# Create an atomic recovery archive using the current host manifest
+[group('maintenance')]
+backup-recovery:
+    sudo bash ./scripts/recovery/local-host-recovery.sh backup
+
+# Validate recovery sources and destination without creating an archive
+[group('maintenance')]
+check-recovery:
+    sudo bash ./scripts/recovery/local-host-recovery.sh check
+
+# Verify a recovery archive by its backup ID
+[group('maintenance')]
+verify-recovery $backup_id:
+    sudo bash ./scripts/recovery/local-host-recovery.sh verify "$backup_id"
+
 # Show the GPG gist rotation actions without writing to GitHub
 [group('maintenance')]
 rotate-gpg-gist-dry:

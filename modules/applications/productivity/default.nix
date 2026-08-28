@@ -12,6 +12,7 @@
       local."webapp/figma"
       local."webapp/apple-maps"
       local."webapp/keychron-launcher"
+      local."webapp/8bitdo-firmware-updater"
     ];
   };
 
