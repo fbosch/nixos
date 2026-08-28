@@ -83,10 +83,19 @@ in
 
   perSystem =
     { lib
+    , pkgs
     , system
     , ...
     }:
     let
+      # Keep this literal independent from targetDevice so target drift breaks the safety check.
+      approvedDisk = "/dev/disk/by-id/nvme-WDS200T3X0C-00SJG0_21031B801746";
+      approvedDevices = [
+        approvedDisk
+        "${approvedDisk}-part1"
+        "${approvedDisk}-part2"
+        "${approvedDisk}-part3"
+      ];
       evaluatedConfig = inputs.nixpkgs.lib.nixosSystem {
         system = "x86_64-linux";
         modules = [
@@ -97,6 +106,70 @@ in
       evaluated = evaluatedConfig.config;
     in
     {
+      checks = lib.optionalAttrs (system == "x86_64-linux") {
+        rvn-pc-disko-script = pkgs.runCommand "rvn-pc-disko-script-check" { } ''
+          script=${evaluated.system.build.diskoScript}
+
+          referenced_devices="$(
+            ${pkgs.gnugrep}/bin/grep -oE '/dev/disk/by-id/[A-Za-z0-9._:+-]+' "$script" \
+              | ${pkgs.coreutils}/bin/sort -u \
+              || true
+          )"
+
+          for expected in ${lib.escapeShellArgs approvedDevices}; do
+            if ! printf '%s\n' "$referenced_devices" | ${pkgs.gnugrep}/bin/grep -Fqx -- "$expected"; then
+              echo "Missing approved Disko device: $expected" >&2
+              exit 1
+            fi
+          done
+
+          unexpected_devices="$(
+            printf '%s\n' "$referenced_devices" \
+              | ${pkgs.gnugrep}/bin/grep -Fvx ${
+                lib.concatMapStringsSep " " (value: "-e ${lib.escapeShellArg value}") approvedDevices
+              } \
+              || true
+          )"
+          if [ -n "$unexpected_devices" ]; then
+            echo "Unexpected Disko device references:" >&2
+            printf '%s\n' "$unexpected_devices" >&2
+            exit 1
+          fi
+
+          if ${pkgs.gnugrep}/bin/grep -Eq '(^|[="])/dev/(sd[a-z]|nvme[0-9]|vd[a-z]|xvd[a-z]|mmcblk|mapper/|md[0-9]|dm-|loop[0-9])' "$script"; then
+            echo "Disko script contains a kernel or mapped device path" >&2
+            exit 1
+          fi
+
+          if ${pkgs.gnugrep}/bin/grep -Eq '(^|[="])/dev/disk/by-(partlabel|partuuid|uuid|path)/' "$script"; then
+            echo "Disko script contains a non-approved persistent device namespace" >&2
+            exit 1
+          fi
+
+          for forbidden in ${
+            lib.escapeShellArgs [
+              "/dev/disk/by-partlabel"
+              "/dev/sda"
+              "/dev/sdb"
+              "/dev/nvme0n1"
+              "AC7674097673D316"
+              "B86CB0876CB04244"
+              "ata-KINGSTON_SA400S37960G_50026B7783A2013B"
+              "ata-ST2000DM001-1ER164_Z4Z13XS1"
+              "/mnt/storage"
+              "/mnt/games"
+            ]
+          }; do
+            if ${pkgs.gnugrep}/bin/grep -Fq -- "$forbidden" "$script"; then
+              echo "Forbidden Disko reference: $forbidden" >&2
+              exit 1
+            fi
+          done
+
+          ${pkgs.coreutils}/bin/touch "$out"
+        '';
+      };
+
       nix-unit.tests.rvnPcDisko =
         lib.recursiveUpdate
           {
