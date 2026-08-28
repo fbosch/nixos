@@ -46,6 +46,8 @@ The current fixed-disk inventory is:
 ## Safety Invariants
 
 - Disko names exactly one disk by its stable `/dev/disk/by-id` path.
+- Disko addresses the ESP, swap, and Btrfs partitions through that disk's exact `-part1`, `-part2`, and `-part3` by-id aliases. Formatting and mounting never use global partition-label aliases.
+- The generated-script check covers static device references. Disko's deactivation helper canonicalizes the approved by-id path at runtime, so the installer still verifies the resolved hardware immediately before invoking Disko.
 - Disko never accepts a user-supplied target-device override.
 - `/mnt/storage` and `/mnt/games` remain UUID-mounted by `modules/hosts/rvn-pc/storage.nix` and never appear in `disko.devices`.
 - The installer requires the recorded target and protected disks to resolve to the expected model, serial, capacity, partition table, and filesystem UUIDs.
@@ -53,6 +55,7 @@ The current fixed-disk inventory is:
 - Additional fixed disks are an error. Removable installer media must be identified and reported separately.
 - Formatting and installation are separate actions. State is restored and SOPS is verified between them.
 - The same immutable Git revision supplies the Disko layout and `nixos-install` configuration.
+- Until the guarded installer exists, the standalone Disko output is supported only for evaluation and dry-run inspection.
 - The current installation is never switched to the final cutover revision.
 - The existing system and Home Manager age keys are restored. Missing keys fail loudly instead of being regenerated.
 - Secret values, password hashes, and private keys never enter unencrypted source files or command output.
@@ -146,15 +149,28 @@ nodev
 └─ /        tmpfs, mode=755, size=25%
 ```
 
+The partition device aliases are part of the layout contract:
+
+```text
+ESP      /dev/disk/by-id/nvme-WDS200T3X0C-00SJG0_21031B801746-part1
+swap     /dev/disk/by-id/nvme-WDS200T3X0C-00SJG0_21031B801746-part2
+system   /dev/disk/by-id/nvme-WDS200T3X0C-00SJG0_21031B801746-part3
+```
+
 ### Validation
 
 - [ ] Evaluate `diskoConfigurations.rvn-pc`.
-- [ ] Run Disko in `--dry-run` mode against the standalone output.
-- [ ] Inspect the generated partition and mount scripts.
+- [ ] Build `checks.x86_64-linux.rvn-pc-disko-script`; it must inspect the generated script without executing it.
+- [ ] Run Disko in `--dry-run` mode against the standalone output using the Disko revision recorded in `flake.lock`.
+- [ ] Use a `git+file://` flake URI for local dirty-worktree inspection so Git's fsmonitor socket is excluded from the flake source.
+- [ ] Treat Disko's dry-run result as a script path. Open the script and inspect its contents.
 - [ ] Assert that the only disk device is the approved WDS NVMe by-id path.
+- [ ] Assert that every static partition reference uses the approved `-part1`, `-part2`, or `-part3` alias.
+- [ ] Reject global partlabel, partuuid, UUID, by-path, kernel, mapped, and protected-disk device references in the generated script.
 - [ ] Assert that no LUKS device, NTFS disk, `/mnt/storage`, or `/mnt/games` appears.
 - [ ] Rebuild the current `nixosConfigurations.rvn-pc` and confirm its existing root, boot, and swap declarations remain unchanged.
 - [ ] Add focused evaluation coverage in the owning module for disk identity, partition sizes, filesystem types, subvolumes, tmpfs options, and resume selection.
+- [ ] Do not run `destroy`, `format`, `mount`, or combined mutating modes before the guarded installer and disposable rehearsal are complete.
 
 **Exit gate:** the standalone Disko output evaluates and dry-runs, while the current host still builds against its existing ext4 root.
 
@@ -225,6 +241,7 @@ nodev
 
 - [ ] Add `scripts/reinstall/rvn-pc-install.sh`.
 - [ ] Add a `perSystem` flake app such as `install-rvn-pc` using `pkgs.writeShellApplication` and explicit runtime inputs.
+- [ ] Add `modules/hosts/rvn-pc/README.md` as the operator runbook and link it briefly from the top-level README.
 - [ ] Keep `scripts/bootstrap/install.sh`, `scripts/bootstrap/bootstrap-machine.sh`, and the existing `install` app unchanged.
 - [ ] Add shell contract tests under `scripts/ci/` and include them in the existing lint workflow.
 
@@ -238,8 +255,11 @@ install-rvn-pc install
 
 - [ ] `inspect` performs no writes and reports installer mode, UEFI state, flake revision, target identity, current partitions, and expected layout.
 - [ ] `partition` repeats all inspection checks, refuses device overrides, requires a controlling terminal, and asks for the exact target confirmation phrase.
+- [ ] `partition` acquires an exclusive installer lock before repeating inspection and retains it until Disko exits.
 - [ ] `partition` runs only Disko `destroy,format,mount` and then stops for restoration.
+- [ ] `partition` refuses non-target mounts below `/mnt`; Disko begins by recursively unmounting that tree. Mount recovery sources outside `/mnt` during partitioning.
 - [ ] `install` refuses to partition, checks the expected target mounts, checks required restored files and modes, and runs `nixos-install` against the same immutable revision.
+- [ ] Record the partition revision in the installer environment and require `install` to use the same full Git commit.
 - [ ] Non-interactive destructive use requires an explicit automation proof designed and tested separately. Do not treat `--yes` as sufficient proof for this severe operation.
 - [ ] Cancellation exits without mutation.
 - [ ] Errors name the failed check and the safest recovery action.
@@ -250,13 +270,16 @@ install-rvn-pc install
 - [ ] Resolve `/dev/disk/by-id/nvme-WDS200T3X0C-00SJG0_21031B801746`.
 - [ ] Verify model `WDS200T3X0C-00SJG0`, serial `21031B801746`, and expected approximate capacity.
 - [ ] Verify the target is an NVMe whole-disk device rather than a partition.
+- [ ] Before partitioning, verify that any existing approved `-partN` aliases resolve below the target NVMe. After Disko exits, repeat the check against the recreated partitions.
 - [ ] Resolve the protected games disk as `/dev/disk/by-id/ata-KINGSTON_SA400S37960G_50026B7783A2013B` and verify its model, serial, capacity, partition table, and filesystem UUID `B86CB0876CB04244`.
 - [ ] Resolve the protected storage disk as `/dev/disk/by-id/ata-ST2000DM001-1ER164_Z4Z13XS1` and verify its model, serial, capacity, partition table, and filesystem UUID `AC7674097673D316`.
 - [ ] Refuse operation when any required stable ID is missing, ambiguous, duplicated, or resolves to unexpected hardware.
+- [ ] Refuse duplicate matching PARTUUID or PARTLABEL links even though production formatting uses by-id partition aliases.
 - [ ] Refuse unexpected fixed disks while identifying removable installer media separately.
 - [ ] Inspect Disko's generated commands and refuse operation if any whole-disk path, by-id alias, partition, or filesystem UUID belonging to a protected disk appears.
 - [ ] Require the phrase `ERASE nvme-WDS200T3X0C-00SJG0_21031B801746` immediately before Disko runs.
 - [ ] Refuse `--yes-wipe-all-disks` in the interactive workflow.
+- [ ] Invoke Disko from the reviewed flake lock. Do not fetch or execute an independent mutable Disko revision.
 
 ### Cloudflare endpoints
 
@@ -264,8 +287,19 @@ install-rvn-pc install
 - [ ] Map `https://nix.fbb.sh/hosts/rvn-pc/disko.nix` to the reviewed Disko module for inspection only.
 - [ ] Map `https://nix.fbb.sh/hosts/rvn-pc/install` to a small launcher that names one reviewed immutable Git commit.
 - [ ] Ensure the launcher runs `install-rvn-pc` from that commit rather than from `master`.
+- [ ] Make a no-argument launcher invocation default to `inspect`; require an explicit `partition` argument for disk mutation.
+- [ ] Support `curl -fsSL https://nix.fbb.sh/hosts/rvn-pc/install | bash -s -- inspect`, with `partition` and `install` as the other explicit actions.
+- [ ] Print the pinned full commit before running the flake app and verify the recorded partition revision before installation.
 - [ ] Update the Cloudflare route only after the reviewed commit is pushed.
 - [ ] Keep Cloudflare credentials and route management outside this repository unless its authoritative configuration is deliberately moved here later.
+
+### Operator documentation
+
+- [ ] Explain why `nix.fbb.sh/install` remains the generic post-install bootstrap and must not be used for this disk installation.
+- [ ] Document installer-media prerequisites, recovery verification, the three direct launcher commands, and the required restoration stop between `partition` and `install`.
+- [ ] Record the approved target and protected disk identities without including secrets.
+- [ ] Document the direct `nix run github:fbosch/nixos/<commit>#install-rvn-pc -- <action>` fallback.
+- [ ] Document cancellation, partial-failure recovery, `/mnt` mount restrictions, and the fact that pre-cutover ext4 generations cannot boot after partitioning.
 
 ### Validation
 
@@ -274,6 +308,9 @@ install-rvn-pc install
 - [ ] Prove `inspect` cannot reach a mutating command.
 - [ ] Prove `install` cannot reach Disko formatting.
 - [ ] Prove `partition` cannot continue without the exact confirmation phrase.
+- [ ] Prove `partition` refuses protected or recovery mounts below `/mnt` and a second concurrent installer process.
+- [ ] Prove `install` rejects a revision different from the one recorded by `partition`.
+- [ ] Test the no-argument launcher default and each explicit `curl | bash -s -- <action>` form with a stubbed flake app.
 - [ ] Run `shfmt` and `shellcheck` on the new scripts.
 
 **Exit gate:** the installer fails closed in every tested mismatch and cannot combine partitioning with installation.
@@ -288,6 +325,7 @@ install-rvn-pc install
 - [ ] Run Disko dry-run and inspect every generated destructive command.
 - [ ] Exercise the layout against a disposable VM disk or loopback-backed test fixture with a test-only device override that cannot enter the production output.
 - [ ] Verify tmpfs `/`, persistent `/nix`, persistent `/persist`, the ESP, and the 48 GiB resume swap in the rehearsal environment.
+- [ ] Fill the tmpfs root to its 25 percent limit and verify predictable `ENOSPC` behavior without losing persistent state.
 - [ ] Restore disposable test identities into the rehearsal `/persist`; never copy production private keys into a shared test image.
 - [ ] Verify Preservation creates the expected bind mounts, ownership, modes, and initrd paths.
 - [ ] Verify an undeclared test file disappears after a cold reboot and a declared file survives.
@@ -360,6 +398,7 @@ install-rvn-pc install
 - [ ] Push the reviewed revision so the installer can fetch it.
 - [ ] Point the Cloudflare install endpoint at this exact commit.
 - [ ] Do not run `nixos-rebuild switch` or `nixos-rebuild boot` from this revision on the old installation.
+- [ ] Record that pre-cutover generations reference the ext4 filesystem erased by Disko and are not rollback targets after partitioning.
 
 **Exit gate:** the immutable revision builds, dry-runs, is remotely fetchable, and is not activated on the old filesystem.
 
@@ -374,15 +413,16 @@ All commands that use `sudo`, Disko, SOPS, or `nixos-install` in this phase are 
 1. Leave the NTFS storage and games disks connected and boot standard NixOS installer media in UEFI mode.
 2. Confirm the installer reports its removable boot media separately from the three fixed disks.
 3. Connect networking and verify the approved Git revision is reachable.
-4. Download the `rvn-pc` installer launcher without executing an unreviewed mutable branch.
-5. Run `install-rvn-pc inspect`.
+4. Run `curl -fsSL https://nix.fbb.sh/hosts/rvn-pc/install | bash -s -- inspect`; verify that it reports the approved full Git commit.
+5. Use `nix run github:fbosch/nixos/<commit>#install-rvn-pc -- inspect` as the fallback when the custom endpoint is unavailable.
 6. Compare the target and protected disks' model, serial, capacity, by-id path, partition table, and filesystem UUIDs with the recovery record.
-7. Verify the recovery set is readable before any disk write.
-8. Stop if any required identity differs, a protected disk is missing, an unexpected fixed disk is present, or Disko's generated commands reference anything except the target NVMe.
+7. Mount the recovery source outside `/mnt` and verify that the recovery set is readable before any disk write.
+8. Confirm that no protected or recovery filesystem is mounted below `/mnt`; Disko recursively unmounts that tree before partitioning.
+9. Stop if any required identity differs, a protected disk is missing, an unexpected fixed disk is present, or Disko's generated commands reference anything except the target NVMe.
 
 ### Partition
 
-1. Run `install-rvn-pc partition`.
+1. Run `curl -fsSL https://nix.fbb.sh/hosts/rvn-pc/install | bash -s -- partition`.
 2. Review the final disk summary.
 3. Enter `ERASE nvme-WDS200T3X0C-00SJG0_21031B801746` exactly.
 4. Let Disko destroy, format, and mount the target.
@@ -411,7 +451,7 @@ All commands that use `sudo`, Disko, SOPS, or `nixos-install` in this phase are 
 
 ### Install
 
-1. Run `install-rvn-pc install` from the same immutable revision.
+1. Run `curl -fsSL https://nix.fbb.sh/hosts/rvn-pc/install | bash -s -- install`; it must match the immutable revision recorded by `partition`.
 2. Treat every SOPS warning, missing password file, activation failure, or nonzero exit as an installation failure.
 3. If installation fails, repair the mounted target or restored state and rerun only the install action.
 4. Before rebooting, inspect `/mnt/boot`, `/mnt/nix`, `/mnt/persist`, the swap resume configuration, and the installed system closure.
@@ -470,6 +510,7 @@ All commands that use `sudo`, Disko, SOPS, or `nixos-install` in this phase are 
 ## Recovery Rules
 
 - If Disko fails before formatting completes, remain in the installer and inspect the target. Do not retry unchanged.
+- If the custom installer endpoint changes revision between actions, stop and invoke the recorded commit directly with `nix run`.
 - If formatting succeeds but restoration or SOPS verification fails, repair `/mnt/persist`. Do not rerun Disko.
 - If `nixos-install` fails, keep the target mounted, correct the configuration or restored state, and rerun only installation.
 - If the first boot cannot decrypt secrets or create the user, boot installer media, mount `/persist`, restore the correct age key, and rerun installation or activation from the pinned revision.
