@@ -21,6 +21,7 @@
           focusAnimationPlugin = pkgs.local."hyprland-plugins/focus-animation";
           insetBorderPlugin = pkgs.local."hyprland-plugins/inset-border";
           pointerEdgeHooksPlugin = pkgs.local."hyprland-plugins/pointer-edge-hooks";
+          windowInteractionHooksPlugin = pkgs.local."hyprland-plugins/window-interaction-hooks";
           xdgDesktopPortalHyprlandPackage =
             inputs.hyprland.packages.${system}.xdg-desktop-portal-hyprland.override
               {
@@ -86,6 +87,7 @@
               HYPR_FOCUS_ANIMATION_PLUGIN = "${focusAnimationPlugin}/lib/libfocus-animation.so";
               HYPR_INSET_BORDER_PLUGIN = "${insetBorderPlugin}/lib/libinset-border.so";
               HYPR_POINTER_EDGE_HOOKS_PLUGIN = "${pointerEdgeHooksPlugin}/lib/libpointer-edge-hooks.so";
+              HYPR_WINDOW_INTERACTION_HOOKS_PLUGIN = "${windowInteractionHooksPlugin}/lib/libwindow-interaction-hooks.so";
               __GL_GSYNC_ALLOWED = "1";
               __GL_VRR_ALLOWED = "1";
               QT_QPA_PLATFORM = "wayland;xcb";
@@ -102,6 +104,7 @@
               focusAnimationPlugin
               insetBorderPlugin
               pointerEdgeHooksPlugin
+              windowInteractionHooksPlugin
               inputs.hyprpaper.packages.${system}.hyprpaper
               pkgs.hyprprop
               pkgs.hyprpicker
