@@ -29,6 +29,10 @@
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    disko = {
+      url = "github:nix-community/disko";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     steam-config-nix = {
       url = "github:different-name/steam-config-nix";
       inputs = {
