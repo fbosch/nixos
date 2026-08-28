@@ -114,6 +114,7 @@ in
       historyPath = "${profilePath}/${profile}/History";
       lastPageQuery = lib.escapeShellArg "SELECT url FROM urls WHERE url LIKE '${origin}/%' ORDER BY last_visit_time DESC LIMIT 1;";
       enableWidevine = runtime.enableWidevine or false;
+      allowHostDevices = runtime.allowHostDevices or false;
       waylandAppId = runtime.waylandAppId or null;
       needsProcessExit = rememberLastPage || waylandAppId != null;
       browserCommand =
@@ -306,6 +307,7 @@ in
           unpackedExtensions
           waylandAppId
           enableWidevine
+          allowHostDevices
           ;
       };
 

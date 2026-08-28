@@ -30,6 +30,15 @@ in
       heliumDrmProfile = pkgs.replaceVars ./helium-drm.profile {
         inherit heliumProfile;
       };
+      heliumWebappProfile =
+        name: package:
+        pkgs.writeText "${builtins.baseNameOf name}-firejail.profile" ''
+          ${lib.optionalString package.passthru.heliumWebapp.allowHostDevices "ignore nou2f"}
+          ${lib.optionalString package.passthru.heliumWebapp.allowHostDevices "ignore private-dev"}
+          ${lib.optionalString package.passthru.heliumWebapp.enableWidevine "ignore noexec \${HOME}"}
+
+          include ${heliumProfile}
+        '';
       heliumWebapps = lib.filterAttrs (name: _: lib.hasPrefix "webapp/" name) pkgs.local;
       nativeWaylandWebapps = lib.filterAttrs
         (
@@ -79,7 +88,7 @@ in
             name = package.meta.mainProgram or (builtins.baseNameOf name);
             value = {
               executable = lib.getExe package;
-              profile = if package.passthru.heliumWebapp.enableWidevine then heliumDrmProfile else heliumProfile;
+              profile = heliumWebappProfile name package;
               desktop = "${package}/share/applications/${
               package.meta.mainProgram or (builtins.baseNameOf name)
             }.desktop";

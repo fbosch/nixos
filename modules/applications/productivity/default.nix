@@ -11,6 +11,7 @@
       local."webapp/linear"
       local."webapp/figma"
       local."webapp/apple-maps"
+      local."webapp/keychron-launcher"
     ];
   };
 
