@@ -100,7 +100,7 @@ The current fixed-disk inventory is:
 ### Secret preparation
 
 - [ ] Generate a yescrypt password hash interactively.
-- [ ] Add `user-password-hash` to `secrets/common.yaml` with SOPS.
+- [ ] Add `user-password-hash` to `secrets/hosts/rvn-pc.yaml` with SOPS.
 - [ ] Confirm the encrypted file remains decryptable by the existing `rvn-pc` and recovery recipients.
 - [ ] Do not store the plaintext password or decrypted hash in a shell history, plan, test fixture, or Git diff.
 
@@ -318,7 +318,7 @@ install-rvn-pc install
 - [ ] Mount or open the backup from installer media.
 - [ ] Run `local-host-recovery.sh verify --host rvn-pc <backup-id>` because installer media normally uses a different hostname.
 - [ ] Verify ownership and mode metadata can be restored.
-- [ ] Verify the system age key can decrypt `secrets/common.yaml` with plaintext discarded.
+- [ ] Verify the system age key can decrypt `secrets/common.yaml` and `secrets/hosts/rvn-pc.yaml` with plaintext discarded.
 - [ ] Verify `user-password-hash` exists and decrypts without printing its value.
 - [ ] Verify `nixos` and `dotfiles` repositories contain all required commits and untracked work.
 - [ ] Inspect archives and restore representative files into a temporary location.
@@ -404,7 +404,7 @@ All commands that use `sudo`, Disko, SOPS, or `nixos-install` in this phase are 
 
 1. Confirm `/mnt/persist` is the expected Btrfs mount.
 2. Confirm the system age key is a non-empty regular file owned by root with mode `0600`.
-3. Run a SOPS decryption check against `secrets/common.yaml` with output discarded.
+3. Run SOPS decryption checks against `secrets/common.yaml` and `secrets/hosts/rvn-pc.yaml` with output discarded.
 4. Verify the `user-password-hash` field decrypts without printing it.
 5. Confirm the final configuration points to `/persist/var/lib/sops-nix/key.txt`, sets `generateKey = false`, and marks the password secret `neededForUsers`.
 6. Stop if any check fails. Do not reboot and do not rerun Disko.

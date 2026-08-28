@@ -8,6 +8,12 @@ keys:
   - &fbb-user age1qvnp38vf03rypemwah5t3khtypkh8tdz2n6rv88eemuuupsv39eqaele9g
 
 creation_rules:
+  - path_regex: secrets/hosts/rvn-pc\.yaml$
+    key_groups:
+      - pgp:
+          - *admin
+        age:
+          - *rvn-pc
   - path_regex: secrets/secrets\.yaml$
     key_groups:
       - pgp:
