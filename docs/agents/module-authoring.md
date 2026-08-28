@@ -13,24 +13,60 @@
    - Pull shared strings, secrets, and UI options from `config.flake.meta` so replacements propagate automatically.
 5. **Route dependencies through the tree**
    - When a feature depends on another, import it using `config.flake.modules` (e.g. `imports = [ config.flake.modules.nixos.<other> ];`) rather than relative file paths.
-6. **Expose automation through perSystem**
+6. **Keep persistent state with its owning feature**
+   - Feature files contribute their durable paths to the shared `flake.modules.nixos.preservation` collector.
+   - A host Preservation aspect imports the upstream module and the collector, enables Preservation, and owns only the persistence root, boot contract, host identities, and host-wide paths.
+   - Keep one-time recovery manifests host-specific. They describe migration inputs rather than steady-state module ownership.
+7. **Expose automation through perSystem**
    - Checks, formatters, dev shells, and packages should be defined under `perSystem` so every supported platform gets consistent tooling.
    - Feature-specific nix-unit tests belong in the owning module under `perSystem.nix-unit.tests`; this keeps behavior, configuration, and its contract together.
    - Keep files under `tests/nix-unit/` for pure library tests or invariants that intentionally span multiple feature modules.
    - Prefer evaluated module/configuration assertions. For generated shell, policy, or configuration text, inspect the evaluated artifact. Limit source scans to inherently textual repository policies and keep them outside the files they inspect.
    - Do not add an ordinary support `.nix` file under `modules/`, because `import-tree` treats it as a flake-parts module.
-7. **Prefer data over conditionals**
+8. **Prefer data over conditionals**
    - Pass environment-specific values (host role, install mode, usernames) in `specialArgs` to keep modules declarative and easily testable.
-8. **Keep comments minimal**
+9. **Keep comments minimal**
    - Only add comments that explain "why", not "what"; remove obvious restatements.
    - Avoid section headers unless the file is complex enough to warrant them; brief inline comments for non-obvious values are acceptable.
-9. **Shell scripts in modules**
+10. **Shell scripts in modules**
     - Short scripts (~20 lines or fewer) can be inlined directly in Nix strings.
     - Longer scripts should be placed in a sibling `scripts/` directory and loaded with `builtins.readFile` or `pkgs.writeShellApplication` to preserve shellcheck/linting and editor support.
-10. **Use direct attribute sets by default**
+11. **Use direct attribute sets by default**
     - Export `{ flake.modules... = ...; }` directly when no flake-level arguments are needed.
     - Use an outer function only when it consumes flake-level arguments, such as `{ config, ... }:` for `config.flake.lib`.
     - This does not apply to functions assigned to `flake.modules.*`; those are the NixOS, Darwin, or Home Manager module interfaces and may need arguments.
+
+## Preservation Ownership
+
+Declare service state beside the service, under the shared collector aspect. Guard the contribution with the service's evaluated enable option because importing the collector does not imply that every contributing feature is active.
+
+```nix
+flake.modules.nixos.preservation =
+  { config, lib, ... }:
+  {
+    config = lib.mkIf config.services.example.enable {
+      preservation.preserveAt."/persist".directories = [
+        {
+          directory = "/var/lib/example";
+          mode = "0700";
+        }
+      ];
+    };
+  };
+```
+
+The host aspect provides the Preservation module and imports the collector through the module tree:
+
+```nix
+imports = [
+  inputs.preservation.nixosModules.preservation
+  config.flake.modules.nixos.preservation
+];
+
+preservation.enable = true;
+```
+
+Do not import the upstream Preservation module from a service aspect. That would let the service choose a host storage policy. Do not centralize service-owned paths in a host allowlist; doing so separates state knowledge from the feature that must maintain it.
 
 ## Self-Contained Service Modules
 

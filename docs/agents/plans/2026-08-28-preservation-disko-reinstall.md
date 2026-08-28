@@ -2,7 +2,7 @@
 
 ## Goal
 
-Reinstall `rvn-pc` onto a declarative Disko layout with a tmpfs root, persistent Btrfs storage, hibernation, and `nix-community/preservation`. Preserve the machine identity, SSH host identity, SOPS identities, declarative login, and selected personal state.
+Reinstall `rvn-pc` onto a declarative Disko layout with a tmpfs root, persistent Btrfs storage, hibernation, and `nix-community/preservation`. Preserve the machine identity, SSH host identity, SOPS identities, declarative login, and the entire future `/home/fbb`. Restore selected personal state from the current installation.
 
 The installation must erase only:
 
@@ -28,6 +28,7 @@ The NTFS storage and games disks remain connected during installation, but are p
 | Persistence | `nix-community/preservation` |
 | Initrd | systemd initrd |
 | Login | SOPS-encrypted yescrypt hash, immutable users, `fbb` UID 1000 |
+| Home persistence | Bind-mount the entire `/home/fbb` from `/persist/home/fbb` |
 | State migration | Identities and selected personal state only |
 | Remote installer | Separate `rvn-pc` endpoint and flake app |
 | Existing bootstrap | Keep `nix.fbb.sh/install` unchanged |
@@ -57,7 +58,7 @@ The current fixed-disk inventory is:
 - The same immutable Git revision supplies the Disko layout and `nixos-install` configuration.
 - Until the guarded installer exists, the standalone Disko output is supported only for evaluation and dry-run inspection.
 - The current installation is never switched to the final cutover revision.
-- The existing system and Home Manager age keys are restored. Missing keys fail loudly instead of being regenerated.
+- The existing machine ID, SSH host keys, and system and Home Manager age keys are restored. Missing identities fail loudly instead of being regenerated.
 - Secret values, password hashes, and private keys never enter unencrypted source files or command output.
 - Recovery archives contain plaintext private keys by explicit decision. CIFS access control is the confidentiality boundary, and SHA-256 checks detect corruption rather than malicious replacement.
 - Existing unrelated worktree changes are preserved and excluded from this work.
@@ -194,6 +195,7 @@ system   /dev/disk/by-id/nvme-WDS200T3X0C-00SJG0_21031B801746-part3
 ### System state
 
 - [ ] Preserve `/etc/machine-id` with `inInitrd = true`.
+- [ ] Fail the initrd when the restored machine ID is missing, empty, symlinked, all-zero, or malformed.
 - [ ] Suppress `systemd-machine-id-commit.service` for the restored fixed machine ID.
 - [ ] Preserve `/var/lib/nixos` with `inInitrd = true`.
 - [ ] Preserve `/var/lib/NetworkManager`.
@@ -209,27 +211,29 @@ system   /dev/disk/by-id/nvme-WDS200T3X0C-00SJG0_21031B801746-part3
 - [ ] Override the future system SOPS key path to `/persist/var/lib/sops-nix/key.txt`.
 - [ ] Set future `sops.age.generateKey = false`.
 - [ ] Configure OpenSSH host keys at `/persist/etc/ssh/ssh_host_ed25519_key` and `/persist/etc/ssh/ssh_host_rsa_key`.
+- [ ] Disable automatic OpenSSH host-key generation so missing restored keys fail instead of replacing the host identity.
 - [ ] Keep the system SOPS key and SSH host keys outside Preservation bind mounts because consumers can read them directly from `/persist`.
 - [ ] Add a matching Home Manager aspect only to set `sops.age.generateKey = false`; do not add Home Manager persistence options.
 
-### Selected user state
+### Home state
 
-- [ ] Use `preservation.preserveAt."/persist".users.fbb` for user paths.
-- [ ] Preserve `nixos`, `dotfiles`, `.config/sops/age`, `.ssh`, `.gnupg`, and `.local/share/keyrings` with appropriate modes.
-- [ ] Add documents, projects, browser profiles, communication-client data, shell history, game saves, and selected Proton prefixes only after the state inventory records their exact paths and restore priority.
-- [ ] Exclude `.cache`, Steam game binaries, Flatpak runtimes, Podman images, downloads, and the current libvirt VM by default.
-- [ ] Avoid preserving all of `/home/fbb`, `.config`, `.local`, or `.var` because broad mounts would hide Home Manager and Stow-managed files.
+- [ ] Preserve `/home/fbb` as one bind-mounted directory owned by `fbb:users` with mode `0700`.
+- [ ] Mount the persistent home before Home Manager and user services start so Home Manager and Stow write to the durable home.
+- [ ] Treat the whole-home policy as a post-install reboot contract. It does not decide which files from the current installation are copied into the new home.
+- [ ] Keep current-state migration explicit in the recovery manifest; files not backed up before Disko cannot be recovered by Preservation.
 
 ### Validation
 
 - [ ] Evaluate the future Preservation options without importing the aspect into the active host.
 - [ ] Assert the machine ID and `/var/lib/nixos` are prepared in the initrd.
+- [ ] Test machine-ID validation against missing, empty, malformed, all-zero, symlinked, and valid files.
 - [ ] Assert the system SOPS key and SSH host keys use direct `/persist` paths.
+- [ ] Assert OpenSSH host-key generation is disabled.
 - [ ] Assert automatic age-key generation is disabled in the future NixOS and Home Manager configurations.
-- [ ] Assert excluded cache and runtime paths are absent.
+- [ ] Assert `/persist/home/fbb` is bind-mounted at `/home/fbb` with `fbb:users` ownership before `preservation.target`.
 - [ ] Check generated systemd mount and tmpfiles units for ownership, mode, and ordering.
 
-**Exit gate:** the persistence allowlist is explicit, early identities have deterministic paths, and no broad home or system directory is preserved accidentally.
+**Exit gate:** the entire future home is durable by explicit policy, early identities have deterministic paths, and no broad system directory is preserved accidentally.
 
 **Good commit point:** inactive Preservation, SOPS, SSH identity, and selected-state contract.
 
