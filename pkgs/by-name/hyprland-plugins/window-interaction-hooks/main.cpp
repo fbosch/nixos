@@ -55,7 +55,7 @@ namespace {
 
         const auto geometry = window->layoutBox();
         g_finishedEvent->emit({
-            interaction.window,
+            window,
             interaction.kind,
             geometry.x,
             geometry.y,
