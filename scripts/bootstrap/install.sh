@@ -22,6 +22,41 @@ gpg_key_id="fbb.privacy+gpg@protonmail.com"
 install_root="/mnt/disko-install-root"
 downloaded_script=""
 iso_work_dir=""
+install_dry_run="${NIXOS_INSTALL_DRY_RUN:-false}"
+
+print_help() {
+  cat <<'EOF_HELP'
+Usage: install.sh [--dry-run]
+
+Run from a standard NixOS ISO to install a selected host, or from an installed
+NixOS system to run the machine bootstrap.
+
+Options:
+  --dry-run  Exercise the ISO flow without requiring UEFI or the target disk.
+             Stops after the Disko dry run and never formats a disk.
+  -h, --help Show this help.
+EOF_HELP
+}
+
+parse_args() {
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+    --dry-run) install_dry_run="true" ;;
+    -h | --help)
+      print_help
+      exit 0
+      ;;
+    *)
+      printf 'Error: unknown option: %s\n' "$1" >&2
+      printf 'Run with --help for usage.\n' >&2
+      exit 2
+      ;;
+    esac
+    shift
+  done
+
+  export NIXOS_INSTALL_DRY_RUN="$install_dry_run"
+}
 
 cleanup_iso_install() {
   if [ -n "$iso_work_dir" ]; then
@@ -193,21 +228,28 @@ run_iso_install() {
     exit 1
   fi
 
-  if [ ! -d /sys/firmware/efi ]; then
+  if [ ! -d /sys/firmware/efi ] && [ "$install_dry_run" = "false" ]; then
     printf 'Error: the installer was not booted in UEFI mode.\n' >&2
     exit 1
+  fi
+  if [ ! -d /sys/firmware/efi ]; then
+    printf 'Warning: UEFI firmware is unavailable; continuing because --dry-run is active.\n' >&2
   fi
 
   host="$(select_install_host)"
   configure_install_host "$host"
-  if [ ! -b "$target_device" ]; then
+  if [ ! -b "$target_device" ] && [ "$install_dry_run" = "false" ]; then
     printf 'Error: approved installation disk is unavailable: %s\n' "$target_device" >&2
     exit 1
   fi
 
   printf '%s fresh installation\n\n' "$host"
   printf 'Target disk: %s\n' "$target_device"
-  lsblk --output NAME,SIZE,MODEL,SERIAL,TYPE,MOUNTPOINTS "$target_device"
+  if [ -b "$target_device" ]; then
+    lsblk --output NAME,SIZE,MODEL,SERIAL,TYPE,MOUNTPOINTS "$target_device"
+  else
+    printf 'Warning: target disk is unavailable; continuing because --dry-run is active.\n' >&2
+  fi
 
   iso_work_dir="$(mktemp -d -t nixos-install.XXXXXX)"
   chmod 0700 "$iso_work_dir"
@@ -244,6 +286,10 @@ run_iso_install() {
 
   printf '\nDisko dry run:\n'
   run_disko_install "$repository" "$identity_tree" "$host" --dry-run
+  if [ "$install_dry_run" = "true" ]; then
+    printf '\nDry run completed. No disk changes were made.\n'
+    return
+  fi
 
   printf '\nWARNING: the next step permanently erases the target disk shown above.\n'
   read -r -p "Type 'ERASE $host' to install: " confirmation </dev/tty
@@ -269,7 +315,7 @@ run_downloaded_script() {
 
   curl -fsSL "$base_url/$script_name" -o "$downloaded_script"
   if [ "$privilege" = "root" ]; then
-    sudo --preserve-env=BOOTSTRAP_INSTALL_ISO_RUNTIME,GPG_KEY_GIST_ID,NIXOS_INSTALL_HOST \
+    sudo --preserve-env=BOOTSTRAP_INSTALL_ISO_RUNTIME,GPG_KEY_GIST_ID,NIXOS_INSTALL_DRY_RUN,NIXOS_INSTALL_HOST \
       nix-shell -p "$@" --run "bash \"$downloaded_script\" </dev/tty >/dev/tty"
     return
   fi
@@ -278,6 +324,8 @@ run_downloaded_script() {
 }
 
 main() {
+  parse_args "$@"
+
   if is_live_iso || [ "${BOOTSTRAP_INSTALL_TEST_MODE:-}" = "live-iso" ]; then
     if [ "${BOOTSTRAP_INSTALL_ISO_RUNTIME:-false}" = "true" ]; then
       run_iso_install "$@"
@@ -287,6 +335,11 @@ main() {
     export BOOTSTRAP_INSTALL_ISO_RUNTIME=true
     run_downloaded_script root install.sh age gh git gnupg openssh sops util-linux
     return
+  fi
+
+  if [ "$install_dry_run" = "true" ]; then
+    printf 'Error: --dry-run is only available from the NixOS ISO.\n' >&2
+    exit 2
   fi
 
   run_downloaded_script user bootstrap-machine.sh gh git gum openssh qrencode

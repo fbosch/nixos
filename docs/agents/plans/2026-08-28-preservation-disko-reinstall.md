@@ -250,7 +250,6 @@ system   /dev/disk/by-id/nvme-WDS200T3X0C-00SJG0_21031B801746-part3
 
 - [ ] Add `scripts/reinstall/rvn-pc-install.sh`.
 - [ ] Add a `perSystem` flake app such as `install-rvn-pc` using `pkgs.writeShellApplication` and explicit runtime inputs.
-- [ ] Add `modules/hosts/rvn-pc/README.md` as the operator runbook and link it briefly from the top-level README.
 - [ ] Keep `scripts/bootstrap/install.sh`, `scripts/bootstrap/bootstrap-machine.sh`, and the existing `install` app unchanged.
 - [ ] Add shell contract tests under `scripts/ci/` and include them in the existing lint workflow.
 

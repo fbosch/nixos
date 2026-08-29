@@ -120,7 +120,7 @@ EOF_EXPECTED_CURL_ARGS
 
   if [ "$privilege" = "root" ]; then
     {
-      printf '%s\n' '--preserve-env=BOOTSTRAP_INSTALL_ISO_RUNTIME,GPG_KEY_GIST_ID,NIXOS_INSTALL_HOST'
+      printf '%s\n' '--preserve-env=BOOTSTRAP_INSTALL_ISO_RUNTIME,GPG_KEY_GIST_ID,NIXOS_INSTALL_DRY_RUN,NIXOS_INSTALL_HOST'
       printf '%s\n' nix-shell
       cat "$BOOTSTRAP_TEST_NIX_SHELL_ARGS"
     } >"$tmp_dir/expected-sudo-args"
@@ -151,6 +151,12 @@ assert_launcher_contract bootstrap-machine.sh user gh git gum openssh qrencode
 export BOOTSTRAP_INSTALL_LIB_ONLY=true
 # shellcheck disable=SC1091
 source "$repo_root/scripts/bootstrap/install.sh"
+
+parse_args --dry-run
+if [ "$install_dry_run" != "true" ] || [ "$NIXOS_INSTALL_DRY_RUN" != "true" ]; then
+  printf 'dry-run option was not preserved for the ISO runtime\n' >&2
+  exit 1
+fi
 
 sops_config="$tmp_dir/sops.yaml"
 cat >"$sops_config" <<'EOF_SOPS'
