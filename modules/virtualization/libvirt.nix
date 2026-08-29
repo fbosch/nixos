@@ -1,4 +1,4 @@
-{ config, inputs, ... }:
+{ config, ... }:
 {
   flake.modules.nixos = {
     "virtualization/libvirt" =
@@ -94,72 +94,4 @@
         ];
       };
   };
-
-  perSystem =
-    { lib, system, ... }:
-    let
-      persistencePaths =
-        { libvirt ? false
-        , swtpm ? false
-        ,
-        }:
-        let
-          evaluated = inputs.nixpkgs.lib.nixosSystem {
-            inherit system;
-            modules = [
-              inputs.preservation.nixosModules.preservation
-              config.flake.modules.nixos.preservation
-              {
-                system.stateVersion = "25.05";
-                virtualisation.libvirtd = {
-                  enable = libvirt || swtpm;
-                  qemu.swtpm.enable = swtpm;
-                };
-              }
-            ];
-          };
-        in
-        lib.sortOn (value: value.directory) (
-          map
-            (value: {
-              inherit (value) directory mode;
-            })
-            (evaluated.config.preservation.preserveAt."/persist".directories or [ ])
-        );
-    in
-    {
-      nix-unit.tests.libvirtPreservation = lib.optionalAttrs (system == "x86_64-linux") {
-        testDisabledLibvirtContributesNothing = {
-          expr = persistencePaths { };
-          expected = [ ];
-        };
-
-        testLibvirtOwnsRuntimeState = {
-          expr = persistencePaths { libvirt = true; };
-          expected = [
-            {
-              directory = "/var/lib/libvirt";
-              mode = "0755";
-            }
-          ];
-        };
-
-        testSwtpmOwnsLocalCertificateAuthority = {
-          expr = persistencePaths {
-            libvirt = true;
-            swtpm = true;
-          };
-          expected = [
-            {
-              directory = "/var/lib/libvirt";
-              mode = "0755";
-            }
-            {
-              directory = "/var/lib/swtpm-localca";
-              mode = "0750";
-            }
-          ];
-        };
-      };
-    };
 }

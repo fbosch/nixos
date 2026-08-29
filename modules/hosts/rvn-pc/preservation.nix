@@ -144,6 +144,7 @@ in
           inputs.home-manager.nixosModules.home-manager
           config.flake.modules.nixos.users
           config.flake.modules.nixos.secrets
+          config.flake.modules.nixos."services/attic"
           config.flake.modules.nixos."system/tiered-service-startup"
           config.flake.modules.nixos.vpn
           config.flake.modules.nixos."virtualization/libvirt"
@@ -320,6 +321,14 @@ in
               group = "root";
             }
             {
+              path = "/var/lib/private/attic-upload";
+              how = "bindmount";
+              inInitrd = false;
+              mode = "0750";
+              user = "root";
+              group = "root";
+            }
+            {
               path = "/var/lib/swtpm-localca";
               how = "bindmount";
               inInitrd = false;
@@ -416,6 +425,9 @@ in
               mutableUsers = future.users.mutableUsers;
               passwordNeededForUsers = future.sops.secrets.user-password-hash.neededForUsers;
             };
+            atticQueue = {
+              inherit (future.systemd.services.attic-upload.serviceConfig) DynamicUser StateDirectory;
+            };
             initrdTarget = {
               inherit (future.boot.initrd.systemd.targets.initrd-preservation) before wantedBy;
             };
@@ -441,6 +453,10 @@ in
               homeModeMatches = true;
               mutableUsers = false;
               passwordNeededForUsers = true;
+            };
+            atticQueue = {
+              DynamicUser = true;
+              StateDirectory = "attic-upload";
             };
             initrdTarget = {
               before = [ "initrd.target" ];
@@ -494,6 +510,7 @@ in
               "/persist/home/${username} -> /home/${username}"
               "/persist/var/lib/NetworkManager -> /var/lib/NetworkManager"
               "/persist/var/lib/libvirt -> /var/lib/libvirt"
+              "/persist/var/lib/private/attic-upload -> /var/lib/private/attic-upload"
               "/persist/var/lib/swtpm-localca -> /var/lib/swtpm-localca"
               "/persist/var/lib/systemd/timers -> /var/lib/systemd/timers"
               "/persist/var/lib/tailscale -> /var/lib/tailscale"
@@ -528,6 +545,9 @@ in
             mullvadState =
               tmpfileSummary future.systemd.tmpfiles.settings.preservation "/persist/etc/mullvad-vpn"
                 "d";
+            atticQueue =
+              tmpfileSummary future.systemd.tmpfiles.settings.preservation "/persist/var/lib/private/attic-upload"
+                "d";
             userHome =
               tmpfileSummary future.systemd.tmpfiles.settings.preservation "/persist/home/${username}"
                 "d";
@@ -539,6 +559,7 @@ in
             randomSeedPersistentParent = "d 0755 root:root ";
             networkConnections = "d 0700 root:root ";
             mullvadState = "d 0755 root:root ";
+            atticQueue = "d 0750 root:root ";
             userHome = "d 0700 ${username}:users ";
           };
         };

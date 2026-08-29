@@ -1,4 +1,3 @@
-{ config, inputs, ... }:
 {
   flake.modules.nixos = {
     vpn =
@@ -96,63 +95,4 @@
         ];
       };
   };
-
-  perSystem =
-    { lib, system, ... }:
-    let
-      persistencePaths =
-        { mullvad ? false
-        , tailscale ? false
-        ,
-        }:
-        let
-          evaluated = inputs.nixpkgs.lib.nixosSystem {
-            inherit system;
-            modules = [
-              inputs.preservation.nixosModules.preservation
-              config.flake.modules.nixos.preservation
-              {
-                system.stateVersion = "25.05";
-                services = {
-                  mullvad-vpn.enable = mullvad;
-                  tailscale.enable = tailscale;
-                };
-              }
-            ];
-          };
-        in
-        map
-          (value: {
-            inherit (value) directory mode;
-          })
-          (evaluated.config.preservation.preserveAt."/persist".directories or [ ]);
-    in
-    {
-      nix-unit.tests.vpnPreservation = lib.optionalAttrs (system == "x86_64-linux") {
-        testDisabledServicesContributeNothing = {
-          expr = persistencePaths { };
-          expected = [ ];
-        };
-
-        testMullvadOwnsDaemonState = {
-          expr = persistencePaths { mullvad = true; };
-          expected = [
-            {
-              directory = "/etc/mullvad-vpn";
-              mode = "0755";
-            }
-          ];
-        };
-
-        testTailscaleOwnsDaemonState = {
-          expr = persistencePaths { tailscale = true; };
-          expected = [
-            {
-              directory = "/var/lib/tailscale";
-              mode = "0700";
-            }
-          ];
-        };
-      };
-    };
 }

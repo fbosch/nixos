@@ -38,7 +38,7 @@
 
 ## Preservation Ownership
 
-Declare service state beside the service, under the shared collector aspect. Guard the contribution with the service's evaluated enable option because importing the collector does not imply that every contributing feature is active.
+Declare service state beside the service, under the shared collector aspect. Guard the contribution with the service's evaluated enable option because importing the collector does not imply that every contributing feature is active. For repository-defined options, first check that the option exists before reading its value so hosts that omit the feature still evaluate.
 
 ```nix
 flake.modules.nixos.preservation =
@@ -67,6 +67,8 @@ preservation.enable = true;
 ```
 
 Do not import the upstream Preservation module from a service aspect. That would let the service choose a host storage policy. Do not centralize service-owned paths in a host allowlist; doing so separates state knowledge from the feature that must maintain it.
+
+For a systemd service with `DynamicUser=true`, inspect the evaluated `StateDirectory` layout before choosing a path. Systemd exposes `/var/lib/<name>` as a symlink into `/var/lib/private`; preserve the private directory and let systemd recreate the public symlink and dynamic ownership.
 
 ## Self-Contained Service Modules
 

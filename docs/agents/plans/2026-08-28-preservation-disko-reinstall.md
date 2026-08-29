@@ -204,6 +204,8 @@ system   /dev/disk/by-id/nvme-WDS200T3X0C-00SJG0_21031B801746-part3
 - [ ] Preserve `/var/lib/tailscale` with mode `0700`.
 - [ ] Preserve future libvirt state under `/var/lib/libvirt` and the swtpm CA under `/var/lib/swtpm-localca` through the feature-owned Preservation collector.
 - [ ] Do not migrate the current libvirt VM; reinstall it after cutover.
+- [ ] Preserve the Attic upload queue at `/var/lib/private/attic-upload`; let systemd recreate the DynamicUser-owned `/var/lib/attic-upload` symlink.
+- [ ] Drain the current Attic queue before cutover rather than adding it to the identity-only recovery manifest.
 - [ ] Preserve `/var/lib/systemd/timers`.
 - [ ] Preserve `/var/lib/systemd/random-seed` as an initrd symlink with its parent created explicitly.
 - [ ] Preserve `/var/log` during the stabilization period.
