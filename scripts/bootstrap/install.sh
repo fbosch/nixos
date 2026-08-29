@@ -20,9 +20,15 @@ base_url="https://github.com/fbosch/nixos/raw/refs/heads/master/scripts/bootstra
 repository_url="https://github.com/fbosch/nixos.git"
 gpg_key_id="fbb.privacy+gpg@protonmail.com"
 install_root="/mnt/disko-install-root"
+install_user="fbb"
+install_uid="1000"
+install_gid="100"
 downloaded_script=""
 iso_work_dir=""
 install_dry_run="${NIXOS_INSTALL_DRY_RUN:-false}"
+target_device=""
+age_alias=""
+sops_files=()
 
 print_help() {
   cat <<'EOF_HELP'
@@ -71,27 +77,31 @@ is_live_iso() {
     [ "$(findmnt --noheadings --output FSTYPE /nix/.ro-store 2>/dev/null || true)" = "squashfs" ]
 }
 
+is_iso_environment() {
+  is_live_iso || [ "${BOOTSTRAP_INSTALL_TEST_MODE:-}" = "live-iso" ]
+}
+
 replace_age_recipient() {
   local sops_config="$1"
-  local system_alias="$2"
-  local system_recipient="$3"
+  local age_alias_name="$2"
+  local age_recipient="$3"
   local output
-  local system_replaced="false"
+  local recipient_replaced="false"
 
   output="$(mktemp "${sops_config}.XXXXXX")"
   while IFS= read -r line || [ -n "$line" ]; do
     case "$line" in
-    "  - &$system_alias age1"*)
-      printf '  - &%s %s\n' "$system_alias" "$system_recipient" >>"$output"
-      system_replaced="true"
+    "  - &$age_alias_name age1"*)
+      printf '  - &%s %s\n' "$age_alias_name" "$age_recipient" >>"$output"
+      recipient_replaced="true"
       ;;
     *) printf '%s\n' "$line" >>"$output" ;;
     esac
   done <"$sops_config"
 
-  if [ "$system_replaced" = "false" ]; then
+  if [ "$recipient_replaced" = "false" ]; then
     rm -f "$output"
-    printf 'Error: expected %s age alias in %s\n' "$system_alias" "$sops_config" >&2
+    printf 'Error: expected %s age alias in %s\n' "$age_alias_name" "$sops_config" >&2
     return 1
   fi
 
@@ -101,11 +111,12 @@ replace_age_recipient() {
 
 generate_identities() {
   local identity_tree="$1"
+  local user="$2"
   local system_age_key="$identity_tree/var/lib/sops-nix/key.txt"
-  local user_age_key="$identity_tree/home/fbb/.config/sops/age/keys.txt"
+  local user_age_key="$identity_tree/home/$user/.config/sops/age/keys.txt"
 
   install -d -m 0755 "$identity_tree/etc/ssh" "$identity_tree/var/lib/sops-nix"
-  install -d -m 0700 "$identity_tree/home/fbb" "$identity_tree/home/fbb/.config/sops/age"
+  install -d -m 0700 "$identity_tree/home/$user" "$identity_tree/home/$user/.config/sops/age"
 
   tr -d '-' </proc/sys/kernel/random/uuid >"$identity_tree/etc/machine-id"
   printf '\n' >>"$identity_tree/etc/machine-id"
@@ -121,24 +132,25 @@ generate_identities() {
   install -m 0600 "$system_age_key" "$user_age_key"
 }
 
-rotate_sops_recipients() {
+rotate_sops_recipient() {
   local repository="$1"
   local identity_tree="$2"
-  local system_alias="$3"
-  shift 3
+  local user="$3"
+  local age_alias_name="$4"
+  shift 4
   local system_age_key="$identity_tree/var/lib/sops-nix/key.txt"
-  local user_age_key="$identity_tree/home/fbb/.config/sops/age/keys.txt"
-  local system_recipient
+  local user_age_key="$identity_tree/home/$user/.config/sops/age/keys.txt"
+  local age_recipient
   local secret_file
   local -a secret_files=("$@")
 
-  system_recipient="$(age-keygen -y "$system_age_key")"
-  replace_age_recipient "$repository/.sops.yaml" "$system_alias" "$system_recipient"
+  age_recipient="$(age-keygen -y "$system_age_key")"
+  replace_age_recipient "$repository/.sops.yaml" "$age_alias_name" "$age_recipient"
 
   (
     cd "$repository"
     if [ "${#secret_files[@]}" -eq 0 ]; then
-      printf 'Error: no SOPS files configured for %s\n' "$system_alias" >&2
+      printf 'Error: no SOPS files configured for %s\n' "$age_alias_name" >&2
       return 1
     fi
 
@@ -180,7 +192,7 @@ configure_install_host() {
   case "$host" in
   rvn-pc)
     target_device="/dev/disk/by-id/nvme-WDS200T3X0C-00SJG0_21031B801746"
-    system_alias="rvn-pc"
+    age_alias="rvn-pc"
     sops_files=(
       "secrets/hosts/rvn-pc.yaml"
       "secrets/common.yaml"
@@ -221,18 +233,18 @@ run_iso_install() {
     exit 1
   fi
 
-  if is_live_iso || [ "${BOOTSTRAP_INSTALL_TEST_MODE:-}" = "live-iso" ]; then
+  if is_iso_environment; then
     :
   else
     printf 'Error: ISO installation must run from the standard NixOS live ISO.\n' >&2
     exit 1
   fi
 
-  if [ ! -d /sys/firmware/efi ] && [ "$install_dry_run" = "false" ]; then
-    printf 'Error: the installer was not booted in UEFI mode.\n' >&2
-    exit 1
-  fi
   if [ ! -d /sys/firmware/efi ]; then
+    if [ "$install_dry_run" = "false" ]; then
+      printf 'Error: the installer was not booted in UEFI mode.\n' >&2
+      exit 1
+    fi
     printf 'Warning: UEFI firmware is unavailable; continuing because --dry-run is active.\n' >&2
   fi
 
@@ -262,10 +274,10 @@ run_iso_install() {
     printf 'Error: master changed while the installer was starting; rerun the command.\n' >&2
     exit 1
   fi
-  generate_identities "$identity_tree"
+  generate_identities "$identity_tree" "$install_user"
 
-  export GNUPGHOME="$identity_tree/home/fbb/.gnupg"
-  export GH_CONFIG_DIR="$identity_tree/home/fbb/.config/gh"
+  export GNUPGHOME="$identity_tree/home/$install_user/.gnupg"
+  export GH_CONFIG_DIR="$identity_tree/home/$install_user/.config/gh"
   install -d -m 0700 "$GNUPGHOME" "$GH_CONFIG_DIR"
 
   bash "$repository/scripts/bootstrap/bootstrap-gpg.sh"
@@ -274,12 +286,12 @@ run_iso_install() {
     exit 1
   fi
 
-  rotate_sops_recipients "$repository" "$identity_tree" "$system_alias" "${sops_files[@]}"
+  rotate_sops_recipient "$repository" "$identity_tree" "$install_user" "$age_alias" "${sops_files[@]}"
   gpgconf --kill all >/dev/null 2>&1 || true
   rm -f "$GNUPGHOME"/S.gpg-agent*
 
-  cp -a "$repository" "$identity_tree/home/fbb/nixos"
-  chown -R 1000:100 "$identity_tree/home/fbb"
+  cp -a "$repository" "$identity_tree/home/$install_user/nixos"
+  chown -R "$install_uid:$install_gid" "$identity_tree/home/$install_user"
 
   nix --accept-flake-config build --no-link "$repository#checks.x86_64-linux.${host}-disko-script"
   nix --accept-flake-config eval --raw "$repository#nixosConfigurations.$host.config.system.build.toplevel.drvPath" >/dev/null
@@ -326,7 +338,7 @@ run_downloaded_script() {
 main() {
   parse_args "$@"
 
-  if is_live_iso || [ "${BOOTSTRAP_INSTALL_TEST_MODE:-}" = "live-iso" ]; then
+  if is_iso_environment; then
     if [ "${BOOTSTRAP_INSTALL_ISO_RUNTIME:-false}" = "true" ]; then
       run_iso_install "$@"
       return
