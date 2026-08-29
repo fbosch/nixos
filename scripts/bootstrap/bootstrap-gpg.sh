@@ -38,7 +38,7 @@ if gh auth status >/dev/null 2>&1; then
 else
   printf "Authenticating GitHub CLI (device flow).\n"
   printf "Open: https://github.com/login/device?skip_account_picker=true\n"
-  gh auth login --web --scopes gist
+  printf '\n' | GH_BROWSER=true gh auth login --web --scopes gist
 fi
 
 if [ -n "${1:-}" ]; then

@@ -123,7 +123,11 @@ authenticate_github_cli() {
     gum style --foreground 244 "Use the printed code on another device (phone/laptop)."
     gum style --foreground 244 "Open: $github_device_url"
     show_github_device_qr
-    gh auth login --git-protocol ssh --web --skip-ssh-key --scopes admin:public_key
+    printf '\n' | GH_BROWSER=true gh auth login \
+      --git-protocol ssh \
+      --web \
+      --skip-ssh-key \
+      --scopes admin:public_key
   fi
 
   if gh auth token >/dev/null 2>&1; then

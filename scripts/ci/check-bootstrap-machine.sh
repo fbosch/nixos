@@ -57,6 +57,9 @@ case "$1 $2" in
   ;;
 "auth login")
   [ "$#" -eq 8 ] || exit 64
+  [ "${GH_BROWSER:-}" = "true" ] || exit 64
+  IFS= read -r browser_confirmation || exit 64
+  [ -z "$browser_confirmation" ] || exit 64
   [ "$3" = "--git-protocol" ] || exit 64
   [ "$4" = "ssh" ] || exit 64
   [ "$5" = "--web" ] || exit 64
