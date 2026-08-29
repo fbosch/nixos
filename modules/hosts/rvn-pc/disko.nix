@@ -110,6 +110,7 @@ in
         disko-install = {
           type = "app";
           program = "${inputs.disko.packages.${system}.disko-install}/bin/disko-install";
+          meta.description = "Install a NixOS host with the repository-pinned Disko version";
         };
       };
 

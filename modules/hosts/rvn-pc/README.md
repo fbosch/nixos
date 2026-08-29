@@ -6,7 +6,7 @@ The standard NixOS graphical ISO installs `rvn-pc` through the same entrypoint u
 curl -fsSL https://nix.fbb.sh/install | bash
 ```
 
-The launcher detects the live ISO and downloads `scripts/bootstrap/install-rvn-pc.sh` from `master`. On an installed NixOS system, it continues to run the generic machine bootstrap instead.
+The launcher detects the live ISO and runs its generic installation path. On an installed NixOS system, it runs the machine bootstrap instead.
 
 ## What It Does
 
@@ -17,8 +17,8 @@ The ISO installer:
 3. Clones `master` into a root-only temporary directory.
 4. Generates fresh machine ID, SSH host keys, system age key, and Home Manager age key.
 5. Imports the admin GPG recovery key from its encrypted gist.
-6. Replaces the `rvn-pc` and `fbb-user` age recipients in `.sops.yaml` and runs `sops updatekeys` for every encrypted YAML file.
-7. Verifies that both fresh age keys can decrypt the secrets needed by the final system.
+6. Replaces the `rvn-pc` age recipient in `.sops.yaml` and updates only the encrypted files that use it.
+7. Installs the host-specific age identity at both SOPS key paths and verifies decryption from each path.
 8. Runs the repository-pinned upstream `disko-install` app against `.#rvn-pc`.
 9. Copies the identities and modified repository to `/persist` before `nixos-install` activates the final configuration.
 

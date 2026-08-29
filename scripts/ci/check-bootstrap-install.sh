@@ -16,6 +16,7 @@ export BOOTSTRAP_TEST_CURL_ARGS="$tmp_dir/curl-args"
 export BOOTSTRAP_TEST_NIX_SHELL_ARGS="$tmp_dir/nix-shell-args"
 export BOOTSTRAP_TEST_SCRIPT_PATH="$tmp_dir/script-path"
 export BOOTSTRAP_TEST_EXPECTED_URL="$tmp_dir/expected-url"
+export BOOTSTRAP_TEST_SUDO_ARGS="$tmp_dir/sudo-args"
 
 cat >"$tmp_dir/bin/curl" <<'EOF_CURL'
 #!/usr/bin/env bash
@@ -66,15 +67,27 @@ fi
 exit "${BOOTSTRAP_TEST_NIX_SHELL_EXIT:-0}"
 EOF_NIX_SHELL
 
-chmod +x "$tmp_dir/bin/curl" "$tmp_dir/bin/nix-shell"
+cat >"$tmp_dir/bin/sudo" <<'EOF_SUDO'
+#!/usr/bin/env bash
+set -euo pipefail
+
+printf '%s\n' "$@" >"$BOOTSTRAP_TEST_SUDO_ARGS"
+if [[ ${1:-} == --preserve-env=* ]]; then
+  shift
+fi
+exec "$@"
+EOF_SUDO
+
+chmod +x "$tmp_dir/bin/curl" "$tmp_dir/bin/nix-shell" "$tmp_dir/bin/sudo"
 
 run_launcher() {
   local mode="${1:-installed}"
   : >"$BOOTSTRAP_TEST_CURL_ARGS"
   : >"$BOOTSTRAP_TEST_NIX_SHELL_ARGS"
   : >"$BOOTSTRAP_TEST_SCRIPT_PATH"
+  : >"$BOOTSTRAP_TEST_SUDO_ARGS"
   if [ "$mode" = "live-iso" ]; then
-    printf '%s\n' 'https://github.com/fbosch/nixos/raw/refs/heads/master/scripts/bootstrap/install-rvn-pc.sh' >"$BOOTSTRAP_TEST_EXPECTED_URL"
+    printf '%s\n' 'https://github.com/fbosch/nixos/raw/refs/heads/master/scripts/bootstrap/install.sh' >"$BOOTSTRAP_TEST_EXPECTED_URL"
     BOOTSTRAP_INSTALL_TEST_MODE=live-iso NIXOS_INSTALL_HOST=rvn-pc bash "$repo_root/scripts/bootstrap/install.sh"
     return
   fi
@@ -85,7 +98,8 @@ run_launcher() {
 
 assert_launcher_contract() {
   local script_name="$1"
-  shift
+  local privilege="$2"
+  shift 2
   local downloaded_script
   downloaded_script="$(cat "$BOOTSTRAP_TEST_SCRIPT_PATH")"
 
@@ -104,6 +118,18 @@ EOF_EXPECTED_CURL_ARGS
   } >"$tmp_dir/expected-nix-shell-args"
   diff -u "$tmp_dir/expected-nix-shell-args" "$BOOTSTRAP_TEST_NIX_SHELL_ARGS"
 
+  if [ "$privilege" = "root" ]; then
+    {
+      printf '%s\n' '--preserve-env=BOOTSTRAP_INSTALL_ISO_RUNTIME,GPG_KEY_GIST_ID,NIXOS_INSTALL_HOST'
+      printf '%s\n' nix-shell
+      cat "$BOOTSTRAP_TEST_NIX_SHELL_ARGS"
+    } >"$tmp_dir/expected-sudo-args"
+    diff -u "$tmp_dir/expected-sudo-args" "$BOOTSTRAP_TEST_SUDO_ARGS"
+  elif [ -s "$BOOTSTRAP_TEST_SUDO_ARGS" ]; then
+    printf 'installed launcher unexpectedly used sudo\n' >&2
+    exit 1
+  fi
+
   if [ -e "$downloaded_script" ]; then
     printf 'temporary bootstrap script was not removed: %s\n' "$downloaded_script" >&2
     exit 1
@@ -111,20 +137,20 @@ EOF_EXPECTED_CURL_ARGS
 }
 
 run_launcher installed
-assert_launcher_contract bootstrap-machine.sh gh git gum openssh qrencode
+assert_launcher_contract bootstrap-machine.sh user gh git gum openssh qrencode
 
 run_launcher live-iso
-assert_launcher_contract install-rvn-pc.sh age gh git gnupg openssh sops util-linux
+assert_launcher_contract install.sh root age gh git gnupg openssh sops util-linux
 
 if BOOTSTRAP_TEST_NIX_SHELL_EXIT=19 run_launcher installed; then
   printf 'launcher ignored nix-shell failure\n' >&2
   exit 1
 fi
-assert_launcher_contract bootstrap-machine.sh gh git gum openssh qrencode
+assert_launcher_contract bootstrap-machine.sh user gh git gum openssh qrencode
 
-export RVN_PC_INSTALL_LIB_ONLY=true
+export BOOTSTRAP_INSTALL_LIB_ONLY=true
 # shellcheck disable=SC1091
-source "$repo_root/scripts/bootstrap/install-rvn-pc.sh"
+source "$repo_root/scripts/bootstrap/install.sh"
 
 sops_config="$tmp_dir/sops.yaml"
 cat >"$sops_config" <<'EOF_SOPS'
@@ -139,16 +165,16 @@ creation_rules:
       - *fbb-user
 EOF_SOPS
 
-replace_age_recipients "$sops_config" age1newsystem age1newuser
+replace_age_recipient "$sops_config" rvn-pc age1newsystem
 grep -Fqx '  - &rvn-pc age1newsystem' "$sops_config"
-grep -Fqx '  - &fbb-user age1newuser' "$sops_config"
+grep -Fqx '  - &fbb-user age1olduser' "$sops_config"
 grep -Fqx '      - *rvn-pc' "$sops_config"
 grep -Fqx '      - *fbb-user' "$sops_config"
 
 missing_alias_config="$tmp_dir/missing-alias.yaml"
-printf '%s\n' 'keys:' '  - &rvn-pc age1oldsystem' >"$missing_alias_config"
-if replace_age_recipients "$missing_alias_config" age1newsystem age1newuser; then
-  printf 'recipient replacement accepted a missing fbb-user alias\n' >&2
+printf '%s\n' 'keys:' '  - &another-host age1oldsystem' >"$missing_alias_config"
+if replace_age_recipient "$missing_alias_config" rvn-pc age1newsystem 2>/dev/null; then
+  printf 'recipient replacement accepted a missing host alias\n' >&2
   exit 1
 fi
 
@@ -161,7 +187,8 @@ EOF_NIX
 chmod +x "$tmp_dir/bin/nix"
 
 mkdir -p "$tmp_dir/repository" "$tmp_dir/identity-tree"
-run_disko_install "$tmp_dir/repository" "$tmp_dir/identity-tree" --dry-run
+target_device="/dev/disk/by-id/nvme-WDS200T3X0C-00SJG0_21031B801746"
+run_disko_install "$tmp_dir/repository" "$tmp_dir/identity-tree" rvn-pc --dry-run
 cat >"$tmp_dir/expected-nix-args" <<EOF_EXPECTED_NIX_ARGS
 --accept-flake-config
 run
@@ -181,5 +208,13 @@ $tmp_dir/identity-tree/.
 persist
 EOF_EXPECTED_NIX_ARGS
 diff -u "$tmp_dir/expected-nix-args" "$BOOTSTRAP_TEST_NIX_ARGS"
+
+iso_work_dir="$tmp_dir/iso-work"
+mkdir "$iso_work_dir"
+cleanup_iso_install
+if [ -e "$iso_work_dir" ]; then
+  printf 'ISO credential workspace was not removed\n' >&2
+  exit 1
+fi
 
 printf 'bootstrap installer launcher check passed\n'
