@@ -146,6 +146,7 @@ in
           config.flake.modules.nixos.secrets
           config.flake.modules.nixos."system/tiered-service-startup"
           config.flake.modules.nixos.vpn
+          config.flake.modules.nixos."virtualization/libvirt"
           config.flake.modules.nixos."hosts/rvn-pc/login"
           config.flake.modules.nixos."hosts/rvn-pc/disko"
           config.flake.modules.nixos."hosts/rvn-pc/preservation"
@@ -307,6 +308,22 @@ in
               how = "bindmount";
               inInitrd = false;
               mode = "0755";
+              user = "root";
+              group = "root";
+            }
+            {
+              path = "/var/lib/libvirt";
+              how = "bindmount";
+              inInitrd = false;
+              mode = "0755";
+              user = "root";
+              group = "root";
+            }
+            {
+              path = "/var/lib/swtpm-localca";
+              how = "bindmount";
+              inInitrd = false;
+              mode = "0750";
               user = "root";
               group = "root";
             }
@@ -476,6 +493,8 @@ in
               "/persist/etc/mullvad-vpn -> /etc/mullvad-vpn"
               "/persist/home/${username} -> /home/${username}"
               "/persist/var/lib/NetworkManager -> /var/lib/NetworkManager"
+              "/persist/var/lib/libvirt -> /var/lib/libvirt"
+              "/persist/var/lib/swtpm-localca -> /var/lib/swtpm-localca"
               "/persist/var/lib/systemd/timers -> /var/lib/systemd/timers"
               "/persist/var/lib/tailscale -> /var/lib/tailscale"
               "/persist/var/log -> /var/log"

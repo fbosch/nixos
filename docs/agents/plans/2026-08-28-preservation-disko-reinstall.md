@@ -200,11 +200,14 @@ system   /dev/disk/by-id/nvme-WDS200T3X0C-00SJG0_21031B801746-part3
 - [ ] Preserve `/var/lib/nixos` with `inInitrd = true`.
 - [ ] Preserve `/var/lib/NetworkManager`.
 - [ ] Preserve `/etc/NetworkManager/system-connections` with root-only directory permissions.
+- [ ] Preserve Mullvad daemon identity and settings under `/etc/mullvad-vpn` through the feature-owned Preservation collector.
 - [ ] Preserve `/var/lib/tailscale` with mode `0700`.
+- [ ] Preserve future libvirt state under `/var/lib/libvirt` and the swtpm CA under `/var/lib/swtpm-localca` through the feature-owned Preservation collector.
+- [ ] Do not migrate the current libvirt VM; reinstall it after cutover.
 - [ ] Preserve `/var/lib/systemd/timers`.
 - [ ] Preserve `/var/lib/systemd/random-seed` as an initrd symlink with its parent created explicitly.
 - [ ] Preserve `/var/log` during the stabilization period.
-- [ ] Exclude Bluetooth, rootful Podman, system Flatpak, Waydroid, libvirt VM data, caches, and coredumps unless the state inventory later provides a specific reason to retain them.
+- [ ] Exclude Bluetooth, rootful Podman, system Flatpak, Waydroid, caches, and coredumps unless the state inventory later provides a specific reason to retain them.
 
 ### Direct persistent identities
 
