@@ -24,6 +24,8 @@ NixOS:
 curl -fsSL nix.fbb.sh/install | bash
 ```
 
+Run it from a standard NixOS ISO to install a system, or after installation to bootstrap it.
+
 macOS:
 
 1. Install [Determinate Nix for macOS](https://docs.determinate.systems/getting-started/individuals/) and [Homebrew](https://brew.sh/).

@@ -106,6 +106,13 @@ in
       evaluated = evaluatedConfig.config;
     in
     {
+      apps = lib.optionalAttrs (system == "x86_64-linux") {
+        disko-install = {
+          type = "app";
+          program = "${inputs.disko.packages.${system}.disko-install}/bin/disko-install";
+        };
+      };
+
       checks = lib.optionalAttrs (system == "x86_64-linux") {
         rvn-pc-disko-script = pkgs.runCommand "rvn-pc-disko-script-check" { } ''
           script=${evaluated.system.build.diskoScript}

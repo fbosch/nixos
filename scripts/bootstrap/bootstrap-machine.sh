@@ -157,7 +157,8 @@ if [ -d "$target_dir" ]; then
   fi
 fi
 
-if [ ! -f /etc/nixos/configuration.nix ] || [ ! -f /etc/nixos/hardware-configuration.nix ]; then
+if [ "$reuse_existing_repo" = "false" ] &&
+  { [ ! -f /etc/nixos/configuration.nix ] || [ ! -f /etc/nixos/hardware-configuration.nix ]; }; then
   gum style --foreground 1 "Error: expected /etc/nixos/configuration.nix and /etc/nixos/hardware-configuration.nix"
   gum style --foreground 244 "Run this from a freshly installed NixOS machine."
   exit 1
