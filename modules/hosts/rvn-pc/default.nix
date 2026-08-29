@@ -46,6 +46,9 @@ in
       "hosts/rvn-pc/home"
       "hosts/rvn-pc/login"
 
+      # "hosts/rvn-pc/disko"
+      # "hosts/rvn-pc/preservation"
+
       # Desktop preset (users, security, development, shell, system, desktop environment)
       "presets/desktop"
 
