@@ -1,6 +1,21 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# +------------------+
+# | Environment      |
+# +--------+---------+
+#          |
+#          +-- NixOS ISO
+#          |     |
+#          |     +-> [select host] -> [clone master] -> [import GPG]
+#          |                                               |
+#          |                                               v
+#          |     [disko-install] <- [confirm erase] <- [SOPS + age key]
+#          |
+#          +-- Installed NixOS
+#                |
+#                +-> [bootstrap-machine] -> [rebuild selected host]
+
 base_url="https://github.com/fbosch/nixos/raw/refs/heads/master/scripts/bootstrap"
 repository_url="https://github.com/fbosch/nixos.git"
 gpg_key_id="fbb.privacy+gpg@protonmail.com"
