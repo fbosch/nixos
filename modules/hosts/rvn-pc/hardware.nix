@@ -7,8 +7,12 @@
     , hostMeta
     , pkgs
     , modulesPath
+    , options
     , ...
     }:
+    let
+      diskoEnabled = lib.hasAttrByPath [ "disko" "enableConfig" ] options && config.disko.enableConfig;
+    in
     {
       imports = [
         (modulesPath + "/installer/scan/not-detected.nix")
@@ -34,21 +38,24 @@
         extraModulePackages = [ ];
       };
 
-      fileSystems."/" = {
-        device = "/dev/disk/by-uuid/68d6a3ae-c19a-4cf0-befe-c6531394b4a4";
-        fsType = "ext4";
+      # Disko owns the fresh-install mount and swap definitions when imported.
+      fileSystems = lib.mkIf (!diskoEnabled) {
+        "/" = {
+          device = "/dev/disk/by-uuid/68d6a3ae-c19a-4cf0-befe-c6531394b4a4";
+          fsType = "ext4";
+        };
+
+        "/boot" = {
+          device = "/dev/disk/by-uuid/3C1F-3077";
+          fsType = "vfat";
+          options = [
+            "fmask=0077"
+            "dmask=0077"
+          ];
+        };
       };
 
-      fileSystems."/boot" = {
-        device = "/dev/disk/by-uuid/3C1F-3077";
-        fsType = "vfat";
-        options = [
-          "fmask=0077"
-          "dmask=0077"
-        ];
-      };
-
-      swapDevices = [ ];
+      swapDevices = lib.mkIf (!diskoEnabled) [ ];
 
       nixpkgs.hostPlatform = lib.mkDefault hostMeta.system;
 
