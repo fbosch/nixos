@@ -145,12 +145,7 @@ resolve_host_name() {
     return
   fi
 
-  if [ -n "$detected_host_name" ]; then
-    printf '%s\n' "$detected_host_name"
-    return
-  fi
-
-  gum input --prompt "Host name: "
+  gum input --prompt "Host name: " --value "$detected_host_name"
 }
 
 if [ "${BOOTSTRAP_MACHINE_LIB_ONLY:-false}" = "true" ]; then

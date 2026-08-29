@@ -90,6 +90,7 @@ chmod +x "$tmp_dir/bin/gh" "$tmp_dir/bin/qrencode"
 
 gum() {
   if [ "${1:-}" = "input" ]; then
+    printf '%s\n' "$*" >>"$BOOTSTRAP_TEST_GUM_LOG"
     printf '%s\n' "${BOOTSTRAP_TEST_GUM_INPUT:-entered-host}"
     return
   fi
@@ -186,16 +187,25 @@ if (validate_name "" "Host name" >/dev/null 2>&1); then
 fi
 
 export NIXOS_INSTALL_HOST="explicit-host"
+: >"$BOOTSTRAP_TEST_GUM_LOG"
 if [ "$(resolve_host_name detected-host)" != "explicit-host" ]; then
   printf 'explicit host selection did not take precedence\n' >&2
   exit 1
 fi
-unset NIXOS_INSTALL_HOST
-
-if [ "$(resolve_host_name detected-host)" != "detected-host" ]; then
-  printf 'detected host name was not selected automatically\n' >&2
+if [ -s "$BOOTSTRAP_TEST_GUM_LOG" ]; then
+  printf 'explicit host selection unexpectedly prompted for a host name\n' >&2
   exit 1
 fi
+unset NIXOS_INSTALL_HOST
+
+export BOOTSTRAP_TEST_GUM_INPUT="selected-host"
+: >"$BOOTSTRAP_TEST_GUM_LOG"
+if [ "$(resolve_host_name detected-host)" != "selected-host" ]; then
+  printf 'detected host name did not allow an explicit selection\n' >&2
+  exit 1
+fi
+grep -Fq 'input --prompt Host name:  --value detected-host' "$BOOTSTRAP_TEST_GUM_LOG"
+unset BOOTSTRAP_TEST_GUM_INPUT
 
 export BOOTSTRAP_TEST_GUM_INPUT="entered-host"
 if [ "$(resolve_host_name "")" != "entered-host" ]; then
