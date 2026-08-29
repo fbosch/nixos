@@ -114,7 +114,7 @@ EOF_EXPECTED_CURL_ARGS
   {
     printf '%s\n' -p
     printf '%s\n' "$@"
-    printf '%s\n' --run "bash \"$downloaded_script\" </dev/tty >/dev/tty"
+    printf '%s\n' --run "bash \"$downloaded_script\" </dev/tty"
   } >"$tmp_dir/expected-nix-shell-args"
   diff -u "$tmp_dir/expected-nix-shell-args" "$BOOTSTRAP_TEST_NIX_SHELL_ARGS"
 
@@ -155,6 +155,24 @@ source "$repo_root/scripts/bootstrap/install.sh"
 parse_args --dry-run
 if [ "$install_dry_run" != "true" ] || [ "$NIXOS_INSTALL_DRY_RUN" != "true" ]; then
   printf 'dry-run option was not preserved for the ISO runtime\n' >&2
+  exit 1
+fi
+
+parse_args --host rvn-pc
+if [ "$install_host" != "rvn-pc" ] || [ "$NIXOS_INSTALL_HOST" != "rvn-pc" ]; then
+  printf 'host option was not preserved for the selected runtime\n' >&2
+  exit 1
+fi
+
+set +e
+(
+  install_dry_run="invalid"
+  parse_args
+) >/dev/null 2>&1
+invalid_dry_run_status=$?
+set -e
+if [ "$invalid_dry_run_status" -ne 2 ]; then
+  printf 'invalid dry-run environment value exited with %s instead of 2\n' "$invalid_dry_run_status" >&2
   exit 1
 fi
 

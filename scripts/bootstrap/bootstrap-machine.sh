@@ -136,6 +136,23 @@ authenticate_github_cli() {
   fi
 }
 
+resolve_host_name() {
+  local detected_host_name="$1"
+  local requested_host_name="${NIXOS_INSTALL_HOST:-}"
+
+  if [ -n "$requested_host_name" ]; then
+    printf '%s\n' "$requested_host_name"
+    return
+  fi
+
+  if [ -n "$detected_host_name" ]; then
+    printf '%s\n' "$detected_host_name"
+    return
+  fi
+
+  gum input --prompt "Host name: "
+}
+
 if [ "${BOOTSTRAP_MACHINE_LIB_ONLY:-false}" = "true" ]; then
   if [ "${BASH_SOURCE[0]}" != "$0" ]; then
     return 0
@@ -143,7 +160,10 @@ if [ "${BOOTSTRAP_MACHINE_LIB_ONLY:-false}" = "true" ]; then
   exit 0
 fi
 
-default_host_name="$(tr -d '\n' </etc/hostname)"
+default_host_name=""
+if [ -r /etc/hostname ]; then
+  default_host_name="$(tr -d '\n' </etc/hostname)"
+fi
 
 reuse_existing_repo="false"
 if [ -d "$target_dir" ]; then
@@ -161,11 +181,6 @@ if [ "$reuse_existing_repo" = "false" ] &&
   { [ ! -f /etc/nixos/configuration.nix ] || [ ! -f /etc/nixos/hardware-configuration.nix ]; }; then
   gum style --foreground 1 "Error: expected /etc/nixos/configuration.nix and /etc/nixos/hardware-configuration.nix"
   gum style --foreground 244 "Run this from a freshly installed NixOS machine."
-  exit 1
-fi
-
-if [ -z "$default_host_name" ]; then
-  gum style --foreground 1 "Error: could not determine hostname from /etc/hostname"
   exit 1
 fi
 
@@ -197,7 +212,7 @@ gum style --border rounded --padding "1 2" \
   "This flow will authenticate GitHub, clone $repo, copy /etc/nixos configs," \
   "and generate host modules."
 
-host_name="$(gum input --prompt "Host name: " --value "$default_host_name")"
+host_name="$(resolve_host_name "$default_host_name")"
 validate_name "$host_name" "Host name"
 
 gum style --foreground 244 "Host name: $host_name"

@@ -89,6 +89,10 @@ EOF_GH
 chmod +x "$tmp_dir/bin/gh" "$tmp_dir/bin/qrencode"
 
 gum() {
+  if [ "${1:-}" = "input" ]; then
+    printf '%s\n' "${BOOTSTRAP_TEST_GUM_INPUT:-entered-host}"
+    return
+  fi
   printf '%s\n' "$*" >>"$BOOTSTRAP_TEST_GUM_LOG"
 }
 
@@ -175,6 +179,30 @@ if (validate_name ".." "Host name" >/dev/null 2>&1); then
   echo "validate_name accepted .." >&2
   exit 1
 fi
+
+if (validate_name "" "Host name" >/dev/null 2>&1); then
+  echo "validate_name accepted an empty host name" >&2
+  exit 1
+fi
+
+export NIXOS_INSTALL_HOST="explicit-host"
+if [ "$(resolve_host_name detected-host)" != "explicit-host" ]; then
+  printf 'explicit host selection did not take precedence\n' >&2
+  exit 1
+fi
+unset NIXOS_INSTALL_HOST
+
+if [ "$(resolve_host_name detected-host)" != "detected-host" ]; then
+  printf 'detected host name was not selected automatically\n' >&2
+  exit 1
+fi
+
+export BOOTSTRAP_TEST_GUM_INPUT="entered-host"
+if [ "$(resolve_host_name "")" != "entered-host" ]; then
+  printf 'missing host name did not fall back to input\n' >&2
+  exit 1
+fi
+unset BOOTSTRAP_TEST_GUM_INPUT
 
 cat >"$tmp_dir/configuration-source.nix" <<'EOF_CONFIGURATION'
 { ... }:
