@@ -95,6 +95,20 @@ lib.types.submodule (
           };
         description = "Canonical Nix system double for this host";
       };
+      installation = lib.mkOption {
+        type = lib.types.nullOr (
+          lib.types.submodule {
+            options = {
+              sopsFiles = lib.mkOption {
+                type = lib.types.listOf lib.types.str;
+                description = "SOPS files rekeyed for a fresh installation";
+              };
+            };
+          }
+        );
+        default = null;
+        description = "Optional fresh-install metadata for hosts supported by the ISO installer";
+      };
       hardware = lib.mkOption {
         type = lib.types.nullOr (
           lib.types.submodule {

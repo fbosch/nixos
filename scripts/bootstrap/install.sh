@@ -8,8 +8,8 @@ set -euo pipefail
 #                     ▼                           ▼
 #        ┌────────────────────────┐  ┌────────────────────────┐
 #        │ NixOS ISO              │  │ Installed NixOS        │
-#        │ 1. Select host         │  │ 1. Detect / enter host │
-#        │ 2. Clone master        │  │ 2. Bootstrap machine   │
+#        │ 1. Clone master        │  │ 1. Detect / enter host │
+#        │ 2. Select host         │  │ 2. Bootstrap machine   │
 #        │ 3. Prepare GPG + SOPS  │  │ 3. Rebuild host        │
 #        │ 4. Preview Disko       │  └────────────────────────┘
 #        └───────────┬────────────┘
@@ -23,11 +23,11 @@ set -euo pipefail
 
 base_url="https://github.com/fbosch/nixos/raw/refs/heads/master/scripts/bootstrap"
 repository_url="https://github.com/fbosch/nixos.git"
-gpg_key_id="fbb.privacy+gpg@protonmail.com"
+gpg_key_id=""
 install_root="/mnt/disko-install-root"
-install_user="fbb"
-install_uid="1000"
-install_gid="100"
+install_user=""
+install_uid=""
+install_gid=""
 downloaded_script=""
 iso_work_dir=""
 install_dry_run="${NIXOS_INSTALL_DRY_RUN:-false}"
@@ -35,6 +35,12 @@ install_host="${NIXOS_INSTALL_HOST:-}"
 install_action="${NIXOS_INSTALL_ACTION:-install}"
 target_device=""
 target_swap_device=""
+target_system_device=""
+luks_device=""
+luks_mapping=""
+volume_group=""
+disko_configuration=""
+host_system=""
 age_alias=""
 sops_files=()
 gpg_runtime_configured="false"
@@ -58,14 +64,14 @@ Run from a standard NixOS ISO to install a selected host, or from an installed
 NixOS system to run the machine bootstrap.
 
 Actions:
-  resume     Resume a failed ISO installation from the existing target filesystems.
-             Mounts and reruns nixos-install without formatting the target disk.
+  resume     Resume a failed encrypted ISO installation from existing storage.
+             Opens and mounts the target without formatting it.
 
 Options:
   --dry-run  Exercise the ISO flow without requiring UEFI or the target disk.
              Stops after the Disko dry run and never formats a disk.
   --host HOST
-             Select HOST without prompting. ISO installation supports rvn-pc.
+             Select an installable host from flake metadata without prompting.
   -h, --help Show this help.
 EOF_HELP
 }
@@ -80,7 +86,7 @@ parse_args() {
         printf 'Error    Only one installer action may be specified.\n' >&2
         exit 2
       fi
-      install_action="resume"
+      install_action="$1"
       action_seen="true"
       ;;
     --dry-run) install_dry_run="true" ;;
@@ -239,6 +245,10 @@ cleanup_target_storage() {
   if [ "$target_storage_active" = "false" ]; then
     return
   fi
+  if [ -z "$volume_group" ] && [ -n "$target_system_device" ] && [ -b "$target_system_device" ]; then
+    volume_group="$(lvs --noheadings --options vg_name "$target_system_device" 2>/dev/null || true)"
+    volume_group="${volume_group//[[:space:]]/}"
+  fi
 
   if [ -n "$target_install_flake" ]; then
     if rm -rf -- "$target_install_flake"; then
@@ -259,6 +269,18 @@ cleanup_target_storage() {
   if mountpoint -q "$install_root" && ! umount -R "$install_root"; then
     printf 'Warning  Failed to unmount installation root: %s\n' "$install_root" >&2
     cleanup_failed="true"
+  fi
+  if [ -n "$volume_group" ] && vgs "$volume_group" >/dev/null 2>&1; then
+    if ! vgchange -an "$volume_group"; then
+      printf 'Warning  Failed to deactivate target volume group: %s\n' "$volume_group" >&2
+      cleanup_failed="true"
+    fi
+  fi
+  if [ -n "$luks_mapping" ] && [ -b "/dev/mapper/$luks_mapping" ]; then
+    if ! cryptsetup close "$luks_mapping"; then
+      printf 'Warning  Failed to close target LUKS mapping: %s\n' "$luks_mapping" >&2
+      cleanup_failed="true"
+    fi
   fi
 
   if [ "$cleanup_failed" = "true" ]; then
@@ -327,13 +349,13 @@ print_install_plan() {
     printf '    Target disk unavailable in dry-run mode.\n' >&2
   fi
 
-  printf '\n%bPlanned layout%b\n' "$style_heading" "$style_reset" >&2
-  printf '  %b[CREATE]%b Root      tmpfs, 25%% of memory\n' "$style_heading" "$style_reset" >&2
-  printf '  %b[CREATE]%b Part 1    2 GiB, VFAT, mounted at /boot\n' "$style_heading" "$style_reset" >&2
-  printf '  %b[CREATE]%b Part 2    48 GiB, swap and resume device\n' "$style_heading" "$style_reset" >&2
-  printf '  %b[CREATE]%b Part 3    Remaining space, Btrfs\n' "$style_heading" "$style_reset" >&2
-  printf '             Subvolume /nix mounted at /nix\n' >&2
-  printf '             Subvolume /persist mounted at /persist\n' >&2
+  printf '\n%bEvaluated Disko plan%b\n' "$style_heading" "$style_reset" >&2
+  printf '  Configuration  diskoConfigurations.%s\n' "$host" >&2
+  printf '  Target disk    %s\n' "$target_device" >&2
+  printf '  LUKS mapping   %s -> /dev/mapper/%s\n' "$luks_device" "$luks_mapping" >&2
+  printf '  System device  %s\n' "$target_system_device" >&2
+  printf '  Resume device  %s\n' "$target_swap_device" >&2
+  printf '  Exact create, format, and mount operations were validated by Disko dry-run.\n' >&2
 
   printf '\n%bOther detected disks%b\n' "$style_heading" "$style_reset" >&2
   while read -r disk_device disk_type; do
@@ -391,78 +413,181 @@ rotate_sops_recipient() {
   )
 }
 
+discover_install_hosts() {
+  local repository="$1"
+
+  # Keep Nix attribute interpolation literal until --apply evaluates it.
+  # shellcheck disable=SC2016
+  nix "${nix_flake_args[@]}" eval --raw "$repository#meta.hosts" \
+    --apply 'hosts: builtins.concatStringsSep "\n" (builtins.filter (name: hosts.${name}.installation != null) (builtins.attrNames hosts))'
+}
+
 select_install_host() {
+  local repository="$1"
   local selected="$install_host"
+  local index
+  local -a hosts=()
+
+  mapfile -t hosts < <(discover_install_hosts "$repository")
+  if [ "${#hosts[@]}" -eq 0 ]; then
+    printf 'Error    No hosts with installation metadata were found.\n' >&2
+    return 1
+  fi
 
   if [ -z "$selected" ]; then
     printf 'Select the host to install\n' >/dev/tty
-    printf '  1. rvn-pc\n' >/dev/tty
+    for index in "${!hosts[@]}"; do
+      printf '  %s. %s\n' "$((index + 1))" "${hosts[$index]}" >/dev/tty
+    done
     read -r -p 'Host: ' selected </dev/tty
   fi
 
-  case "$selected" in
-  1 | rvn-pc) printf '%s\n' rvn-pc ;;
-  *)
-    printf 'Error    Unsupported installation host: %s\n' "$selected" >&2
-    return 1
-    ;;
-  esac
+  if [[ $selected =~ ^[0-9]+$ ]] && [ "$selected" -ge 1 ] && [ "$selected" -le "${#hosts[@]}" ]; then
+    selected="${hosts[$((selected - 1))]}"
+  fi
+  for index in "${!hosts[@]}"; do
+    if [ "$selected" = "${hosts[$index]}" ]; then
+      printf '%s\n' "$selected"
+      return
+    fi
+  done
+
+  printf 'Error    Unsupported installation host: %s\n' "$selected" >&2
+  return 1
 }
 
 configure_install_host() {
-  local host="$1"
+  local repository="$1"
+  local host="$2"
+  local install_group
+  local persist_device
+  local sops_file
 
-  case "$host" in
-  rvn-pc)
-    target_device="/dev/disk/by-id/nvme-WDS200T3X0C-00SJG0_21031B801746"
-    target_swap_device="${target_device}-part2"
-    age_alias="rvn-pc"
-    sops_files=(
-      "secrets/hosts/rvn-pc.yaml"
-      "secrets/common.yaml"
-      "secrets/apis.yaml"
-      "secrets/development.yaml"
-    )
-    ;;
-  *)
-    printf 'Error    Missing installer configuration for host: %s\n' "$host" >&2
+  disko_configuration="$host"
+  host_system="$(
+    nix "${nix_flake_args[@]}" eval --raw \
+      "$repository#meta.hosts.$host.system"
+  )"
+  install_user="$(
+    nix "${nix_flake_args[@]}" eval --raw \
+      "$repository#meta.user.username"
+  )"
+  [[ $install_user =~ ^[a-z_][a-z0-9_-]*$ ]] || {
+    printf 'Error    Global user metadata contains an invalid installation username.\n' >&2
     return 1
-    ;;
-  esac
+  }
+  install_uid="$(
+    nix "${nix_flake_args[@]}" eval --raw \
+      "$repository#nixosConfigurations.$host.config.users.users.$install_user.uid" \
+      --apply builtins.toString
+  )"
+  install_group="$(
+    nix "${nix_flake_args[@]}" eval --raw \
+      "$repository#nixosConfigurations.$host.config.users.users.$install_user.group"
+  )"
+  install_gid="$(
+    nix "${nix_flake_args[@]}" eval --raw \
+      "$repository#nixosConfigurations.$host.config.users.groups.$install_group.gid" \
+      --apply builtins.toString
+  )"
+  gpg_key_id="$(
+    nix "${nix_flake_args[@]}" eval --raw \
+      "$repository#meta.user.gpg.fingerprint"
+  )"
+  age_alias="$host"
+  mapfile -t sops_files < <(
+    nix "${nix_flake_args[@]}" eval --raw \
+      "$repository#meta.hosts.$host.installation.sopsFiles" \
+      --apply 'builtins.concatStringsSep "\n"'
+  )
+  for sops_file in "${sops_files[@]}"; do
+    [ -f "$repository/$sops_file" ] || {
+      printf 'Error    Host installation metadata references a missing SOPS file: %s\n' "$sops_file" >&2
+      return 1
+    }
+  done
+
+  target_device="$(
+    nix "${nix_flake_args[@]}" eval --raw \
+      "$repository#diskoConfigurations.$disko_configuration.disko.devices.disk" \
+      --apply 'disks: let names = builtins.attrNames disks; in if builtins.length names == 1 then (builtins.getAttr (builtins.head names) disks).device else throw "installer requires exactly one Disko disk"'
+  )"
+  luks_mapping="$(
+    nix "${nix_flake_args[@]}" eval --raw \
+      "$repository#nixosConfigurations.$host.config.boot.initrd.luks.devices" \
+      --apply 'devices: let names = builtins.attrNames devices; in if builtins.length names == 1 then builtins.head names else throw "installer requires exactly one initrd LUKS mapping"'
+  )"
+  luks_device="$(
+    nix "${nix_flake_args[@]}" eval --raw \
+      "$repository#nixosConfigurations.$host.config.boot.initrd.luks.devices" \
+      --apply 'devices: let names = builtins.attrNames devices; in if builtins.length names == 1 then (builtins.getAttr (builtins.head names) devices).device else throw "installer requires exactly one initrd LUKS mapping"'
+  )"
+  target_swap_device="$(
+    nix "${nix_flake_args[@]}" eval --raw \
+      "$repository#nixosConfigurations.$host.config.boot.resumeDevice"
+  )"
+  target_system_device="$(
+    nix "${nix_flake_args[@]}" eval --raw \
+      "$repository#nixosConfigurations.$host.config.fileSystems" \
+      --apply 'fileSystems: fileSystems."/nix".device'
+  )"
+  persist_device="$(
+    nix "${nix_flake_args[@]}" eval --raw \
+      "$repository#nixosConfigurations.$host.config.fileSystems" \
+      --apply 'fileSystems: fileSystems."/persist".device'
+  )"
+
+  [[ $target_device == /dev/disk/by-id/* ]] || {
+    printf 'Error    Disko target must use an approved /dev/disk/by-id path: %s\n' "$target_device" >&2
+    return 1
+  }
+  [[ $luks_device == "$target_device"-part* ]] || {
+    printf 'Error    Evaluated LUKS device is not a partition of the Disko target: %s\n' "$luks_device" >&2
+    return 1
+  }
+  if [ "$target_system_device" != "$persist_device" ]; then
+    printf 'Error    /nix and /persist must use the same persistent system device.\n' >&2
+    return 1
+  fi
+  if [ -z "$target_swap_device" ] || [ "$target_swap_device" = "$target_system_device" ]; then
+    printf 'Error    The evaluated resume device is missing or aliases the system device.\n' >&2
+    return 1
+  fi
+
 }
 
 run_disko() {
   local repository="$1"
-  local host="$2"
+  local _host="$2"
   shift 2
 
   DISKO_SKIP_SWAP=1 nix "${nix_flake_args[@]}" run "$repository#disko" -- \
     "$@" \
     --mode destroy,format,mount \
-    --flake "$repository#$host" \
+    --flake "$repository#$disko_configuration" \
     --root-mountpoint "$install_root"
 }
 
 mount_disko() {
   local repository="$1"
-  local host="$2"
+  local _host="$2"
 
   DISKO_SKIP_SWAP=1 nix "${nix_flake_args[@]}" run "$repository#disko" -- \
     --mode mount \
-    --flake "$repository#$host" \
+    --flake "$repository#$disko_configuration" \
     --root-mountpoint "$install_root"
 }
 
 verify_disko_target() {
   local repository="$1"
-  local host="$2"
+  local _host="$2"
   local evaluated_target
 
   # Keep Nix interpolation literal until --apply evaluates it.
   # shellcheck disable=SC2016
   evaluated_target="$(
     nix "${nix_flake_args[@]}" eval --raw \
-      "$repository#diskoConfigurations.$host.disko.devices.disk" \
+      "$repository#diskoConfigurations.$disko_configuration.disko.devices.disk" \
       --apply 'disks: builtins.concatStringsSep "\n" (map (name: disks.${name}.device) (builtins.attrNames disks))'
   )"
   if [ "$evaluated_target" != "$target_device" ]; then
@@ -479,21 +604,71 @@ verify_target_mount() {
   local expected_type="$3"
   local expected_root="$4"
   local actual_root
+  local actual_source
 
-  if ! actual_root="$(
+  if ! read -r actual_source actual_root < <(
     findmnt \
       --noheadings \
-      --source "$expected_source" \
       --target "$mount_path" \
       --types "$expected_type" \
-      --output FSROOT
-  )"; then
+      --output SOURCE,FSROOT
+  ); then
     printf 'Error    Unexpected source or filesystem at %s.\n' "$mount_path" >&2
     return 1
   fi
+  actual_source="${actual_source%%\[*}"
   actual_root="${actual_root//[[:space:]]/}"
+  if [[ $expected_source == /dev/* ]]; then
+    if [ "$(readlink -f -- "$actual_source")" != "$(readlink -f -- "$expected_source")" ]; then
+      printf 'Error    Unexpected filesystem source at %s: %s\n' "$mount_path" "$actual_source" >&2
+      return 1
+    fi
+  elif [ "$actual_source" != "$expected_source" ]; then
+    printf 'Error    Unexpected filesystem source at %s: %s\n' "$mount_path" "$actual_source" >&2
+    return 1
+  fi
   if [ "$actual_root" != "$expected_root" ]; then
     printf 'Error    Unexpected filesystem root at %s: %s\n' "$mount_path" "$actual_root" >&2
+    return 1
+  fi
+}
+
+verify_encrypted_storage() {
+  local backing_device
+  local ancestor
+  local canonical_target
+  local system_on_target="false"
+  local swap_on_target="false"
+
+  cryptsetup isLuks "$luks_device" || {
+    printf 'Error    Evaluated LUKS device is not a LUKS container: %s\n' "$luks_device" >&2
+    return 1
+  }
+  if [ ! -b "/dev/mapper/$luks_mapping" ]; then
+    printf 'Error    Evaluated LUKS mapping is unavailable: %s\n' "$luks_mapping" >&2
+    return 1
+  fi
+  backing_device="$(cryptsetup status "$luks_mapping" | sed -nE 's/^[[:space:]]*device:[[:space:]]*(.*)$/\1/p')"
+  if [ -z "$backing_device" ] || [ "$(readlink -f -- "$backing_device")" != "$(readlink -f -- "$luks_device")" ]; then
+    printf 'Error    LUKS mapping is not backed by the evaluated target partition.\n' >&2
+    return 1
+  fi
+
+  canonical_target="$(readlink -f -- "$target_device")"
+  while read -r ancestor; do
+    if [ "$(readlink -f -- "$ancestor")" = "$canonical_target" ]; then
+      system_on_target="true"
+      break
+    fi
+  done < <(lsblk --inverse --noheadings --paths --output NAME "$target_system_device")
+  while read -r ancestor; do
+    if [ "$(readlink -f -- "$ancestor")" = "$canonical_target" ]; then
+      swap_on_target="true"
+      break
+    fi
+  done < <(lsblk --inverse --noheadings --paths --output NAME "$target_swap_device")
+  if [ "$system_on_target" != "true" ] || [ "$swap_on_target" != "true" ]; then
+    printf 'Error    Evaluated system and swap devices are not descendants of the target disk.\n' >&2
     return 1
   fi
 }
@@ -673,7 +848,7 @@ verify_resume_storage_inactive() {
   local canonical_source
   local canonical_target
   local esp_device_id
-  local system_device_id
+  local luks_device_id
 
   if [ ! -r "$resume_mountinfo_file" ]; then
     printf 'Error    Cannot resume because the kernel mount inventory is unavailable: %s\n' \
@@ -686,8 +861,12 @@ verify_resume_storage_inactive() {
     return 1
   fi
   if ! esp_device_id="$(lsblk --noheadings --nodeps --raw --output MAJ:MIN "${target_device}-part1")" ||
-    ! system_device_id="$(lsblk --noheadings --nodeps --raw --output MAJ:MIN "${target_device}-part3")"; then
+    ! luks_device_id="$(lsblk --noheadings --nodeps --raw --output MAJ:MIN "$luks_device")"; then
     printf 'Error    Cannot resume because target partition identities are unavailable.\n' >&2
+    return 1
+  fi
+  if [ -b "/dev/mapper/$luks_mapping" ]; then
+    printf 'Error    Cannot resume while the target LUKS mapping is already open: %s\n' "$luks_mapping" >&2
     return 1
   fi
 
@@ -700,18 +879,19 @@ verify_resume_storage_inactive() {
       return 1
       ;;
     esac
-    if [ "$mounted_device" = "$esp_device_id" ] || [ "$mounted_device" = "$system_device_id" ]; then
+    if [ "$mounted_device" = "$esp_device_id" ] || [ "$mounted_device" = "$luks_device_id" ]; then
       printf 'Error    Cannot resume while a target partition is mounted elsewhere: %s\n' \
         "$mounted_target" >&2
       return 1
     fi
   done <"$resume_mountinfo_file"
 
-  canonical_target="$(readlink -f -- "$target_swap_device")"
+  canonical_target="$(readlink -f -- "$target_swap_device" 2>/dev/null || true)"
   while read -r swap_device _; do
     [ "$swap_device" != "Filename" ] || continue
     canonical_source="$(readlink -f -- "$swap_device")"
-    if [ "$canonical_source" = "$canonical_target" ]; then
+    if { [ -n "$canonical_target" ] && [ "$canonical_source" = "$canonical_target" ]; } ||
+      [ "$swap_device" = "$target_swap_device" ]; then
       printf 'Error    Cannot resume while the target swap is already active: %s\n' "$target_swap_device" >&2
       return 1
     fi
@@ -768,23 +948,6 @@ run_iso_install() {
     printf 'Warning  UEFI firmware is unavailable; continuing because --dry-run is active.\n' >&2
   fi
 
-  host="$(select_install_host)"
-  configure_install_host "$host"
-  if [ ! -b "$target_device" ] && [ "$install_dry_run" = "false" ]; then
-    printf 'Error    Approved installation disk is unavailable.\n' >&2
-    printf '  Expected  %s\n' "$target_device" >&2
-    exit 1
-  fi
-
-  printf 'NixOS installation\n' >&2
-  printf '  Host    %s\n' "$host" >&2
-  printf '  Target  %s\n' "$target_device" >&2
-  if [ -b "$target_device" ]; then
-    lsblk --output NAME,SIZE,MODEL,SERIAL,TYPE,MOUNTPOINTS "$target_device" >&2
-  else
-    printf 'Warning  Target disk is unavailable; continuing because --dry-run is active.\n' >&2
-  fi
-
   iso_work_dir="$(mktemp -d -t nixos-install.XXXXXX)"
   chmod 0700 "$iso_work_dir"
   repository="$iso_work_dir/nixos"
@@ -798,6 +961,24 @@ run_iso_install() {
     exit 1
   fi
   repository_revision="$(git -C "$repository" rev-parse HEAD)"
+  repository_flake="$(resolve_flake_store_path "$repository")"
+  host="$(select_install_host "$repository")"
+  configure_install_host "$repository_flake" "$host"
+  if [ ! -b "$target_device" ] && [ "$install_dry_run" = "false" ]; then
+    printf 'Error    Evaluated installation disk is unavailable.\n' >&2
+    printf '  Expected  %s\n' "$target_device" >&2
+    exit 1
+  fi
+
+  printf 'NixOS installation\n' >&2
+  printf '  Host    %s\n' "$host" >&2
+  printf '  Target  %s\n' "$target_device" >&2
+  if [ -b "$target_device" ]; then
+    lsblk --output NAME,SIZE,MODEL,SERIAL,TYPE,MOUNTPOINTS "$target_device" >&2
+  else
+    printf 'Warning  Target disk is unavailable; continuing because --dry-run is active.\n' >&2
+  fi
+
   generate_identities "$identity_tree" "$install_user"
 
   export GNUPGHOME="$identity_tree/home/$install_user/.gnupg"
@@ -819,7 +1000,8 @@ run_iso_install() {
   repository_flake="$(resolve_flake_store_path "$repository")"
   verify_disko_target "$repository_flake" "$host"
 
-  nix "${nix_flake_args[@]}" build --no-link "$repository_flake#checks.x86_64-linux.${host}-disko-script"
+  nix "${nix_flake_args[@]}" build --no-link \
+    "$repository_flake#checks.$host_system.${disko_configuration}-disko-script"
   nix "${nix_flake_args[@]}" eval --raw "$repository_flake#nixosConfigurations.$host.config.system.build.toplevel.drvPath" >/dev/null
 
   printf '\nWorking  Validating disk plan...\n' >&2
@@ -845,10 +1027,11 @@ run_iso_install() {
 
   target_storage_active="true"
   run_disko "$repository_flake" "$host" --yes-wipe-all-disks
+  verify_encrypted_storage
   verify_target_mount "$install_root" tmpfs tmpfs /
   verify_target_mount "$install_root/boot" "${target_device}-part1" vfat /
-  verify_target_mount "$install_root/nix" "${target_device}-part3" btrfs /nix
-  verify_target_mount "$install_root/persist" "${target_device}-part3" btrfs /persist
+  verify_target_mount "$install_root/nix" "$target_system_device" btrfs /nix
+  verify_target_mount "$install_root/persist" "$target_system_device" btrfs /persist
 
   swapon "$target_swap_device"
   target_swap_active="true"
@@ -891,16 +1074,6 @@ run_iso_resume() {
 
   verify_nixos_install_interface
   acquire_install_lock
-  host="$(select_install_host)"
-  configure_install_host "$host"
-
-  for required_device in "$target_device" "${target_device}-part1" "${target_device}-part2" "${target_device}-part3"; do
-    if [ ! -b "$required_device" ]; then
-      printf 'Error    Cannot resume because the expected target device is unavailable: %s\n' "$required_device" >&2
-      exit 1
-    fi
-  done
-  verify_resume_storage_inactive
 
   iso_work_dir="$(mktemp -d -t nixos-install-resume.XXXXXX)"
   chmod 0700 "$iso_work_dir"
@@ -915,15 +1088,25 @@ run_iso_resume() {
   fi
   repository_revision="$(git -C "$repository" rev-parse HEAD)"
   repository_flake="$(resolve_flake_store_path "$repository")"
+  host="$(select_install_host "$repository")"
+  configure_install_host "$repository_flake" "$host"
+  for required_device in "$target_device" "${target_device}-part1" "$luks_device"; do
+    if [ ! -b "$required_device" ]; then
+      printf 'Error    Cannot resume because the expected target device is unavailable: %s\n' "$required_device" >&2
+      exit 1
+    fi
+  done
+  verify_resume_storage_inactive
   verify_disko_target "$repository_flake" "$host"
 
   printf 'Working  Mounting the existing target filesystems...\n' >&2
   target_storage_active="true"
   mount_disko "$repository_flake" "$host"
+  verify_encrypted_storage
   verify_target_mount "$install_root" tmpfs tmpfs /
   verify_target_mount "$install_root/boot" "${target_device}-part1" vfat /
-  verify_target_mount "$install_root/nix" "${target_device}-part3" btrfs /nix
-  verify_target_mount "$install_root/persist" "${target_device}-part3" btrfs /persist
+  verify_target_mount "$install_root/nix" "$target_system_device" btrfs /nix
+  verify_target_mount "$install_root/persist" "$target_system_device" btrfs /persist
   swapon "$target_swap_device"
   target_swap_active="true"
 
@@ -1017,7 +1200,7 @@ main() {
     fi
 
     export BOOTSTRAP_INSTALL_ISO_RUNTIME=true
-    run_downloaded_script root install.sh age gh git gnupg openssh pinentry-curses qrencode sops util-linux
+    run_downloaded_script root install.sh age cryptsetup gh git gnupg lvm2 openssh pinentry-curses qrencode sops util-linux
     return
   fi
 

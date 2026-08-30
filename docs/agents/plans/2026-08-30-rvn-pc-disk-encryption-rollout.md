@@ -16,8 +16,9 @@ Preservation behavior, and repeated hibernation on the plaintext baseline.
 
 Reinstall `rvn-pc` with encrypted persistent storage and encrypted hibernation
 while retaining its proven tmpfs root, Preservation policy, Btrfs subvolumes,
-machine identity, SSH identity, SOPS identities, user state, and protected NTFS
-disks.
+and protected NTFS disks. The fresh installation generates new machine, SSH,
+and SOPS identities. The previous NAS recovery archive remains available as an
+optional post-boot recovery source.
 
 The rollout must first work with a LUKS passphrase. TPM2 unlock is a later,
 reversible phase. Secure Boot is a separate project.
@@ -58,7 +59,8 @@ rollback targets after repartitioning.
 | TPM2 | `systemd-analyze has-tpm2` reports `yes`; enrollment remains deferred until passphrase boot and encrypted resume pass |
 | TPM2 PIN | None; the approved steady state is unattended TPM unlock with passphrase fallback |
 | Recovery | A passphrase or recovery credential remains valid independently of TPM2 |
-| Existing identities | Restore unchanged; do not generate or rotate during this reinstall |
+| Fresh identities | Generate a new machine ID, SSH host keys, and age identity, then rotate the host SOPS recipient as in the regular installer |
+| Existing recovery archive | Optional post-boot recovery only; it is not an installer input or cutover gate |
 | External NTFS disks | Connected, protected from Disko, plaintext, and out of scope |
 | Secure Boot | Out of scope; plan separately after encryption and TPM behavior are stable |
 
@@ -76,10 +78,9 @@ rollback targets after repartitioning.
       `5E0FEC74518ED5FEAA5EA33E5C49A562D850322A` before storing it under
       `/mnt/nas/backup/rvn-pc/luks/`. Do not place it in the existing plaintext
       recovery archive.
-- [x] Decide whether the encryption reinstall gets a dedicated installer
-      entrypoint or an explicit mode in the existing installer. Prefer a
-      dedicated entrypoint if that is the clearest way to make identity
-      generation and SOPS recipient rotation unreachable.
+- [x] Keep `scripts/bootstrap/install.sh` as the single ISO entrypoint. It
+      discovers installable hosts from `flake.meta.hosts` and evaluates storage
+      paths from the selected Disko and NixOS configurations.
 - [x] Defer the exact TPM2 PCR policy until the encrypted passphrase boot chain
       and update behavior can be measured. Do not copy a PCR list without
       testing its recovery consequences.
@@ -130,7 +131,7 @@ and volume names are `cryptsystem`, `rvnpc`, `swap`, and `system`.
 - **SOPS key as the LUKS key:** rejected because the system SOPS identity is
   stored under `/persist`, which is unavailable until LUKS is already open.
 - **In-place conversion:** rejected because the intended Disko topology and its
-  failure recovery are easier to verify as a restore-based reinstall.
+  failure recovery are easier to verify as a fresh reinstall.
 
 ## Security Boundary
 
@@ -165,11 +166,11 @@ that limitation in a separate plan after this rollout is stable.
   `/persist` is mounted.
 - `/persist` mounts before the initrd Preservation target and machine-ID
   validation, as in the proven baseline.
-- The reinstall restores the existing machine ID, SSH host keys, system SOPS
-  age identity, Home Manager SOPS age identity, repositories, and selected
-  persistent state without changing their identities.
-- The encryption installer cannot call `generate_identities`, rotate the
-  `rvn-pc` SOPS recipient, or overwrite restored identity files.
+- The reinstall generates a fresh machine ID, SSH host keys, and shared system
+  and Home Manager age identity before Disko changes the target.
+- The installer rotates only the SOPS files declared by the selected host's
+  `hostMeta.installation.sopsFiles` value.
+- The NAS recovery archive is not read or restored by the ISO installer.
 - No LUKS passphrase, recovery key, token secret, or plaintext key file enters
   Git, a Nix expression, command-line arguments, shell history, logs, the Nix
   store, the generated initrd, or the existing plaintext recovery archive.
@@ -177,8 +178,8 @@ that limitation in a separate plan after this rollout is stable.
 - TPM enrollment happens only after passphrase cold boot and encrypted
   hibernation pass.
 - TPM tests never clear or reset the TPM.
-- Partitioning, restoration, installation, and TPM enrollment remain separate
-  actions with separate failure recovery.
+- Fresh installation, optional post-boot recovery, and TPM enrollment remain
+  separate actions.
 - The same immutable Git revision supplies the reviewed layout and installed
   system configuration.
 - No previous plaintext generation is described or presented as a rollback
@@ -266,11 +267,10 @@ boundary are explicit before code changes begin.
 
 ### Installer contract
 
-- [x] Select a dedicated encryption entrypoint or an explicit fail-closed mode.
-- [x] Require the dedicated encryption path to make identity generation and
-      SOPS recipient rotation unreachable.
-- [x] Keep `inspect`, partitioning, restore verification, installation, and TPM
-      enrollment as distinct actions.
+- [x] Use `scripts/bootstrap/install.sh` as the single regular ISO entrypoint.
+- [x] Preserve fresh identity generation and SOPS recipient rotation from the
+      existing installer.
+- [x] Keep NAS recovery and TPM enrollment outside the ISO installation action.
 - [x] Require an exact destructive confirmation phrase naming the approved
       target disk and the encrypted layout.
 
@@ -378,40 +378,37 @@ contract with focused tests.
 
 ## Phase 4: Build The Encryption Reinstall Workflow
 
-**Outcome:** a guarded installer can inspect, partition, restore, install, and
-clean up the encrypted target without generating new host identities.
+**Outcome:** the regular ISO installer performs a guarded fresh installation on
+the encrypted target. It generates new identities and does not read the NAS
+recovery archive.
 
 ### Installer changes
 
-- [ ] Update or replace `configure_install_host` so swap and Btrfs sources are
-      exact logical devices rather than `${target_device}-part2` and
-      `${target_device}-part3`.
-- [ ] Update `print_install_plan` to show the ESP, LUKS2 container, volume
-      group, encrypted swap LV, Btrfs LV, and plaintext external disks.
-- [ ] Keep `verify_disko_target` anchored to the approved physical NVMe.
-- [ ] Extend target verification to the exact expected LUKS mapping, volume
-      group, and logical volumes after partitioning.
-- [ ] Update `verify_target_mount` calls for `/nix` and `/persist` to use the
-      Btrfs LV and expected subvolume roots.
-- [ ] Replace `target_swap_device`, direct physical `swapon`, and direct
-      physical `swapoff` assumptions with the exact swap LV.
-- [ ] Make cleanup disable swap, unmount the target, deactivate LVM, and close
-      LUKS in a tested order without hiding the original failure.
-- [ ] Keep the installer lock and immutable flake revision checks.
-- [ ] Preserve the separation between partitioning and installation so failed
-      restoration never causes Disko to run again.
+- [x] Discover installable hosts from `flake.meta.hosts` after cloning the
+      immutable installation revision.
+- [x] Evaluate the target disk from `diskoConfigurations.<host>` and the LUKS,
+      system, and resume devices from `nixosConfigurations.<host>`.
+- [x] Remove handwritten partition sizes and topology from
+      `print_install_plan`; Disko's dry-run is the authoritative plan.
+- [x] Keep `verify_disko_target` anchored to the evaluated by-id disk.
+- [x] Verify the open LUKS mapping and prove the system and swap devices descend
+      from the selected physical disk.
+- [x] Verify `/nix` and `/persist` against the evaluated system device and
+      expected Btrfs subvolume roots.
+- [x] Use the evaluated resume device for `swapon` and `swapoff`.
+- [x] Make cleanup disable swap, unmount the target, deactivate its inferred
+      LVM volume group, and close the evaluated LUKS mapping.
+- [x] Keep the installer lock and immutable flake revision checks.
 
-### Identity restoration
+### Fresh identities
 
-- [ ] Do not call `generate_identities` from the encryption workflow.
-- [ ] Do not call `rotate_sops_recipient` from the encryption workflow.
-- [ ] Restore the installed machine ID, SSH host keys, system age key, Home
-      Manager age key, repositories, and selected state from the verified
-      pre-encryption recovery set.
-- [ ] Verify checksums, ownership, modes, and public SSH fingerprints before
-      installation.
-- [ ] Refuse installation when any required identity is missing, changed, or
-      symlinked unexpectedly.
+- [x] Keep the regular installer's fresh machine-ID, SSH-key, and age-key
+      generation.
+- [x] Declare each host's SOPS file set under
+      `hostMeta.installation.sopsFiles`.
+- [x] Rotate and verify the selected host's SOPS recipient before Disko changes
+      the target disk.
+- [x] Keep the NAS recovery archive out of the ISO installation flow.
 
 ### Credential handling
 
@@ -421,28 +418,30 @@ clean up the encrypted target without generating new host identities.
       it on every exit path.
 - [ ] Never use an installer-only file as a runtime initrd key-file setting.
 - [ ] Verify no credential value reaches command traces or logs.
-- [ ] Create the LUKS header backup only after the encrypted container is
-      created and only to the approved encrypted off-target destination.
+- [ ] Create and test the LUKS header backup after the fresh system boots. Keep
+      it outside the ISO installation flow and write it only to the approved
+      encrypted off-target destination.
 
 ### `scripts/ci/check-bootstrap-install.sh`
 
-- [ ] Update the expected installation plan and logical device paths.
-- [ ] Replace direct part2 swapoff assertions with swap-LV cleanup assertions.
-- [ ] Update mount verification from physical part3 to the Btrfs LV.
-- [ ] Add tests for passphrase cancellation, failed LUKS creation, failed LVM
-      activation, failed restore verification, and cleanup after each failure.
-- [ ] Prove the encryption path cannot call identity generation or SOPS
-      recipient rotation.
-- [ ] Prove inspect mode cannot prompt for or create a credential.
-- [ ] Prove install mode cannot format, repartition, or enroll TPM.
+- [x] Update the installation plan and logical-device assertions.
+- [x] Replace direct part2 swap cleanup with the evaluated resume device.
+- [x] Update mount verification from physical part3 to the evaluated Btrfs
+      device.
+- [x] Prove host discovery and storage configuration come from flake metadata,
+      Disko, and NixOS evaluation rather than shell constants.
+- [x] Prove the integrated path generates identities, rotates SOPS, verifies
+      encrypted ancestry, and cannot invoke NAS recovery.
+- [ ] Add disposable Linux tests for passphrase cancellation, failed LUKS
+      creation, failed LVM activation, and cleanup after each failure.
 - [ ] Prove protected-disk and unexpected-logical-device mismatches fail closed.
 
-**User-run actions:** any real credential entry, cryptsetup operation, recovery
-copy, header backup, SOPS verification, Disko action, or `nixos-install` run.
+**User-run actions:** any real credential entry, cryptsetup operation, header
+backup, SOPS verification, Disko action, or `nixos-install` run.
 
 **Exit gate:** shell contract tests prove physical and logical device safety,
-credential non-disclosure, identity preservation, action separation, and
-ordered cleanup.
+credential non-disclosure, fresh identity handling, no ISO recovery dependency,
+and ordered cleanup.
 
 **Good commit point:** guarded encryption reinstall workflow, contract tests,
 and operator instructions.
@@ -455,8 +454,8 @@ flow works without touching the workstation NVMe or production credentials.
 - [ ] Use a VM disk or disposable physical device with a test-only target
       override that cannot enter the production output.
 - [ ] Use disposable machine, SSH, and SOPS identities.
-- [ ] Exercise inspect, partition, restore verification, install, cleanup, and
-      cancellation as separate actions.
+- [ ] Exercise dry-run, fresh installation, encrypted resume, cleanup, and
+      cancellation.
 - [ ] Verify the ESP is plaintext and all swap and Btrfs data devices are below
       the LUKS mapping.
 - [ ] Verify one passphrase opens the single LUKS container.
@@ -478,8 +477,8 @@ flow works without touching the workstation NVMe or production credentials.
 - [ ] Create a disposable LUKS header backup and prove recovery against a clone
       of the disposable device. Never restore a header over the live fixture
       without a second untouched recovery copy.
-- [ ] Exercise partial failures and prove rerunning installation does not
-      repartition an already restored target.
+- [ ] Exercise partial failures and prove the encrypted resume action never
+      repartitions an existing target.
 
 **User-run actions:** disposable cryptsetup, Disko, installation, reboot,
 hibernate, and header-recovery operations.
@@ -492,17 +491,18 @@ header recovery with no credential leakage.
 
 ## Phase 6: Prepare Recovery And The Immutable Revision
 
-**Outcome:** the working plaintext installation can be restored onto the final
-encrypted layout from one reviewed and remotely available revision.
+**Outcome:** one reviewed and remotely available revision can perform the fresh
+encrypted installation. Existing recovery archives remain available for an
+optional post-boot recovery decision.
 
-### Recovery set
+### Optional recovery set
 
-- [ ] Refresh the `rvn-pc` recovery archive from the working baseline.
-- [ ] Verify machine ID, SSH host keys, both age identities, repositories, and
-      selected persistent state.
-- [ ] Record checksums, ownership, modes, and public SSH fingerprints.
-- [ ] Verify the recovery set from standard installer media.
-- [ ] Keep at least one identity recovery copy outside the target NVMe.
+- [x] Keep the existing verified `rvn-pc` recovery archive outside the target
+      NVMe.
+- [ ] Decide after the fresh system boots whether any non-identity state should
+      be recovered.
+- [ ] Do not restore the previous machine ID, SSH host keys, or age keys over
+      the fresh identities without a separate SOPS reconciliation plan.
 - [ ] Prepare the separately protected LUKS recovery credential destination.
 - [ ] Prepare the separately encrypted LUKS header-backup destination.
 - [ ] Do not create the production header backup before the production LUKS
@@ -534,8 +534,8 @@ payload.
 
 ## Phase 7: Perform The Encrypted Reinstall
 
-All firmware, Disko, cryptsetup, LVM, SOPS, recovery-copy, `nixos-install`, and
-reboot actions in this phase are user-run.
+All firmware, Disko, cryptsetup, LVM, SOPS, `nixos-install`, and reboot actions
+in this phase are user-run.
 
 ### Preflight
 
@@ -544,16 +544,14 @@ reboot actions in this phase are user-run.
 2. Confirm TPM2 remains available, but do not enroll or require it.
 3. Inspect the target, protected disks, removable media, immutable Git revision,
    and generated command plan.
-4. Mount recovery sources outside Disko's installation root.
-5. Verify the complete recovery set before any disk write.
-6. Verify the independent LUKS recovery and header-backup destinations are
+4. Verify the independent LUKS recovery and header-backup destinations are
    available without exposing their contents in logs.
-7. Stop on any disk identity, capacity, filesystem UUID, command allowlist, or
+5. Stop on any disk identity, capacity, filesystem UUID, command allowlist, or
    revision mismatch.
 
-### Partition and encrypt
+### Fresh install
 
-1. Invoke the reviewed encryption partition action from the immutable revision.
+1. Invoke the reviewed regular ISO installer from the immutable revision.
 2. Review the final physical and logical layout.
 3. Enter the exact destructive confirmation phrase.
 4. Enter and confirm the initial LUKS passphrase through the approved prompt.
@@ -562,27 +560,18 @@ reboot actions in this phase are user-run.
 6. Verify only the ESP is plaintext on the target NVMe.
 7. Verify the active Btrfs and swap sources are descendants of the expected
    LUKS mapping.
-8. Create the production LUKS header backup at the approved encrypted off-target
-   destination.
-9. Do not rerun partitioning after this point unless intentionally restarting
-   the encrypted installation from zero.
-
-### Restore and install
-
-1. Restore the machine ID, SSH host keys, system age key, Home Manager age key,
-   repositories, and selected persistent state.
-2. Verify checksums, modes, ownership, and SSH fingerprints.
-3. Verify SOPS decryption with plaintext output discarded.
-4. Verify no identity was generated or rotated by the encryption workflow.
-5. Run only the install action against the same immutable revision.
-6. Inspect the installed initrd, kernel command line, mount sources, resume
+8. Verify the generated machine ID, SSH host keys, and age key before
+   `nixos-install` runs.
+9. Verify the selected SOPS files decrypt with the fresh age key and discard
+   plaintext output.
+10. Inspect the installed initrd, kernel command line, mount sources, resume
    device, and system closure before rebooting.
-7. Close and reopen the target once from installer media using the recovery
+11. Close and reopen the target once from installer media using the recovery
    passphrase before relying on the installed boot path.
 
 **Exit gate:** the encrypted target reopens with the recovery passphrase,
-identities match the baseline, SOPS works, installation completes, and the
-mounted target has the expected encrypted sources and resume configuration.
+fresh identities and SOPS work, installation completes, and the mounted target
+has the expected encrypted sources and resume configuration.
 
 ## Phase 8: Validate Passphrase Boot And Encrypted Resume
 
@@ -603,9 +592,13 @@ mounted target has the expected encrypted sources and resume configuration.
       Btrfs LV below LUKS.
 - [ ] Verify disk swap is the 48 GiB LV below LUKS.
 - [ ] Verify `boot.resumeDevice` names that LV and never zram.
-- [ ] Verify machine ID, SSH fingerprints, SOPS identities, home state, and
-      selected service state match the plaintext baseline.
+- [ ] Record the new machine ID, SSH fingerprints, and SOPS age recipient.
+- [ ] Verify SOPS decryption with the new age identity.
 - [ ] Verify `/mnt/storage` and `/mnt/games` retain their identities and data.
+- [ ] Create the production LUKS header backup at the approved encrypted
+      off-target destination and test it only against cloned media.
+- [ ] Decide whether any non-identity state from the NAS recovery archive should
+      be restored. This is optional and occurs only after the fresh boot passes.
 
 ### Persistence and hibernation
 
@@ -627,9 +620,9 @@ mounted target has the expected encrypted sources and resume configuration.
 **User-run actions:** passphrase entry, login, cold boots, SOPS checks,
 hibernation, resume, and hardware validation.
 
-**Exit gate:** two passphrase cold boots, normal rebuild, stable identities,
-correct Preservation behavior, intact protected disks, and repeated encrypted
-hibernation all pass without TPM.
+**Exit gate:** two passphrase cold boots, normal rebuild, stable fresh
+identities, correct Preservation behavior, intact protected disks, and repeated
+encrypted hibernation all pass without TPM.
 
 **Good commit point:** passphrase-baseline fixes and validation coverage, if any
 were needed.
@@ -715,10 +708,10 @@ separate.
   target. Do not retry an unchanged destructive action.
 - If LVM or Btrfs creation fails after LUKS succeeds, retain the original error
   and inspect the partial mapping before cleanup.
-- If identity restoration or SOPS verification fails, repair the mounted
-  encrypted target. Do not rerun partitioning.
-- If `nixos-install` fails, keep the target mounted, correct the restored state
-  or configuration, and rerun only installation.
+- If fresh identity generation or SOPS verification fails before Disko runs,
+  stop without changing the target.
+- If `nixos-install` fails after Disko runs, use the encrypted resume action to
+  reopen the target without repartitioning.
 - If the first boot prompt is invisible, use the documented console fallback.
   Do not assume the machine is hung while a hidden password request is active.
 - If passphrase boot fails, return to installer media, open LUKS with the
@@ -743,13 +736,13 @@ Complete and prove the plaintext Preservation baseline
   -> freeze encryption, recovery, naming, installer, and TPM contracts
   -> model the inactive LUKS2 and LVM Disko layout
   -> prove initrd unlock, resume, mount, and Preservation ordering
-  -> build the identity-preserving encryption installer
+  -> integrate encrypted Disko into the regular fresh installer
   -> rehearse with disposable storage and identities
-  -> refresh recovery material and push one immutable revision
-  -> partition and encrypt the approved NVMe
+  -> push one immutable installation revision
+  -> generate fresh identities, partition, encrypt, and install
+  -> prove passphrase cold boot
   -> back up the production LUKS header off-target
-  -> restore existing identities and persistent state
-  -> install and prove passphrase cold boot
+  -> optionally recover selected non-identity state after boot
   -> prove repeated encrypted hibernation
   -> enroll TPM2 without removing the recovery passphrase
   -> prove TPM bypass and passphrase fallback

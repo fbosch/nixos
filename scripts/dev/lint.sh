@@ -63,6 +63,14 @@ else
   exit_code=1
 fi
 
+if gum spin --spinner dot --title "encrypted installer" -- bash ./scripts/ci/check-encrypted-install.sh >/tmp/encrypted-install-output 2>&1; then
+  echo "$(gum style --foreground 2 '[OK]') encrypted installer"
+else
+  echo "$(gum style --foreground 1 '[FAIL]') encrypted installer"
+  cat /tmp/encrypted-install-output
+  exit_code=1
+fi
+
 if gum spin --spinner dot --title "local host recovery" -- bash ./scripts/ci/check-local-host-recovery.sh >/tmp/local-host-recovery-output 2>&1; then
   echo "$(gum style --foreground 2 '[OK]') local host recovery"
 else

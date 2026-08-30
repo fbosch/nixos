@@ -6,6 +6,7 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly script_dir
 readonly manifests_dir="$script_dir/manifests"
 readonly persist_root="${LOCAL_HOST_RECOVERY_PERSIST_ROOT:-/persist}"
+readonly target_only="${LOCAL_HOST_RECOVERY_TARGET_ONLY:-false}"
 
 declare manifest_destination=""
 declare manifest_mount_source=""
@@ -26,7 +27,7 @@ Usage:
   local-host-recovery.sh list [--host <host>]
   local-host-recovery.sh verify [--host <host>] <backup-id|--latest>
   local-host-recovery.sh compare [--host <host>] <backup-id|--latest>
-  local-host-recovery.sh restore <backup-id|--latest> [--yes]
+  local-host-recovery.sh restore [--host <host>] <backup-id|--latest> [--yes]
 
 Create, verify, compare, or restore a recovery archive using a checked-in host manifest.
 EOF
@@ -336,9 +337,45 @@ resolve_current_source() {
   current_source_path=""
   if [[ -f $persistent_path && ! -L $persistent_path ]]; then
     current_source_path="$persistent_path"
-  elif [[ -f $source_path && ! -L $source_path ]]; then
+  elif [[ $target_only != true && -f $source_path && ! -L $source_path ]]; then
     current_source_path="$source_path"
   fi
+}
+
+validate_persistence_root() {
+  local canonical_root
+
+  [[ -d $persist_root && ! -L $persist_root ]] || die "persistence root must be a real directory: $persist_root"
+  canonical_root="$(realpath -e -- "$persist_root")"
+  [[ $canonical_root == "$persist_root" && $canonical_root != / ]] ||
+    die "persistence root must be a canonical non-root directory: $persist_root"
+}
+
+validate_restore_parents() {
+  local source_path relative parent component current
+  local -a components
+
+  for source_path in "${source_paths[@]}"; do
+    relative="${source_path#/}"
+    parent="${relative%/*}"
+    current="$persist_root"
+    IFS=/ read -r -a components <<<"$parent"
+    for component in "${components[@]}"; do
+      current="$current/$component"
+      [[ ! -L $current ]] || die "persistent restore parent must not be a symlink: $current"
+      [[ ! -e $current || -d $current ]] || die "persistent restore parent is not a directory: $current"
+    done
+  done
+}
+
+prepare_fresh_restore_parents() {
+  local source_path relative parent
+
+  for source_path in "${source_paths[@]}"; do
+    relative="${source_path#/}"
+    parent="${relative%/*}"
+    install --directory --mode=0700 -- "$persist_root/$parent"
+  done
 }
 
 compare_backup() {
@@ -356,6 +393,10 @@ compare_backup() {
   backup_dir="$host_destination/$backup_id"
 
   validate_backup_set "$backup_dir" "$manifest"
+  if [[ $target_only == true ]]; then
+    validate_persistence_root
+    validate_restore_parents
+  fi
   for source_path in "${source_paths[@]}"; do
     member="${source_path#/}"
     resolve_current_source "$source_path"
@@ -440,7 +481,8 @@ restore_backup() {
   local manifest="$2"
   local backup_id="$3"
   local assume_yes="$4"
-  local host_destination backup_dir rollback_dir reply
+  local host_destination backup_dir rollback_dir reply source_path
+  local present_targets=0
 
   [[ $backup_id =~ ^[0-9]{8}T[0-9]{6}Z-p[0-9]+$ ]] || usage_error "invalid backup ID: $backup_id"
   host_destination="$manifest_destination/$host"
@@ -448,6 +490,18 @@ restore_backup() {
     die "host backup destination does not exist: $host_destination"
   backup_dir="$host_destination/$backup_id"
   validate_backup_set "$backup_dir" "$manifest"
+  validate_persistence_root
+  validate_restore_parents
+  for source_path in "${source_paths[@]}"; do
+    if [[ -e $persist_root$source_path ]]; then
+      [[ -f $persist_root$source_path && ! -L $persist_root$source_path ]] ||
+        die "persistent restore target has the wrong type: $persist_root$source_path"
+      ((present_targets += 1))
+    fi
+  done
+  if ((present_targets != 0 && present_targets != ${#source_paths[@]})); then
+    die "persistent restore target contains a partial identity set"
+  fi
   if [[ $assume_yes != true ]]; then
     [[ -t 0 ]] || usage_error "restore requires --yes when no interactive terminal is available"
     printf 'Restore recovery archive %s on %s? [y/N] ' "$backup_id" "$host" >&2
@@ -461,8 +515,13 @@ restore_backup() {
     esac
   fi
 
-  rollback_dir="$(create_restore_rollback "$host" "$manifest" "$backup_id")"
-  printf 'Rollback created: %s\n' "$rollback_dir"
+  if ((present_targets == 0)); then
+    prepare_fresh_restore_parents
+    printf 'Fresh persistence target verified; no rollback was required.\n'
+  else
+    rollback_dir="$(create_restore_rollback "$host" "$manifest" "$backup_id")"
+    printf 'Rollback created: %s\n' "$rollback_dir"
+  fi
   if command -v systemctl >/dev/null 2>&1 && systemctl --quiet is-active mullvad-daemon.service; then
     systemctl stop mullvad-daemon.service
     printf 'Service stopped: mullvad-daemon.service\n'
@@ -602,17 +661,29 @@ main() {
     esac
     ;;
   restore)
-    case "$#:${3:-}" in
-    2:*)
+    case "$#:${2:-}:${5:-}" in
+    2:*:*)
       selected_host=""
       backup_id="$2"
       ;;
-    3:--yes)
+    3:*:*)
+      [[ $3 == --yes ]] || usage_error "restore accepts only --yes after the backup ID"
       selected_host=""
       backup_id="$2"
       assume_yes="true"
       ;;
-    *) usage_error "restore requires one backup ID or --latest, optionally followed by --yes" ;;
+    4:--host:*)
+      [[ -n $3 && $3 != -* ]] || usage_error "restore --host requires a host name"
+      selected_host="$3"
+      backup_id="$4"
+      ;;
+    5:--host:--yes)
+      [[ -n $3 && $3 != -* ]] || usage_error "restore --host requires a host name"
+      selected_host="$3"
+      backup_id="$4"
+      assume_yes="true"
+      ;;
+    *) usage_error "restore requires [--host <host>] <backup-id|--latest> [--yes]" ;;
     esac
     ;;
   "") usage_error "an operation is required" ;;
@@ -632,6 +703,10 @@ main() {
   validate_absolute_path "persistence root" "$persist_root"
   parse_manifest "$manifest"
   validate_destination
+
+  if [[ $operation == restore && $persist_root == /persist && $selected_host != "$running_host" ]]; then
+    die "foreign-host restore requires an explicit non-default persistence root"
+  fi
 
   if [[ $operation == verify || $operation == compare || $operation == restore ]]; then
     resolve_backup_id "$selected_host" "$backup_id"

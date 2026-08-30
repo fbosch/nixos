@@ -203,6 +203,33 @@ if [[ ${restore_lines[*]} == *"$test_secret"* ]]; then
   exit 1
 fi
 
+fresh_persist_root="$tmp_dir/fresh-persist"
+mkdir "$fresh_persist_root"
+mapfile -t fresh_restore_lines < <(
+  LOCAL_HOST_RECOVERY_PERSIST_ROOT="$fresh_persist_root" \
+    TEST_HOSTNAME=nixos \
+    bash "$test_script" restore --host test-host "$backup_id" --yes
+)
+[[ ${fresh_restore_lines[0]} == "Fresh persistence target verified; no rollback was required." ]]
+[[ ${fresh_restore_lines[1]} == "MATCH     $test_source_dir/identity key" ]]
+[[ $(<"$fresh_persist_root$test_source_dir/identity key") == "$test_secret" ]]
+
+if TEST_HOSTNAME=nixos bash "$test_script" restore --host "" "$backup_id" --yes >/dev/null 2>&1; then
+  printf 'restore accepted an empty explicit host\n' >&2
+  exit 1
+fi
+
+symlink_persist_root="$tmp_dir/symlink-persist"
+mkdir "$symlink_persist_root"
+mkdir -p "$(dirname "$symlink_persist_root$test_source_dir")"
+ln -s "$tmp_dir" "$symlink_persist_root$test_source_dir"
+if LOCAL_HOST_RECOVERY_PERSIST_ROOT="$symlink_persist_root" \
+  TEST_HOSTNAME=nixos \
+  bash "$test_script" restore --host test-host "$backup_id" --yes >/dev/null 2>&1; then
+  printf 'restore accepted a symlinked target parent\n' >&2
+  exit 1
+fi
+
 ln -s /etc/passwd "$tmp_dir/malicious-link"
 tar \
   --create \
@@ -283,6 +310,6 @@ collision_destination="$(<"$TEST_MV_DESTINATION")"
 help_output="$(bash "$test_script" --help)"
 [[ $help_output == *"local-host-recovery.sh backup"* ]]
 [[ $help_output == *"local-host-recovery.sh compare"* ]]
-[[ $help_output == *"local-host-recovery.sh restore <backup-id|--latest> [--yes]"* ]]
+[[ $help_output == *"local-host-recovery.sh restore [--host <host>] <backup-id|--latest> [--yes]"* ]]
 
 printf 'local host recovery check passed\n'

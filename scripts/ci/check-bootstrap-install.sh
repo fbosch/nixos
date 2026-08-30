@@ -153,7 +153,7 @@ run_launcher installed
 assert_launcher_contract bootstrap-machine.sh user gh git gum openssh qrencode
 
 run_launcher live-iso
-assert_launcher_contract install.sh root age gh git gnupg openssh pinentry-curses qrencode sops util-linux
+assert_launcher_contract install.sh root age cryptsetup gh git gnupg lvm2 openssh pinentry-curses qrencode sops util-linux
 
 if BOOTSTRAP_TEST_NIX_SHELL_EXIT=19 run_launcher installed; then
   printf 'launcher ignored nix-shell failure\n' >&2
@@ -443,6 +443,10 @@ sops_files=(
   secrets/apis.yaml
   secrets/development.yaml
 )
+if [ "${#sops_files[@]}" -ne 4 ]; then
+  printf 'resume fixture did not configure the expected SOPS file set\n' >&2
+  exit 1
+fi
 validate_resume_checkout "$resume_checkout"
 printf '%s\n' unexpected >"$resume_checkout/unexpected.txt"
 if validate_resume_checkout "$resume_checkout" >/dev/null 2>&1; then
@@ -469,6 +473,10 @@ chmod +x "$tmp_dir/bin/age-keygen" "$tmp_dir/bin/sops"
 install_root="$tmp_dir/resume-root"
 install_user="fbb"
 age_alias="rvn-pc"
+if [ "$install_user:$age_alias" != "fbb:rvn-pc" ]; then
+  printf 'resume fixture did not configure the expected identity mapping\n' >&2
+  exit 1
+fi
 mkdir -p \
   "$install_root/persist/etc/ssh" \
   "$install_root/persist/var/lib/sops-nix" \
@@ -542,8 +550,8 @@ fi
 if [[ " $* " == *" --source "* ]] && [ "${BOOTSTRAP_TEST_FINDMNT_SOURCE_INACTIVE:-false}" = "true" ]; then
   exit 1
 fi
-if [[ " $* " == *" SOURCE,TARGET "* ]]; then
-  printf 'tmpfs %s\n' "${BOOTSTRAP_TEST_FINDMNT_ROOT:-/}"
+if [[ " $* " == *" SOURCE,FSROOT "* ]]; then
+  printf '%s %s\n' "${BOOTSTRAP_TEST_FINDMNT_SOURCE:-/dev/mock-part3}" "${BOOTSTRAP_TEST_FINDMNT_ROOT:-/}"
   exit 0
 fi
 printf '%s\n' "${BOOTSTRAP_TEST_FINDMNT_ROOT:-/}"
@@ -570,7 +578,15 @@ chmod +x "$tmp_dir/bin/nix" "$tmp_dir/bin/nixos-install" "$tmp_dir/bin/swapoff" 
 mkdir -p "$tmp_dir/repository" "$tmp_dir/identity-tree" "$BOOTSTRAP_TEST_FLAKE_STORE_PATH"
 touch "$BOOTSTRAP_TEST_FLAKE_STORE_PATH/flake.nix"
 target_device="/dev/disk/by-id/nvme-WDS200T3X0C-00SJG0_21031B801746"
-target_swap_device="${target_device}-part2"
+target_swap_device="/dev/rvnpc/swap"
+target_system_device="/dev/rvnpc/system"
+luks_device="${target_device}-part2"
+luks_mapping="cryptsystem"
+disko_configuration="rvn-pc"
+if [ "$target_system_device:$luks_mapping:$disko_configuration" != "/dev/rvnpc/system:cryptsystem:rvn-pc" ]; then
+  printf 'encrypted storage fixture was configured incorrectly\n' >&2
+  exit 1
+fi
 resolved_flake="$(resolve_flake_store_path "$tmp_dir/repository")"
 if [ "$resolved_flake" != "$BOOTSTRAP_TEST_FLAKE_STORE_PATH" ]; then
   printf 'installation flake did not resolve to the immutable store source\n' >&2
@@ -675,21 +691,19 @@ if BOOTSTRAP_TEST_NIXOS_INSTALL_INCOMPATIBLE=true verify_nixos_install_interface
   exit 1
 fi
 
-BOOTSTRAP_TEST_FINDMNT_ROOT=/nix verify_target_mount \
+BOOTSTRAP_TEST_FINDMNT_SOURCE=/dev/rvnpc/system BOOTSTRAP_TEST_FINDMNT_ROOT=/nix verify_target_mount \
   /mnt/disko-install-root/nix \
-  /dev/disk/by-id/nvme-WDS200T3X0C-00SJG0_21031B801746-part3 \
+  /dev/rvnpc/system \
   btrfs \
   /nix
 cat >"$tmp_dir/expected-findmnt-args" <<'EOF_EXPECTED_FINDMNT_ARGS'
 --noheadings
---source
-/dev/disk/by-id/nvme-WDS200T3X0C-00SJG0_21031B801746-part3
 --target
 /mnt/disko-install-root/nix
 --types
 btrfs
 --output
-FSROOT
+SOURCE,FSROOT
 EOF_EXPECTED_FINDMNT_ARGS
 diff -u "$tmp_dir/expected-findmnt-args" "$BOOTSTRAP_TEST_FINDMNT_ARGS"
 if BOOTSTRAP_TEST_FINDMNT_ROOT=/wrong verify_target_mount /mnt/disko-install-root/nix /dev/target btrfs /nix >/dev/null 2>&1; then
@@ -704,17 +718,22 @@ printf '%s\n' 'Filename Type Size Used Priority' >"$resume_swaps_file"
 lsblk() {
   case "${*: -1}" in
   *-part1) printf '%s\n' 259:1 ;;
+  *-part2) printf '%s\n' 259:2 ;;
   *-part3) printf '%s\n' 259:3 ;;
   *) return 1 ;;
   esac
 }
+if [ "$(lsblk --noheadings --nodeps --raw --output MAJ:MIN "$luks_device")" != "259:2" ]; then
+  printf 'resume fixture did not expose the expected LUKS partition identity\n' >&2
+  exit 1
+fi
 verify_resume_storage_inactive
 printf '%s\n' '2 1 0:2 / /mnt/disko-install-root/nix rw - tmpfs tmpfs rw' >"$resume_mountinfo_file"
 if verify_resume_storage_inactive >/dev/null 2>&1; then
   printf 'resume storage validation accepted an existing child mount\n' >&2
   exit 1
 fi
-printf '%s\n' '3 1 259:3 / /mnt/other rw - btrfs /dev/mock-part3 rw' >"$resume_mountinfo_file"
+printf '%s\n' '3 1 259:2 / /mnt/other rw - crypto_LUKS /dev/mock-part2 rw' >"$resume_mountinfo_file"
 if verify_resume_storage_inactive >/dev/null 2>&1; then
   printf 'resume storage validation accepted a target partition mounted elsewhere\n' >&2
   exit 1
@@ -722,7 +741,7 @@ fi
 printf '%s\n' '1 0 0:1 / / rw - tmpfs tmpfs rw' >"$resume_mountinfo_file"
 printf '%s\n' \
   'Filename Type Size Used Priority' \
-  '/dev/mock-part2 partition 50331644 0 -2' >"$resume_swaps_file"
+  '/dev/rvnpc/swap partition 50331644 0 -2' >"$resume_swaps_file"
 if verify_resume_storage_inactive >/dev/null 2>&1; then
   printf 'resume storage validation accepted pre-existing target swap\n' >&2
   exit 1
@@ -751,13 +770,21 @@ exit 1
 EOF_LSBLK
 chmod +x "$tmp_dir/bin/lsblk"
 target_device="/dev/disk/by-id/preview-target"
+luks_device="${target_device}-part2"
+if [ "$luks_device" != "/dev/disk/by-id/preview-target-part2" ]; then
+  printf 'installation plan fixture derived the wrong LUKS device\n' >&2
+  exit 1
+fi
 TERM=dumb NO_COLOR=1 print_install_plan rvn-pc 0123456789abcdef 2>"$tmp_dir/install-plan"
 grep -Fqx '  Host      rvn-pc' "$tmp_dir/install-plan"
 grep -Fqx '  Revision  0123456789abcdef' "$tmp_dir/install-plan"
 grep -Fqx '  Target    /dev/disk/by-id/preview-target' "$tmp_dir/install-plan"
 grep -Fqx '    Target disk unavailable in dry-run mode.' "$tmp_dir/install-plan"
-grep -Fqx '  [CREATE] Part 1    2 GiB, VFAT, mounted at /boot' "$tmp_dir/install-plan"
-grep -Fqx '  [CREATE] Part 2    48 GiB, swap and resume device' "$tmp_dir/install-plan"
+grep -Fqx '  Configuration  diskoConfigurations.rvn-pc' "$tmp_dir/install-plan"
+grep -Fqx '  Target disk    /dev/disk/by-id/preview-target' "$tmp_dir/install-plan"
+grep -Fqx '  LUKS mapping   /dev/disk/by-id/preview-target-part2 -> /dev/mapper/cryptsystem' "$tmp_dir/install-plan"
+grep -Fqx '  System device  /dev/rvnpc/system' "$tmp_dir/install-plan"
+grep -Fqx '  Resume device  /dev/rvnpc/swap' "$tmp_dir/install-plan"
 grep -Fqx '  [KEEP]  /dev/sda  1.8T' "$tmp_dir/install-plan"
 grep -Fqx 'Warning  Only the [ERASE] disk above will be modified. [KEEP] disks will not be touched.' "$tmp_dir/install-plan"
 if LC_ALL=C grep -q $'\033' "$tmp_dir/install-plan"; then
@@ -785,6 +812,10 @@ EOF_EXPECTED_UMOUNT_ARGS
 diff -u "$tmp_dir/expected-umount-args" "$BOOTSTRAP_TEST_UMOUNT_ARGS"
 if [ "$target_storage_active" != "false" ]; then
   printf 'ISO target storage remained marked active after cleanup\n' >&2
+  exit 1
+fi
+if [ "$target_swap_active" != "false" ]; then
+  printf 'ISO target swap remained marked active after cleanup\n' >&2
   exit 1
 fi
 if [ -e "$test_target_install_flake" ] || [ -n "$target_install_flake" ]; then
