@@ -1,17 +1,25 @@
 {
   flake.modules.nixos."hosts/rvn-pc/boot" =
-    { lib
+    { config
+    , lib
     , options
     , pkgs
     , ...
     }:
     {
+      assertions = [
+        {
+          assertion = builtins.elem "btrfs" config.boot.initrd.kernelModules;
+          message = "rvn-pc requires the Btrfs module in the initrd for /nix and /persist";
+        }
+      ];
+
       boot = {
         # Hide boot messages for clean splash screen experience
         consoleLogLevel = 3; # Show only errors and critical messages
         kernelPackages = pkgs.cachyosKernels.linuxPackages-cachyos-latest;
         kernelModules = [ "ntsync" ];
-        initrd.kernelModules = lib.mkForce [
+        initrd.kernelModules = [
           "dm_mod"
           "i915"
           "nvidia"
