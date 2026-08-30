@@ -19,7 +19,7 @@ set -euo pipefail
 #        [--dry-run]  [ERASE host]
 #              │           │
 #              ▼           ▼
-#            exit    [disko-install]
+#            exit    [disko + nixos-install]
 
 base_url="https://github.com/fbosch/nixos/raw/refs/heads/master/scripts/bootstrap"
 repository_url="https://github.com/fbosch/nixos.git"
@@ -33,9 +33,12 @@ iso_work_dir=""
 install_dry_run="${NIXOS_INSTALL_DRY_RUN:-false}"
 install_host="${NIXOS_INSTALL_HOST:-}"
 target_device=""
+target_swap_device=""
 age_alias=""
 sops_files=()
 gpg_runtime_configured="false"
+target_storage_active="false"
+target_install_flake=""
 nix_flake_args=(--extra-experimental-features "nix-command flakes" --accept-flake-config)
 
 print_help() {
@@ -100,6 +103,7 @@ parse_args() {
 
 cleanup_iso_install() {
   cleanup_gpg_runtime
+  cleanup_target_storage
   if [ -n "$iso_work_dir" ]; then
     rm -rf -- "$iso_work_dir"
   fi
@@ -193,6 +197,22 @@ cleanup_gpg_runtime() {
   gpg_runtime_configured="false"
 }
 
+cleanup_target_storage() {
+  if [ "$target_storage_active" = "false" ]; then
+    return
+  fi
+
+  if [ -n "$target_install_flake" ]; then
+    rm -rf -- "$target_install_flake"
+    target_install_flake=""
+  fi
+  swapoff "$target_swap_device" >/dev/null 2>&1 || true
+  if mountpoint -q "$install_root"; then
+    umount -R "$install_root" >/dev/null 2>&1 || true
+  fi
+  target_storage_active="false"
+}
+
 rotate_sops_recipient() {
   local repository="$1"
   local identity_tree="$2"
@@ -253,6 +273,7 @@ configure_install_host() {
   case "$host" in
   rvn-pc)
     target_device="/dev/disk/by-id/nvme-WDS200T3X0C-00SJG0_21031B801746"
+    target_swap_device="${target_device}-part2"
     age_alias="rvn-pc"
     sops_files=(
       "secrets/hosts/rvn-pc.yaml"
@@ -268,24 +289,51 @@ configure_install_host() {
   esac
 }
 
-run_disko_install() {
+run_disko() {
   local repository="$1"
-  local identity_tree="$2"
-  local host="$3"
-  shift 3
+  local host="$2"
+  shift 2
 
-  nix "${nix_flake_args[@]}" run "$repository#disko-install" -- \
+  DISKO_SKIP_SWAP=1 nix "${nix_flake_args[@]}" run "$repository#disko" -- \
     "$@" \
+    --mode destroy,format,mount \
     --flake "$repository#$host" \
-    --disk system "$target_device" \
-    --mount-point "$install_root" \
-    --write-efi-boot-entries \
-    --extra-files "$identity_tree/." persist
+    --root-mountpoint "$install_root"
+}
+
+resolve_flake_store_path() {
+  local repository="$1"
+  local flake_store_path
+
+  flake_store_path="$(
+    nix "${nix_flake_args[@]}" flake metadata --json "$repository" |
+      sed -nE 's/.*"path": ?"([^"]+)".*/\1/p'
+  )"
+  if [ -z "$flake_store_path" ] || [ ! -f "$flake_store_path/flake.nix" ]; then
+    printf 'Error    Failed to resolve the installation flake to the Nix store.\n' >&2
+    return 1
+  fi
+
+  printf '%s\n' "$flake_store_path"
+}
+
+install_nixos() {
+  local repository="$1"
+  local host="$2"
+
+  nixos-install \
+    --root "$install_root" \
+    --flake "$repository#$host" \
+    --no-root-password \
+    --no-channel-copy \
+    --option experimental-features "nix-command flakes" \
+    --option accept-flake-config true
 }
 
 run_iso_install() {
   local host
   local repository
+  local repository_flake
   local identity_tree
   local confirmation
 
@@ -298,6 +346,11 @@ run_iso_install() {
     :
   else
     printf 'Error    ISO installation must run from the standard NixOS live ISO.\n' >&2
+    exit 1
+  fi
+
+  if ! command -v nixos-install >/dev/null 2>&1; then
+    printf 'Error    nixos-install is unavailable in the ISO runtime.\n' >&2
     exit 1
   fi
 
@@ -357,12 +410,13 @@ run_iso_install() {
 
   cp -a "$repository" "$identity_tree/home/$install_user/nixos"
   chown -R "$install_uid:$install_gid" "$identity_tree/home/$install_user"
+  repository_flake="$(resolve_flake_store_path "$repository")"
 
-  nix "${nix_flake_args[@]}" build --no-link "$repository#checks.x86_64-linux.${host}-disko-script"
-  nix "${nix_flake_args[@]}" eval --raw "$repository#nixosConfigurations.$host.config.system.build.toplevel.drvPath" >/dev/null
+  nix "${nix_flake_args[@]}" build --no-link "$repository_flake#checks.x86_64-linux.${host}-disko-script"
+  nix "${nix_flake_args[@]}" eval --raw "$repository_flake#nixosConfigurations.$host.config.system.build.toplevel.drvPath" >/dev/null
 
   printf '\nDisko preview\n' >&2
-  run_disko_install "$repository" "$identity_tree" "$host" --dry-run
+  run_disko "$repository_flake" "$host" --dry-run
   if [ "$install_dry_run" = "true" ]; then
     printf '\nSuccess  Dry run completed. No disk changes were made.\n'
     return
@@ -375,7 +429,21 @@ run_iso_install() {
     exit 0
   fi
 
-  run_disko_install "$repository" "$identity_tree" "$host"
+  target_storage_active="true"
+  run_disko "$repository_flake" "$host" --yes-wipe-all-disks
+  for mount_path in "$install_root" "$install_root/boot" "$install_root/nix" "$install_root/persist"; do
+    if ! mountpoint -q "$mount_path"; then
+      printf 'Error    Disko did not mount %s.\n' "$mount_path" >&2
+      exit 1
+    fi
+  done
+
+  swapon "$target_swap_device"
+  cp -a "$identity_tree/." "$install_root/persist/"
+  target_install_flake="$install_root/persist/.nixos-install-flake"
+  cp -a "$repository_flake" "$target_install_flake"
+  install_nixos "$target_install_flake" "$host"
+  cleanup_target_storage
   printf '\nSuccess  Installation completed.\n'
   printf '  Remove the ISO and reboot.\n'
 }

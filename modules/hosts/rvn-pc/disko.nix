@@ -107,10 +107,10 @@ in
     in
     {
       apps = lib.optionalAttrs (system == "x86_64-linux") {
-        disko-install = {
+        disko = {
           type = "app";
-          program = "${inputs.disko.packages.${system}.disko-install}/bin/disko-install";
-          meta.description = "Install a NixOS host with the repository-pinned Disko version";
+          program = "${inputs.disko.packages.${system}.disko}/bin/disko";
+          meta.description = "Partition and mount disks with the repository-pinned Disko version";
         };
       };
 

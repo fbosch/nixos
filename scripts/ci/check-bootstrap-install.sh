@@ -23,6 +23,11 @@ export BOOTSTRAP_TEST_GPG_PRESET_ARGS="$tmp_dir/gpg-preset-args"
 export BOOTSTRAP_TEST_GPG_PRESET_INPUT="$tmp_dir/gpg-preset-input"
 export BOOTSTRAP_TEST_GH_LOG="$tmp_dir/gh.log"
 export BOOTSTRAP_TEST_QRENCODE_ARGS="$tmp_dir/qrencode-args"
+export BOOTSTRAP_TEST_NIXOS_INSTALL_ARGS="$tmp_dir/nixos-install-args"
+export BOOTSTRAP_TEST_DISKO_SKIP_SWAP="$tmp_dir/disko-skip-swap"
+export BOOTSTRAP_TEST_SWAPOFF_ARGS="$tmp_dir/swapoff-args"
+export BOOTSTRAP_TEST_UMOUNT_ARGS="$tmp_dir/umount-args"
+export BOOTSTRAP_TEST_FLAKE_STORE_PATH="$tmp_dir/flake-store-source"
 
 cat >"$tmp_dir/bin/curl" <<'EOF_CURL'
 #!/usr/bin/env bash
@@ -384,39 +389,119 @@ cat >"$tmp_dir/bin/nix" <<'EOF_NIX'
 #!/usr/bin/env bash
 set -euo pipefail
 printf '%s\n' "$@" >"$BOOTSTRAP_TEST_NIX_ARGS"
+printf '%s' "${DISKO_SKIP_SWAP:-}" >"$BOOTSTRAP_TEST_DISKO_SKIP_SWAP"
+if [[ " $* " == *" flake metadata --json "* ]]; then
+  printf '{"path":"%s"}\n' "$BOOTSTRAP_TEST_FLAKE_STORE_PATH"
+fi
 EOF_NIX
-chmod +x "$tmp_dir/bin/nix"
+cat >"$tmp_dir/bin/nixos-install" <<'EOF_NIXOS_INSTALL'
+#!/usr/bin/env bash
+set -euo pipefail
+printf '%s\n' "$@" >"$BOOTSTRAP_TEST_NIXOS_INSTALL_ARGS"
+EOF_NIXOS_INSTALL
+cat >"$tmp_dir/bin/swapoff" <<'EOF_SWAPOFF'
+#!/usr/bin/env bash
+set -euo pipefail
+printf '%s\n' "$@" >"$BOOTSTRAP_TEST_SWAPOFF_ARGS"
+EOF_SWAPOFF
+cat >"$tmp_dir/bin/mountpoint" <<'EOF_MOUNTPOINT'
+#!/usr/bin/env bash
+exit 0
+EOF_MOUNTPOINT
+cat >"$tmp_dir/bin/umount" <<'EOF_UMOUNT'
+#!/usr/bin/env bash
+set -euo pipefail
+printf '%s\n' "$@" >"$BOOTSTRAP_TEST_UMOUNT_ARGS"
+EOF_UMOUNT
+chmod +x "$tmp_dir/bin/nix" "$tmp_dir/bin/nixos-install" "$tmp_dir/bin/swapoff" \
+  "$tmp_dir/bin/mountpoint" "$tmp_dir/bin/umount"
 
-mkdir -p "$tmp_dir/repository" "$tmp_dir/identity-tree"
+mkdir -p "$tmp_dir/repository" "$tmp_dir/identity-tree" "$BOOTSTRAP_TEST_FLAKE_STORE_PATH"
+touch "$BOOTSTRAP_TEST_FLAKE_STORE_PATH/flake.nix"
 target_device="/dev/disk/by-id/nvme-WDS200T3X0C-00SJG0_21031B801746"
-run_disko_install "$tmp_dir/repository" "$tmp_dir/identity-tree" rvn-pc --dry-run
+target_swap_device="${target_device}-part2"
+resolved_flake="$(resolve_flake_store_path "$tmp_dir/repository")"
+if [ "$resolved_flake" != "$BOOTSTRAP_TEST_FLAKE_STORE_PATH" ]; then
+  printf 'installation flake did not resolve to the immutable store source\n' >&2
+  exit 1
+fi
+run_disko "$tmp_dir/repository" rvn-pc --dry-run
 cat >"$tmp_dir/expected-nix-args" <<EOF_EXPECTED_NIX_ARGS
 --extra-experimental-features
 nix-command flakes
 --accept-flake-config
 run
-$tmp_dir/repository#disko-install
+$tmp_dir/repository#disko
 --
 --dry-run
+--mode
+destroy,format,mount
 --flake
 $tmp_dir/repository#rvn-pc
---disk
-system
-/dev/disk/by-id/nvme-WDS200T3X0C-00SJG0_21031B801746
---mount-point
+--root-mountpoint
 /mnt/disko-install-root
---write-efi-boot-entries
---extra-files
-$tmp_dir/identity-tree/.
-persist
+EOF_EXPECTED_NIX_ARGS
+diff -u "$tmp_dir/expected-nix-args" "$BOOTSTRAP_TEST_NIX_ARGS"
+grep -Fqx '1' "$BOOTSTRAP_TEST_DISKO_SKIP_SWAP"
+
+run_disko "$tmp_dir/repository" rvn-pc --yes-wipe-all-disks
+cat >"$tmp_dir/expected-nix-args" <<EOF_EXPECTED_NIX_ARGS
+--extra-experimental-features
+nix-command flakes
+--accept-flake-config
+run
+$tmp_dir/repository#disko
+--
+--yes-wipe-all-disks
+--mode
+destroy,format,mount
+--flake
+$tmp_dir/repository#rvn-pc
+--root-mountpoint
+/mnt/disko-install-root
 EOF_EXPECTED_NIX_ARGS
 diff -u "$tmp_dir/expected-nix-args" "$BOOTSTRAP_TEST_NIX_ARGS"
 
+install_nixos "$tmp_dir/repository" rvn-pc
+cat >"$tmp_dir/expected-nixos-install-args" <<EOF_EXPECTED_NIXOS_INSTALL_ARGS
+--root
+/mnt/disko-install-root
+--flake
+$tmp_dir/repository#rvn-pc
+--no-root-password
+--no-channel-copy
+--option
+experimental-features
+nix-command flakes
+--option
+accept-flake-config
+true
+EOF_EXPECTED_NIXOS_INSTALL_ARGS
+diff -u "$tmp_dir/expected-nixos-install-args" "$BOOTSTRAP_TEST_NIXOS_INSTALL_ARGS"
+
 iso_work_dir="$tmp_dir/iso-work"
 mkdir "$iso_work_dir"
+target_storage_active="true"
+test_target_install_flake="$tmp_dir/target-install-flake"
+target_install_flake="$test_target_install_flake"
+mkdir "$target_install_flake"
 cleanup_iso_install
 if [ -e "$iso_work_dir" ]; then
   printf 'ISO credential workspace was not removed\n' >&2
+  exit 1
+fi
+grep -Fqx "$target_swap_device" "$BOOTSTRAP_TEST_SWAPOFF_ARGS"
+cat >"$tmp_dir/expected-umount-args" <<EOF_EXPECTED_UMOUNT_ARGS
+-R
+/mnt/disko-install-root
+EOF_EXPECTED_UMOUNT_ARGS
+diff -u "$tmp_dir/expected-umount-args" "$BOOTSTRAP_TEST_UMOUNT_ARGS"
+if [ "$target_storage_active" != "false" ]; then
+  printf 'ISO target storage remained marked active after cleanup\n' >&2
+  exit 1
+fi
+if [ -e "$test_target_install_flake" ] || [ -n "$target_install_flake" ]; then
+  printf 'temporary target-backed installation flake was not removed\n' >&2
   exit 1
 fi
 
