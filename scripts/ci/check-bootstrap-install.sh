@@ -133,7 +133,7 @@ EOF_EXPECTED_CURL_ARGS
 
   if [ "$privilege" = "root" ]; then
     {
-      printf '%s\n' '--preserve-env=BOOTSTRAP_INSTALL_ISO_RUNTIME,GPG_KEY_GIST_ID,NIXOS_INSTALL_DRY_RUN,NIXOS_INSTALL_HOST'
+      printf '%s\n' '--preserve-env=BOOTSTRAP_INSTALL_ISO_RUNTIME,GPG_KEY_GIST_ID,NIXOS_INSTALL_ACTION,NIXOS_INSTALL_DRY_RUN,NIXOS_INSTALL_HOST'
       printf '%s\n' nix-shell
       cat "$BOOTSTRAP_TEST_NIX_SHELL_ARGS"
     } >"$tmp_dir/expected-sudo-args"
@@ -348,6 +348,32 @@ if [ "$install_host" != "rvn-pc" ] || [ "$NIXOS_INSTALL_HOST" != "rvn-pc" ]; the
   exit 1
 fi
 
+install_action="install"
+install_dry_run="false"
+install_host=""
+parse_args resume --host rvn-pc
+if [ "$install_action" != "resume" ] || [ "$NIXOS_INSTALL_ACTION" != "resume" ]; then
+  printf 'resume action was not preserved for the selected runtime\n' >&2
+  exit 1
+fi
+if [ "$install_host" != "rvn-pc" ]; then
+  printf 'resume action did not retain its host argument\n' >&2
+  exit 1
+fi
+
+set +e
+(
+  install_action="install"
+  install_dry_run="false"
+  parse_args resume --dry-run
+) >/dev/null 2>&1
+resume_dry_run_status=$?
+set -e
+if [ "$resume_dry_run_status" -ne 2 ]; then
+  printf 'resume accepted the destructive install dry-run mode\n' >&2
+  exit 1
+fi
+
 set +e
 (
   install_dry_run="invalid"
@@ -470,6 +496,28 @@ $tmp_dir/repository#rvn-pc
 EOF_EXPECTED_NIX_ARGS
 diff -u "$tmp_dir/expected-nix-args" "$BOOTSTRAP_TEST_NIX_ARGS"
 grep -Fqx '1' "$BOOTSTRAP_TEST_DISKO_SKIP_SWAP"
+
+mount_disko "$tmp_dir/repository" rvn-pc
+cat >"$tmp_dir/expected-nix-args" <<EOF_EXPECTED_NIX_ARGS
+--extra-experimental-features
+nix-command flakes
+--accept-flake-config
+run
+$tmp_dir/repository#disko
+--
+--mode
+mount
+--flake
+$tmp_dir/repository#rvn-pc
+--root-mountpoint
+/mnt/disko-install-root
+EOF_EXPECTED_NIX_ARGS
+diff -u "$tmp_dir/expected-nix-args" "$BOOTSTRAP_TEST_NIX_ARGS"
+grep -Fqx '1' "$BOOTSTRAP_TEST_DISKO_SKIP_SWAP"
+if grep -Eq 'destroy|format' "$BOOTSTRAP_TEST_NIX_ARGS"; then
+  printf 'resume Disko invocation included a destructive mode\n' >&2
+  exit 1
+fi
 
 run_disko "$tmp_dir/repository" rvn-pc --yes-wipe-all-disks
 cat >"$tmp_dir/expected-nix-args" <<EOF_EXPECTED_NIX_ARGS

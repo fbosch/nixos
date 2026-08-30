@@ -32,6 +32,7 @@ downloaded_script=""
 iso_work_dir=""
 install_dry_run="${NIXOS_INSTALL_DRY_RUN:-false}"
 install_host="${NIXOS_INSTALL_HOST:-}"
+install_action="${NIXOS_INSTALL_ACTION:-install}"
 target_device=""
 target_swap_device=""
 age_alias=""
@@ -48,10 +49,14 @@ style_reset=""
 
 print_help() {
   cat <<'EOF_HELP'
-Usage: install.sh [--dry-run] [--host HOST]
+Usage: install.sh [resume] [--dry-run] [--host HOST]
 
 Run from a standard NixOS ISO to install a selected host, or from an installed
 NixOS system to run the machine bootstrap.
+
+Actions:
+  resume     Resume a failed ISO installation from the existing target filesystems.
+             Mounts and reruns nixos-install without formatting the target disk.
 
 Options:
   --dry-run  Exercise the ISO flow without requiring UEFI or the target disk.
@@ -63,8 +68,18 @@ EOF_HELP
 }
 
 parse_args() {
+  local action_seen="false"
+
   while [ "$#" -gt 0 ]; do
     case "$1" in
+    resume)
+      if [ "$action_seen" = "true" ]; then
+        printf 'Error    Only one installer action may be specified.\n' >&2
+        exit 2
+      fi
+      install_action="resume"
+      action_seen="true"
+      ;;
     --dry-run) install_dry_run="true" ;;
     --host)
       if [ "$#" -lt 2 ] || [ -z "$2" ] || [[ $2 == -* ]]; then
@@ -102,8 +117,21 @@ parse_args() {
     ;;
   esac
 
+  case "$install_action" in
+  install | resume) ;;
+  *)
+    printf 'Error    NIXOS_INSTALL_ACTION must be install or resume.\n' >&2
+    exit 2
+    ;;
+  esac
+  if [ "$install_action" = "resume" ] && [ "$install_dry_run" = "true" ]; then
+    printf 'Error    --dry-run cannot be combined with resume.\n' >&2
+    exit 2
+  fi
+
   export NIXOS_INSTALL_DRY_RUN="$install_dry_run"
   export NIXOS_INSTALL_HOST="$install_host"
+  export NIXOS_INSTALL_ACTION="$install_action"
 }
 
 cleanup_iso_install() {
@@ -408,6 +436,16 @@ run_disko() {
     --root-mountpoint "$install_root"
 }
 
+mount_disko() {
+  local repository="$1"
+  local host="$2"
+
+  DISKO_SKIP_SWAP=1 nix "${nix_flake_args[@]}" run "$repository#disko" -- \
+    --mode mount \
+    --flake "$repository#$host" \
+    --root-mountpoint "$install_root"
+}
+
 verify_disko_target() {
   local repository="$1"
   local host="$2"
@@ -473,7 +511,10 @@ resolve_flake_store_path() {
   local flake_store_path
 
   flake_store_path="$(
-    nix "${nix_flake_args[@]}" flake metadata --json "$repository" |
+    GIT_CONFIG_COUNT=1 \
+      GIT_CONFIG_KEY_0=safe.directory \
+      GIT_CONFIG_VALUE_0="$repository" \
+      nix "${nix_flake_args[@]}" flake metadata --json "$repository" |
       sed -nE 's/.*"path": ?"([^"]+)".*/\1/p'
   )"
   if [ -z "$flake_store_path" ] || [ ! -f "$flake_store_path/flake.nix" ]; then
@@ -629,6 +670,107 @@ run_iso_install() {
   printf '  Remove the ISO and reboot.\n'
 }
 
+run_iso_resume() {
+  local host
+  local repository
+  local repository_flake
+  local repository_revision
+  local resume_repository
+  local resume_revision
+  local resume_flake
+  local required_device
+
+  if [ "${EUID:-$(id -u)}" -ne 0 ]; then
+    printf 'Error    The ISO runtime must be launched as root.\n' >&2
+    exit 1
+  fi
+  if ! is_iso_environment; then
+    printf 'Error    Installation can only be resumed from the standard NixOS live ISO.\n' >&2
+    exit 1
+  fi
+  if ! command -v nixos-install >/dev/null 2>&1; then
+    printf 'Error    nixos-install is unavailable in the ISO runtime.\n' >&2
+    exit 1
+  fi
+
+  verify_nixos_install_interface
+  acquire_install_lock
+  host="$(select_install_host)"
+  configure_install_host "$host"
+
+  for required_device in "$target_device" "${target_device}-part1" "${target_device}-part2" "${target_device}-part3"; do
+    if [ ! -b "$required_device" ]; then
+      printf 'Error    Cannot resume because the expected target device is unavailable: %s\n' "$required_device" >&2
+      exit 1
+    fi
+  done
+  if mountpoint -q "$install_root"; then
+    printf 'Error    Cannot resume while the installation root is already mounted: %s\n' "$install_root" >&2
+    exit 1
+  fi
+
+  iso_work_dir="$(mktemp -d -t nixos-install-resume.XXXXXX)"
+  chmod 0700 "$iso_work_dir"
+  repository="$iso_work_dir/nixos"
+  trap cleanup_iso_install EXIT
+
+  git clone --branch master --single-branch "$repository_url" "$repository"
+  if ! cmp -s "$0" "$repository/scripts/bootstrap/install.sh"; then
+    printf 'Error    Master changed while the installer was starting.\n' >&2
+    printf '  Rerun the resume command to use one consistent revision.\n' >&2
+    exit 1
+  fi
+  repository_revision="$(git -C "$repository" rev-parse HEAD)"
+  repository_flake="$(resolve_flake_store_path "$repository")"
+  verify_disko_target "$repository_flake" "$host"
+
+  printf 'Working  Mounting the existing target filesystems...\n' >&2
+  target_storage_active="true"
+  mount_disko "$repository_flake" "$host"
+  verify_target_mount "$install_root" tmpfs tmpfs /
+  verify_target_mount "$install_root/boot" "${target_device}-part1" vfat /
+  verify_target_mount "$install_root/nix" "${target_device}-part3" btrfs /nix
+  verify_target_mount "$install_root/persist" "${target_device}-part3" btrfs /persist
+  swapon "$target_swap_device"
+
+  resume_repository="$install_root/persist/home/$install_user/nixos"
+  if [ ! -d "$resume_repository/.git" ]; then
+    printf 'Error    Cannot resume because the preserved NixOS checkout is missing: %s\n' "$resume_repository" >&2
+    exit 1
+  fi
+
+  printf 'Working  Updating the preserved NixOS checkout...\n' >&2
+  setpriv \
+    --reuid "$install_uid" \
+    --regid "$install_gid" \
+    --clear-groups \
+    env HOME="$install_root/persist/home/$install_user" \
+    git -C "$resume_repository" pull --ff-only origin master
+  resume_revision="$(git -c safe.directory="$resume_repository" -C "$resume_repository" rev-parse HEAD)"
+  if [ "$resume_revision" != "$repository_revision" ]; then
+    printf 'Error    Master changed while the preserved checkout was being updated.\n' >&2
+    printf '  Expected  %s\n' "$repository_revision" >&2
+    printf '  Found     %s\n' "$resume_revision" >&2
+    printf '  Rerun the resume command to use one consistent revision.\n' >&2
+    exit 1
+  fi
+
+  resume_flake="$(resolve_flake_store_path "$resume_repository")"
+  verify_disko_target "$resume_flake" "$host"
+  target_install_flake="$install_root/persist/.nixos-install-flake"
+  rm -rf -- "$target_install_flake"
+  cp -a "$resume_flake" "$target_install_flake"
+
+  printf 'Working  Resuming nixos-install at revision %s...\n' "$resume_revision" >&2
+  install_nixos "$target_install_flake" "$host"
+  if ! cleanup_target_storage; then
+    printf 'Error    Installation completed, but target storage cleanup failed.\n' >&2
+    exit 1
+  fi
+  printf '\nSuccess  Installation resumed successfully.\n'
+  printf '  Remove the ISO and reboot.\n'
+}
+
 run_downloaded_script() {
   local privilege="$1"
   local script_name="$2"
@@ -642,7 +784,7 @@ run_downloaded_script() {
 
   curl -fsSL "$base_url/$script_name" -o "$downloaded_script"
   if [ "$privilege" = "root" ]; then
-    sudo --preserve-env=BOOTSTRAP_INSTALL_ISO_RUNTIME,GPG_KEY_GIST_ID,NIXOS_INSTALL_DRY_RUN,NIXOS_INSTALL_HOST \
+    sudo --preserve-env=BOOTSTRAP_INSTALL_ISO_RUNTIME,GPG_KEY_GIST_ID,NIXOS_INSTALL_ACTION,NIXOS_INSTALL_DRY_RUN,NIXOS_INSTALL_HOST \
       nix-shell -p "$@" --run "bash \"$downloaded_script\" </dev/tty"
     return
   fi
@@ -655,13 +797,22 @@ main() {
 
   if is_iso_environment; then
     if [ "${BOOTSTRAP_INSTALL_ISO_RUNTIME:-false}" = "true" ]; then
-      run_iso_install "$@"
+      if [ "$install_action" = "resume" ]; then
+        run_iso_resume
+      else
+        run_iso_install
+      fi
       return
     fi
 
     export BOOTSTRAP_INSTALL_ISO_RUNTIME=true
     run_downloaded_script root install.sh age gh git gnupg openssh pinentry-curses qrencode sops util-linux
     return
+  fi
+
+  if [ "$install_action" = "resume" ]; then
+    printf 'Error    resume is only available from the NixOS ISO.\n' >&2
+    exit 2
   fi
 
   if [ "$install_dry_run" = "true" ]; then
