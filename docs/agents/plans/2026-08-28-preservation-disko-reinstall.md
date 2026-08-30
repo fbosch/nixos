@@ -51,14 +51,14 @@ These configuration cleanup changes are active and verified:
 - [x] Activate the configuration and verify the next boot retains the tmpfs and Btrfs filesystems, disk and zram priorities, UTC hardware clock, and UEFI GRUB boot.
 - [x] Confirm visually that GRUB no longer includes an OS-prober entry.
 
-## Remaining runtime verification
+## Runtime verification
 
-These are the open checks. Do not infer completion from the current successful build, boot, or hibernation evidence.
+These runtime checks are complete based on observed runtime and operator evidence, not inferred from successful builds, boots, or hibernation alone.
 
 ### Identity and login
 
 - [x] Verify password login unless it is explicitly proven elsewhere.
-- [ ] Compare the machine ID and SSH host-key fingerprints against an external recovery record. Do not treat files on the reinstalled system as the comparison source.
+- [x] Compare the machine ID and SSH host-key fingerprints against an external recovery record. Do not treat files on the reinstalled system as the comparison source.
 
 ### Persistence and protected disks
 
@@ -75,7 +75,7 @@ These are the open checks. Do not infer completion from the current successful b
 - [x] Declare the `plugdev` group required by the packaged U2F rules and verify a fresh boot no longer logs missing-group errors.
 - [x] Activate the corrected `system/networkmanager` aspect and verify a fresh boot no longer exposes initrd-only NetworkManager units or duplicate D-Bus ownership metadata.
 - [x] Confirm `//nas/encrypted` is intentionally unavailable while its backing NAS drive is unmounted; its automount failure on access is expected in that state.
-- [ ] Retain the recovery backup until all checks above pass.
+- [x] Retain the recovery backup until all checks above pass.
 
 ## Recovery rules
 
