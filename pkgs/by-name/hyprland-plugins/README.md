@@ -228,7 +228,7 @@ The plugin emits `pointer_edge_hooks.zone` with two string fields:
 | Position | Field | Value |
 | --- | --- | --- |
 | 1 | `zone` | `show`, `neutral`, or `hide` |
-| 2 | `monitor` | Hyprland monitor name |
+| 2 | `monitor` | Hyprland monitor name. |
 
 `show` covers distances through `showThreshold`, `neutral` covers distances
 through `hideThreshold`, and larger distances produce `hide`. Mouse movement
@@ -264,8 +264,12 @@ The plugin emits `window_interaction_hooks.updated` and
 | 5 | `width` | double | Current or final layout-box width. |
 | 6 | `height` | double | Current or final layout-box height. |
 
-Live updates are sampled after Hyprland applies pointer-driven geometry,
-deduplicated by layout box, and rate-limited to one emission per 16 milliseconds.
+Live updates are sampled after Hyprland applies pointer-driven geometry and
+deduplicated by layout box. Their cadence is derived from the window's current
+monitor refresh rate using `round(1000 / refreshRate)` milliseconds, clamped
+between 6 and 17 milliseconds. Invalid or unavailable refresh rates use a 60 Hz
+fallback. The cadence is recalculated when the window crosses monitors.
+
 The same update is mirrored to Socket2 for long-lived external consumers:
 
 ```text
