@@ -1,6 +1,13 @@
 { config, inputs, ... }:
 let
   targetDevice = "/dev/disk/by-id/nvme-WDS200T3X0C-00SJG0_21031B801746";
+  explicitBtrfsMountHook = ''
+    # util-linux 2.42 can use stale udev filesystem metadata after mkfs.
+    # Disko knows these mounts are Btrfs, so bypass automatic type detection.
+    mount() {
+      command mount -t btrfs "$@"
+    }
+  '';
   devices = {
     disk.system = {
       type = "disk";
@@ -36,6 +43,8 @@ let
             content = {
               type = "btrfs";
               extraArgs = [ "-f" ];
+              preCreateHook = explicitBtrfsMountHook;
+              preMountHook = explicitBtrfsMountHook;
               subvolumes = {
                 "/nix" = {
                   mountpoint = "/nix";
@@ -151,6 +160,11 @@ in
 
           if ${pkgs.gnugrep}/bin/grep -Eq '(^|[="])/dev/disk/by-(partlabel|partuuid|uuid|path)/' "$script"; then
             echo "Disko script contains a non-approved persistent device namespace" >&2
+            exit 1
+          fi
+
+          if ! ${pkgs.gnugrep}/bin/grep -Fq 'command mount -t btrfs "$@"' "$script"; then
+            echo "Disko script does not force the known Btrfs filesystem type" >&2
             exit 1
           fi
 
