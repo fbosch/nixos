@@ -54,6 +54,9 @@
         # Optimize tmpfs usage for 32GB RAM system
         initrd.verbose = false;
 
+        initrd.systemd.tpm2.enable = true;
+        initrd.luks.devices.cryptsystem.crypttabExtraOpts = [ "tpm2-device=atuo" ];
+
         tmp = {
           useTmpfs = true;
           tmpfsSize = "16G"; # ~50% of RAM for temporary files
