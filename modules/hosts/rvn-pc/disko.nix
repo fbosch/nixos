@@ -169,19 +169,19 @@ in
 
   flake = {
     diskoConfigurations.rvn-pc = {
-      disko.devices = plaintextDevices;
-    };
-    diskoConfigurations.rvn-pc-encrypted = {
       disko.devices = encryptedDevices;
+    };
+    diskoConfigurations.rvn-pc-plaintext = {
+      disko.devices = plaintextDevices;
     };
 
     modules.nixos."hosts/rvn-pc/disko" = {
       imports = [ inputs.disko.nixosModules.disko ];
-      disko.devices = plaintextDevices;
-    };
-    modules.nixos."hosts/rvn-pc/encrypted-disko" = {
-      imports = [ inputs.disko.nixosModules.disko ];
       disko.devices = encryptedDevices;
+    };
+    modules.nixos."hosts/rvn-pc/plaintext-disko" = {
+      imports = [ inputs.disko.nixosModules.disko ];
+      disko.devices = plaintextDevices;
     };
   };
 
@@ -210,12 +210,12 @@ in
       ];
       evaluatedConfig = config.flake.nixosConfigurations.rvn-pc;
       evaluated = evaluatedConfig.config;
-      encryptedEvaluatedConfig = evaluatedConfig.extendModules {
+      plaintextEvaluatedConfig = evaluatedConfig.extendModules {
         modules = [
-          { disko.devices = lib.mkForce encryptedDevices; }
+          { disko.devices = lib.mkForce plaintextDevices; }
         ];
       };
-      encryptedEvaluated = encryptedEvaluatedConfig.config;
+      plaintextEvaluated = plaintextEvaluatedConfig.config;
       protectedReferences = [
         "/dev/disk/by-partlabel"
         "/dev/sda"
@@ -353,22 +353,22 @@ in
         rvn-pc-disko-script = checkDiskoScript {
           name = "rvn-pc-disko-script-check";
           script = evaluated.system.build.diskoScript;
-          allowedDevices = approvedDevices;
-        };
-        rvn-pc-encrypted-disko-script = checkDiskoScript {
-          name = "rvn-pc-encrypted-disko-script-check";
-          script = encryptedEvaluated.system.build.diskoScript;
           allowedDevices = approvedEncryptedDevices;
           extraForbidden = [ "-part3" ];
+        };
+        rvn-pc-plaintext-disko-script = checkDiskoScript {
+          name = "rvn-pc-plaintext-disko-script-check";
+          script = plaintextEvaluated.system.build.diskoScript;
+          allowedDevices = approvedDevices;
         };
       };
 
       nix-unit.tests = lib.optionalAttrs (system == "x86_64-linux") {
         rvnPcDisko = {
-          testEvaluatedStorage = {
+          testPlaintextBaseline = {
             expr = {
-              fileSystems = filesystemOutcome evaluated;
-              swap = swapOutcome evaluated;
+              fileSystems = filesystemOutcome plaintextEvaluated;
+              swap = swapOutcome plaintextEvaluated;
             };
             expected = {
               fileSystems = expectedFileSystems "${approvedDisk}-part3";
@@ -404,12 +404,12 @@ in
 
           testEvaluatedStorageAndInitrd = {
             expr = {
-              fileSystems = filesystemOutcome encryptedEvaluated;
-              swap = swapOutcome encryptedEvaluated;
-              luks = encryptedEvaluated.boot.initrd.luks.devices.cryptsystem.device;
-              lvm = encryptedEvaluated.boot.initrd.services.lvm.enable;
+              fileSystems = filesystemOutcome evaluated;
+              swap = swapOutcome evaluated;
+              luks = evaluated.boot.initrd.luks.devices.cryptsystem.device;
+              lvm = evaluated.boot.initrd.services.lvm.enable;
               modulesPresent = lib.all
-                (module: lib.elem module encryptedEvaluated.boot.initrd.availableKernelModules)
+                (module: lib.elem module evaluated.boot.initrd.availableKernelModules)
                 [
                   "dm_mod"
                   "dm_crypt"

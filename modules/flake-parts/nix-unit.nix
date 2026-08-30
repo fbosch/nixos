@@ -8,6 +8,7 @@
         (builtins.mapAttrs (_name: input: input.outPath) (builtins.removeAttrs inputs [ "self" ]))
         // {
           "hyprland/nixpkgs" = inputs.hyprland.inputs.nixpkgs.outPath;
+          "nix-cachyos-kernel/nixpkgs" = inputs.nix-cachyos-kernel.inputs.nixpkgs.outPath;
         };
 
       tests = {
