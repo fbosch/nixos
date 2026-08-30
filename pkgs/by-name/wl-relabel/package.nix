@@ -15,6 +15,8 @@ rustPlatform.buildRustPackage rec {
 
   cargoHash = "sha256-XKiNzsLJBEbW+WJeMHOxc29ND9gSV3IY2d4mbCknwp8=";
 
+  patches = [ ./retry-interrupted-test-reads.patch ];
+
   meta = {
     description = "Wayland proxy that conditionally rewrites window app IDs";
     homepage = "https://github.com/valentin-morice/wl-relabel";

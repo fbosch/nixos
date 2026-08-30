@@ -1,0 +1,26 @@
+diff --git a/tests/end_to_end.rs b/tests/end_to_end.rs
+index 9f64bdf..3d3ba74 100644
+--- a/tests/end_to_end.rs
++++ b/tests/end_to_end.rs
+@@ -169,6 +169,7 @@ impl FakeCompositor {
+         loop {
+             let n = match stream.read(&mut chunk) {
++                Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
+                 Ok(0) | Err(_) => return,
+                 Ok(n) => n,
+             };
+             buf.extend_from_slice(&chunk[..n]);
+@@ -525,7 +526,13 @@ impl TestClient {
+         let mut buf = Vec::new();
+         let mut chunk = [0u8; 4096];
+         loop {
+-            let n = self.stream.read(&mut chunk).expect("read events");
++            let n = loop {
++                match self.stream.read(&mut chunk) {
++                    Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
++                    result => break result.expect("read events"),
++                }
++            };
+             assert!(n > 0, "proxy closed the connection during a roundtrip");
+             buf.extend_from_slice(&chunk[..n]);
+             while let Some((msg, used)) = Msg::decode(&buf) {
