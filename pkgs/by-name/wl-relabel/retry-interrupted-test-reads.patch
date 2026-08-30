@@ -10,7 +10,7 @@ index 9f64bdf..3d3ba74 100644
                  Ok(n) => n,
              };
              buf.extend_from_slice(&chunk[..n]);
-@@ -525,7 +526,13 @@ impl TestClient {
+@@ -525,7 +526,12 @@ impl TestClient {
          let mut buf = Vec::new();
          let mut chunk = [0u8; 4096];
          loop {
