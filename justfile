@@ -72,40 +72,10 @@ download-hyprwhspr-parakeet $target='':
 rotate-gpg-gist:
     nix run .#rotate-gpg-gist
 
-# Create an atomic recovery archive using the current host manifest
+# Manage local recovery archives; verify, compare, and restore accept an ID or --latest
 [group('maintenance')]
-backup-recovery:
-    sudo bash ./scripts/recovery/local-host-recovery.sh backup
-
-# Validate recovery sources and destination without creating an archive
-[group('maintenance')]
-check-recovery:
-    sudo bash ./scripts/recovery/local-host-recovery.sh check
-
-# List recovery archives for the current host, newest first
-[group('maintenance')]
-list-recovery:
-    sudo bash ./scripts/recovery/local-host-recovery.sh list
-
-# Verify a recovery archive by its backup ID
-[group('maintenance')]
-verify-recovery $backup_id:
-    sudo bash ./scripts/recovery/local-host-recovery.sh verify "$backup_id"
-
-# Verify the newest recovery archive for the current host
-[group('maintenance')]
-verify-latest-recovery:
-    sudo bash ./scripts/recovery/local-host-recovery.sh verify-latest
-
-# Compare current recovery sources with an archive by its backup ID
-[group('maintenance')]
-compare-recovery $backup_id:
-    sudo bash ./scripts/recovery/local-host-recovery.sh compare "$backup_id"
-
-# Compare current recovery sources with the newest archive
-[group('maintenance')]
-compare-latest-recovery:
-    sudo bash ./scripts/recovery/local-host-recovery.sh compare-latest
+recovery $operation='help' $backup_selector='' $approval='':
+    sudo bash ./scripts/recovery/local-host-recovery.sh "$operation" ${backup_selector:+"$backup_selector"} ${approval:+"$approval"}
 
 # Show the GPG gist rotation actions without writing to GitHub
 [group('maintenance')]

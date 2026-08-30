@@ -13,9 +13,10 @@ test_script="$test_repo/scripts/recovery/local-host-recovery.sh"
 test_manifest="$test_repo/scripts/recovery/manifests/test-host.tsv"
 test_destination="$tmp_dir/cifs"
 test_source_dir="$tmp_dir/source"
+test_persist_root="$tmp_dir/persist"
 test_secret="recovery-secret-sentinel"
 
-mkdir -p "$test_repo/scripts/recovery/manifests" "$tmp_dir/bin" "$test_destination" "$test_source_dir"
+mkdir -p "$test_repo/scripts/recovery/manifests" "$tmp_dir/bin" "$test_destination" "$test_source_dir" "$test_persist_root"
 cp "$repo_root/scripts/recovery/local-host-recovery.sh" "$test_script"
 printf '%s\n' "$test_secret" >"$test_source_dir/identity key"
 
@@ -109,19 +110,20 @@ fi
 chmod +x "$tmp_dir/bin/"*
 export PATH="$tmp_dir/bin:$PATH"
 export TEST_DESTINATION="$test_destination"
+export LOCAL_HOST_RECOVERY_PERSIST_ROOT="$test_persist_root"
 
 check_output="$(bash "$test_script" check)"
 [[ $check_output == "Recovery check passed: host=test-host sources=1 destination=$test_destination" ]]
 [[ ! -e "$test_destination/test-host" ]]
 empty_list_output="$(bash "$test_script" list)"
 [[ $empty_list_output == "No recovery backups found: host=test-host" ]]
-if bash "$test_script" verify-latest >"$tmp_dir/empty-latest.stdout" 2>"$tmp_dir/empty-latest.stderr"; then
-  printf 'verify-latest accepted an empty backup directory\n' >&2
+if bash "$test_script" verify --latest >"$tmp_dir/empty-latest.stdout" 2>"$tmp_dir/empty-latest.stderr"; then
+  printf 'verify --latest accepted an empty backup directory\n' >&2
   exit 1
 fi
 [[ ! -s "$tmp_dir/empty-latest.stdout" ]]
-if bash "$test_script" compare-latest >"$tmp_dir/empty-compare.stdout" 2>"$tmp_dir/empty-compare.stderr"; then
-  printf 'compare-latest accepted an empty backup directory\n' >&2
+if bash "$test_script" compare --latest >"$tmp_dir/empty-compare.stdout" 2>"$tmp_dir/empty-compare.stderr"; then
+  printf 'compare --latest accepted an empty backup directory\n' >&2
   exit 1
 fi
 [[ ! -s "$tmp_dir/empty-compare.stdout" ]]
@@ -153,7 +155,7 @@ verify_output="$(bash "$test_script" verify "$backup_id")"
 [[ $verify_output == "Backup verified: host=test-host id=$backup_id" ]]
 installer_verify_output="$(TEST_HOSTNAME=nixos bash "$test_script" verify --host test-host "$backup_id")"
 [[ $installer_verify_output == "Backup verified: host=test-host id=$backup_id" ]]
-latest_verify_output="$(bash "$test_script" verify-latest)"
+latest_verify_output="$(bash "$test_script" verify --latest)"
 [[ $latest_verify_output == "Backup verified: host=test-host id=$backup_id" ]]
 
 mapfile -t compare_lines < <(bash "$test_script" compare "$backup_id")
@@ -161,7 +163,7 @@ mapfile -t compare_lines < <(bash "$test_script" compare "$backup_id")
 [[ ${compare_lines[1]} == "Recovery comparison passed: host=test-host id=$backup_id sources=1" ]]
 mapfile -t installer_compare_lines < <(TEST_HOSTNAME=nixos bash "$test_script" compare --host test-host "$backup_id")
 [[ ${installer_compare_lines[*]} == "${compare_lines[*]}" ]]
-mapfile -t latest_compare_lines < <(bash "$test_script" compare-latest)
+mapfile -t latest_compare_lines < <(bash "$test_script" compare --latest)
 [[ ${latest_compare_lines[*]} == "${compare_lines[*]}" ]]
 
 printf 'changed current state\n' >"$test_source_dir/identity key"
@@ -174,6 +176,32 @@ fi
 [[ $(<"$tmp_dir/compare-mismatch.stdout") != *"$test_secret"* ]]
 [[ $(<"$tmp_dir/compare-mismatch.stderr") != *"$test_secret"* ]]
 printf '%s\n' "$test_secret" >"$test_source_dir/identity key"
+
+persistent_source="$test_persist_root$test_source_dir/identity key"
+mkdir -p "${persistent_source%/*}"
+printf 'changed persistent state\n' >"$persistent_source"
+if bash "$test_script" restore --latest >"$tmp_dir/restore-confirm.stdout" 2>"$tmp_dir/restore-confirm.stderr"; then
+  printf 'restore mutated state without interactive confirmation or --yes\n' >&2
+  exit 1
+fi
+[[ ! -s "$tmp_dir/restore-confirm.stdout" ]]
+[[ $(<"$persistent_source") == "changed persistent state" ]]
+
+mapfile -t restore_lines < <(bash "$test_script" restore --latest --yes)
+rollback_dir="${restore_lines[0]#Rollback created: }"
+[[ -f "$rollback_dir/payload.tar" ]]
+[[ -f "$rollback_dir/manifest.tsv" ]]
+[[ -f "$rollback_dir/SHA256SUMS" ]]
+[[ ${restore_lines[1]} == "MATCH     $test_source_dir/identity key" ]]
+[[ ${restore_lines[2]} == "Recovery comparison passed: host=test-host id=$backup_id sources=1" ]]
+[[ ${restore_lines[3]} == "Recovery restored: host=test-host id=$backup_id sources=1" ]]
+[[ ${restore_lines[4]} == "Rebuild and reboot this host before remote use." ]]
+[[ $(<"$persistent_source") == "$test_secret" ]]
+[[ "$(tar --extract --to-stdout --file="$rollback_dir/payload.tar" "${test_source_dir#/}/identity key")" == "changed persistent state" ]]
+if [[ ${restore_lines[*]} == *"$test_secret"* ]]; then
+  printf 'restore output exposed source contents\n' >&2
+  exit 1
+fi
 
 ln -s /etc/passwd "$tmp_dir/malicious-link"
 tar \
@@ -255,5 +283,6 @@ collision_destination="$(<"$TEST_MV_DESTINATION")"
 help_output="$(bash "$test_script" --help)"
 [[ $help_output == *"local-host-recovery.sh backup"* ]]
 [[ $help_output == *"local-host-recovery.sh compare"* ]]
+[[ $help_output == *"local-host-recovery.sh restore <backup-id|--latest> [--yes]"* ]]
 
 printf 'local host recovery check passed\n'

@@ -5,12 +5,14 @@ export LC_ALL=C
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly script_dir
 readonly manifests_dir="$script_dir/manifests"
+readonly persist_root="${LOCAL_HOST_RECOVERY_PERSIST_ROOT:-/persist}"
 
 declare manifest_destination=""
 declare manifest_mount_source=""
 declare -a source_types=()
 declare -a source_paths=()
 declare -a backup_ids=()
+declare resolved_backup_id=""
 
 staging_dir=""
 list_file=""
@@ -22,12 +24,11 @@ Usage:
   local-host-recovery.sh check
   local-host-recovery.sh backup
   local-host-recovery.sh list [--host <host>]
-  local-host-recovery.sh verify [--host <host>] <backup-id>
-  local-host-recovery.sh verify-latest [--host <host>]
-  local-host-recovery.sh compare [--host <host>] <backup-id>
-  local-host-recovery.sh compare-latest [--host <host>]
+  local-host-recovery.sh verify [--host <host>] <backup-id|--latest>
+  local-host-recovery.sh compare [--host <host>] <backup-id|--latest>
+  local-host-recovery.sh restore <backup-id|--latest> [--yes]
 
-Create, verify, or compare a recovery archive using a checked-in host manifest.
+Create, verify, compare, or restore a recovery archive using a checked-in host manifest.
 EOF
 }
 
@@ -330,13 +331,13 @@ verify_backup() {
 
 resolve_current_source() {
   local source_path="$1"
-  local persistent_path="/persist$source_path"
+  local persistent_path="$persist_root$source_path"
 
   current_source_path=""
-  if [[ -f $source_path && ! -L $source_path ]]; then
-    current_source_path="$source_path"
-  elif [[ $source_path != /persist/* && -f $persistent_path && ! -L $persistent_path ]]; then
+  if [[ -f $persistent_path && ! -L $persistent_path ]]; then
     current_source_path="$persistent_path"
+  elif [[ -f $source_path && ! -L $source_path ]]; then
+    current_source_path="$source_path"
   fi
 }
 
@@ -372,6 +373,114 @@ compare_backup() {
   ((mismatches == 0)) ||
     die "recovery comparison failed: host=$host id=$backup_id mismatches=$mismatches"
   printf 'Recovery comparison passed: host=%s id=%s sources=%s\n' "$host" "$backup_id" "${#source_paths[@]}"
+}
+
+ensure_directory() {
+  local path="$1"
+
+  if [[ -e $path ]]; then
+    [[ -d $path && ! -L $path ]] || die "recovery path is not a directory: $path"
+  else
+    mkdir --mode=0700 -- "$path"
+  fi
+}
+
+create_restore_rollback() {
+  local host="$1"
+  local manifest="$2"
+  local backup_id="$3"
+  local rollback_root rollback_id final_dir archive source_list source_path
+
+  for source_path in "${source_paths[@]}"; do
+    [[ -f "$persist_root$source_path" && ! -L "$persist_root$source_path" ]] ||
+      die "persistent restore target is missing or has the wrong type: $persist_root$source_path"
+  done
+
+  ensure_directory "$manifest_destination/.rollbacks"
+  rollback_root="$manifest_destination/.rollbacks/$host"
+  ensure_directory "$rollback_root"
+  rollback_id="$(date -u +%Y%m%dT%H%M%SZ)-before-$backup_id-p$$"
+  final_dir="$rollback_root/$rollback_id"
+  [[ ! -e $final_dir ]] || die "rollback ID already exists: $rollback_id"
+
+  staging_dir="$(mktemp -d "$rollback_root/.partial-$rollback_id.XXXXXX")"
+  chmod 0700 "$staging_dir"
+  archive="$staging_dir/payload.tar"
+  source_list="$staging_dir/source-list"
+  write_source_list "$source_list"
+
+  tar \
+    --create \
+    --file="$archive" \
+    --format=pax \
+    --numeric-owner \
+    --acls \
+    --xattrs \
+    --sparse \
+    --directory="$persist_root" \
+    --null \
+    --files-from="$source_list"
+  install --mode=0600 -- "$manifest" "$staging_dir/manifest.tsv"
+  rm -f -- "$source_list"
+  list_file=""
+
+  calculate_checksums "$staging_dir"
+  printf '%s\n' "$checksum_value" >"$staging_dir/SHA256SUMS"
+  verify_checksums "$staging_dir"
+  chmod 0600 "$archive" "$staging_dir/SHA256SUMS"
+
+  mv --no-target-directory -- "$staging_dir" "$final_dir"
+  staging_dir=""
+  validate_backup_set "$final_dir" "$manifest"
+  printf '%s\n' "$final_dir"
+}
+
+restore_backup() {
+  local host="$1"
+  local manifest="$2"
+  local backup_id="$3"
+  local assume_yes="$4"
+  local host_destination backup_dir rollback_dir reply
+
+  [[ $backup_id =~ ^[0-9]{8}T[0-9]{6}Z-p[0-9]+$ ]] || usage_error "invalid backup ID: $backup_id"
+  host_destination="$manifest_destination/$host"
+  [[ -d $host_destination && ! -L $host_destination ]] ||
+    die "host backup destination does not exist: $host_destination"
+  backup_dir="$host_destination/$backup_id"
+  validate_backup_set "$backup_dir" "$manifest"
+  if [[ $assume_yes != true ]]; then
+    [[ -t 0 ]] || usage_error "restore requires --yes when no interactive terminal is available"
+    printf 'Restore recovery archive %s on %s? [y/N] ' "$backup_id" "$host" >&2
+    IFS= read -r reply
+    case "$reply" in
+    y | Y | yes | YES) ;;
+    *)
+      printf 'Restore cancelled.\n'
+      return
+      ;;
+    esac
+  fi
+
+  rollback_dir="$(create_restore_rollback "$host" "$manifest" "$backup_id")"
+  printf 'Rollback created: %s\n' "$rollback_dir"
+  if command -v systemctl >/dev/null 2>&1 && systemctl --quiet is-active mullvad-daemon.service; then
+    systemctl stop mullvad-daemon.service
+    printf 'Service stopped: mullvad-daemon.service\n'
+  fi
+
+  tar \
+    --extract \
+    --file="$backup_dir/payload.tar" \
+    --directory="$persist_root" \
+    --same-owner \
+    --numeric-owner \
+    --acls \
+    --xattrs \
+    --overwrite
+
+  compare_backup "$host" "$manifest" "$backup_id"
+  printf 'Recovery restored: host=%s id=%s sources=%s\n' "$host" "$backup_id" "${#source_paths[@]}"
+  printf 'Rebuild and reboot this host before remote use.\n'
 }
 
 collect_backup_ids() {
@@ -445,31 +554,23 @@ list_backups() {
   done
 }
 
-verify_latest_backup() {
+resolve_backup_id() {
   local host="$1"
-  local host_manifest="$2"
-  local latest_index
+  local selector="$2"
 
-  collect_backup_ids "$host"
-  ((${#backup_ids[@]} > 0)) || die "no recovery backups found for host: $host"
-  latest_index=$((${#backup_ids[@]} - 1))
-  verify_backup "$host" "$host_manifest" "${backup_ids[$latest_index]}"
-}
-
-compare_latest_backup() {
-  local host="$1"
-  local host_manifest="$2"
-  local latest_index
-
-  collect_backup_ids "$host"
-  ((${#backup_ids[@]} > 0)) || die "no recovery backups found for host: $host"
-  latest_index=$((${#backup_ids[@]} - 1))
-  compare_backup "$host" "$host_manifest" "${backup_ids[$latest_index]}"
+  if [[ $selector == --latest ]]; then
+    collect_backup_ids "$host"
+    ((${#backup_ids[@]} > 0)) || die "no recovery backups found for host: $host"
+    resolved_backup_id="${backup_ids[${#backup_ids[@]} - 1]}"
+  else
+    [[ $selector =~ ^[0-9]{8}T[0-9]{6}Z-p[0-9]+$ ]] || usage_error "invalid backup ID: $selector"
+    resolved_backup_id="$selector"
+  fi
 }
 
 main() {
   local operation="${1:-}"
-  local running_host selected_host backup_id manifest
+  local running_host selected_host backup_id assume_yes="false" manifest
 
   case "$operation" in
   -h | --help | help)
@@ -480,7 +581,7 @@ main() {
   check | backup)
     (($# == 1)) || usage_error "$operation does not accept additional arguments"
     ;;
-  list | verify-latest | compare-latest)
+  list)
     case "$#:${2:-}" in
     1:*) selected_host="" ;;
     3:--host) selected_host="$3" ;;
@@ -500,6 +601,20 @@ main() {
     *) usage_error "$operation requires [--host <host>] and one backup ID" ;;
     esac
     ;;
+  restore)
+    case "$#:${3:-}" in
+    2:*)
+      selected_host=""
+      backup_id="$2"
+      ;;
+    3:--yes)
+      selected_host=""
+      backup_id="$2"
+      assume_yes="true"
+      ;;
+    *) usage_error "restore requires one backup ID or --latest, optionally followed by --yes" ;;
+    esac
+    ;;
   "") usage_error "an operation is required" ;;
   *) usage_error "unknown operation: $operation" ;;
   esac
@@ -514,8 +629,14 @@ main() {
   [[ $running_host =~ ^[a-z0-9][a-z0-9-]{0,62}$ ]] || die "unsupported hostname: $running_host"
   [[ $selected_host =~ ^[a-z0-9][a-z0-9-]{0,62}$ ]] || die "unsupported recovery host: $selected_host"
   manifest="$manifests_dir/$selected_host.tsv"
+  validate_absolute_path "persistence root" "$persist_root"
   parse_manifest "$manifest"
   validate_destination
+
+  if [[ $operation == verify || $operation == compare || $operation == restore ]]; then
+    resolve_backup_id "$selected_host" "$backup_id"
+    backup_id="$resolved_backup_id"
+  fi
 
   case "$operation" in
   check)
@@ -528,9 +649,8 @@ main() {
     ;;
   list) list_backups "$selected_host" ;;
   verify) verify_backup "$selected_host" "$manifest" "$backup_id" ;;
-  verify-latest) verify_latest_backup "$selected_host" "$manifest" ;;
   compare) compare_backup "$selected_host" "$manifest" "$backup_id" ;;
-  compare-latest) compare_latest_backup "$selected_host" "$manifest" ;;
+  restore) restore_backup "$selected_host" "$manifest" "$backup_id" "$assume_yes" ;;
   esac
 }
 
