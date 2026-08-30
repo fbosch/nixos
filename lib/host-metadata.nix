@@ -45,6 +45,11 @@ lib.types.submodule (
         default = null;
         description = "Tailscale IP address";
       };
+      mullvadDeviceName = lib.mkOption {
+        type = lib.types.nullOr lib.types.str;
+        default = null;
+        description = "Mullvad device name";
+      };
       local = lib.mkOption {
         type = lib.types.nullOr lib.types.str;
         default = null;

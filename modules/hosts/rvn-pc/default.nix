@@ -7,6 +7,7 @@ let
     role = "desktop";
     sshAlias = "pc";
     tailscale = "100.124.57.90";
+    mullvadDeviceName = "Groovy Eagle";
     local = "192.168.1.169";
     sshPublicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJl/WCQsXEkE7em5A6d2Du2JAWngIPfA8sVuJP/9cuyq fbb@nixos";
     dnsServers = [
