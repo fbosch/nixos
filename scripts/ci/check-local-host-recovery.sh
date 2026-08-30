@@ -2,7 +2,7 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-tmp_dir="$(mktemp -d)"
+tmp_dir="$(realpath -m -- "$(mktemp -d)")"
 cleanup() {
   rm -rf "$tmp_dir"
 }
@@ -87,7 +87,26 @@ TARGET) printf '%s\n' "$TEST_DESTINATION" ;;
 esac
 EOF_FINDMNT
 
-chmod +x "$tmp_dir/bin/id" "$tmp_dir/bin/hostname" "$tmp_dir/bin/findmnt"
+real_tar="$(command -v tar)"
+# GNU tar on Darwin recognizes these flags but exits when archive creation uses them.
+if [[ $(uname -s) == Darwin ]]; then
+  export REAL_TAR="$real_tar"
+  cat >"$tmp_dir/bin/tar" <<'EOF_TAR'
+#!/usr/bin/env bash
+set -euo pipefail
+
+arguments=()
+for argument in "$@"; do
+  case "$argument" in
+  --acls | --xattrs) ;;
+  *) arguments+=("$argument") ;;
+  esac
+done
+exec "$REAL_TAR" "${arguments[@]}"
+EOF_TAR
+fi
+
+chmod +x "$tmp_dir/bin/"*
 export PATH="$tmp_dir/bin:$PATH"
 export TEST_DESTINATION="$test_destination"
 

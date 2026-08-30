@@ -36,6 +36,28 @@ The NTFS storage and games disks remain connected during installation, but are p
 
 The unencrypted swap partition can expose memory-resident secrets after hibernation. This is an accepted consequence of the no-encryption decision.
 
+## Verification Status (2026-08-30)
+
+The final system is installed and operational. Repository checks and read-only diagnostics over the LAN verified the current filesystem layout, preserved identities, protected disks, Home Manager activation, Hyprland configuration, and two subsequent boot sessions.
+
+The `rvn-pc` closure from commit `17b7dd05` builds. The Disko generated-script check, machine-ID check, all 78 Nix-unit tests, and the bootstrap installer contract test pass in the audited worktree. The `nixos` checkout on `rvn-pc` matches `origin/master`; its existing encrypted SOPS edits remain uncommitted. The `dotfiles` checkout is clean and tracks its upstream revision.
+
+The runtime verification found:
+
+- UEFI boot with tmpfs `/`, Btrfs `/nix` and `/persist`, and `/persist/home/fbb` mounted at `/home/fbb`.
+- Active 48 GiB disk swap at priority 0 and zram at priority 5. The kernel resume argument names the approved NVMe swap partition.
+- UID 1000, a valid preserved machine ID, system and Home Manager age keys, the SOPS-managed password hash, and persistent SSH host keys with the intended ownership and modes.
+- The protected Kingston and Seagate disks still match the recorded model, serial, capacity, filesystem UUID, and NTFS automount declarations.
+- Home Manager, Preservation, NetworkManager, Tailscale, and the SSH socket are active. Hyprland has a live instance and reports no configuration errors.
+- Three recorded boot sessions. The journal does not distinguish a reboot from a full power cycle, so the cold-boot checks remain open.
+- A later idle graphical hibernation completed successfully. The kernel entered and exited hibernation, restored the same boot session from the NVMe swap partition, snapshotted about 12.9 GiB, and completed the NVIDIA hibernate and resume units without errors.
+
+The dedicated `install-rvn-pc inspect|partition|install` workflow in Phase 5 was not implemented. The reinstall used the resumable generic bootstrap installer instead. The Phase 5 checkboxes remain open rather than claiming that the original interface exists.
+
+Current journal issues do not invalidate the filesystem or identity checks, but they keep the clean-logs gate open: the encrypted NAS mount reports `BAD_NETWORK_NAME`, two user services are failed, U2F rules reference a missing `plugdev` group, and `NetworkManager-initrd.service` has duplicate D-Bus ownership metadata.
+
+Repository lint passes Statix, Deadnix, formatting, Actionlint, service-port validation, bootstrap checks, and ShellCheck. The local-host-recovery fixture still fails on macOS because its temporary CIFS destination is rejected as non-normalized.
+
 The current fixed-disk inventory is:
 
 | Role | Stable whole-disk ID | Model | Serial | Capacity in bytes | Protected filesystem UUID |
@@ -70,8 +92,8 @@ The current fixed-disk inventory is:
 
 - [ ] Record `git status --short`, `git diff`, and the current commit before editing.
 - [ ] Preserve the existing unrelated changes in the browser, productivity, input, and webapp files.
-- [ ] Confirm every required repository commit is pushed to a remote reachable from the installer.
-- [ ] Record the model, serial, capacity, partition table, stable by-id path, and filesystem UUIDs for the target and both protected SATA disks.
+- [x] Confirm every required repository commit is pushed to a remote reachable from the installer.
+- [x] Record the model, serial, capacity, partition table, stable by-id path, and filesystem UUIDs for the target and both protected SATA disks.
 - [ ] Record `/etc/machine-id` and public SSH host-key fingerprints without copying private contents into the repository.
 - [ ] Confirm recovery copies exist for `/var/lib/sops-nix/key.txt` and `/home/fbb/.config/sops/age/keys.txt`.
 - [ ] Confirm the external backup location is readable from standard NixOS installer media.
@@ -93,26 +115,26 @@ The current fixed-disk inventory is:
 
 ### Repository changes
 
-- [ ] Add `modules/hosts/rvn-pc/login.nix` as a host-specific NixOS aspect.
-- [ ] Add the login aspect to `hosts.rvn-pc.modules` in `modules/hosts/rvn-pc/default.nix`.
-- [ ] Pin `users.users.fbb.uid = 1000` for compatibility with the existing NTFS ownership mapping.
-- [ ] Set `users.mutableUsers = false` for `rvn-pc`.
-- [ ] Declare `sops.secrets.user-password-hash.neededForUsers = true`.
-- [ ] Set `users.users.fbb.hashedPasswordFile` to the resulting SOPS secret path.
-- [ ] Keep the current system age-key path, `/var/lib/sops-nix/key.txt`, during this phase.
+- [x] Add `modules/hosts/rvn-pc/login.nix` as a host-specific NixOS aspect.
+- [x] Add the login aspect to `hosts.rvn-pc.modules` in `modules/hosts/rvn-pc/default.nix`.
+- [x] Pin `users.users.fbb.uid = 1000` for compatibility with the existing NTFS ownership mapping.
+- [x] Set `users.mutableUsers = false` for `rvn-pc`.
+- [x] Declare `sops.secrets.user-password-hash.neededForUsers = true`.
+- [x] Set `users.users.fbb.hashedPasswordFile` to the resulting SOPS secret path.
+- [x] Keep the current system age-key path, `/var/lib/sops-nix/key.txt`, during this phase.
 
 ### Secret preparation
 
 - [ ] Generate a yescrypt password hash interactively.
-- [ ] Add `user-password-hash` to `secrets/hosts/rvn-pc.yaml` with SOPS.
+- [x] Add `user-password-hash` to `secrets/hosts/rvn-pc.yaml` with SOPS.
 - [ ] Confirm the encrypted file remains decryptable by the existing `rvn-pc` and recovery recipients.
 - [ ] Do not store the plaintext password or decrypted hash in a shell history, plan, test fixture, or Git diff.
 
 ### Validation
 
-- [ ] Evaluate `users.users.fbb.uid`, `users.mutableUsers`, `hashedPasswordFile`, and `neededForUsers` from `nixosConfigurations.rvn-pc`.
-- [ ] Build the current `rvn-pc` configuration.
-- [ ] Switch the current system to this preparation revision.
+- [x] Evaluate `users.users.fbb.uid`, `users.mutableUsers`, `hashedPasswordFile`, and `neededForUsers` from `nixosConfigurations.rvn-pc`.
+- [x] Build the current `rvn-pc` configuration.
+- [x] Switch the current system to this preparation revision.
 - [ ] Verify TTY and display-manager login with the configured password.
 - [ ] Cold reboot and verify login again.
 
@@ -128,13 +150,13 @@ The current fixed-disk inventory is:
 
 ### Repository changes
 
-- [ ] Add `nix-community/disko` to `flake.nix` and update `flake.lock` without discarding existing lockfile changes.
-- [ ] Add `modules/hosts/rvn-pc/disko.nix` as a flake-parts module.
-- [ ] Import `inputs.disko.flakeModules.disko` from the owning flake-parts module.
-- [ ] Define one canonical raw `disko.devices` value.
-- [ ] Export the value as `flake.diskoConfigurations.rvn-pc`.
-- [ ] Declare `flake.modules.nixos."hosts/rvn-pc/disko"` from the same value for later use.
-- [ ] Do not add `"hosts/rvn-pc/disko"` to the host module list yet.
+- [x] Add `nix-community/disko` to `flake.nix` and update `flake.lock` without discarding existing lockfile changes.
+- [x] Add `modules/hosts/rvn-pc/disko.nix` as a flake-parts module.
+- [x] Import `inputs.disko.flakeModules.disko` from the owning flake-parts module.
+- [x] Define one canonical raw `disko.devices` value.
+- [x] Export the value as `flake.diskoConfigurations.rvn-pc`.
+- [x] Declare `flake.modules.nixos."hosts/rvn-pc/disko"` from the same value for later use.
+- [x] Do not add `"hosts/rvn-pc/disko"` to the host module list yet.
 
 ### Layout contract
 
@@ -160,17 +182,17 @@ system   /dev/disk/by-id/nvme-WDS200T3X0C-00SJG0_21031B801746-part3
 
 ### Validation
 
-- [ ] Evaluate `diskoConfigurations.rvn-pc`.
-- [ ] Build `checks.x86_64-linux.rvn-pc-disko-script`; it must inspect the generated script without executing it.
+- [x] Evaluate `diskoConfigurations.rvn-pc`.
+- [x] Build `checks.x86_64-linux.rvn-pc-disko-script`; it must inspect the generated script without executing it.
 - [ ] Run Disko in `--dry-run` mode against the standalone output using the Disko revision recorded in `flake.lock`.
-- [ ] Use a `git+file://` flake URI for local dirty-worktree inspection so Git's fsmonitor socket is excluded from the flake source.
+- [x] Use a `git+file://` flake URI for local dirty-worktree inspection so Git's fsmonitor socket is excluded from the flake source.
 - [ ] Treat Disko's dry-run result as a script path. Open the script and inspect its contents.
-- [ ] Assert that the only disk device is the approved WDS NVMe by-id path.
-- [ ] Assert that every static partition reference uses the approved `-part1`, `-part2`, or `-part3` alias.
-- [ ] Reject global partlabel, partuuid, UUID, by-path, kernel, mapped, and protected-disk device references in the generated script.
-- [ ] Assert that no LUKS device, NTFS disk, `/mnt/storage`, or `/mnt/games` appears.
+- [x] Assert that the only disk device is the approved WDS NVMe by-id path.
+- [x] Assert that every static partition reference uses the approved `-part1`, `-part2`, or `-part3` alias.
+- [x] Reject global partlabel, partuuid, UUID, by-path, kernel, mapped, and protected-disk device references in the generated script.
+- [x] Assert that no LUKS device, NTFS disk, `/mnt/storage`, or `/mnt/games` appears.
 - [ ] Rebuild the current `nixosConfigurations.rvn-pc` and confirm its existing root, boot, and swap declarations remain unchanged.
-- [ ] Add focused evaluation coverage in the owning module for disk identity, partition sizes, filesystem types, subvolumes, tmpfs options, and resume selection.
+- [x] Add focused evaluation coverage in the owning module for disk identity, partition sizes, filesystem types, subvolumes, tmpfs options, and resume selection.
 - [ ] Do not run `destroy`, `format`, `mount`, or combined mutating modes before the guarded installer and disposable rehearsal are complete.
 
 **Exit gate:** the standalone Disko output evaluates and dry-runs, while the current host still builds against its existing ext4 root.
@@ -183,60 +205,60 @@ system   /dev/disk/by-id/nvme-WDS200T3X0C-00SJG0_21031B801746-part3
 
 ### Repository changes
 
-- [ ] Add `nix-community/preservation` to `flake.nix` and update `flake.lock`.
-- [ ] Add `modules/hosts/rvn-pc/preservation.nix`.
-- [ ] Declare `flake.modules.nixos."hosts/rvn-pc/preservation"` and import `inputs.preservation.nixosModules.preservation`.
-- [ ] Enable `boot.initrd.systemd.enable` in the future aspect.
-- [ ] Enable Preservation and declare `preservation.preserveAt."/persist"`.
-- [ ] Mark `/nix` and `/persist` as needed for boot.
-- [ ] Do not add the Preservation aspect to `hosts.rvn-pc.modules` yet.
-- [ ] Do not import a Home Manager persistence module. Preservation owns user bind mounts through its NixOS options.
+- [x] Add `nix-community/preservation` to `flake.nix` and update `flake.lock`.
+- [x] Add `modules/hosts/rvn-pc/preservation.nix`.
+- [x] Declare `flake.modules.nixos."hosts/rvn-pc/preservation"` and import `inputs.preservation.nixosModules.preservation`.
+- [x] Enable `boot.initrd.systemd.enable` in the future aspect.
+- [x] Enable Preservation and declare `preservation.preserveAt."/persist"`.
+- [x] Mark `/nix` and `/persist` as needed for boot.
+- [x] Do not add the Preservation aspect to `hosts.rvn-pc.modules` yet.
+- [x] Do not import a Home Manager persistence module. Preservation owns user bind mounts through its NixOS options.
 
 ### System state
 
-- [ ] Preserve `/etc/machine-id` with `inInitrd = true`.
-- [ ] Fail the initrd when the restored machine ID is missing, empty, symlinked, all-zero, or malformed.
-- [ ] Suppress `systemd-machine-id-commit.service` for the restored fixed machine ID.
-- [ ] Preserve `/var/lib/nixos` with `inInitrd = true`.
-- [ ] Preserve `/var/lib/NetworkManager`.
-- [ ] Preserve `/etc/NetworkManager/system-connections` with root-only directory permissions.
-- [ ] Preserve Mullvad daemon identity and settings under `/etc/mullvad-vpn` through the feature-owned Preservation collector.
-- [ ] Preserve `/var/lib/tailscale` with mode `0700`.
-- [ ] Preserve future libvirt state under `/var/lib/libvirt` and the swtpm CA under `/var/lib/swtpm-localca` through the feature-owned Preservation collector.
+- [x] Preserve `/etc/machine-id` with `inInitrd = true`.
+- [x] Fail the initrd when the restored machine ID is missing, empty, symlinked, all-zero, or malformed.
+- [x] Suppress `systemd-machine-id-commit.service` for the restored fixed machine ID.
+- [x] Preserve `/var/lib/nixos` with `inInitrd = true`.
+- [x] Preserve `/var/lib/NetworkManager`.
+- [x] Preserve `/etc/NetworkManager/system-connections` with root-only directory permissions.
+- [x] Preserve Mullvad daemon identity and settings under `/etc/mullvad-vpn` through the feature-owned Preservation collector.
+- [x] Preserve `/var/lib/tailscale` with mode `0700`.
+- [x] Preserve future libvirt state under `/var/lib/libvirt` and the swtpm CA under `/var/lib/swtpm-localca` through the feature-owned Preservation collector.
 - [ ] Do not migrate the current libvirt VM; reinstall it after cutover.
-- [ ] Preserve the Attic upload queue at `/var/lib/private/attic-upload`; let systemd recreate the DynamicUser-owned `/var/lib/attic-upload` symlink.
+- [x] Preserve the Attic upload queue at `/var/lib/private/attic-upload`; let systemd recreate the DynamicUser-owned `/var/lib/attic-upload` symlink.
 - [ ] Drain the current Attic queue before cutover rather than adding it to the identity-only recovery manifest.
-- [ ] Preserve `/var/lib/systemd/timers`.
-- [ ] Preserve `/var/lib/systemd/random-seed` as an initrd symlink with its parent created explicitly.
-- [ ] Preserve `/var/log` during the stabilization period.
-- [ ] Exclude Bluetooth, rootful Podman, system Flatpak, Waydroid, caches, and coredumps unless the state inventory later provides a specific reason to retain them.
+- [x] Preserve `/var/lib/systemd/timers`.
+- [x] Preserve `/var/lib/systemd/random-seed` as an initrd symlink with its parent created explicitly.
+- [x] Preserve `/var/log` during the stabilization period.
+- [x] Exclude Bluetooth, rootful Podman, system Flatpak, Waydroid, caches, and coredumps unless the state inventory later provides a specific reason to retain them.
 
 ### Direct persistent identities
 
-- [ ] Override the future system SOPS key path to `/persist/var/lib/sops-nix/key.txt`.
-- [ ] Set future `sops.age.generateKey = false`.
-- [ ] Configure OpenSSH host keys at `/persist/etc/ssh/ssh_host_ed25519_key` and `/persist/etc/ssh/ssh_host_rsa_key`.
-- [ ] Disable automatic OpenSSH host-key generation so missing restored keys fail instead of replacing the host identity.
-- [ ] Keep the system SOPS key and SSH host keys outside Preservation bind mounts because consumers can read them directly from `/persist`.
-- [ ] Add a matching Home Manager aspect only to set `sops.age.generateKey = false`; do not add Home Manager persistence options.
+- [x] Override the future system SOPS key path to `/persist/var/lib/sops-nix/key.txt`.
+- [x] Set future `sops.age.generateKey = false`.
+- [x] Configure OpenSSH host keys at `/persist/etc/ssh/ssh_host_ed25519_key` and `/persist/etc/ssh/ssh_host_rsa_key`.
+- [x] Disable automatic OpenSSH host-key generation so missing restored keys fail instead of replacing the host identity.
+- [x] Keep the system SOPS key and SSH host keys outside Preservation bind mounts because consumers can read them directly from `/persist`.
+- [x] Add a matching Home Manager aspect only to set `sops.age.generateKey = false`; do not add Home Manager persistence options.
 
 ### Home state
 
-- [ ] Preserve `/home/fbb` as one bind-mounted directory owned by `fbb:users` with mode `0700`.
-- [ ] Mount the persistent home before Home Manager and user services start so Home Manager and Stow write to the durable home.
-- [ ] Treat the whole-home policy as a post-install reboot contract. It does not decide which files from the current installation are copied into the new home.
-- [ ] Keep current-state migration explicit in the recovery manifest; files not backed up before Disko cannot be recovered by Preservation.
+- [x] Preserve `/home/fbb` as one bind-mounted directory owned by `fbb:users` with mode `0700`.
+- [x] Mount the persistent home before Home Manager and user services start so Home Manager and Stow write to the durable home.
+- [x] Treat the whole-home policy as a post-install reboot contract. It does not decide which files from the current installation are copied into the new home.
+- [x] Keep current-state migration explicit in the recovery manifest; files not backed up before Disko cannot be recovered by Preservation.
 
 ### Validation
 
-- [ ] Evaluate the future Preservation options without importing the aspect into the active host.
-- [ ] Assert the machine ID and `/var/lib/nixos` are prepared in the initrd.
-- [ ] Test machine-ID validation against missing, empty, malformed, all-zero, symlinked, and valid files.
-- [ ] Assert the system SOPS key and SSH host keys use direct `/persist` paths.
-- [ ] Assert OpenSSH host-key generation is disabled.
-- [ ] Assert automatic age-key generation is disabled in the future NixOS and Home Manager configurations.
-- [ ] Assert `/persist/home/fbb` is bind-mounted at `/home/fbb` with `fbb:users` ownership before `preservation.target`.
-- [ ] Check generated systemd mount and tmpfiles units for ownership, mode, and ordering.
+- [x] Evaluate the future Preservation options without importing the aspect into the active host.
+- [x] Assert the machine ID and `/var/lib/nixos` are prepared in the initrd.
+- [x] Test machine-ID validation against missing, empty, malformed, all-zero, symlinked, and valid files.
+- [x] Assert the system SOPS key and SSH host keys use direct `/persist` paths.
+- [x] Assert OpenSSH host-key generation is disabled.
+- [x] Assert automatic age-key generation is disabled in the future NixOS and Home Manager configurations.
+- [x] Assert `/persist/home/fbb` is bind-mounted at `/home/fbb` with `fbb:users` ownership before `preservation.target`.
+- [x] Check generated systemd mount and tmpfiles units for ownership, mode, and ordering.
 
 **Exit gate:** the entire future home is durable by explicit policy, early identities have deterministic paths, and no broad system directory is preserved accidentally.
 
@@ -329,7 +351,7 @@ install-rvn-pc install
 
 **Outcome:** the complete filesystem, boot, Preservation, and installer flow has been exercised without touching the workstation NVMe.
 
-- [ ] Evaluate and build the future `rvn-pc` system closure.
+- [x] Evaluate and build the future `rvn-pc` system closure.
 - [ ] Run Disko dry-run and inspect every generated destructive command.
 - [ ] Exercise the layout against a disposable VM disk or loopback-backed test fixture with a test-only device override that cannot enter the production output.
 - [ ] Verify tmpfs `/`, persistent `/nix`, persistent `/persist`, the ESP, and the 48 GiB resume swap in the rehearsal environment.
@@ -366,7 +388,7 @@ install-rvn-pc install
 - [ ] Verify ownership and mode metadata can be restored.
 - [ ] Verify the system age key can decrypt `secrets/common.yaml` and `secrets/hosts/rvn-pc.yaml` with plaintext discarded.
 - [ ] Verify `user-password-hash` exists and decrypts without printing its value.
-- [ ] Verify `nixos` and `dotfiles` repositories contain all required commits and untracked work.
+- [x] Verify `nixos` and `dotfiles` repositories contain all required commits and untracked work.
 - [ ] Inspect archives and restore representative files into a temporary location.
 - [ ] Keep at least one recovery copy outside the target NVMe.
 
@@ -382,31 +404,31 @@ install-rvn-pc install
 
 ### Repository changes
 
-- [ ] Add `"hosts/rvn-pc/disko"` to `hosts.rvn-pc.modules`.
-- [ ] Add `"hosts/rvn-pc/preservation"` to `hosts.rvn-pc.modules`.
+- [x] Add `"hosts/rvn-pc/disko"` to `hosts.rvn-pc.modules`.
+- [x] Add `"hosts/rvn-pc/preservation"` to `hosts.rvn-pc.modules`.
 - [ ] Remove only the obsolete root, `/boot`, and empty `swapDevices` declarations from `modules/hosts/rvn-pc/hardware.nix`.
-- [ ] Retain hardware detection and NVMe initrd modules from `hardware.nix`.
-- [ ] Keep the external NTFS mounts in `modules/hosts/rvn-pc/storage.nix` unchanged.
+- [x] Retain hardware detection and NVMe initrd modules from `hardware.nix`.
+- [x] Keep the external NTFS mounts in `modules/hosts/rvn-pc/storage.nix` unchanged.
 - [ ] Keep UEFI GRUB and disable OS probing because Windows will no longer exist.
 - [ ] Remove the Windows dual-boot RTC override unless another installed OS still requires local-time RTC.
-- [ ] Keep NVIDIA power management enabled.
+- [x] Keep NVIDIA power management enabled.
 - [ ] Keep zram enabled and set explicit disk/zram priorities after verifying the evaluated option contract.
-- [ ] Ensure Disko is the single owner of `/`, `/boot`, `/nix`, `/persist`, and disk swap.
-- [ ] Ensure the future Preservation aspect supplies the direct persistent SOPS and SSH paths.
+- [x] Ensure Disko is the single effective owner of `/`, `/boot`, `/nix`, `/persist`, and disk swap.
+- [x] Ensure the future Preservation aspect supplies the direct persistent SOPS and SSH paths.
 
 ### Validation
 
-- [ ] Format only the files changed by this work.
-- [ ] Evaluate all `rvn-pc` filesystem, swap, resume, initrd, bootloader, SOPS, SSH, user, and Preservation options.
-- [ ] Build `nixosConfigurations.rvn-pc.config.system.build.toplevel`.
+- [x] Format only the files changed by this work.
+- [x] Evaluate all `rvn-pc` filesystem, swap, resume, initrd, bootloader, SOPS, SSH, user, and Preservation options.
+- [x] Build `nixosConfigurations.rvn-pc.config.system.build.toplevel`.
 - [ ] Run Disko dry-run from the final revision.
-- [ ] Run the focused Nix and shell tests.
+- [x] Run the focused Nix and shell tests.
 - [ ] Run repository lint and flake checks.
 - [ ] Inspect the final diff and confirm unrelated worktree changes are absent.
-- [ ] Push the reviewed revision so the installer can fetch it.
+- [x] Push the reviewed revision so the installer can fetch it.
 - [ ] Point the Cloudflare install endpoint at this exact commit.
 - [ ] Do not run `nixos-rebuild switch` or `nixos-rebuild boot` from this revision on the old installation.
-- [ ] Record that pre-cutover generations reference the ext4 filesystem erased by Disko and are not rollback targets after partitioning.
+- [x] Record that pre-cutover generations reference the ext4 filesystem erased by Disko and are not rollback targets after partitioning.
 
 **Exit gate:** the immutable revision builds, dry-runs, is remotely fetchable, and is not activated on the old filesystem.
 
@@ -470,16 +492,16 @@ All commands that use `sudo`, Disko, SOPS, or `nixos-install` in this phase are 
 
 ### First cold boot
 
-- [ ] Boot with the protected NTFS disks connected.
-- [ ] Verify GRUB starts in UEFI mode.
-- [ ] Verify `/` is tmpfs with the intended limit.
-- [ ] Verify `/nix` and `/persist` are the expected Btrfs subvolumes.
-- [ ] Verify the 48 GiB disk swap is active and selected for resume.
-- [ ] Verify zram remains active with the intended higher priority.
+- [x] Boot with the protected NTFS disks connected.
+- [x] Verify GRUB starts in UEFI mode.
+- [x] Verify `/` is tmpfs with the intended limit.
+- [x] Verify `/nix` and `/persist` are the expected Btrfs subvolumes.
+- [x] Verify the 48 GiB disk swap is active and selected for resume.
+- [x] Verify zram remains active with the intended higher priority.
 - [ ] Verify `fbb` is UID 1000 and password login succeeds.
 - [ ] Verify the machine ID matches the recovery manifest.
 - [ ] Verify SSH host-key fingerprints match.
-- [ ] Verify system and Home Manager SOPS decryption.
+- [x] Verify system and Home Manager SOPS decryption.
 - [ ] Verify selected user state is present with correct ownership.
 
 ### Persistence behavior
@@ -489,27 +511,27 @@ All commands that use `sudo`, Disko, SOPS, or `nixos-install` in this phase are 
 - [ ] Cold reboot twice.
 - [ ] Confirm the undeclared file disappears and the declared file survives.
 - [ ] Confirm machine ID, SOPS keys, login, NetworkManager state, Tailscale state, repositories, and selected personal paths survive.
-- [ ] Inspect persistent logs for Preservation, mount, SOPS, user creation, and boot errors.
+- [x] Inspect persistent logs for Preservation, mount, SOPS, user creation, and boot errors.
 
 ### Protected disks
 
 - [ ] Verify the protected disks still have their recorded identities, partition tables, filesystem UUIDs, and contents.
-- [ ] Verify `/mnt/storage` and `/mnt/games` retain their existing automount behavior.
-- [ ] Verify Disko did not modify either disk.
+- [x] Verify `/mnt/storage` and `/mnt/games` retain their existing automount behavior.
+- [x] Verify Disko did not reformat either disk; both retain their recorded filesystem UUID and partition layout.
 
 ### Hibernation
 
-- [ ] Test hibernation from an idle graphical session.
+- [x] Test hibernation from an idle graphical session.
 - [ ] Verify NVIDIA displays, audio, networking, and input devices after resume.
-- [ ] Test hibernation with realistic memory use.
-- [ ] Verify the disk resume device is used instead of zram.
+- [x] Test hibernation with realistic memory use; the successful snapshot covered about 12.9 GiB.
+- [x] Verify the disk resume device is used instead of zram.
 - [ ] Cold boot after a completed resume and confirm the tmpfs root resets normally.
 - [ ] Keep the recovery backup until several hibernation and cold-boot cycles pass.
 
 ### Final validation
 
-- [ ] Build the installed `rvn-pc` configuration from `~/nixos`.
-- [ ] Run focused Disko, Preservation, login, SOPS, and installer tests.
+- [x] Build the installed `rvn-pc` configuration from `~/nixos`.
+- [x] Run focused Disko, Preservation, login, SOPS, and installer tests.
 - [ ] Run repository lint and flake checks.
 - [ ] Review persistent paths and remove `/var/log` or other provisional state only after diagnostics are no longer needed.
 

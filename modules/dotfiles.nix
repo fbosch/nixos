@@ -135,6 +135,7 @@ in
       dotfilesScript = dotfilesActivation.data;
       bootstrapRevision = inputs.dotfiles.rev or "master";
       scriptLines = lib.splitString "\n" dotfilesScript;
+      dotfilesInputPath = builtins.unsafeDiscardStringContext inputs.dotfiles.outPath;
       lineIndex =
         needle:
         let
@@ -150,8 +151,8 @@ in
         find 0 scriptLines;
       checkoutIndex = lineIndex "checkout ${bootstrapRevision}";
       publishIndex = lineIndex ''mv "$BOOTSTRAP_REPO"'';
-      fallbackStowIndex = lineIndex ''/bin/stow --restow --verbose --dir ${inputs.dotfiles.outPath}'';
-      fallbackDeleteIndex = lineIndex ''/bin/stow --delete --verbose --dir ${inputs.dotfiles.outPath}'';
+      fallbackStowIndex = lineIndex ''/bin/stow --restow --verbose --dir ${dotfilesInputPath}'';
+      fallbackDeleteIndex = lineIndex ''/bin/stow --delete --verbose --dir ${dotfilesInputPath}'';
     in
     {
       nix-unit.tests.dotfilesActivation = {
