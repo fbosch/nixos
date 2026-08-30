@@ -118,8 +118,8 @@ if grep -Fq 'lsblk --inverse' <<<"$storage_verifier"; then
   printf 'encrypted storage verifier still relies on ambiguous lsblk ancestry\n' >&2
   exit 1
 fi
-# The target path must remain literal until the installer evaluates it.
+# Keep the destructive confirmation practical to type from the ISO console.
 # shellcheck disable=SC2016
-grep -Fq 'ERASE $target_device AS LUKS2' <<<"$install_body"
+grep -Fq 'ERASE $host' <<<"$install_body"
 
 printf 'integrated encrypted installer contract check passed\n'

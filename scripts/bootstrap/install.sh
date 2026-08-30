@@ -1053,8 +1053,8 @@ run_iso_install() {
 
   printf '\n%bErase target disk%b\n' "$style_erase" "$style_reset" >&2
   printf '  This permanently deletes all data on %s.\n' "$target_device" >&2
-  read -r -p "Type 'ERASE $target_device AS LUKS2' to install: " confirmation </dev/tty
-  if [ "$confirmation" != "ERASE $target_device AS LUKS2" ]; then
+  read -r -p "Type 'ERASE $host' to install: " confirmation </dev/tty
+  if [ "$confirmation" != "ERASE $host" ]; then
     printf 'Info     Installation cancelled.\n'
     exit 0
   fi
