@@ -74,23 +74,6 @@ _:
               };
             };
 
-            gamescope-clipboard-sync = {
-              Unit = {
-                Description = "Sync clipboard between Wayland and Gamescope Xwayland";
-                PartOf = [ "graphical-session.target" ];
-                After = [ "graphical-session.target" ];
-              };
-
-              Service = {
-                ExecStart = "${pkgs.bash}/bin/bash %h/.config/hypr/scripts/gamescope-clipboard-sync.sh";
-                Restart = "on-failure";
-                RestartSec = "1";
-              };
-
-              Install = {
-                WantedBy = [ "graphical-session.target" ];
-              };
-            };
           };
         };
       };

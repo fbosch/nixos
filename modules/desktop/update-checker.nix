@@ -106,7 +106,11 @@
           ${pkgs.coreutils}/bin/rm -f \
             "''${XDG_CACHE_HOME:-$HOME/.cache}/flake-updates.json" \
             "''${XDG_CACHE_HOME:-$HOME/.cache}/flatpak-updates.json"
-          ${pkgs.systemd}/bin/systemctl --user start --no-block flake-update-checker.service
+          if [ -n "''${XDG_RUNTIME_DIR:-}" ] && [ -S "$XDG_RUNTIME_DIR/bus" ]; then
+            ${pkgs.systemd}/bin/systemctl --user start --no-block flake-update-checker.service
+          else
+            echo "User systemd manager unavailable; the timer will refresh update caches after login."
+          fi
         fi
       '';
 

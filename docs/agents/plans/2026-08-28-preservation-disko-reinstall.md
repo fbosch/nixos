@@ -24,11 +24,11 @@ Repository lint is fully green: Statix, Deadnix, formatting, Actionlint, service
 
 ## Fixed disk inventory
 
-| Role | Stable whole-disk ID | Model | Serial | Capacity in bytes | Protected filesystem UUID |
-| --- | --- | --- | --- | --- | --- |
-| System target | `/dev/disk/by-id/nvme-WDS200T3X0C-00SJG0_21031B801746` | `WDS200T3X0C-00SJG0` | `21031B801746` | `2000398934016` | Not applicable |
-| Games, protected | `/dev/disk/by-id/ata-KINGSTON_SA400S37960G_50026B7783A2013B` | `KINGSTON SA400S37960G` | `50026B7783A2013B` | `960197124096` | `B86CB0876CB04244` |
-| Storage, protected | `/dev/disk/by-id/ata-ST2000DM001-1ER164_Z4Z13XS1` | `ST2000DM001-1ER164` | `Z4Z13XS1` | `2000398934016` | `AC7674097673D316` |
+| Role               | Stable whole-disk ID                                         | Model                   | Serial             | Capacity in bytes | Protected filesystem UUID |
+| ------------------ | ------------------------------------------------------------ | ----------------------- | ------------------ | ----------------- | ------------------------- |
+| System target      | `/dev/disk/by-id/nvme-WDS200T3X0C-00SJG0_21031B801746`       | `WDS200T3X0C-00SJG0`    | `21031B801746`     | `2000398934016`   | Not applicable            |
+| Games, protected   | `/dev/disk/by-id/ata-KINGSTON_SA400S37960G_50026B7783A2013B` | `KINGSTON SA400S37960G` | `50026B7783A2013B` | `960197124096`    | `B86CB0876CB04244`        |
+| Storage, protected | `/dev/disk/by-id/ata-ST2000DM001-1ER164_Z4Z13XS1`            | `ST2000DM001-1ER164`    | `Z4Z13XS1`         | `2000398934016`   | `AC7674097673D316`        |
 
 ## Enduring safety and ownership contracts
 
@@ -48,7 +48,8 @@ These configuration-only cleanup changes are present in the working tree:
 - [x] GRUB OS probing is disabled.
 - [x] The Windows RTC override is removed.
 - [x] zram priority is explicitly `5`.
-- [ ] Activate the configuration and verify the next boot retains the expected filesystems, swap priorities, clock, and GRUB behavior.
+- [x] Activate the configuration and verify the next boot retains the tmpfs and Btrfs filesystems, disk and zram priorities, UTC hardware clock, and UEFI GRUB boot.
+- [x] Confirm visually that GRUB no longer includes an OS-prober entry.
 
 ## Remaining runtime verification
 
@@ -70,7 +71,8 @@ These are the open checks. Do not infer completion from the current successful b
 - [ ] After hibernation resume, verify displays, audio, input devices, and networking.
 - [ ] Cold boot after a completed resume and confirm the tmpfs root resets normally.
 - [ ] Repeat hibernation and cold-boot cycles before treating resume as stable.
-- [ ] Resolve the current journal issues: the encrypted NAS mount reports `BAD_NETWORK_NAME`; two user services are failed; U2F rules reference a missing `plugdev` group; and `NetworkManager-initrd.service` has duplicate D-Bus ownership metadata.
+- [ ] Activate the pending lifecycle fixes, then verify Home Manager succeeds, the standard XDG PolicyKit agent is the sole owner, the stale Gamescope service is removed, and the Steam patcher skips an uninitialized Steam profile.
+- [ ] Resolve the remaining journal issues: the encrypted NAS mount previously reported `BAD_NETWORK_NAME`; U2F rules reference a missing `plugdev` group; and `NetworkManager-initrd.service` has duplicate D-Bus ownership metadata.
 - [ ] Retain the recovery backup until all checks above pass.
 
 ## Recovery rules

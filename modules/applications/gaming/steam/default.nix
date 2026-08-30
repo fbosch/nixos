@@ -42,4 +42,9 @@
       ];
 
     };
+
+  flake.modules.homeManager.gaming = {
+    systemd.user.services.steam-config-patcher.Unit.ConditionPathIsDirectory =
+      "%h/.local/share/Steam/userdata";
+  };
 }

@@ -5,6 +5,10 @@ let
   inherit (zenwritten.css) base bright;
 in
 {
+  flake.modules.nixos.desktop = {
+    services.gnome.gnome-keyring.enable = true;
+  };
+
   flake.modules.homeManager.desktop = { pkgs, ... }: {
     dconf.settings = {
       "org/gnome/desktop/interface" = {
