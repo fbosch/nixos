@@ -8,10 +8,48 @@ set -euo pipefail
 
 gpg_key_id="fbb.privacy+gpg@protonmail.com"
 gpg_gist_filename="gpg-private.asc.gpg"
+github_device_url="https://github.com/login/device?skip_account_picker=true"
 
 resolve_gist_ids() {
   gh gist list --limit 100 2>/dev/null | awk -F'\t' -v name="$gpg_gist_filename" 'index($3, name) || index($2, name) { print $1 }'
 }
+
+render_github_device_qr() {
+  if ! qrencode \
+    --type=ANSIUTF8 \
+    --level=M \
+    --margin=4 \
+    --output=- \
+    -- "$github_device_url"; then
+    printf 'QR rendering failed; open the URL above manually.\n' >&2
+  fi
+}
+
+show_github_device_qr() {
+  if [ -t 1 ] && [ "${TERM:-dumb}" != "dumb" ] && command -v qrencode >/dev/null 2>&1; then
+    render_github_device_qr
+  fi
+}
+
+authenticate_github_cli() {
+  if gh auth status >/dev/null 2>&1; then
+    printf "GitHub CLI already authenticated.\n"
+    return
+  fi
+
+  printf "Authenticating GitHub CLI (device flow).\n"
+  printf "Use the printed code on another device (phone/laptop).\n"
+  printf "Open: %s\n" "$github_device_url"
+  show_github_device_qr
+  printf '\n' | GH_BROWSER=true gh auth login --web --scopes gist
+}
+
+if [ "${BOOTSTRAP_GPG_LIB_ONLY:-false}" = "true" ]; then
+  if [ "${BASH_SOURCE[0]}" != "$0" ]; then
+    return 0
+  fi
+  exit 0
+fi
 
 printf "=== NixOS GPG Bootstrap ===\n\n"
 
@@ -33,13 +71,7 @@ if gpg --list-secret-keys "$gpg_key_id" >/dev/null 2>&1; then
   fi
 fi
 
-if gh auth status >/dev/null 2>&1; then
-  printf "GitHub CLI already authenticated.\n"
-else
-  printf "Authenticating GitHub CLI (device flow).\n"
-  printf "Open: https://github.com/login/device?skip_account_picker=true\n"
-  printf '\n' | GH_BROWSER=true gh auth login --web --scopes gist
-fi
+authenticate_github_cli
 
 if [ -n "${1:-}" ]; then
   gist_id="$1"

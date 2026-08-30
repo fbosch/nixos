@@ -17,6 +17,10 @@ export BOOTSTRAP_TEST_NIX_SHELL_ARGS="$tmp_dir/nix-shell-args"
 export BOOTSTRAP_TEST_SCRIPT_PATH="$tmp_dir/script-path"
 export BOOTSTRAP_TEST_EXPECTED_URL="$tmp_dir/expected-url"
 export BOOTSTRAP_TEST_SUDO_ARGS="$tmp_dir/sudo-args"
+export BOOTSTRAP_TEST_GPGCONF_ARGS="$tmp_dir/gpgconf-args"
+export BOOTSTRAP_TEST_GH_LOG="$tmp_dir/gh.log"
+export BOOTSTRAP_TEST_QR_LOG="$tmp_dir/qr.log"
+export BOOTSTRAP_TEST_QRENCODE_ARGS="$tmp_dir/qrencode-args"
 
 cat >"$tmp_dir/bin/curl" <<'EOF_CURL'
 #!/usr/bin/env bash
@@ -140,7 +144,7 @@ run_launcher installed
 assert_launcher_contract bootstrap-machine.sh user gh git gum openssh qrencode
 
 run_launcher live-iso
-assert_launcher_contract install.sh root age gh git gnupg openssh sops util-linux
+assert_launcher_contract install.sh root age gh git gnupg openssh pinentry-curses qrencode sops util-linux
 
 if BOOTSTRAP_TEST_NIX_SHELL_EXIT=19 run_launcher installed; then
   printf 'launcher ignored nix-shell failure\n' >&2
@@ -151,6 +155,89 @@ assert_launcher_contract bootstrap-machine.sh user gh git gum openssh qrencode
 export BOOTSTRAP_INSTALL_LIB_ONLY=true
 # shellcheck disable=SC1091
 source "$repo_root/scripts/bootstrap/install.sh"
+
+export BOOTSTRAP_GPG_LIB_ONLY=true
+# shellcheck disable=SC1091
+source "$repo_root/scripts/bootstrap/bootstrap-gpg.sh"
+unset BOOTSTRAP_GPG_LIB_ONLY
+
+cat >"$tmp_dir/bin/gpg" <<'EOF_GPG'
+#!/usr/bin/env bash
+exit 0
+EOF_GPG
+cat >"$tmp_dir/bin/gpgconf" <<'EOF_GPGCONF'
+#!/usr/bin/env bash
+printf '%s\n' "$@" >"$BOOTSTRAP_TEST_GPGCONF_ARGS"
+EOF_GPGCONF
+cat >"$tmp_dir/bin/pinentry-curses" <<'EOF_PINENTRY'
+#!/usr/bin/env bash
+exit 0
+EOF_PINENTRY
+cat >"$tmp_dir/bin/qrencode" <<'EOF_QRENCODE'
+#!/usr/bin/env bash
+printf '%s\n' "$@" >"$BOOTSTRAP_TEST_QRENCODE_ARGS"
+EOF_QRENCODE
+chmod +x "$tmp_dir/bin/gpg" "$tmp_dir/bin/gpgconf" "$tmp_dir/bin/pinentry-curses" "$tmp_dir/bin/qrencode"
+
+test_gpg_home="$tmp_dir/gpg-home"
+mkdir "$test_gpg_home"
+GNUPGHOME="$test_gpg_home"
+export GNUPGHOME
+configure_gpg_for_sops "$GNUPGHOME"
+if [ "$GPG_TTY" != "/dev/tty" ]; then
+  printf 'ISO GPG setup did not bind pinentry to /dev/tty\n' >&2
+  exit 1
+fi
+if [ "$SOPS_GPG_EXEC" != "$tmp_dir/bin/gpg" ]; then
+  printf 'ISO GPG setup did not select the available gpg binary\n' >&2
+  exit 1
+fi
+grep -Fqx "pinentry-program $tmp_dir/bin/pinentry-curses" "$GNUPGHOME/gpg-agent.conf"
+
+touch "$GNUPGHOME/S.gpg-agent"
+cleanup_gpg_runtime
+cat >"$tmp_dir/expected-gpgconf-args" <<'EOF_EXPECTED_GPGCONF_ARGS'
+--kill
+all
+EOF_EXPECTED_GPGCONF_ARGS
+diff -u "$tmp_dir/expected-gpgconf-args" "$BOOTSTRAP_TEST_GPGCONF_ARGS"
+if [ -e "$GNUPGHOME/gpg-agent.conf" ] || [ -e "$GNUPGHOME/S.gpg-agent" ]; then
+  printf 'ISO GPG runtime files were not removed\n' >&2
+  exit 1
+fi
+
+render_github_device_qr
+cat >"$tmp_dir/expected-qrencode-args" <<EOF_EXPECTED_QRENCODE_ARGS
+--type=ANSIUTF8
+--level=M
+--margin=4
+--output=-
+--
+$github_device_url
+EOF_EXPECTED_QRENCODE_ARGS
+diff -u "$tmp_dir/expected-qrencode-args" "$BOOTSTRAP_TEST_QRENCODE_ARGS"
+
+show_github_device_qr() {
+  printf 'called\n' >"$BOOTSTRAP_TEST_QR_LOG"
+}
+gh() {
+  printf '%s\n' "$*" >>"$BOOTSTRAP_TEST_GH_LOG"
+  if [ "$1 $2" = "auth status" ]; then
+    return 1
+  fi
+  if [ "$1 $2" = "auth login" ]; then
+    [ "${GH_BROWSER:-}" = "true" ] || return 64
+    IFS= read -r browser_confirmation || return 64
+    [ -z "$browser_confirmation" ] || return 64
+    [ "$*" = "auth login --web --scopes gist" ] || return 64
+    return
+  fi
+  return 64
+}
+
+authenticate_github_cli
+grep -Fqx 'called' "$BOOTSTRAP_TEST_QR_LOG"
+grep -Fqx 'auth login --web --scopes gist' "$BOOTSTRAP_TEST_GH_LOG"
 
 parse_args --dry-run
 if [ "$install_dry_run" != "true" ] || [ "$NIXOS_INSTALL_DRY_RUN" != "true" ]; then

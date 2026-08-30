@@ -164,6 +164,24 @@ generate_identities() {
   install -m 0600 "$system_age_key" "$user_age_key"
 }
 
+configure_gpg_for_sops() {
+  local gpg_home="$1"
+  local gpg_binary
+  local pinentry_binary
+
+  gpg_binary="$(command -v gpg)"
+  pinentry_binary="$(command -v pinentry-curses)"
+
+  export GPG_TTY=/dev/tty
+  export SOPS_GPG_EXEC="$gpg_binary"
+  printf 'pinentry-program %s\n' "$pinentry_binary" >"$gpg_home/gpg-agent.conf"
+}
+
+cleanup_gpg_runtime() {
+  gpgconf --kill all >/dev/null 2>&1 || true
+  rm -f "$GNUPGHOME/gpg-agent.conf" "$GNUPGHOME"/S.gpg-agent*
+}
+
 rotate_sops_recipient() {
   local repository="$1"
   local identity_tree="$2"
@@ -315,6 +333,7 @@ run_iso_install() {
   export GNUPGHOME="$identity_tree/home/$install_user/.gnupg"
   export GH_CONFIG_DIR="$identity_tree/home/$install_user/.config/gh"
   install -d -m 0700 "$GNUPGHOME" "$GH_CONFIG_DIR"
+  configure_gpg_for_sops "$GNUPGHOME"
 
   bash "$repository/scripts/bootstrap/bootstrap-gpg.sh"
   if ! gpg --list-secret-keys "$gpg_key_id" >/dev/null 2>&1; then
@@ -323,8 +342,7 @@ run_iso_install() {
   fi
 
   rotate_sops_recipient "$repository" "$identity_tree" "$install_user" "$age_alias" "${sops_files[@]}"
-  gpgconf --kill all >/dev/null 2>&1 || true
-  rm -f "$GNUPGHOME"/S.gpg-agent*
+  cleanup_gpg_runtime
 
   cp -a "$repository" "$identity_tree/home/$install_user/nixos"
   chown -R "$install_uid:$install_gid" "$identity_tree/home/$install_user"
@@ -382,7 +400,7 @@ main() {
     fi
 
     export BOOTSTRAP_INSTALL_ISO_RUNTIME=true
-    run_downloaded_script root install.sh age gh git gnupg openssh sops util-linux
+    run_downloaded_script root install.sh age gh git gnupg openssh pinentry-curses qrencode sops util-linux
     return
   fi
 
