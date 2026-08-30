@@ -4,7 +4,6 @@
     networking = {
       hostName = "rvn-pc";
       networkmanager = {
-        enable = true;
         # Keep DHCP-provided DNS out of resolv.conf so all lookups use dnsmasq.
         dns = lib.mkForce "none";
       };

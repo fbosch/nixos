@@ -27,6 +27,7 @@ in
 
       # system
       "secrets"
+      "system/networkmanager"
       "nas"
     ]
     ++ [
@@ -85,7 +86,6 @@ in
 
           networking = {
             hostName = "rvn-vm";
-            networkmanager.enable = true;
             timeServers = options.networking.timeServers.default ++ [ "time.nist.gov" ];
           };
 

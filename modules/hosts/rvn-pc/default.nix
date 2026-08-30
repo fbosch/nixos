@@ -55,6 +55,7 @@ in
 
       # system
       "secrets"
+      "system/networkmanager"
       "nas"
       "services/attic"
       "services/comfyui"
