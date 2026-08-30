@@ -7,7 +7,9 @@
 #include <hyprland/src/output/Monitor.hpp>
 #include <hyprland/src/plugins/PluginAPI.hpp>
 
+#include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <cstdint>
 #include <format>
 #include <optional>
@@ -24,8 +26,10 @@ extern "C" {
 
 namespace {
 
-    constexpr auto EXPECTED_HYPRLAND_COMMIT = GIT_COMMIT_HASH;
-    constexpr auto UPDATE_INTERVAL = std::chrono::milliseconds(16);
+    constexpr auto   EXPECTED_HYPRLAND_COMMIT = GIT_COMMIT_HASH;
+    constexpr double DEFAULT_REFRESH_RATE_HZ  = 60.0;
+    constexpr int    MIN_UPDATE_INTERVAL_MS   = 6;
+    constexpr int    MAX_UPDATE_INTERVAL_MS   = 17;
 
     struct SInteraction {
         PHLWINDOWREF                                         window;
@@ -55,6 +59,15 @@ namespace {
 
     bool sameGeometry(const CBox& first, const CBox& second) {
         return first.x == second.x && first.y == second.y && first.width == second.width && first.height == second.height;
+    }
+
+    std::chrono::milliseconds updateInterval(PHLWINDOW window) {
+        const auto monitor = window ? window->m_monitor.lock() : nullptr;
+        const auto refreshRate = monitor && std::isfinite(monitor->m_refreshRate) && monitor->m_refreshRate > 0.F ?
+            static_cast<double>(monitor->m_refreshRate) :
+            DEFAULT_REFRESH_RATE_HZ;
+        const auto intervalMs = static_cast<int>(std::lround(1000.0 / refreshRate));
+        return std::chrono::milliseconds{std::clamp(intervalMs, MIN_UPDATE_INTERVAL_MS, MAX_UPDATE_INTERVAL_MS)};
     }
 
     void postSocketUpdate(PHLWINDOW window, std::string_view kind, const CBox& geometry) {
@@ -92,7 +105,7 @@ namespace {
             return;
 
         const auto now = std::chrono::steady_clock::now();
-        if (interaction.lastEmission && now - *interaction.lastEmission < UPDATE_INTERVAL)
+        if (interaction.lastEmission && now - *interaction.lastEmission < updateInterval(window))
             return;
 
         if (!g_updatedEvent->emit({
