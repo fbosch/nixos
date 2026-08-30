@@ -39,6 +39,7 @@ age_alias=""
 sops_files=()
 gpg_runtime_configured="false"
 target_storage_active="false"
+target_swap_active="false"
 target_install_flake=""
 nix_flake_args=(--extra-experimental-features "nix-command flakes" --accept-flake-config)
 style_heading=""
@@ -245,9 +246,13 @@ cleanup_target_storage() {
       cleanup_failed="true"
     fi
   fi
-  if ! swapoff "$target_swap_device"; then
-    printf 'Warning  Failed to disable target swap: %s\n' "$target_swap_device" >&2
-    cleanup_failed="true"
+  if [ "$target_swap_active" = "true" ]; then
+    if swapoff "$target_swap_device"; then
+      target_swap_active="false"
+    else
+      printf 'Warning  Failed to disable target swap: %s\n' "$target_swap_device" >&2
+      cleanup_failed="true"
+    fi
   fi
   if mountpoint -q "$install_root" && ! umount -R "$install_root"; then
     printf 'Warning  Failed to unmount installation root: %s\n' "$install_root" >&2
@@ -525,6 +530,190 @@ resolve_flake_store_path() {
   printf '%s\n' "$flake_store_path"
 }
 
+run_as_install_user() {
+  setpriv \
+    --reuid "$install_uid" \
+    --regid "$install_gid" \
+    --clear-groups \
+    env HOME="$install_root/persist/home/$install_user" \
+    "$@"
+}
+
+validate_resume_checkout() {
+  local repository="$1"
+  local status
+  local status_line
+  local expected_path
+  local actual_path
+  local allowed="false"
+  local -a expected_paths=(.sops.yaml "${sops_files[@]}")
+
+  status="$(run_as_install_user git -C "$repository" status --porcelain=v1 --untracked-files=all)"
+  for expected_path in "${expected_paths[@]}"; do
+    if ! grep -Fqx -- " M $expected_path" <<<"$status"; then
+      printf 'Error    Preserved checkout is missing the expected SOPS rotation: %s\n' "$expected_path" >&2
+      return 1
+    fi
+  done
+
+  while IFS= read -r status_line; do
+    [ -n "$status_line" ] || continue
+    actual_path="${status_line:3}"
+    allowed="false"
+    for expected_path in "${expected_paths[@]}"; do
+      if [ "$actual_path" = "$expected_path" ] && [ "${status_line:0:2}" = " M" ]; then
+        allowed="true"
+        break
+      fi
+    done
+    if [ "$allowed" = "false" ]; then
+      printf 'Error    Preserved checkout contains an unexpected change: %s\n' "$status_line" >&2
+      return 1
+    fi
+  done <<<"$status"
+}
+
+validate_resume_identities() {
+  local repository="$1"
+  local system_age_key="$install_root/persist/var/lib/sops-nix/key.txt"
+  local user_age_key="$install_root/persist/home/$install_user/.config/sops/age/keys.txt"
+  local machine_id="$install_root/persist/etc/machine-id"
+  local age_recipient
+  local required_file
+  local secret_file
+  local machine_id_value
+  local derived_public_key
+  local stored_public_key
+  local -a required_files=(
+    "$machine_id"
+    "$system_age_key"
+    "$user_age_key"
+    "$install_root/persist/etc/ssh/ssh_host_ed25519_key"
+    "$install_root/persist/etc/ssh/ssh_host_ed25519_key.pub"
+    "$install_root/persist/etc/ssh/ssh_host_rsa_key"
+    "$install_root/persist/etc/ssh/ssh_host_rsa_key.pub"
+  )
+
+  for required_file in "${required_files[@]}"; do
+    if [ ! -f "$required_file" ] || [ -L "$required_file" ] || [ ! -s "$required_file" ]; then
+      printf 'Error    Cannot resume because a persisted identity is missing or invalid: %s\n' "$required_file" >&2
+      return 1
+    fi
+  done
+  machine_id_value="$(<"$machine_id")"
+  if [[ ! $machine_id_value =~ ^[0-9a-f]{32}$ ]]; then
+    printf 'Error    Cannot resume because the persisted machine ID is malformed.\n' >&2
+    return 1
+  fi
+  if ! cmp -s "$system_age_key" "$user_age_key"; then
+    printf 'Error    Cannot resume because the system and user age identities differ.\n' >&2
+    return 1
+  fi
+
+  if [ "$(stat -c '%a' "$machine_id")" != "444" ] ||
+    [ "$(stat -c '%a' "$system_age_key")" != "600" ] ||
+    [ "$(stat -c '%a' "$user_age_key")" != "600" ]; then
+    printf 'Error    Cannot resume because persisted identity permissions are unsafe.\n' >&2
+    return 1
+  fi
+  for required_file in \
+    "$install_root/persist/etc/ssh/ssh_host_ed25519_key" \
+    "$install_root/persist/etc/ssh/ssh_host_rsa_key"; do
+    if [ "$(stat -c '%a' "$required_file")" != "600" ]; then
+      printf 'Error    Cannot resume because an SSH private key has unsafe permissions: %s\n' \
+        "$required_file" >&2
+      return 1
+    fi
+  done
+
+  for required_file in ed25519 rsa; do
+    derived_public_key="$(
+      ssh-keygen -y -f "$install_root/persist/etc/ssh/ssh_host_${required_file}_key" | cut -d ' ' -f 1,2
+    )"
+    stored_public_key="$(cut -d ' ' -f 1,2 \
+      "$install_root/persist/etc/ssh/ssh_host_${required_file}_key.pub")"
+    if [ "$derived_public_key" != "$stored_public_key" ]; then
+      printf 'Error    Cannot resume because an SSH public key does not match its private key: %s\n' \
+        "$required_file" >&2
+      return 1
+    fi
+  done
+  if [[ $derived_public_key != ssh-rsa\ * ]]; then
+    printf 'Error    Cannot resume because the persisted RSA host key has the wrong type.\n' >&2
+    return 1
+  fi
+  derived_public_key="$(
+    ssh-keygen -y -f "$install_root/persist/etc/ssh/ssh_host_ed25519_key" | cut -d ' ' -f 1,2
+  )"
+  if [[ $derived_public_key != ssh-ed25519\ * ]]; then
+    printf 'Error    Cannot resume because the persisted Ed25519 host key has the wrong type.\n' >&2
+    return 1
+  fi
+
+  age_recipient="$(age-keygen -y "$system_age_key")"
+  if ! grep -Fqx -- "  - &$age_alias $age_recipient" "$repository/.sops.yaml"; then
+    printf 'Error    Cannot resume because the persisted age identity does not match .sops.yaml.\n' >&2
+    return 1
+  fi
+  for secret_file in "${sops_files[@]}"; do
+    SOPS_AGE_KEY_FILE="$system_age_key" sops --decrypt "$repository/$secret_file" >/dev/null
+  done
+  SOPS_AGE_KEY_FILE="$user_age_key" sops --decrypt "$repository/secrets/common.yaml" >/dev/null
+}
+
+verify_resume_storage_inactive() {
+  local mount_inventory
+  local swap_inventory
+  local mounted_source
+  local mounted_target
+  local canonical_source
+  local canonical_target
+  local target_partition
+
+  if ! mount_inventory="$(findmnt --list --noheadings --raw --output SOURCE,TARGET)"; then
+    printf 'Error    Cannot resume because the current mount inventory is unavailable.\n' >&2
+    return 1
+  fi
+  while read -r mounted_source mounted_target; do
+    case "$mounted_target" in
+    "$install_root" | "$install_root"/*)
+      printf 'Error    Cannot resume while a filesystem is mounted below the installation root: %s\n' \
+        "$mounted_target" >&2
+      return 1
+      ;;
+    esac
+  done <<<"$mount_inventory"
+
+  for target_partition in "${target_device}-part1" "${target_device}-part3"; do
+    canonical_target="$(readlink -f -- "$target_partition")"
+    while read -r mounted_source mounted_target; do
+      case "$mounted_source" in
+      /dev/*)
+        canonical_source="$(readlink -f -- "${mounted_source%%\[*}")"
+        if [ "$canonical_source" = "$canonical_target" ]; then
+          printf 'Error    Cannot resume while a target partition is mounted elsewhere: %s at %s\n' \
+            "$target_partition" "$mounted_target" >&2
+          return 1
+        fi
+        ;;
+      esac
+    done <<<"$mount_inventory"
+  done
+  if ! swap_inventory="$(swapon --show=NAME --noheadings --raw)"; then
+    printf 'Error    Cannot resume because the active swap inventory is unavailable.\n' >&2
+    return 1
+  fi
+  canonical_target="$(readlink -f -- "$target_swap_device")"
+  while IFS= read -r mounted_source; do
+    [ -n "$mounted_source" ] || continue
+    canonical_source="$(readlink -f -- "$mounted_source")"
+    if [ "$canonical_source" = "$canonical_target" ]; then
+      printf 'Error    Cannot resume while the target swap is already active: %s\n' "$target_swap_device" >&2
+      return 1
+    fi
+  done <<<"$swap_inventory"
+}
+
 install_nixos() {
   local repository="$1"
   local host="$2"
@@ -658,6 +847,7 @@ run_iso_install() {
   verify_target_mount "$install_root/persist" "${target_device}-part3" btrfs /persist
 
   swapon "$target_swap_device"
+  target_swap_active="true"
   cp -a "$identity_tree/." "$install_root/persist/"
   target_install_flake="$install_root/persist/.nixos-install-flake"
   cp -a "$repository_flake" "$target_install_flake"
@@ -676,9 +866,11 @@ run_iso_resume() {
   local repository_flake
   local repository_revision
   local resume_repository
-  local resume_revision
   local resume_flake
+  local rotation_snapshot
   local required_device
+  local rotated_file
+  local updated_revision
 
   if [ "${EUID:-$(id -u)}" -ne 0 ]; then
     printf 'Error    The ISO runtime must be launched as root.\n' >&2
@@ -704,10 +896,7 @@ run_iso_resume() {
       exit 1
     fi
   done
-  if mountpoint -q "$install_root"; then
-    printf 'Error    Cannot resume while the installation root is already mounted: %s\n' "$install_root" >&2
-    exit 1
-  fi
+  verify_resume_storage_inactive
 
   iso_work_dir="$(mktemp -d -t nixos-install-resume.XXXXXX)"
   chmod 0700 "$iso_work_dir"
@@ -732,6 +921,7 @@ run_iso_resume() {
   verify_target_mount "$install_root/nix" "${target_device}-part3" btrfs /nix
   verify_target_mount "$install_root/persist" "${target_device}-part3" btrfs /persist
   swapon "$target_swap_device"
+  target_swap_active="true"
 
   resume_repository="$install_root/persist/home/$install_user/nixos"
   if [ ! -d "$resume_repository/.git" ]; then
@@ -739,29 +929,46 @@ run_iso_resume() {
     exit 1
   fi
 
-  printf 'Working  Updating the preserved NixOS checkout...\n' >&2
-  setpriv \
-    --reuid "$install_uid" \
-    --regid "$install_gid" \
-    --clear-groups \
-    env HOME="$install_root/persist/home/$install_user" \
-    git -C "$resume_repository" pull --ff-only origin master
-  resume_revision="$(git -c safe.directory="$resume_repository" -C "$resume_repository" rev-parse HEAD)"
-  if [ "$resume_revision" != "$repository_revision" ]; then
-    printf 'Error    Master changed while the preserved checkout was being updated.\n' >&2
-    printf '  Expected  %s\n' "$repository_revision" >&2
-    printf '  Found     %s\n' "$resume_revision" >&2
-    printf '  Rerun the resume command to use one consistent revision.\n' >&2
-    exit 1
-  fi
+  validate_resume_checkout "$resume_repository"
+  rotation_snapshot="$iso_work_dir/rotations"
+  install -d -m 0700 \
+    "$rotation_snapshot/secrets/hosts" \
+    "$rotation_snapshot/secrets"
+  for rotated_file in .sops.yaml "${sops_files[@]}"; do
+    cp -- "$resume_repository/$rotated_file" "$rotation_snapshot/$rotated_file"
+  done
+  validate_resume_identities "$rotation_snapshot"
 
-  resume_flake="$(resolve_flake_store_path "$resume_repository")"
+  printf 'Working  Updating the preserved NixOS checkout...\n' >&2
+  run_as_install_user git \
+    -c core.hooksPath=/dev/null \
+    -c core.fsmonitor=false \
+    -C "$resume_repository" \
+    fetch origin "$repository_revision"
+  run_as_install_user git \
+    -c core.hooksPath=/dev/null \
+    -c core.fsmonitor=false \
+    -C "$resume_repository" \
+    merge --ff-only "$repository_revision"
+  updated_revision="$(run_as_install_user git -C "$resume_repository" rev-parse HEAD)"
+  if [ "$updated_revision" != "$repository_revision" ]; then
+    printf 'Error    Preserved checkout did not reach the selected installation revision.\n' >&2
+    printf '  Expected  %s\n' "$repository_revision" >&2
+    printf '  Found     %s\n' "$updated_revision" >&2
+    return 1
+  fi
+  validate_resume_checkout "$resume_repository"
+  for rotated_file in .sops.yaml "${sops_files[@]}"; do
+    cp -- "$rotation_snapshot/$rotated_file" "$repository/$rotated_file"
+  done
+
+  resume_flake="$(resolve_flake_store_path "$repository")"
   verify_disko_target "$resume_flake" "$host"
   target_install_flake="$install_root/persist/.nixos-install-flake"
   rm -rf -- "$target_install_flake"
   cp -a "$resume_flake" "$target_install_flake"
 
-  printf 'Working  Resuming nixos-install at revision %s...\n' "$resume_revision" >&2
+  printf 'Working  Resuming nixos-install at revision %s...\n' "$repository_revision" >&2
   install_nixos "$target_install_flake" "$host"
   if ! cleanup_target_storage; then
     printf 'Error    Installation completed, but target storage cleanup failed.\n' >&2

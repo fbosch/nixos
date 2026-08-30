@@ -30,6 +30,7 @@ export BOOTSTRAP_TEST_UMOUNT_ARGS="$tmp_dir/umount-args"
 export BOOTSTRAP_TEST_FLAKE_STORE_PATH="$tmp_dir/flake-store-source"
 export BOOTSTRAP_TEST_EVALUATED_DISKO_TARGET="/dev/disk/by-id/nvme-WDS200T3X0C-00SJG0_21031B801746"
 export BOOTSTRAP_TEST_FINDMNT_ARGS="$tmp_dir/findmnt-args"
+export BOOTSTRAP_TEST_SWAPON_SHOW=""
 
 cat >"$tmp_dir/bin/curl" <<'EOF_CURL'
 #!/usr/bin/env bash
@@ -412,6 +413,86 @@ if replace_age_recipient "$missing_alias_config" rvn-pc age1newsystem 2>/dev/nul
   exit 1
 fi
 
+run_as_install_user() {
+  "$@"
+}
+
+resume_checkout="$tmp_dir/resume-checkout"
+mkdir -p "$resume_checkout/secrets/hosts"
+printf '%s\n' 'keys:' >"$resume_checkout/.sops.yaml"
+for rotated_file in \
+  secrets/hosts/rvn-pc.yaml \
+  secrets/common.yaml \
+  secrets/apis.yaml \
+  secrets/development.yaml; do
+  printf '%s\n' encrypted >"$resume_checkout/$rotated_file"
+done
+git -C "$resume_checkout" init --quiet
+git -C "$resume_checkout" add .
+git -C "$resume_checkout" -c user.name=Test -c user.email=test@example.invalid commit --quiet -m initial
+printf '%s\n' '  - &rvn-pc age1testrecipient' >>"$resume_checkout/.sops.yaml"
+for rotated_file in \
+  secrets/hosts/rvn-pc.yaml \
+  secrets/common.yaml \
+  secrets/apis.yaml \
+  secrets/development.yaml; do
+  printf '%s\n' rotated >>"$resume_checkout/$rotated_file"
+done
+sops_files=(
+  secrets/hosts/rvn-pc.yaml
+  secrets/common.yaml
+  secrets/apis.yaml
+  secrets/development.yaml
+)
+validate_resume_checkout "$resume_checkout"
+printf '%s\n' unexpected >"$resume_checkout/unexpected.txt"
+if validate_resume_checkout "$resume_checkout" >/dev/null 2>&1; then
+  printf 'resume checkout validation accepted an unexpected file\n' >&2
+  exit 1
+fi
+rm "$resume_checkout/unexpected.txt"
+
+cat >"$tmp_dir/bin/age-keygen" <<'EOF_AGE_KEYGEN'
+#!/usr/bin/env bash
+set -euo pipefail
+if [ "${1:-}" = "-y" ]; then
+  printf '%s\n' age1testrecipient
+  exit 0
+fi
+exit 1
+EOF_AGE_KEYGEN
+cat >"$tmp_dir/bin/sops" <<'EOF_SOPS'
+#!/usr/bin/env bash
+exit 0
+EOF_SOPS
+chmod +x "$tmp_dir/bin/age-keygen" "$tmp_dir/bin/sops"
+
+install_root="$tmp_dir/resume-root"
+install_user="fbb"
+age_alias="rvn-pc"
+mkdir -p \
+  "$install_root/persist/etc/ssh" \
+  "$install_root/persist/var/lib/sops-nix" \
+  "$install_root/persist/home/fbb/.config/sops/age"
+printf '%s\n' 0123456789abcdef0123456789abcdef >"$install_root/persist/etc/machine-id"
+printf '%s\n' AGE-SECRET-KEY-TEST >"$install_root/persist/var/lib/sops-nix/key.txt"
+cp "$install_root/persist/var/lib/sops-nix/key.txt" \
+  "$install_root/persist/home/fbb/.config/sops/age/keys.txt"
+ssh-keygen -q -t ed25519 -N '' -f "$install_root/persist/etc/ssh/ssh_host_ed25519_key"
+ssh-keygen -q -t rsa -b 2048 -N '' -f "$install_root/persist/etc/ssh/ssh_host_rsa_key"
+chmod 0444 "$install_root/persist/etc/machine-id"
+chmod 0600 \
+  "$install_root/persist/var/lib/sops-nix/key.txt" \
+  "$install_root/persist/home/fbb/.config/sops/age/keys.txt"
+validate_resume_identities "$resume_checkout"
+chmod 0644 "$install_root/persist/etc/machine-id"
+printf '%s\n' malformed >"$install_root/persist/etc/machine-id"
+if validate_resume_identities "$resume_checkout" >/dev/null 2>&1; then
+  printf 'resume identity validation accepted a malformed machine ID\n' >&2
+  exit 1
+fi
+install_root="/mnt/disko-install-root"
+
 export BOOTSTRAP_TEST_NIX_ARGS="$tmp_dir/nix-args"
 cat >"$tmp_dir/bin/nix" <<'EOF_NIX'
 #!/usr/bin/env bash
@@ -454,15 +535,43 @@ printf '%s\n' "$@" >"$BOOTSTRAP_TEST_FINDMNT_ARGS"
 if [ "${BOOTSTRAP_TEST_FINDMNT_FAIL:-false}" = "true" ]; then
   exit 1
 fi
+if [[ " $* " == *" --source "* ]] && [ "${BOOTSTRAP_TEST_FINDMNT_SOURCE_INACTIVE:-false}" = "true" ]; then
+  exit 1
+fi
+if [[ " $* " == *" SOURCE,TARGET "* ]]; then
+  printf 'tmpfs %s\n' "${BOOTSTRAP_TEST_FINDMNT_ROOT:-/}"
+  exit 0
+fi
 printf '%s\n' "${BOOTSTRAP_TEST_FINDMNT_ROOT:-/}"
 EOF_FINDMNT
+cat >"$tmp_dir/bin/swapon" <<'EOF_SWAPON'
+#!/usr/bin/env bash
+set -euo pipefail
+if [ "${BOOTSTRAP_TEST_SWAPON_FAIL:-false}" = "true" ]; then
+  exit 2
+fi
+if [ "${1:-}" = "--show=NAME" ]; then
+  printf '%s' "${BOOTSTRAP_TEST_SWAPON_SHOW:-}"
+fi
+EOF_SWAPON
+cat >"$tmp_dir/bin/readlink" <<'EOF_READLINK'
+#!/usr/bin/env bash
+set -euo pipefail
+value="${*: -1}"
+case "$value" in
+*-part1) printf '%s\n' /dev/mock-part1 ;;
+*-part2) printf '%s\n' /dev/mock-part2 ;;
+*-part3) printf '%s\n' /dev/mock-part3 ;;
+*) printf '%s\n' "$value" ;;
+esac
+EOF_READLINK
 cat >"$tmp_dir/bin/umount" <<'EOF_UMOUNT'
 #!/usr/bin/env bash
 set -euo pipefail
 printf '%s\n' "$@" >"$BOOTSTRAP_TEST_UMOUNT_ARGS"
 EOF_UMOUNT
-chmod +x "$tmp_dir/bin/nix" "$tmp_dir/bin/nixos-install" "$tmp_dir/bin/swapoff" \
-  "$tmp_dir/bin/mountpoint" "$tmp_dir/bin/findmnt" "$tmp_dir/bin/umount"
+chmod +x "$tmp_dir/bin/nix" "$tmp_dir/bin/nixos-install" "$tmp_dir/bin/swapoff" "$tmp_dir/bin/swapon" \
+  "$tmp_dir/bin/mountpoint" "$tmp_dir/bin/findmnt" "$tmp_dir/bin/readlink" "$tmp_dir/bin/umount"
 
 mkdir -p "$tmp_dir/repository" "$tmp_dir/identity-tree" "$BOOTSTRAP_TEST_FLAKE_STORE_PATH"
 touch "$BOOTSTRAP_TEST_FLAKE_STORE_PATH/flake.nix"
@@ -516,6 +625,18 @@ diff -u "$tmp_dir/expected-nix-args" "$BOOTSTRAP_TEST_NIX_ARGS"
 grep -Fqx '1' "$BOOTSTRAP_TEST_DISKO_SKIP_SWAP"
 if grep -Eq 'destroy|format' "$BOOTSTRAP_TEST_NIX_ARGS"; then
   printf 'resume Disko invocation included a destructive mode\n' >&2
+  exit 1
+fi
+
+resume_body="$(sed -n '/^run_iso_resume() {$/,/^}$/p' "$repo_root/scripts/bootstrap/install.sh")"
+# This assertion deliberately matches literal shell variables.
+# shellcheck disable=SC2016
+if ! grep -Fq 'mount_disko "$repository_flake" "$host"' <<<"$resume_body"; then
+  printf 'resume orchestration did not invoke the mount-only Disko helper\n' >&2
+  exit 1
+fi
+if grep -Eq 'run_disko|destroy,format|yes-wipe-all-disks' <<<"$resume_body"; then
+  printf 'resume orchestration can reach a destructive Disko path\n' >&2
   exit 1
 fi
 
@@ -582,6 +703,35 @@ if BOOTSTRAP_TEST_FINDMNT_ROOT=/wrong verify_target_mount /mnt/disko-install-roo
   exit 1
 fi
 
+BOOTSTRAP_TEST_FINDMNT_ROOT=/ \
+  BOOTSTRAP_TEST_FINDMNT_SOURCE_INACTIVE=true \
+  BOOTSTRAP_TEST_SWAPON_SHOW='' \
+  verify_resume_storage_inactive
+if BOOTSTRAP_TEST_FINDMNT_ROOT=/mnt/disko-install-root/nix \
+  BOOTSTRAP_TEST_FINDMNT_SOURCE_INACTIVE=true \
+  verify_resume_storage_inactive >/dev/null 2>&1; then
+  printf 'resume storage validation accepted an existing child mount\n' >&2
+  exit 1
+fi
+if BOOTSTRAP_TEST_FINDMNT_ROOT=/ \
+  BOOTSTRAP_TEST_FINDMNT_SOURCE_INACTIVE=true \
+  BOOTSTRAP_TEST_SWAPON_SHOW=/dev/mock-part2 \
+  verify_resume_storage_inactive >/dev/null 2>&1; then
+  printf 'resume storage validation accepted pre-existing target swap\n' >&2
+  exit 1
+fi
+if BOOTSTRAP_TEST_FINDMNT_FAIL=true verify_resume_storage_inactive >/dev/null 2>&1; then
+  printf 'resume storage validation ignored a failed mount inventory\n' >&2
+  exit 1
+fi
+if BOOTSTRAP_TEST_FINDMNT_ROOT=/ \
+  BOOTSTRAP_TEST_FINDMNT_SOURCE_INACTIVE=true \
+  BOOTSTRAP_TEST_SWAPON_FAIL=true \
+  verify_resume_storage_inactive >/dev/null 2>&1; then
+  printf 'resume storage validation ignored a failed swap inventory\n' >&2
+  exit 1
+fi
+
 cat >"$tmp_dir/bin/lsblk" <<'EOF_LSBLK'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -614,6 +764,7 @@ fi
 iso_work_dir="$tmp_dir/iso-work"
 mkdir "$iso_work_dir"
 target_storage_active="true"
+target_swap_active="true"
 test_target_install_flake="$tmp_dir/target-install-flake"
 target_install_flake="$test_target_install_flake"
 mkdir "$target_install_flake"
