@@ -391,6 +391,8 @@ mkdir -p "$tmp_dir/repository" "$tmp_dir/identity-tree"
 target_device="/dev/disk/by-id/nvme-WDS200T3X0C-00SJG0_21031B801746"
 run_disko_install "$tmp_dir/repository" "$tmp_dir/identity-tree" rvn-pc --dry-run
 cat >"$tmp_dir/expected-nix-args" <<EOF_EXPECTED_NIX_ARGS
+--extra-experimental-features
+nix-command flakes
 --accept-flake-config
 run
 $tmp_dir/repository#disko-install

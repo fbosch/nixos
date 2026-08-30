@@ -36,6 +36,7 @@ target_device=""
 age_alias=""
 sops_files=()
 gpg_runtime_configured="false"
+nix_flake_args=(--extra-experimental-features "nix-command flakes" --accept-flake-config)
 
 print_help() {
   cat <<'EOF_HELP'
@@ -273,7 +274,7 @@ run_disko_install() {
   local host="$3"
   shift 3
 
-  nix --accept-flake-config run "$repository#disko-install" -- \
+  nix "${nix_flake_args[@]}" run "$repository#disko-install" -- \
     "$@" \
     --flake "$repository#$host" \
     --disk system "$target_device" \
@@ -357,8 +358,8 @@ run_iso_install() {
   cp -a "$repository" "$identity_tree/home/$install_user/nixos"
   chown -R "$install_uid:$install_gid" "$identity_tree/home/$install_user"
 
-  nix --accept-flake-config build --no-link "$repository#checks.x86_64-linux.${host}-disko-script"
-  nix --accept-flake-config eval --raw "$repository#nixosConfigurations.$host.config.system.build.toplevel.drvPath" >/dev/null
+  nix "${nix_flake_args[@]}" build --no-link "$repository#checks.x86_64-linux.${host}-disko-script"
+  nix "${nix_flake_args[@]}" eval --raw "$repository#nixosConfigurations.$host.config.system.build.toplevel.drvPath" >/dev/null
 
   printf '\nDisko preview\n' >&2
   run_disko_install "$repository" "$identity_tree" "$host" --dry-run
