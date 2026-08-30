@@ -40,6 +40,11 @@ gpg_runtime_configured="false"
 target_storage_active="false"
 target_install_flake=""
 nix_flake_args=(--extra-experimental-features "nix-command flakes" --accept-flake-config)
+style_heading=""
+style_erase=""
+style_keep=""
+style_warning=""
+style_reset=""
 
 print_help() {
   cat <<'EOF_HELP'
@@ -235,6 +240,86 @@ acquire_install_lock() {
   fi
 }
 
+configure_output_style() {
+  style_heading=""
+  style_erase=""
+  style_keep=""
+  style_warning=""
+  style_reset=""
+  if [ -t 2 ] && [ "${TERM:-dumb}" != "dumb" ] && [ -z "${NO_COLOR:-}" ]; then
+    style_heading=$'\033[1;36m'
+    style_erase=$'\033[1;31m'
+    style_keep=$'\033[1;32m'
+    style_warning=$'\033[1;33m'
+    style_reset=$'\033[0m'
+  fi
+}
+
+print_install_plan() {
+  local host="$1"
+  local revision="$2"
+  local target_kernel_device
+  local target_size
+  local disk_device
+  local disk_size
+  local disk_type
+  local layout_line
+  local kept_disks="0"
+
+  configure_output_style
+  if [ -b "$target_device" ]; then
+    target_kernel_device="$(readlink -f -- "$target_device")"
+    target_size="$(lsblk --noheadings --nodeps --raw --output SIZE "$target_device")"
+  else
+    target_kernel_device="unavailable"
+    target_size="unavailable"
+  fi
+
+  printf '\n%bInstallation plan%b\n' "$style_heading" "$style_reset" >&2
+  printf '  Host      %s\n' "$host" >&2
+  printf '  Revision  %s\n' "$revision" >&2
+  printf '  Target    %s\n' "$target_device" >&2
+  printf '  Device    %s\n' "$target_kernel_device" >&2
+  printf '  Size      %s\n' "$target_size" >&2
+
+  printf '\n%bCurrent target contents%b\n' "$style_heading" "$style_reset" >&2
+  printf '  %b[ERASE]%b All existing partitions and data on this disk\n' "$style_erase" "$style_reset" >&2
+  if [ -b "$target_device" ]; then
+    while IFS= read -r layout_line; do
+      printf '    %s\n' "$layout_line" >&2
+    done < <(lsblk --list --paths --output NAME,SIZE,TYPE,FSTYPE "$target_device")
+  else
+    printf '    Target disk unavailable in dry-run mode.\n' >&2
+  fi
+
+  printf '\n%bPlanned layout%b\n' "$style_heading" "$style_reset" >&2
+  printf '  %b[CREATE]%b Root      tmpfs, 25%% of memory\n' "$style_heading" "$style_reset" >&2
+  printf '  %b[CREATE]%b Part 1    2 GiB, VFAT, mounted at /boot\n' "$style_heading" "$style_reset" >&2
+  printf '  %b[CREATE]%b Part 2    48 GiB, swap and resume device\n' "$style_heading" "$style_reset" >&2
+  printf '  %b[CREATE]%b Part 3    Remaining space, Btrfs\n' "$style_heading" "$style_reset" >&2
+  printf '             Subvolume /nix mounted at /nix\n' >&2
+  printf '             Subvolume /persist mounted at /persist\n' >&2
+
+  printf '\n%bOther detected disks%b\n' "$style_heading" "$style_reset" >&2
+  while read -r disk_device disk_type; do
+    case "$disk_device" in
+    /dev/loop* | /dev/ram* | /dev/zram*) continue ;;
+    esac
+    if [ "$disk_type" != "disk" ] || [ "$(readlink -f -- "$disk_device")" = "$target_kernel_device" ]; then
+      continue
+    fi
+    disk_size="$(lsblk --noheadings --nodeps --raw --output SIZE "$disk_device")"
+    printf '  %b[KEEP]%b  %s  %s\n' "$style_keep" "$style_reset" "$disk_device" "$disk_size" >&2
+    kept_disks=$((kept_disks + 1))
+  done < <(lsblk --noheadings --nodeps --paths --output NAME,TYPE)
+  if [ "$kept_disks" -eq 0 ]; then
+    printf '  [KEEP]  No other whole disks detected.\n' >&2
+  fi
+
+  printf '\n%bWarning%b  Only the [ERASE] disk above will be modified. [KEEP] disks will not be touched.\n' \
+    "$style_warning" "$style_reset" >&2
+}
+
 rotate_sops_recipient() {
   local repository="$1"
   local identity_tree="$2"
@@ -328,9 +413,12 @@ verify_disko_target() {
   local host="$2"
   local evaluated_target
 
+  # Keep Nix interpolation literal until --apply evaluates it.
+  # shellcheck disable=SC2016
   evaluated_target="$(
     nix "${nix_flake_args[@]}" eval --raw \
-      "$repository#diskoConfigurations.$host.disko.devices.disk.system.device"
+      "$repository#diskoConfigurations.$host.disko.devices.disk" \
+      --apply 'disks: builtins.concatStringsSep "\n" (map (name: disks.${name}.device) (builtins.attrNames disks))'
   )"
   if [ "$evaluated_target" != "$target_device" ]; then
     printf 'Error    Installer target does not match the evaluated Disko target.\n' >&2
@@ -415,6 +503,8 @@ run_iso_install() {
   local repository_flake
   local identity_tree
   local confirmation
+  local repository_revision
+  local disko_preflight_output
 
   if [ "${EUID:-$(id -u)}" -ne 0 ]; then
     printf 'Error    The ISO runtime must be launched as root.\n' >&2
@@ -473,6 +563,7 @@ run_iso_install() {
     printf '  Rerun the install command to use one consistent revision.\n' >&2
     exit 1
   fi
+  repository_revision="$(git -C "$repository" rev-parse HEAD)"
   generate_identities "$identity_tree" "$install_user"
 
   export GNUPGHOME="$identity_tree/home/$install_user/.gnupg"
@@ -497,14 +588,21 @@ run_iso_install() {
   nix "${nix_flake_args[@]}" build --no-link "$repository_flake#checks.x86_64-linux.${host}-disko-script"
   nix "${nix_flake_args[@]}" eval --raw "$repository_flake#nixosConfigurations.$host.config.system.build.toplevel.drvPath" >/dev/null
 
-  printf '\nDisko preview\n' >&2
-  run_disko "$repository_flake" "$host" --dry-run
+  printf '\nWorking  Validating disk plan...\n' >&2
+  if ! disko_preflight_output="$(run_disko "$repository_flake" "$host" --dry-run 2>&1)"; then
+    printf 'Error    Failed to validate the Disko plan.\n' >&2
+    printf '%s\n' "$disko_preflight_output" >&2
+    exit 1
+  fi
+  printf 'Success  Validated disk plan.\n' >&2
+  print_install_plan "$host" "$repository_revision"
   if [ "$install_dry_run" = "true" ]; then
     printf '\nSuccess  Dry run completed. No disk changes were made.\n'
     return
   fi
 
-  printf '\nWarning  The next step permanently erases the target disk shown above.\n' >&2
+  printf '\n%bErase target disk%b\n' "$style_erase" "$style_reset" >&2
+  printf '  This permanently deletes all data on %s.\n' "$target_device" >&2
   read -r -p "Type 'ERASE $host' to install: " confirmation </dev/tty
   if [ "$confirmation" != "ERASE $host" ]; then
     printf 'Info     Installation cancelled.\n'

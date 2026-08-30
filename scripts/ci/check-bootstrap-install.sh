@@ -534,6 +534,35 @@ if BOOTSTRAP_TEST_FINDMNT_ROOT=/wrong verify_target_mount /mnt/disko-install-roo
   exit 1
 fi
 
+cat >"$tmp_dir/bin/lsblk" <<'EOF_LSBLK'
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ " $* " == *" NAME,TYPE "* ]]; then
+  printf '%s\n' '/dev/sda disk' '/dev/loop0 loop'
+  exit 0
+fi
+if [ "${*: -1}" = "/dev/sda" ]; then
+  printf '%s\n' '1.8T'
+  exit 0
+fi
+exit 1
+EOF_LSBLK
+chmod +x "$tmp_dir/bin/lsblk"
+target_device="/dev/disk/by-id/preview-target"
+TERM=dumb NO_COLOR=1 print_install_plan rvn-pc 0123456789abcdef 2>"$tmp_dir/install-plan"
+grep -Fqx '  Host      rvn-pc' "$tmp_dir/install-plan"
+grep -Fqx '  Revision  0123456789abcdef' "$tmp_dir/install-plan"
+grep -Fqx '  Target    /dev/disk/by-id/preview-target' "$tmp_dir/install-plan"
+grep -Fqx '    Target disk unavailable in dry-run mode.' "$tmp_dir/install-plan"
+grep -Fqx '  [CREATE] Part 1    2 GiB, VFAT, mounted at /boot' "$tmp_dir/install-plan"
+grep -Fqx '  [CREATE] Part 2    48 GiB, swap and resume device' "$tmp_dir/install-plan"
+grep -Fqx '  [KEEP]  /dev/sda  1.8T' "$tmp_dir/install-plan"
+grep -Fqx 'Warning  Only the [ERASE] disk above will be modified. [KEEP] disks will not be touched.' "$tmp_dir/install-plan"
+if LC_ALL=C grep -q $'\033' "$tmp_dir/install-plan"; then
+  printf 'plain installation plan contained ANSI styling\n' >&2
+  exit 1
+fi
+
 iso_work_dir="$tmp_dir/iso-work"
 mkdir "$iso_work_dir"
 target_storage_active="true"
