@@ -18,6 +18,10 @@ in
           clamav.updater.enable = true;
         };
 
+        # libfido2's udev rules combine session-scoped uaccess with this group.
+        # Keep the group empty rather than granting permanent device access.
+        users.groups.plugdev = { };
+
         security = {
           sudo-rs = {
             enable = true;
