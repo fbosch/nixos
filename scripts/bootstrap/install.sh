@@ -41,6 +41,8 @@ gpg_runtime_configured="false"
 target_storage_active="false"
 target_swap_active="false"
 target_install_flake=""
+resume_mountinfo_file="/proc/self/mountinfo"
+resume_swaps_file="/proc/swaps"
 nix_flake_args=(--extra-experimental-features "nix-command flakes" --accept-flake-config)
 style_heading=""
 style_erase=""
@@ -662,19 +664,33 @@ validate_resume_identities() {
 }
 
 verify_resume_storage_inactive() {
-  local mount_inventory
-  local swap_inventory
-  local mounted_source
+  local mount_line
+  local mounted_device
   local mounted_target
+  local swap_device
   local canonical_source
   local canonical_target
-  local target_partition
+  local esp_device_id
+  local system_device_id
 
-  if ! mount_inventory="$(findmnt --list --noheadings --raw --output SOURCE,TARGET)"; then
-    printf 'Error    Cannot resume because the current mount inventory is unavailable.\n' >&2
+  if [ ! -r "$resume_mountinfo_file" ]; then
+    printf 'Error    Cannot resume because the kernel mount inventory is unavailable: %s\n' \
+      "$resume_mountinfo_file" >&2
     return 1
   fi
-  while read -r mounted_source mounted_target; do
+  if [ ! -r "$resume_swaps_file" ]; then
+    printf 'Error    Cannot resume because the kernel swap inventory is unavailable: %s\n' \
+      "$resume_swaps_file" >&2
+    return 1
+  fi
+  if ! esp_device_id="$(lsblk --noheadings --nodeps --raw --output MAJ:MIN "${target_device}-part1")" ||
+    ! system_device_id="$(lsblk --noheadings --nodeps --raw --output MAJ:MIN "${target_device}-part3")"; then
+    printf 'Error    Cannot resume because target partition identities are unavailable.\n' >&2
+    return 1
+  fi
+
+  while IFS= read -r mount_line; do
+    read -r _ _ mounted_device _ mounted_target _ <<<"$mount_line"
     case "$mounted_target" in
     "$install_root" | "$install_root"/*)
       printf 'Error    Cannot resume while a filesystem is mounted below the installation root: %s\n' \
@@ -682,36 +698,22 @@ verify_resume_storage_inactive() {
       return 1
       ;;
     esac
-  done <<<"$mount_inventory"
+    if [ "$mounted_device" = "$esp_device_id" ] || [ "$mounted_device" = "$system_device_id" ]; then
+      printf 'Error    Cannot resume while a target partition is mounted elsewhere: %s\n' \
+        "$mounted_target" >&2
+      return 1
+    fi
+  done <"$resume_mountinfo_file"
 
-  for target_partition in "${target_device}-part1" "${target_device}-part3"; do
-    canonical_target="$(readlink -f -- "$target_partition")"
-    while read -r mounted_source mounted_target; do
-      case "$mounted_source" in
-      /dev/*)
-        canonical_source="$(readlink -f -- "${mounted_source%%\[*}")"
-        if [ "$canonical_source" = "$canonical_target" ]; then
-          printf 'Error    Cannot resume while a target partition is mounted elsewhere: %s at %s\n' \
-            "$target_partition" "$mounted_target" >&2
-          return 1
-        fi
-        ;;
-      esac
-    done <<<"$mount_inventory"
-  done
-  if ! swap_inventory="$(swapon --show=NAME --noheadings --raw)"; then
-    printf 'Error    Cannot resume because the active swap inventory is unavailable.\n' >&2
-    return 1
-  fi
   canonical_target="$(readlink -f -- "$target_swap_device")"
-  while IFS= read -r mounted_source; do
-    [ -n "$mounted_source" ] || continue
-    canonical_source="$(readlink -f -- "$mounted_source")"
+  while read -r swap_device _; do
+    [ "$swap_device" != "Filename" ] || continue
+    canonical_source="$(readlink -f -- "$swap_device")"
     if [ "$canonical_source" = "$canonical_target" ]; then
       printf 'Error    Cannot resume while the target swap is already active: %s\n' "$target_swap_device" >&2
       return 1
     fi
-  done <<<"$swap_inventory"
+  done <"$resume_swaps_file"
 }
 
 install_nixos() {

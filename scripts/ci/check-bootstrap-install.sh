@@ -30,7 +30,6 @@ export BOOTSTRAP_TEST_UMOUNT_ARGS="$tmp_dir/umount-args"
 export BOOTSTRAP_TEST_FLAKE_STORE_PATH="$tmp_dir/flake-store-source"
 export BOOTSTRAP_TEST_EVALUATED_DISKO_TARGET="/dev/disk/by-id/nvme-WDS200T3X0C-00SJG0_21031B801746"
 export BOOTSTRAP_TEST_FINDMNT_ARGS="$tmp_dir/findmnt-args"
-export BOOTSTRAP_TEST_SWAPON_SHOW=""
 
 cat >"$tmp_dir/bin/curl" <<'EOF_CURL'
 #!/usr/bin/env bash
@@ -544,16 +543,6 @@ if [[ " $* " == *" SOURCE,TARGET "* ]]; then
 fi
 printf '%s\n' "${BOOTSTRAP_TEST_FINDMNT_ROOT:-/}"
 EOF_FINDMNT
-cat >"$tmp_dir/bin/swapon" <<'EOF_SWAPON'
-#!/usr/bin/env bash
-set -euo pipefail
-if [ "${BOOTSTRAP_TEST_SWAPON_FAIL:-false}" = "true" ]; then
-  exit 2
-fi
-if [ "${1:-}" = "--show=NAME" ]; then
-  printf '%s' "${BOOTSTRAP_TEST_SWAPON_SHOW:-}"
-fi
-EOF_SWAPON
 cat >"$tmp_dir/bin/readlink" <<'EOF_READLINK'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -570,7 +559,7 @@ cat >"$tmp_dir/bin/umount" <<'EOF_UMOUNT'
 set -euo pipefail
 printf '%s\n' "$@" >"$BOOTSTRAP_TEST_UMOUNT_ARGS"
 EOF_UMOUNT
-chmod +x "$tmp_dir/bin/nix" "$tmp_dir/bin/nixos-install" "$tmp_dir/bin/swapoff" "$tmp_dir/bin/swapon" \
+chmod +x "$tmp_dir/bin/nix" "$tmp_dir/bin/nixos-install" "$tmp_dir/bin/swapoff" \
   "$tmp_dir/bin/mountpoint" "$tmp_dir/bin/findmnt" "$tmp_dir/bin/readlink" "$tmp_dir/bin/umount"
 
 mkdir -p "$tmp_dir/repository" "$tmp_dir/identity-tree" "$BOOTSTRAP_TEST_FLAKE_STORE_PATH"
@@ -703,34 +692,44 @@ if BOOTSTRAP_TEST_FINDMNT_ROOT=/wrong verify_target_mount /mnt/disko-install-roo
   exit 1
 fi
 
-BOOTSTRAP_TEST_FINDMNT_ROOT=/ \
-  BOOTSTRAP_TEST_FINDMNT_SOURCE_INACTIVE=true \
-  BOOTSTRAP_TEST_SWAPON_SHOW='' \
-  verify_resume_storage_inactive
-if BOOTSTRAP_TEST_FINDMNT_ROOT=/mnt/disko-install-root/nix \
-  BOOTSTRAP_TEST_FINDMNT_SOURCE_INACTIVE=true \
-  verify_resume_storage_inactive >/dev/null 2>&1; then
+resume_mountinfo_file="$tmp_dir/mountinfo"
+resume_swaps_file="$tmp_dir/swaps"
+printf '%s\n' '1 0 0:1 / / rw - tmpfs tmpfs rw' >"$resume_mountinfo_file"
+printf '%s\n' 'Filename Type Size Used Priority' >"$resume_swaps_file"
+lsblk() {
+  case "${*: -1}" in
+  *-part1) printf '%s\n' 259:1 ;;
+  *-part3) printf '%s\n' 259:3 ;;
+  *) return 1 ;;
+  esac
+}
+verify_resume_storage_inactive
+printf '%s\n' '2 1 0:2 / /mnt/disko-install-root/nix rw - tmpfs tmpfs rw' >"$resume_mountinfo_file"
+if verify_resume_storage_inactive >/dev/null 2>&1; then
   printf 'resume storage validation accepted an existing child mount\n' >&2
   exit 1
 fi
-if BOOTSTRAP_TEST_FINDMNT_ROOT=/ \
-  BOOTSTRAP_TEST_FINDMNT_SOURCE_INACTIVE=true \
-  BOOTSTRAP_TEST_SWAPON_SHOW=/dev/mock-part2 \
-  verify_resume_storage_inactive >/dev/null 2>&1; then
+printf '%s\n' '3 1 259:3 / /mnt/other rw - btrfs /dev/mock-part3 rw' >"$resume_mountinfo_file"
+if verify_resume_storage_inactive >/dev/null 2>&1; then
+  printf 'resume storage validation accepted a target partition mounted elsewhere\n' >&2
+  exit 1
+fi
+printf '%s\n' '1 0 0:1 / / rw - tmpfs tmpfs rw' >"$resume_mountinfo_file"
+printf '%s\n' \
+  'Filename Type Size Used Priority' \
+  '/dev/mock-part2 partition 50331644 0 -2' >"$resume_swaps_file"
+if verify_resume_storage_inactive >/dev/null 2>&1; then
   printf 'resume storage validation accepted pre-existing target swap\n' >&2
   exit 1
 fi
-if BOOTSTRAP_TEST_FINDMNT_FAIL=true verify_resume_storage_inactive >/dev/null 2>&1; then
-  printf 'resume storage validation ignored a failed mount inventory\n' >&2
+resume_mountinfo_file="$tmp_dir/missing-mountinfo"
+if verify_resume_storage_inactive >/dev/null 2>&1; then
+  printf 'resume storage validation ignored a missing mount inventory\n' >&2
   exit 1
 fi
-if BOOTSTRAP_TEST_FINDMNT_ROOT=/ \
-  BOOTSTRAP_TEST_FINDMNT_SOURCE_INACTIVE=true \
-  BOOTSTRAP_TEST_SWAPON_FAIL=true \
-  verify_resume_storage_inactive >/dev/null 2>&1; then
-  printf 'resume storage validation ignored a failed swap inventory\n' >&2
-  exit 1
-fi
+resume_mountinfo_file="/proc/self/mountinfo"
+resume_swaps_file="/proc/swaps"
+unset -f lsblk
 
 cat >"$tmp_dir/bin/lsblk" <<'EOF_LSBLK'
 #!/usr/bin/env bash
