@@ -80,7 +80,7 @@ in
       inputs.nixos-hardware.nixosModules.common-cpu-intel
       inputs.grub2-themes.nixosModules.default
       {
-        nixpkgs.overlays = [ inputs.nix-cachyos-kernel.overlays.default ];
+        nixpkgs.overlays = [ inputs.nix-cachyos-kernel.overlays.pinned ];
 
         services.surge.outputDir = "/mnt/storage/Downloads";
 
