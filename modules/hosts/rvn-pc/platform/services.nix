@@ -7,8 +7,13 @@
 
         # Enable SSH for remote access
         openssh = {
-          enable = false;
+          enable = true;
           startWhenNeeded = true;
+          settings = {
+            KbdInteractiveAuthentication = false;
+            PasswordAuthentication = false;
+            PermitRootLogin = "no";
+          };
         };
 
         samba = {
