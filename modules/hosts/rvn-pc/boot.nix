@@ -67,7 +67,7 @@
               enable = true;
               device = "nodev";
               efiSupport = true;
-              useOSProber = true;
+              useOSProber = false;
               configurationLimit = 42;
               extraConfig = ''
                 # Use maximum supported resolution (1080p)

@@ -104,8 +104,6 @@ in
           killUnconfinedConfinables = false;
         };
 
-        time.hardwareClockInLocalTime = true;
-
         environment.sessionVariables = {
           TERMINAL = "wezterm";
           ELECTRON_OZONE_PLATFORM_HINT = "auto";

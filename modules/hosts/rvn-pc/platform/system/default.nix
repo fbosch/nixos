@@ -44,7 +44,10 @@
         };
       };
 
-      zramSwap.enable = true;
+      zramSwap = {
+        enable = true;
+        priority = 5;
+      };
 
       boot.kernel.sysctl = {
         "vm.swappiness" = 10;

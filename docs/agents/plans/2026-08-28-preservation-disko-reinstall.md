@@ -56,7 +56,7 @@ The dedicated `install-rvn-pc inspect|partition|install` workflow in Phase 5 was
 
 Current journal issues do not invalidate the filesystem or identity checks, but they keep the clean-logs gate open: the encrypted NAS mount reports `BAD_NETWORK_NAME`, two user services are failed, U2F rules reference a missing `plugdev` group, and `NetworkManager-initrd.service` has duplicate D-Bus ownership metadata.
 
-Repository lint passes Statix, Deadnix, formatting, Actionlint, service-port validation, bootstrap checks, and ShellCheck. The local-host-recovery fixture still fails on macOS because its temporary CIFS destination is rejected as non-normalized.
+Repository lint passes Statix, Deadnix, formatting, Actionlint, service-port validation, bootstrap and recovery checks, and ShellCheck. The recovery fixture now canonicalizes its macOS temporary directory and substitutes metadata flags only for Darwin's tar build; Linux continues exercising the production ACL and xattr options. A full flake check was not completed, so the combined lint-and-flake checklist items remain open.
 
 The current fixed-disk inventory is:
 
