@@ -102,8 +102,8 @@ parse_args() {
 }
 
 cleanup_iso_install() {
-  cleanup_gpg_runtime
-  cleanup_target_storage
+  cleanup_gpg_runtime || true
+  cleanup_target_storage || true
   if [ -n "$iso_work_dir" ]; then
     rm -rf -- "$iso_work_dir"
   fi
@@ -198,19 +198,41 @@ cleanup_gpg_runtime() {
 }
 
 cleanup_target_storage() {
+  local cleanup_failed="false"
+
   if [ "$target_storage_active" = "false" ]; then
     return
   fi
 
   if [ -n "$target_install_flake" ]; then
-    rm -rf -- "$target_install_flake"
-    target_install_flake=""
+    if rm -rf -- "$target_install_flake"; then
+      target_install_flake=""
+    else
+      printf 'Warning  Failed to remove temporary installation flake: %s\n' "$target_install_flake" >&2
+      cleanup_failed="true"
+    fi
   fi
-  swapoff "$target_swap_device" >/dev/null 2>&1 || true
-  if mountpoint -q "$install_root"; then
-    umount -R "$install_root" >/dev/null 2>&1 || true
+  if ! swapoff "$target_swap_device"; then
+    printf 'Warning  Failed to disable target swap: %s\n' "$target_swap_device" >&2
+    cleanup_failed="true"
+  fi
+  if mountpoint -q "$install_root" && ! umount -R "$install_root"; then
+    printf 'Warning  Failed to unmount installation root: %s\n' "$install_root" >&2
+    cleanup_failed="true"
+  fi
+
+  if [ "$cleanup_failed" = "true" ]; then
+    return 1
   fi
   target_storage_active="false"
+}
+
+acquire_install_lock() {
+  exec 9>"/run/nixos-bootstrap-install.lock"
+  if ! flock --nonblock 9; then
+    printf 'Error    Another NixOS installer is already running.\n' >&2
+    return 1
+  fi
 }
 
 rotate_sops_recipient() {
@@ -301,6 +323,63 @@ run_disko() {
     --root-mountpoint "$install_root"
 }
 
+verify_disko_target() {
+  local repository="$1"
+  local host="$2"
+  local evaluated_target
+
+  evaluated_target="$(
+    nix "${nix_flake_args[@]}" eval --raw \
+      "$repository#diskoConfigurations.$host.disko.devices.disk.system.device"
+  )"
+  if [ "$evaluated_target" != "$target_device" ]; then
+    printf 'Error    Installer target does not match the evaluated Disko target.\n' >&2
+    printf '  Installer  %s\n' "$target_device" >&2
+    printf '  Disko      %s\n' "$evaluated_target" >&2
+    return 1
+  fi
+}
+
+verify_target_mount() {
+  local mount_path="$1"
+  local expected_source="$2"
+  local expected_type="$3"
+  local expected_root="$4"
+  local actual_root
+
+  if ! actual_root="$(
+    findmnt \
+      --noheadings \
+      --source "$expected_source" \
+      --target "$mount_path" \
+      --types "$expected_type" \
+      --output FSROOT
+  )"; then
+    printf 'Error    Unexpected source or filesystem at %s.\n' "$mount_path" >&2
+    return 1
+  fi
+  actual_root="${actual_root//[[:space:]]/}"
+  if [ "$actual_root" != "$expected_root" ]; then
+    printf 'Error    Unexpected filesystem root at %s: %s\n' "$mount_path" "$actual_root" >&2
+    return 1
+  fi
+}
+
+verify_nixos_install_interface() {
+  local help_output
+
+  if ! help_output="$(nixos-install --help 2>&1)"; then
+    printf 'Error    Failed to inspect nixos-install in the ISO runtime.\n' >&2
+    return 1
+  fi
+  for required_option in --root --flake --no-root-password --no-channel-copy --option; do
+    if ! grep -Fq -- "$required_option" <<<"$help_output"; then
+      printf 'Error    nixos-install does not support required option: %s\n' "$required_option" >&2
+      return 1
+    fi
+  done
+}
+
 resolve_flake_store_path() {
   local repository="$1"
   local flake_store_path
@@ -353,6 +432,8 @@ run_iso_install() {
     printf 'Error    nixos-install is unavailable in the ISO runtime.\n' >&2
     exit 1
   fi
+  verify_nixos_install_interface
+  acquire_install_lock
 
   if [ ! -d /sys/firmware/efi ]; then
     if [ "$install_dry_run" = "false" ]; then
@@ -411,6 +492,7 @@ run_iso_install() {
   cp -a "$repository" "$identity_tree/home/$install_user/nixos"
   chown -R "$install_uid:$install_gid" "$identity_tree/home/$install_user"
   repository_flake="$(resolve_flake_store_path "$repository")"
+  verify_disko_target "$repository_flake" "$host"
 
   nix "${nix_flake_args[@]}" build --no-link "$repository_flake#checks.x86_64-linux.${host}-disko-script"
   nix "${nix_flake_args[@]}" eval --raw "$repository_flake#nixosConfigurations.$host.config.system.build.toplevel.drvPath" >/dev/null
@@ -431,19 +513,20 @@ run_iso_install() {
 
   target_storage_active="true"
   run_disko "$repository_flake" "$host" --yes-wipe-all-disks
-  for mount_path in "$install_root" "$install_root/boot" "$install_root/nix" "$install_root/persist"; do
-    if ! mountpoint -q "$mount_path"; then
-      printf 'Error    Disko did not mount %s.\n' "$mount_path" >&2
-      exit 1
-    fi
-  done
+  verify_target_mount "$install_root" tmpfs tmpfs /
+  verify_target_mount "$install_root/boot" "${target_device}-part1" vfat /
+  verify_target_mount "$install_root/nix" "${target_device}-part3" btrfs /nix
+  verify_target_mount "$install_root/persist" "${target_device}-part3" btrfs /persist
 
   swapon "$target_swap_device"
   cp -a "$identity_tree/." "$install_root/persist/"
   target_install_flake="$install_root/persist/.nixos-install-flake"
   cp -a "$repository_flake" "$target_install_flake"
   install_nixos "$target_install_flake" "$host"
-  cleanup_target_storage
+  if ! cleanup_target_storage; then
+    printf 'Error    Installation completed, but target storage cleanup failed.\n' >&2
+    exit 1
+  fi
   printf '\nSuccess  Installation completed.\n'
   printf '  Remove the ISO and reboot.\n'
 }

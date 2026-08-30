@@ -28,6 +28,8 @@ export BOOTSTRAP_TEST_DISKO_SKIP_SWAP="$tmp_dir/disko-skip-swap"
 export BOOTSTRAP_TEST_SWAPOFF_ARGS="$tmp_dir/swapoff-args"
 export BOOTSTRAP_TEST_UMOUNT_ARGS="$tmp_dir/umount-args"
 export BOOTSTRAP_TEST_FLAKE_STORE_PATH="$tmp_dir/flake-store-source"
+export BOOTSTRAP_TEST_EVALUATED_DISKO_TARGET="/dev/disk/by-id/nvme-WDS200T3X0C-00SJG0_21031B801746"
+export BOOTSTRAP_TEST_FINDMNT_ARGS="$tmp_dir/findmnt-args"
 
 cat >"$tmp_dir/bin/curl" <<'EOF_CURL'
 #!/usr/bin/env bash
@@ -393,10 +395,21 @@ printf '%s' "${DISKO_SKIP_SWAP:-}" >"$BOOTSTRAP_TEST_DISKO_SKIP_SWAP"
 if [[ " $* " == *" flake metadata --json "* ]]; then
   printf '{"path":"%s"}\n' "$BOOTSTRAP_TEST_FLAKE_STORE_PATH"
 fi
+if [[ " $* " == *"#diskoConfigurations."* ]]; then
+  printf '%s' "$BOOTSTRAP_TEST_EVALUATED_DISKO_TARGET"
+fi
 EOF_NIX
 cat >"$tmp_dir/bin/nixos-install" <<'EOF_NIXOS_INSTALL'
 #!/usr/bin/env bash
 set -euo pipefail
+if [ "${1:-}" = "--help" ]; then
+  if [ "${BOOTSTRAP_TEST_NIXOS_INSTALL_INCOMPATIBLE:-false}" = "true" ]; then
+    printf '%s\n' '--root'
+    exit 0
+  fi
+  printf '%s\n' --root --flake --no-root-password --no-channel-copy --option
+  exit 0
+fi
 printf '%s\n' "$@" >"$BOOTSTRAP_TEST_NIXOS_INSTALL_ARGS"
 EOF_NIXOS_INSTALL
 cat >"$tmp_dir/bin/swapoff" <<'EOF_SWAPOFF'
@@ -408,13 +421,22 @@ cat >"$tmp_dir/bin/mountpoint" <<'EOF_MOUNTPOINT'
 #!/usr/bin/env bash
 exit 0
 EOF_MOUNTPOINT
+cat >"$tmp_dir/bin/findmnt" <<'EOF_FINDMNT'
+#!/usr/bin/env bash
+set -euo pipefail
+printf '%s\n' "$@" >"$BOOTSTRAP_TEST_FINDMNT_ARGS"
+if [ "${BOOTSTRAP_TEST_FINDMNT_FAIL:-false}" = "true" ]; then
+  exit 1
+fi
+printf '%s\n' "${BOOTSTRAP_TEST_FINDMNT_ROOT:-/}"
+EOF_FINDMNT
 cat >"$tmp_dir/bin/umount" <<'EOF_UMOUNT'
 #!/usr/bin/env bash
 set -euo pipefail
 printf '%s\n' "$@" >"$BOOTSTRAP_TEST_UMOUNT_ARGS"
 EOF_UMOUNT
 chmod +x "$tmp_dir/bin/nix" "$tmp_dir/bin/nixos-install" "$tmp_dir/bin/swapoff" \
-  "$tmp_dir/bin/mountpoint" "$tmp_dir/bin/umount"
+  "$tmp_dir/bin/mountpoint" "$tmp_dir/bin/findmnt" "$tmp_dir/bin/umount"
 
 mkdir -p "$tmp_dir/repository" "$tmp_dir/identity-tree" "$BOOTSTRAP_TEST_FLAKE_STORE_PATH"
 touch "$BOOTSTRAP_TEST_FLAKE_STORE_PATH/flake.nix"
@@ -423,6 +445,11 @@ target_swap_device="${target_device}-part2"
 resolved_flake="$(resolve_flake_store_path "$tmp_dir/repository")"
 if [ "$resolved_flake" != "$BOOTSTRAP_TEST_FLAKE_STORE_PATH" ]; then
   printf 'installation flake did not resolve to the immutable store source\n' >&2
+  exit 1
+fi
+verify_disko_target "$tmp_dir/repository" rvn-pc
+if BOOTSTRAP_TEST_EVALUATED_DISKO_TARGET=/dev/disk/by-id/wrong verify_disko_target "$tmp_dir/repository" rvn-pc >/dev/null 2>&1; then
+  printf 'installer accepted a Disko target that differs from the displayed disk\n' >&2
   exit 1
 fi
 run_disko "$tmp_dir/repository" rvn-pc --dry-run
@@ -478,6 +505,34 @@ accept-flake-config
 true
 EOF_EXPECTED_NIXOS_INSTALL_ARGS
 diff -u "$tmp_dir/expected-nixos-install-args" "$BOOTSTRAP_TEST_NIXOS_INSTALL_ARGS"
+
+verify_nixos_install_interface
+if BOOTSTRAP_TEST_NIXOS_INSTALL_INCOMPATIBLE=true verify_nixos_install_interface >/dev/null 2>&1; then
+  printf 'installer accepted an incompatible nixos-install interface\n' >&2
+  exit 1
+fi
+
+BOOTSTRAP_TEST_FINDMNT_ROOT=/nix verify_target_mount \
+  /mnt/disko-install-root/nix \
+  /dev/disk/by-id/nvme-WDS200T3X0C-00SJG0_21031B801746-part3 \
+  btrfs \
+  /nix
+cat >"$tmp_dir/expected-findmnt-args" <<'EOF_EXPECTED_FINDMNT_ARGS'
+--noheadings
+--source
+/dev/disk/by-id/nvme-WDS200T3X0C-00SJG0_21031B801746-part3
+--target
+/mnt/disko-install-root/nix
+--types
+btrfs
+--output
+FSROOT
+EOF_EXPECTED_FINDMNT_ARGS
+diff -u "$tmp_dir/expected-findmnt-args" "$BOOTSTRAP_TEST_FINDMNT_ARGS"
+if BOOTSTRAP_TEST_FINDMNT_ROOT=/wrong verify_target_mount /mnt/disko-install-root/nix /dev/target btrfs /nix >/dev/null 2>&1; then
+  printf 'installer accepted the wrong Btrfs filesystem root\n' >&2
+  exit 1
+fi
 
 iso_work_dir="$tmp_dir/iso-work"
 mkdir "$iso_work_dir"
