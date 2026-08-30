@@ -2,9 +2,11 @@
 
 ## Status
 
-Deferred. Do not implement or activate this plan until the final exit gate in
+Active. The final exit gate in
 [`2026-08-28-preservation-disko-reinstall.md`](./2026-08-28-preservation-disko-reinstall.md)
-has passed and its evidence has been recorded.
+has passed and its evidence has been recorded. Non-destructive contract and
+layout work may proceed; production disk changes remain gated by the phases
+below.
 
 That prerequisite requires two cold boots, a normal rebuild, working SOPS and
 login, stable machine and SSH identities, intact external disks, correct
@@ -46,14 +48,15 @@ rollback targets after repartitioning.
 | --- | --- |
 | Target host | `rvn-pc` only |
 | Target disk | `/dev/disk/by-id/nvme-WDS200T3X0C-00SJG0_21031B801746` |
-| Encryption boundary | One LUKS2 container covering persistent system storage and disk swap |
-| Volume management | LVM inside LUKS2 |
-| Persistent filesystem | Btrfs LV with `/nix` and `/persist` subvolumes |
+| Encryption boundary | One LUKS2 container mapped as `cryptsystem`, covering persistent system storage and disk swap |
+| Volume management | LVM volume group `rvnpc` inside LUKS2 |
+| Persistent filesystem | Btrfs on `/dev/rvnpc/system`, with `/nix` and `/persist` subvolumes |
 | Root | tmpfs, unchanged from the proven baseline |
-| Swap | 48 GiB LVM LV inside LUKS2, selected for resume |
+| Swap | 48 GiB `/dev/rvnpc/swap` LV inside LUKS2, selected for resume |
 | Boot | Existing UEFI GRUB and plaintext ESP |
-| Initial unlock | Interactive LUKS passphrase |
-| TPM2 | Available on the machine; enrollment deferred until passphrase boot and encrypted resume pass |
+| Initial unlock | Disko's direct, hidden interactive LUKS passphrase prompt |
+| TPM2 | `systemd-analyze has-tpm2` reports `yes`; enrollment remains deferred until passphrase boot and encrypted resume pass |
+| TPM2 PIN | None; the approved steady state is unattended TPM unlock with passphrase fallback |
 | Recovery | A passphrase or recovery credential remains valid independently of TPM2 |
 | Existing identities | Restore unchanged; do not generate or rotate during this reinstall |
 | External NTFS disks | Connected, protected from Disko, plaintext, and out of scope |
@@ -61,29 +64,30 @@ rollback targets after repartitioning.
 
 ## Questions To Resolve During Exploration
 
-- [ ] Select stable LUKS mapping, LVM volume group, Btrfs LV, and swap LV names.
-- [ ] Confirm the pinned Disko and nixpkgs option contracts for the complete
+- [x] Select stable LUKS mapping, LVM volume group, Btrfs LV, and swap LV names.
+- [x] Confirm the pinned Disko and nixpkgs option contracts for the complete
       partition to LUKS to LVM to Btrfs and swap chain.
-- [ ] Decide whether Disko prompts directly for the initial passphrase or reads
+- [x] Decide whether Disko prompts directly for the initial passphrase or reads
       a transient root-only file from installer tmpfs. Prefer the direct prompt
       unless automation has a tested need.
-- [ ] Select the LUKS recovery credential format and a custody location that is
-      independent of the target NVMe and the TPM.
-- [ ] Select an encrypted destination for the LUKS header backup. Do not place
-      it in the existing plaintext recovery archive.
-- [ ] Decide whether the encryption reinstall gets a dedicated installer
+- [x] Use a systemd-generated recovery key stored in Bitwarden, independently
+      of the target NVMe and TPM.
+- [x] GPG-encrypt the LUKS header backup to admin key
+      `5E0FEC74518ED5FEAA5EA33E5C49A562D850322A` before storing it under
+      `/mnt/nas/backup/rvn-pc/luks/`. Do not place it in the existing plaintext
+      recovery archive.
+- [x] Decide whether the encryption reinstall gets a dedicated installer
       entrypoint or an explicit mode in the existing installer. Prefer a
       dedicated entrypoint if that is the clearest way to make identity
       generation and SOPS recipient rotation unreachable.
-- [ ] Select and document the TPM2 PCR policy after inspecting the actual boot
-      chain and update behavior. Do not copy a PCR list without testing its
-      recovery consequences.
-- [ ] Decide whether TPM unlock requires a PIN. Treat this as an unlock-policy
-      decision, not a prerequisite for storage encryption.
-- [ ] Define the non-destructive method used to bypass TPM unlock and prove
-      passphrase fallback. Do not clear or reset the TPM as a test.
-- [ ] Decide how long the plaintext baseline and pre-encryption recovery set
-      remain available after the encrypted reinstall.
+- [x] Defer the exact TPM2 PCR policy until the encrypted passphrase boot chain
+      and update behavior can be measured. Do not copy a PCR list without
+      testing its recovery consequences.
+- [x] Do not require a TPM PIN; normal TPM boot must unlock unattended.
+- [x] Bypass TPM non-destructively by selecting a retained passphrase-only GRUB
+      generation and prove passphrase fallback. Do not clear or reset the TPM.
+- [x] Retain the plaintext baseline and pre-encryption recovery set through
+      Phase 10 and for 30 additional days.
 
 No destructive work begins while any recovery, naming, installer, or unlock
 policy question remains open.
@@ -96,9 +100,9 @@ it the final contract:
 ```text
 GPT
 ├─ ESP       2 GiB, VFAT, /boot, plaintext
-└─ encrypted remaining space, LUKS2
+└─ encrypted remaining space, LUKS2 mapping cryptsystem
    └─ LVM physical volume
-      └─ rvn-pc volume group
+      └─ rvnpc volume group
          ├─ swap    48 GiB LV, encrypted resume device
          └─ system  remaining space, Btrfs LV
             ├─ /nix
@@ -108,8 +112,8 @@ nodev
 └─ /         tmpfs, unchanged
 ```
 
-Only the ESP is intentionally plaintext on the target NVMe. The exact mapping
-and volume names remain unsettled until Phase 1.
+Only the ESP is intentionally plaintext on the target NVMe. The stable mapping
+and volume names are `cryptsystem`, `rvnpc`, `swap`, and `system`.
 
 ## Rejected Alternatives
 
@@ -185,19 +189,20 @@ that limitation in a separate plan after this rollout is stable.
 **Outcome:** Disko, Btrfs, Preservation, SOPS, identity restoration, protected
 disks, and hibernation are known to work without encryption.
 
-- [ ] Complete every item under Phase 10 of the prerequisite plan.
-- [ ] Record evidence for two cold boots and repeated hibernation.
-- [ ] Record the evaluated filesystems, swap devices, resume device, and
+- [x] Complete every item in the prerequisite plan.
+- [x] Record evidence for two cold boots and repeated hibernation.
+- [x] Record the evaluated filesystems, swap devices, resume device, and
       Preservation initrd ordering.
-- [ ] Record machine ID and public SSH host-key fingerprints.
-- [ ] Verify system and Home Manager SOPS decryption without printing secrets.
-- [ ] Verify `/home/fbb`, NetworkManager, Tailscale, repositories, and selected
+- [x] Record machine ID and public SSH host-key fingerprints.
+- [x] Verify system and Home Manager SOPS decryption without printing secrets.
+- [x] Verify `/home/fbb`, NetworkManager, Tailscale, repositories, and selected
       service state survive the required boots.
-- [ ] Verify an undeclared root file disappears after reboot.
-- [ ] Verify `/mnt/storage` and `/mnt/games` retain their expected identities
+- [x] Verify an undeclared root file disappears after reboot.
+- [x] Verify `/mnt/storage` and `/mnt/games` retain their expected identities
       and contents.
-- [ ] Refresh and verify the recovery set from the working installed system.
-- [ ] Stop if any failure remains unexplained. Do not attribute an unresolved
+- [x] Confirm the existing verified recovery set remains available and is the
+      approved pre-encryption recovery set.
+- [x] Stop if any failure remains unexplained. Do not attribute an unresolved
       baseline failure to the future encryption layer.
 
 **User-run actions:** cold boots, login, SOPS verification, hibernation, and
@@ -216,51 +221,57 @@ boundary are explicit before code changes begin.
 
 ### Storage contract
 
-- [ ] Evaluate the pinned Disko support for LUKS containing an LVM physical
+- [x] Evaluate the pinned Disko support for LUKS containing an LVM physical
       volume, a swap LV, and a Btrfs LV.
-- [ ] Select stable names for the LUKS mapping, volume group, swap LV, and
+- [x] Select stable names for the LUKS mapping, volume group, swap LV, and
       Btrfs LV.
-- [ ] Confirm the 48 GiB swap LV remains sufficient for realistic hibernation
+- [x] Confirm the 48 GiB swap LV remains sufficient for realistic hibernation
       on this machine.
-- [ ] Confirm zram remains higher priority for routine swapping but is never
+- [x] Confirm zram remains higher priority for routine swapping but is never
       selected as the resume device.
-- [ ] Confirm UEFI GRUB can continue loading the kernel and initrd from the
+- [x] Confirm UEFI GRUB can continue loading the kernel and initrd from the
       plaintext ESP without GRUB opening LUKS.
-- [ ] Confirm systemd initrd supplies cryptsetup, device mapper, LVM, resume,
+- [x] Confirm systemd initrd supplies cryptsetup, device mapper, LVM, resume,
       and Plymouth support in the required order.
-- [ ] Preserve `explicitBtrfsMountHook` while the pinned util-linux and Disko
+- [x] Preserve `explicitBtrfsMountHook` while the pinned util-linux and Disko
       combination can misdetect stale filesystem metadata. Remove it only when
       an upstream change and generated-script validation make it unnecessary.
 
 ### Credential contract
 
-- [ ] Select the initial interactive passphrase workflow.
-- [ ] Define passphrase quality requirements without recording the passphrase.
-- [ ] Define the independent recovery credential and custody process.
-- [ ] Define an encrypted, off-target LUKS header-backup destination.
-- [ ] Define how credential and header recovery are tested against disposable
+- [x] Select the initial interactive passphrase workflow.
+- [x] Define passphrase quality requirements without recording the passphrase:
+      use at least six randomly generated Diceware words.
+- [x] Define the independent recovery credential and custody process: store a
+      systemd-generated recovery key in Bitwarden.
+- [x] Define an encrypted, off-target LUKS header-backup destination: encrypt it
+      to the admin GPG key before writing it under
+      `/mnt/nas/backup/rvn-pc/luks/`.
+- [x] Define how credential and header recovery are tested against disposable
       media without restoring a header over the live target.
-- [ ] Confirm the existing plaintext recovery archive remains useful for host
+- [x] Confirm the existing plaintext recovery archive remains useful for host
       identities but is not approved for LUKS credentials or header backups.
 
 ### TPM contract
 
-- [ ] Record the observed `systemd-analyze has-tpm2` result without storing TPM
+- [x] Record the observed `systemd-analyze has-tpm2` result without storing TPM
       secrets.
-- [ ] Compare applicable PCR policies against the current GRUB, kernel, initrd,
-      firmware-update, and configuration-update behavior.
-- [ ] Define which changes should trigger passphrase fallback.
-- [ ] Define a non-destructive TPM bypass test.
-- [ ] Keep TPM enrollment out of the first encrypted installation revision.
+- [x] Defer exact PCR selection until the encrypted GRUB, kernel, initrd,
+      firmware-update, and configuration-update behavior can be measured.
+- [x] Require a firmware, bootloader, kernel, initrd, or selected PCR
+      measurement mismatch to trigger visible passphrase fallback.
+- [x] Define a non-destructive TPM bypass test using a retained passphrase-only
+      GRUB generation.
+- [x] Keep TPM enrollment out of the first encrypted installation revision.
 
 ### Installer contract
 
-- [ ] Select a dedicated encryption entrypoint or an explicit fail-closed mode.
-- [ ] Make identity generation and SOPS recipient rotation unreachable from the
-      selected encryption path.
-- [ ] Keep `inspect`, partitioning, restore verification, installation, and TPM
+- [x] Select a dedicated encryption entrypoint or an explicit fail-closed mode.
+- [x] Require the dedicated encryption path to make identity generation and
+      SOPS recipient rotation unreachable.
+- [x] Keep `inspect`, partitioning, restore verification, installation, and TPM
       enrollment as distinct actions.
-- [ ] Require an exact destructive confirmation phrase naming the approved
+- [x] Require an exact destructive confirmation phrase naming the approved
       target disk and the encrypted layout.
 
 **User-run actions:** decide recovery custody, passphrase policy, TPM policy,
@@ -279,38 +290,38 @@ are safe without changing the installed plaintext system.
 
 ### `modules/hosts/rvn-pc/disko.nix`
 
-- [ ] Replace the standalone swap and Btrfs partitions with one LUKS2
-      partition containing an LVM physical volume.
-- [ ] Define one volume group with a 48 GiB swap LV and a remaining-space
+- [x] Add an inactive `rvn-pc-encrypted` Disko output with one LUKS2 partition
+      containing an LVM physical volume; keep the imported `rvn-pc` output on
+      the proven plaintext layout.
+- [x] Define one volume group with a 48 GiB swap LV and a remaining-space
       Btrfs LV.
-- [ ] Keep `/nix` and `/persist` as the only Btrfs subvolumes required by the
+- [x] Keep `/nix` and `/persist` as the only Btrfs subvolumes required by the
       current layout.
-- [ ] Keep tmpfs `/` and the ESP contract unchanged.
-- [ ] Set `resumeDevice = true` only on the encrypted swap LV.
-- [ ] Do not use random swap encryption or a swapfile.
-- [ ] Preserve the explicit Btrfs mount type workaround where required.
-- [ ] Update `approvedDevices` to distinguish physical target paths from exact
+- [x] Keep tmpfs `/` and the ESP contract unchanged.
+- [x] Set `resumeDevice = true` only on the encrypted swap LV.
+- [x] Do not use random swap encryption or a swapfile.
+- [x] Preserve the explicit Btrfs mount type workaround where required.
+- [x] Update `approvedDevices` to distinguish physical target paths from exact
       derived mapper and LVM paths.
-- [ ] Replace the blanket mapped-device rejection in
-      `rvn-pc-disko-script` with exact expected logical-device assertions.
-- [ ] Keep every protected-disk identifier forbidden.
-- [ ] Update `testPartitionContract`, `testBtrfsSubvolumes`,
-      `testProtectedDisksAbsent`, `testEvaluatedFilesystems`, and
-      `testEvaluatedSwap` for the encrypted topology.
-- [ ] Add assertions that the ESP is the only plaintext target filesystem and
+- [x] Parameterize the generated-script safety check with exact expected
+      physical and logical device allowlists for each layout.
+- [x] Keep every protected-disk identifier forbidden.
+- [x] Add focused tests for the interactive LUKS topology, evaluated
+      filesystems, encrypted swap and resume, and initrd LUKS/LVM support.
+- [x] Add assertions that the ESP is the only plaintext target filesystem and
       that no physical partition is selected for resume.
 
 ### Generated-script review
 
-- [ ] Build the generated Disko script check on `x86_64-linux`.
-- [ ] Inspect every `sgdisk`, `wipefs`, `cryptsetup`, LVM, `mkfs`, `mkswap`,
+- [x] Build both generated Disko script checks on `x86_64-linux`.
+- [x] Inspect every emitted `sgdisk`, `wipefs`, `cryptsetup`, LVM, `mkfs`, `mkswap`,
       `mount`, `swapon`, and cleanup command.
-- [ ] Confirm destructive commands touch only the approved NVMe and expected
+- [x] Confirm destructive commands touch only the approved NVMe and expected
       logical descendants.
-- [ ] Confirm the protected SATA disks and their UUIDs never appear.
-- [ ] Confirm no credential value or credential-file contents appear.
-- [ ] Run Disko dry-run and save only non-secret review evidence.
-- [ ] Evaluate the existing installed plaintext configuration separately and
+- [x] Confirm the protected SATA disks and their UUIDs never appear.
+- [x] Confirm no credential value or credential-file contents appear.
+- [x] Run Disko dry-run and save only non-secret review evidence.
+- [x] Evaluate the existing installed plaintext configuration separately and
       prove this inactive work has not changed its boot behavior.
 
 **User-run actions:** none. Do not run a mutating Disko mode in this phase.
