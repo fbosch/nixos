@@ -11,6 +11,7 @@ let
       hmConfig = config;
       HOME_DIR = lib.escapeShellArg hmConfig.home.homeDirectory;
       REPO = lib.escapeShellArg "${hmConfig.home.homeDirectory}/dotfiles";
+      DOTFILES_FALLBACK = lib.escapeShellArg inputs.dotfiles.outPath;
       DOTFILES_BOOTSTRAP_REV = inputs.dotfiles.rev or "master";
       DOTFILES_BOOTSTRAP_URL = lib.escapeShellArg flakeConfig.flake.meta.dotfiles.url;
       stowFlags = "--restow --verbose";
@@ -30,8 +31,8 @@ let
         #         no          yes
         #          │            │
         #          v            v
-        #   clone + checkout   independent Git root?
-        #   flake revision       ┌────┴────┐
+        #   stow flake input   independent Git root?
+        #   + retry clone        ┌────┴────┐
         #          │            no        yes
         #          │             │          │
         #          │             v          v
@@ -54,8 +55,11 @@ let
           if [ ! -e ${REPO} ]; then
             echo "Bootstrapping dotfiles repository at revision ${DOTFILES_BOOTSTRAP_REV}..."
             if [ -n "$DRY_RUN_CMD" ]; then
-              echo "Would clone, check out the bootstrap revision, and publish ${REPO}."
+              echo "Would stow the flake input, clone the mutable checkout, and publish ${REPO}."
             else
+              echo "Stowing the pinned flake input while bootstrapping the mutable checkout..."
+              ${pkgs.stow}/bin/stow ${stowFlags} --dir ${DOTFILES_FALLBACK} --target "$HOME" .
+
               BOOTSTRAP_PARENT=$(${pkgs.coreutils}/bin/mktemp -d ${HOME_DIR}/.dotfiles-bootstrap.XXXXXX)
               BOOTSTRAP_REPO="$BOOTSTRAP_PARENT/dotfiles"
               cleanup_bootstrap() {
@@ -63,8 +67,18 @@ let
               }
               trap cleanup_bootstrap EXIT
 
+              clone_deadline=$((SECONDS + 60))
+              until ${pkgs.git}/bin/git ls-remote ${DOTFILES_BOOTSTRAP_URL} HEAD >/dev/null 2>&1; do
+                if ((SECONDS >= clone_deadline)); then
+                  echo "Timed out waiting for network access to the dotfiles repository." >&2
+                  exit 1
+                fi
+                ${pkgs.coreutils}/bin/sleep 1
+              done
+
               ${pkgs.git}/bin/git clone ${DOTFILES_BOOTSTRAP_URL} "$BOOTSTRAP_REPO"
               ${pkgs.git}/bin/git -C "$BOOTSTRAP_REPO" checkout ${DOTFILES_BOOTSTRAP_REV}
+              ${pkgs.stow}/bin/stow --delete --verbose --dir ${DOTFILES_FALLBACK} --target "$HOME" .
               ${pkgs.coreutils}/bin/mv "$BOOTSTRAP_REPO" ${REPO}
               ${pkgs.coreutils}/bin/rmdir "$BOOTSTRAP_PARENT"
               trap - EXIT
@@ -136,6 +150,8 @@ in
         find 0 scriptLines;
       checkoutIndex = lineIndex "checkout ${bootstrapRevision}";
       publishIndex = lineIndex ''mv "$BOOTSTRAP_REPO"'';
+      fallbackStowIndex = lineIndex ''/bin/stow --restow --verbose --dir ${inputs.dotfiles.outPath}'';
+      fallbackDeleteIndex = lineIndex ''/bin/stow --delete --verbose --dir ${inputs.dotfiles.outPath}'';
     in
     {
       nix-unit.tests.dotfilesActivation = {
@@ -149,6 +165,23 @@ in
         };
         testBootstrapPublishesOnlyAfterCheckout = {
           expr = checkoutIndex != null && publishIndex != null && checkoutIndex < publishIndex;
+          expected = true;
+        };
+        testBootstrapWaitsForRepository = {
+          expr = lib.all (fragment: lib.hasInfix fragment dotfilesScript) [
+            "clone_deadline=$((SECONDS + 60))"
+            "ls-remote https://github.com/fbosch/dotfiles HEAD"
+            "Timed out waiting for network access to the dotfiles repository."
+          ];
+          expected = true;
+        };
+        testBootstrapUsesFlakeInputUntilCheckoutExists = {
+          expr =
+            fallbackStowIndex != null
+            && fallbackDeleteIndex != null
+            && publishIndex != null
+            && fallbackStowIndex < fallbackDeleteIndex
+            && fallbackDeleteIndex < publishIndex;
           expected = true;
         };
         testActivationValidatesCheckoutRoot = {
