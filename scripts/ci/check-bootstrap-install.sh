@@ -18,8 +18,10 @@ export BOOTSTRAP_TEST_SCRIPT_PATH="$tmp_dir/script-path"
 export BOOTSTRAP_TEST_EXPECTED_URL="$tmp_dir/expected-url"
 export BOOTSTRAP_TEST_SUDO_ARGS="$tmp_dir/sudo-args"
 export BOOTSTRAP_TEST_GPGCONF_ARGS="$tmp_dir/gpgconf-args"
+export BOOTSTRAP_TEST_GPG_LIBEXECDIR="$tmp_dir/gpg-libexec"
+export BOOTSTRAP_TEST_GPG_PRESET_ARGS="$tmp_dir/gpg-preset-args"
+export BOOTSTRAP_TEST_GPG_PRESET_INPUT="$tmp_dir/gpg-preset-input"
 export BOOTSTRAP_TEST_GH_LOG="$tmp_dir/gh.log"
-export BOOTSTRAP_TEST_QR_LOG="$tmp_dir/qr.log"
 export BOOTSTRAP_TEST_QRENCODE_ARGS="$tmp_dir/qrencode-args"
 
 cat >"$tmp_dir/bin/curl" <<'EOF_CURL'
@@ -170,14 +172,46 @@ if [ -z "$github_device_url" ]; then
   exit 1
 fi
 
+mkdir "$BOOTSTRAP_TEST_GPG_LIBEXECDIR"
 cat >"$tmp_dir/bin/gpg" <<'EOF_GPG'
 #!/usr/bin/env bash
+set -euo pipefail
+
+for argument in "$@"; do
+  if [ "$argument" = "--with-keygrip" ]; then
+    awk 'BEGIN {
+      OFS = ":"
+      print "sec", "u", "3072", "1", "ABCDEF", "0", "0", "", "", "", "", "e"
+      print "grp", "", "", "", "", "", "", "", "", "ENCRYPTIONKEYGRIP"
+    }'
+    exit 0
+  fi
+  if [ "$argument" = "--decrypt" ] && [ "${BOOTSTRAP_TEST_GPG_DECRYPT_FAIL:-false}" = "true" ]; then
+    exit 1
+  fi
+done
+
 exit 0
 EOF_GPG
 cat >"$tmp_dir/bin/gpgconf" <<'EOF_GPGCONF'
 #!/usr/bin/env bash
+if [ "$*" = "--list-dirs libexecdir" ]; then
+  printf '%s\n' "$BOOTSTRAP_TEST_GPG_LIBEXECDIR"
+  exit 0
+fi
 printf '%s\n' "$@" >"$BOOTSTRAP_TEST_GPGCONF_ARGS"
 EOF_GPGCONF
+cat >"$BOOTSTRAP_TEST_GPG_LIBEXECDIR/gpg-preset-passphrase" <<'EOF_GPG_PRESET'
+#!/usr/bin/env bash
+set -euo pipefail
+
+printf '%s\n' "$@" >"$BOOTSTRAP_TEST_GPG_PRESET_ARGS"
+if [ "${1:-}" = "--preset" ]; then
+  passphrase=""
+  IFS= read -r passphrase || true
+  printf '%s' "$passphrase" >"$BOOTSTRAP_TEST_GPG_PRESET_INPUT"
+fi
+EOF_GPG_PRESET
 cat >"$tmp_dir/bin/pinentry-curses" <<'EOF_PINENTRY'
 #!/usr/bin/env bash
 exit 0
@@ -190,7 +224,8 @@ cat >"$tmp_dir/bin/tty" <<'EOF_TTY'
 #!/usr/bin/env bash
 printf '%s\n' /dev/pts/bootstrap-test
 EOF_TTY
-chmod +x "$tmp_dir/bin/gpg" "$tmp_dir/bin/gpgconf" "$tmp_dir/bin/pinentry-curses" "$tmp_dir/bin/qrencode" "$tmp_dir/bin/tty"
+chmod +x "$tmp_dir/bin/gpg" "$tmp_dir/bin/gpgconf" "$BOOTSTRAP_TEST_GPG_LIBEXECDIR/gpg-preset-passphrase" \
+  "$tmp_dir/bin/pinentry-curses" "$tmp_dir/bin/qrencode" "$tmp_dir/bin/tty"
 
 test_gpg_home="$tmp_dir/gpg-home"
 mkdir "$test_gpg_home"
@@ -205,7 +240,29 @@ if [ "$SOPS_GPG_EXEC" != "$tmp_dir/bin/gpg" ]; then
   printf 'ISO GPG setup did not select the available gpg binary\n' >&2
   exit 1
 fi
-grep -Fqx "pinentry-program $tmp_dir/bin/pinentry-curses" "$GNUPGHOME/gpg-agent.conf"
+cat >"$tmp_dir/expected-gpg-agent.conf" <<EOF_EXPECTED_GPG_AGENT
+pinentry-program $tmp_dir/bin/pinentry-curses
+allow-preset-passphrase
+EOF_EXPECTED_GPG_AGENT
+diff -u "$tmp_dir/expected-gpg-agent.conf" "$GNUPGHOME/gpg-agent.conf"
+
+preset_gpg_passphrase_for_sops private-key-passphrase
+cat >"$tmp_dir/expected-gpg-preset-args" <<'EOF_EXPECTED_GPG_PRESET_ARGS'
+--preset
+ENCRYPTIONKEYGRIP
+EOF_EXPECTED_GPG_PRESET_ARGS
+diff -u "$tmp_dir/expected-gpg-preset-args" "$BOOTSTRAP_TEST_GPG_PRESET_ARGS"
+grep -Fqx 'private-key-passphrase' "$BOOTSTRAP_TEST_GPG_PRESET_INPUT"
+
+if BOOTSTRAP_TEST_GPG_DECRYPT_FAIL=true preset_gpg_passphrase_for_sops wrong-passphrase >/dev/null 2>&1; then
+  printf 'GPG passphrase setup accepted a failed unlock check\n' >&2
+  exit 1
+fi
+cat >"$tmp_dir/expected-gpg-forget-args" <<'EOF_EXPECTED_GPG_FORGET_ARGS'
+--forget
+ENCRYPTIONKEYGRIP
+EOF_EXPECTED_GPG_FORGET_ARGS
+diff -u "$tmp_dir/expected-gpg-forget-args" "$BOOTSTRAP_TEST_GPG_PRESET_ARGS"
 
 iso_work_dir="$tmp_dir/failed-iso-work"
 mkdir -p "$iso_work_dir"
@@ -248,9 +305,10 @@ $github_device_url
 EOF_EXPECTED_QRENCODE_ARGS
 diff -u "$tmp_dir/expected-qrencode-args" "$BOOTSTRAP_TEST_QRENCODE_ARGS"
 
-show_github_device_qr() {
-  printf 'called\n' >"$BOOTSTRAP_TEST_QR_LOG"
-}
+: >"$BOOTSTRAP_TEST_QRENCODE_ARGS"
+TERM=dumb show_github_device_qr
+diff -u "$tmp_dir/expected-qrencode-args" "$BOOTSTRAP_TEST_QRENCODE_ARGS"
+
 gh() {
   printf '%s\n' "$*" >>"$BOOTSTRAP_TEST_GH_LOG"
   if [ "$1 $2" = "auth status" ]; then
@@ -266,8 +324,9 @@ gh() {
   return 64
 }
 
+: >"$BOOTSTRAP_TEST_QRENCODE_ARGS"
 authenticate_github_cli
-grep -Fqx 'called' "$BOOTSTRAP_TEST_QR_LOG"
+diff -u "$tmp_dir/expected-qrencode-args" "$BOOTSTRAP_TEST_QRENCODE_ARGS"
 grep -Fqx 'auth login --web --scopes gist' "$BOOTSTRAP_TEST_GH_LOG"
 
 parse_args --dry-run

@@ -178,7 +178,7 @@ configure_gpg_for_sops() {
 
   export GPG_TTY="$gpg_tty"
   export SOPS_GPG_EXEC="$gpg_binary"
-  printf 'pinentry-program %s\n' "$pinentry_binary" >"$gpg_home/gpg-agent.conf"
+  printf 'pinentry-program %s\nallow-preset-passphrase\n' "$pinentry_binary" >"$gpg_home/gpg-agent.conf"
   gpg_runtime_configured="true"
 }
 
@@ -345,7 +345,7 @@ run_iso_install() {
   install -d -m 0700 "$GNUPGHOME" "$GH_CONFIG_DIR"
   configure_gpg_for_sops "$GNUPGHOME"
 
-  bash "$repository/scripts/bootstrap/bootstrap-gpg.sh"
+  BOOTSTRAP_GPG_CACHE_FOR_SOPS=true bash "$repository/scripts/bootstrap/bootstrap-gpg.sh"
   if ! gpg --list-secret-keys "$gpg_key_id" >/dev/null 2>&1; then
     printf 'Error    Required admin GPG key was not imported.\n' >&2
     exit 1

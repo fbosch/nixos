@@ -26,7 +26,7 @@ render_github_device_qr() {
 }
 
 show_github_device_qr() {
-  if [ -t 1 ] && [ "${TERM:-dumb}" != "dumb" ] && command -v qrencode >/dev/null 2>&1; then
+  if command -v qrencode >/dev/null 2>&1; then
     render_github_device_qr
   fi
 }
@@ -42,6 +42,86 @@ authenticate_github_cli() {
   printf "Open: %s\n" "$github_device_url"
   show_github_device_qr
   printf '\n' | GH_BROWSER=true gh auth login --web --scopes gist
+}
+
+preset_gpg_passphrase_for_sops() {
+  local gpg_key_passphrase="$1"
+  local key_listing
+  local keygrip
+  local preset_binary
+  local preset_failed="false"
+  local -a encryption_keygrips
+
+  if ! key_listing="$(gpg --batch --with-colons --with-keygrip --list-secret-keys "$gpg_key_id")"; then
+    printf "Error: Failed to inspect the imported GPG key.\n"
+    return 1
+  fi
+
+  mapfile -t encryption_keygrips < <(
+    awk -F: '
+      $1 == "sec" || $1 == "ssb" { encrypt = index($12, "e") > 0; next }
+      $1 == "grp" && encrypt { print $10 }
+    ' <<<"$key_listing"
+  )
+  if [ "${#encryption_keygrips[@]}" -eq 0 ]; then
+    printf "Error: Imported GPG key has no encryption keygrip.\n"
+    return 1
+  fi
+
+  preset_binary="$(gpgconf --list-dirs libexecdir)/gpg-preset-passphrase"
+  if [ ! -x "$preset_binary" ]; then
+    printf "Error: gpg-preset-passphrase is unavailable.\n"
+    return 1
+  fi
+
+  for keygrip in "${encryption_keygrips[@]}"; do
+    if ! printf "%s" "$gpg_key_passphrase" | "$preset_binary" --preset "$keygrip"; then
+      preset_failed="true"
+      break
+    fi
+  done
+  unset gpg_key_passphrase
+
+  if [ "$preset_failed" = "false" ] &&
+    printf "SOPS GPG passphrase check" |
+    gpg --batch --yes --quiet --trust-model always --recipient "$gpg_key_id" --encrypt 2>/dev/null |
+      gpg --batch --yes --quiet --pinentry-mode error --decrypt >/dev/null 2>&1; then
+    printf "GPG key passphrase cached for SOPS.\n"
+    return
+  fi
+
+  for keygrip in "${encryption_keygrips[@]}"; do
+    "$preset_binary" --forget "$keygrip" >/dev/null 2>&1 || true
+  done
+  printf "Error: Failed to unlock the imported GPG key.\n"
+  printf "Check the private-key passphrase (not the backup archive passphrase).\n"
+  return 1
+}
+
+cache_gpg_passphrase_for_sops() {
+  if [ "${BOOTSTRAP_GPG_CACHE_FOR_SOPS:-false}" != "true" ]; then
+    return
+  fi
+
+  local gpg_key_passphrase
+
+  if [ ! -r /dev/tty ]; then
+    printf "Error: No TTY available for GPG key passphrase prompt.\n"
+    return 1
+  fi
+  if IFS= read -r -p "Enter passphrase for imported GPG key (required by SOPS): " gpg_key_passphrase </dev/tty; then
+    printf "\n" >/dev/tty
+  else
+    printf "\nError: Failed to read GPG key passphrase from TTY.\n"
+    return 1
+  fi
+
+  if preset_gpg_passphrase_for_sops "$gpg_key_passphrase"; then
+    unset gpg_key_passphrase
+    return
+  fi
+  unset gpg_key_passphrase
+  return 1
 }
 
 if [ "${BOOTSTRAP_GPG_LIB_ONLY:-false}" = "true" ]; then
@@ -165,6 +245,7 @@ else
   exit 1
 fi
 unset gpg_backup_passphrase
+cache_gpg_passphrase_for_sops
 
 printf "\nSetting ultimate trust for GPG key...\n"
 if printf "trust\n5\ny\nquit\n" | gpg --command-fd 0 --edit-key "$gpg_key_id" >/dev/null 2>&1; then
