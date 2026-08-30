@@ -156,10 +156,19 @@ export BOOTSTRAP_INSTALL_LIB_ONLY=true
 # shellcheck disable=SC1091
 source "$repo_root/scripts/bootstrap/install.sh"
 
+install_host="${install_host-}"
+target_device="${target_device-}"
+
 export BOOTSTRAP_GPG_LIB_ONLY=true
 # shellcheck disable=SC1091
 source "$repo_root/scripts/bootstrap/bootstrap-gpg.sh"
 unset BOOTSTRAP_GPG_LIB_ONLY
+
+github_device_url="${github_device_url-}"
+if [ -z "$github_device_url" ]; then
+  printf 'GPG bootstrap source did not define github_device_url\n' >&2
+  exit 1
+fi
 
 cat >"$tmp_dir/bin/gpg" <<'EOF_GPG'
 #!/usr/bin/env bash
@@ -177,15 +186,19 @@ cat >"$tmp_dir/bin/qrencode" <<'EOF_QRENCODE'
 #!/usr/bin/env bash
 printf '%s\n' "$@" >"$BOOTSTRAP_TEST_QRENCODE_ARGS"
 EOF_QRENCODE
-chmod +x "$tmp_dir/bin/gpg" "$tmp_dir/bin/gpgconf" "$tmp_dir/bin/pinentry-curses" "$tmp_dir/bin/qrencode"
+cat >"$tmp_dir/bin/tty" <<'EOF_TTY'
+#!/usr/bin/env bash
+printf '%s\n' /dev/pts/bootstrap-test
+EOF_TTY
+chmod +x "$tmp_dir/bin/gpg" "$tmp_dir/bin/gpgconf" "$tmp_dir/bin/pinentry-curses" "$tmp_dir/bin/qrencode" "$tmp_dir/bin/tty"
 
 test_gpg_home="$tmp_dir/gpg-home"
 mkdir "$test_gpg_home"
 GNUPGHOME="$test_gpg_home"
 export GNUPGHOME
 configure_gpg_for_sops "$GNUPGHOME"
-if [ "$GPG_TTY" != "/dev/tty" ]; then
-  printf 'ISO GPG setup did not bind pinentry to /dev/tty\n' >&2
+if [ "$GPG_TTY" != "/dev/pts/bootstrap-test" ]; then
+  printf 'ISO GPG setup did not bind pinentry to the concrete terminal\n' >&2
   exit 1
 fi
 if [ "$SOPS_GPG_EXEC" != "$tmp_dir/bin/gpg" ]; then
@@ -194,17 +207,35 @@ if [ "$SOPS_GPG_EXEC" != "$tmp_dir/bin/gpg" ]; then
 fi
 grep -Fqx "pinentry-program $tmp_dir/bin/pinentry-curses" "$GNUPGHOME/gpg-agent.conf"
 
+iso_work_dir="$tmp_dir/failed-iso-work"
+mkdir -p "$iso_work_dir"
 touch "$GNUPGHOME/S.gpg-agent"
-cleanup_gpg_runtime
+set +e
+(
+  set -e
+  trap cleanup_iso_install EXIT
+  false
+)
+cleanup_status=$?
+set -e
+if [ "$cleanup_status" -ne 1 ]; then
+  printf 'simulated ISO failure exited with %s instead of 1\n' "$cleanup_status" >&2
+  exit 1
+fi
 cat >"$tmp_dir/expected-gpgconf-args" <<'EOF_EXPECTED_GPGCONF_ARGS'
 --kill
 all
 EOF_EXPECTED_GPGCONF_ARGS
 diff -u "$tmp_dir/expected-gpgconf-args" "$BOOTSTRAP_TEST_GPGCONF_ARGS"
-if [ -e "$GNUPGHOME/gpg-agent.conf" ] || [ -e "$GNUPGHOME/S.gpg-agent" ]; then
-  printf 'ISO GPG runtime files were not removed\n' >&2
+if [ -e "$iso_work_dir" ]; then
+  printf 'failed ISO workspace was not removed\n' >&2
   exit 1
 fi
+if [ -e "$GNUPGHOME/gpg-agent.conf" ] || [ -e "$GNUPGHOME/S.gpg-agent" ]; then
+  printf 'failed ISO GPG runtime files were not removed\n' >&2
+  exit 1
+fi
+export gpg_runtime_configured="false"
 
 render_github_device_qr
 cat >"$tmp_dir/expected-qrencode-args" <<EOF_EXPECTED_QRENCODE_ARGS

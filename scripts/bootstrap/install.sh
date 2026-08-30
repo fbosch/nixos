@@ -35,6 +35,7 @@ install_host="${NIXOS_INSTALL_HOST:-}"
 target_device=""
 age_alias=""
 sops_files=()
+gpg_runtime_configured="false"
 
 print_help() {
   cat <<'EOF_HELP'
@@ -97,6 +98,7 @@ parse_args() {
 }
 
 cleanup_iso_install() {
+  cleanup_gpg_runtime
   if [ -n "$iso_work_dir" ]; then
     rm -rf -- "$iso_work_dir"
   fi
@@ -167,19 +169,27 @@ generate_identities() {
 configure_gpg_for_sops() {
   local gpg_home="$1"
   local gpg_binary
+  local gpg_tty
   local pinentry_binary
 
   gpg_binary="$(command -v gpg)"
+  gpg_tty="$(tty)"
   pinentry_binary="$(command -v pinentry-curses)"
 
-  export GPG_TTY=/dev/tty
+  export GPG_TTY="$gpg_tty"
   export SOPS_GPG_EXEC="$gpg_binary"
   printf 'pinentry-program %s\n' "$pinentry_binary" >"$gpg_home/gpg-agent.conf"
+  gpg_runtime_configured="true"
 }
 
 cleanup_gpg_runtime() {
+  if [ "$gpg_runtime_configured" = "false" ]; then
+    return
+  fi
+
   gpgconf --kill all >/dev/null 2>&1 || true
   rm -f "$GNUPGHOME/gpg-agent.conf" "$GNUPGHOME"/S.gpg-agent*
+  gpg_runtime_configured="false"
 }
 
 rotate_sops_recipient() {
