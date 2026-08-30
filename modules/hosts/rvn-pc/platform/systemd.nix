@@ -5,7 +5,7 @@
       systemd = {
         # NetworkManager ships initrd-only variants in the same package. Mask
         # them in stage 2 so systemd does not see a duplicate D-Bus owner.
-        maskedSystemUnits = [
+        suppressedSystemUnits = [
           "NetworkManager-config-initrd.service"
           "NetworkManager-initrd.service"
           "NetworkManager-wait-online-initrd.service"
