@@ -88,7 +88,7 @@ namespace {
 
     void deliverPendingUpdate() {
         g_deliverySequence = 0;
-        if (!g_interaction || !g_interaction->pendingUpdate || !g_updatedEvent)
+        if (!g_interaction || !g_interaction->pendingUpdate)
             return;
 
         auto update = std::move(*g_interaction->pendingUpdate);
@@ -101,15 +101,16 @@ namespace {
         if (g_interaction->lastGeometry && sameGeometry(*g_interaction->lastGeometry, update.geometry))
             return;
 
-        if (!g_updatedEvent->emit({
+        if (g_updatedEvent) {
+            g_updatedEvent->emit({
                 window,
                 g_interaction->kind,
                 update.geometry.x,
                 update.geometry.y,
                 update.geometry.width,
                 update.geometry.height,
-            }))
-            return;
+            });
+        }
 
         postSocketUpdate(window, update.monitor.lock(), g_interaction->kind, update.geometry);
         g_interaction->lastGeometry = update.geometry;
