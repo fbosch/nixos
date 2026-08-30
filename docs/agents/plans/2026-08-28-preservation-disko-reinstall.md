@@ -14,8 +14,8 @@ Read-only LAN diagnostics and repository checks verified the following:
 - Disk swap is active at 48 GiB with priority `0`. zram is active with priority `5`. The kernel resume argument selects the approved NVMe swap partition.
 - `fbb` has UID `1000`. The preserved machine ID, system and Home Manager age keys, SOPS-managed password hash, and persistent SSH host keys exist with their intended ownership and modes.
 - Home Manager, Preservation, NetworkManager, Tailscale, and the SSH socket are active. Hyprland has a live instance and reports no configuration errors.
-- The protected Kingston and Seagate disks retain their recorded model, serial, capacity, filesystem UUID, NTFS automount declarations, and partition layout. Their contents still need an operator review.
-- Three boot sessions were recorded. The journal cannot distinguish a reboot from a full power cycle, so cold-boot validation remains open.
+- The protected Kingston and Seagate disks retain their recorded model, serial, capacity, filesystem UUID, NTFS automount declarations, partition layout, and expected contents.
+- Two operator-confirmed true cold boots used distinct boot IDs. On both, a sentinel on the tmpfs root disappeared while a persistent-home sentinel retained the same SHA-256 digest.
 - Idle graphical hibernation succeeded. The kernel entered and exited hibernation in the same boot session using NVMe disk resume, created a snapshot of about 12.9 GiB, and completed the NVIDIA hibernate and resume units without errors.
 
 The `rvn-pc` closure from commit `17b7dd05` builds. The Disko generated-script check, machine-ID check, all 78 Nix unit tests, and the bootstrap-installer contract test pass in the audited worktree. The `nixos` checkout on `rvn-pc` matches `origin/master`, with existing encrypted SOPS edits still uncommitted. The `dotfiles` checkout is clean and tracks its upstream revision.
@@ -40,9 +40,9 @@ Repository lint is fully green: Statix, Deadnix, formatting, Actionlint, service
 - Recovery archives intentionally contain plaintext private keys. CIFS access control is their confidentiality boundary. SHA-256 checks detect corruption, not a malicious replacement.
 - Keep the recovery backup until the remaining cold-boot, persistence, protected-disk, journal, and repeated hibernation checks complete.
 
-## Configuration cleanup pending activation
+## Configuration cleanup
 
-These configuration-only cleanup changes are present in the working tree:
+These configuration cleanup changes are active and verified:
 
 - [x] Legacy ext4 filesystem declarations are removed.
 - [x] GRUB OS probing is disabled.
@@ -57,22 +57,24 @@ These are the open checks. Do not infer completion from the current successful b
 
 ### Identity and login
 
-- [ ] Verify password login unless it is explicitly proven elsewhere.
+- [x] Verify password login unless it is explicitly proven elsewhere.
 - [ ] Compare the machine ID and SSH host-key fingerprints against an external recovery record. Do not treat files on the reinstalled system as the comparison source.
 
 ### Persistence and protected disks
 
-- [ ] Across at least two true cold boots, confirm an undeclared root-path test file disappears and a declared persistent-path test file survives.
-- [ ] Confirm the machine ID, SOPS keys, NetworkManager and Tailscale state, repositories, selected personal paths, and the persistent home survive those cold boots.
-- [ ] Review the protected Kingston and Seagate disks again for the recorded identity, partition layout, filesystem UUID, automount behavior, and expected content.
+- [x] Across at least two true cold boots, confirm an undeclared root-path test file disappears and a declared persistent-path test file survives.
+- [x] Confirm the machine ID, SOPS keys, NetworkManager and Tailscale state, repositories, selected personal paths, and the persistent home survive those cold boots.
+- [x] Review the protected Kingston and Seagate disks again for the recorded identity, partition layout, filesystem UUID, automount behavior, and expected content.
 
 ### Hibernation and stability
 
-- [ ] After hibernation resume, verify displays, audio, input devices, and networking.
-- [ ] Cold boot after a completed resume and confirm the tmpfs root resets normally.
-- [ ] Repeat hibernation and cold-boot cycles before treating resume as stable.
-- [ ] Activate the pending lifecycle fixes, then verify Home Manager succeeds, the standard XDG PolicyKit agent is the sole owner, the stale Gamescope service is removed, and the Steam patcher skips an uninitialized Steam profile.
-- [ ] Resolve the remaining journal issues: the encrypted NAS mount previously reported `BAD_NETWORK_NAME`; U2F rules reference a missing `plugdev` group; and `NetworkManager-initrd.service` has duplicate D-Bus ownership metadata.
+- [x] After hibernation resume, verify displays, audio, input devices, and networking.
+- [x] Cold boot after a completed resume and confirm the tmpfs root resets normally.
+- [x] Repeat hibernation and cold-boot cycles before treating resume as stable.
+- [x] Activate the lifecycle fixes and verify Home Manager succeeds, the standard XDG PolicyKit agent is the sole owner, the stale Gamescope service is removed, and the Steam patcher skips an uninitialized Steam profile.
+- [x] Declare the `plugdev` group required by the packaged U2F rules and verify a fresh boot no longer logs missing-group errors.
+- [x] Activate the corrected `system/networkmanager` aspect and verify a fresh boot no longer exposes initrd-only NetworkManager units or duplicate D-Bus ownership metadata.
+- [x] Confirm `//nas/encrypted` is intentionally unavailable while its backing NAS drive is unmounted; its automount failure on access is expected in that state.
 - [ ] Retain the recovery backup until all checks above pass.
 
 ## Recovery rules

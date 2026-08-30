@@ -24,8 +24,10 @@ Usage:
   local-host-recovery.sh list [--host <host>]
   local-host-recovery.sh verify [--host <host>] <backup-id>
   local-host-recovery.sh verify-latest [--host <host>]
+  local-host-recovery.sh compare [--host <host>] <backup-id>
+  local-host-recovery.sh compare-latest [--host <host>]
 
-Create or verify a recovery archive using a checked-in host manifest.
+Create, verify, or compare a recovery archive using a checked-in host manifest.
 EOF
 }
 
@@ -326,6 +328,52 @@ verify_backup() {
   printf 'Backup verified: host=%s id=%s\n' "$host" "$backup_id"
 }
 
+resolve_current_source() {
+  local source_path="$1"
+  local persistent_path="/persist$source_path"
+
+  current_source_path=""
+  if [[ -f $source_path && ! -L $source_path ]]; then
+    current_source_path="$source_path"
+  elif [[ $source_path != /persist/* && -f $persistent_path && ! -L $persistent_path ]]; then
+    current_source_path="$persistent_path"
+  fi
+}
+
+compare_backup() {
+  local host="$1"
+  local manifest="$2"
+  local backup_id="$3"
+  local host_destination backup_dir source_path member
+  local current_source_path=""
+  local mismatches=0
+
+  [[ $backup_id =~ ^[0-9]{8}T[0-9]{6}Z-p[0-9]+$ ]] || usage_error "invalid backup ID: $backup_id"
+  host_destination="$manifest_destination/$host"
+  [[ -d $host_destination && ! -L $host_destination ]] ||
+    die "host backup destination does not exist: $host_destination"
+  backup_dir="$host_destination/$backup_id"
+
+  validate_backup_set "$backup_dir" "$manifest"
+  for source_path in "${source_paths[@]}"; do
+    member="${source_path#/}"
+    resolve_current_source "$source_path"
+    if [[ -z $current_source_path ]]; then
+      printf 'MISSING   %s\n' "$source_path"
+      ((mismatches += 1))
+    elif cmp --silent -- "$current_source_path" <(tar --extract --to-stdout --file="$backup_dir/payload.tar" "$member"); then
+      printf 'MATCH     %s\n' "$source_path"
+    else
+      printf 'MISMATCH  %s\n' "$source_path"
+      ((mismatches += 1))
+    fi
+  done
+
+  ((mismatches == 0)) ||
+    die "recovery comparison failed: host=$host id=$backup_id mismatches=$mismatches"
+  printf 'Recovery comparison passed: host=%s id=%s sources=%s\n' "$host" "$backup_id" "${#source_paths[@]}"
+}
+
 collect_backup_ids() {
   local host="$1"
   local host_destination="$manifest_destination/$host"
@@ -408,6 +456,17 @@ verify_latest_backup() {
   verify_backup "$host" "$host_manifest" "${backup_ids[$latest_index]}"
 }
 
+compare_latest_backup() {
+  local host="$1"
+  local host_manifest="$2"
+  local latest_index
+
+  collect_backup_ids "$host"
+  ((${#backup_ids[@]} > 0)) || die "no recovery backups found for host: $host"
+  latest_index=$((${#backup_ids[@]} - 1))
+  compare_backup "$host" "$host_manifest" "${backup_ids[$latest_index]}"
+}
+
 main() {
   local operation="${1:-}"
   local running_host selected_host backup_id manifest
@@ -421,14 +480,14 @@ main() {
   check | backup)
     (($# == 1)) || usage_error "$operation does not accept additional arguments"
     ;;
-  list | verify-latest)
+  list | verify-latest | compare-latest)
     case "$#:${2:-}" in
     1:*) selected_host="" ;;
     3:--host) selected_host="$3" ;;
     *) usage_error "$operation accepts only [--host <host>]" ;;
     esac
     ;;
-  verify)
+  verify | compare)
     case "$#:${2:-}" in
     2:*)
       selected_host=""
@@ -438,7 +497,7 @@ main() {
       selected_host="$3"
       backup_id="$4"
       ;;
-    *) usage_error "verify requires [--host <host>] and one backup ID" ;;
+    *) usage_error "$operation requires [--host <host>] and one backup ID" ;;
     esac
     ;;
   "") usage_error "an operation is required" ;;
@@ -470,6 +529,8 @@ main() {
   list) list_backups "$selected_host" ;;
   verify) verify_backup "$selected_host" "$manifest" "$backup_id" ;;
   verify-latest) verify_latest_backup "$selected_host" "$manifest" ;;
+  compare) compare_backup "$selected_host" "$manifest" "$backup_id" ;;
+  compare-latest) compare_latest_backup "$selected_host" "$manifest" ;;
   esac
 }
 

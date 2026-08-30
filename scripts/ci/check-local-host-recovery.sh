@@ -120,6 +120,11 @@ if bash "$test_script" verify-latest >"$tmp_dir/empty-latest.stdout" 2>"$tmp_dir
   exit 1
 fi
 [[ ! -s "$tmp_dir/empty-latest.stdout" ]]
+if bash "$test_script" compare-latest >"$tmp_dir/empty-compare.stdout" 2>"$tmp_dir/empty-compare.stderr"; then
+  printf 'compare-latest accepted an empty backup directory\n' >&2
+  exit 1
+fi
+[[ ! -s "$tmp_dir/empty-compare.stdout" ]]
 
 backup_output="$(bash "$test_script" backup)"
 if [[ $backup_output == *"$test_secret"* ]]; then
@@ -150,6 +155,25 @@ installer_verify_output="$(TEST_HOSTNAME=nixos bash "$test_script" verify --host
 [[ $installer_verify_output == "Backup verified: host=test-host id=$backup_id" ]]
 latest_verify_output="$(bash "$test_script" verify-latest)"
 [[ $latest_verify_output == "Backup verified: host=test-host id=$backup_id" ]]
+
+mapfile -t compare_lines < <(bash "$test_script" compare "$backup_id")
+[[ ${compare_lines[0]} == "MATCH     $test_source_dir/identity key" ]]
+[[ ${compare_lines[1]} == "Recovery comparison passed: host=test-host id=$backup_id sources=1" ]]
+mapfile -t installer_compare_lines < <(TEST_HOSTNAME=nixos bash "$test_script" compare --host test-host "$backup_id")
+[[ ${installer_compare_lines[*]} == "${compare_lines[*]}" ]]
+mapfile -t latest_compare_lines < <(bash "$test_script" compare-latest)
+[[ ${latest_compare_lines[*]} == "${compare_lines[*]}" ]]
+
+printf 'changed current state\n' >"$test_source_dir/identity key"
+if bash "$test_script" compare "$backup_id" >"$tmp_dir/compare-mismatch.stdout" 2>"$tmp_dir/compare-mismatch.stderr"; then
+  printf 'compare accepted mismatched current state\n' >&2
+  exit 1
+fi
+[[ $(<"$tmp_dir/compare-mismatch.stdout") == "MISMATCH  $test_source_dir/identity key" ]]
+[[ $(<"$tmp_dir/compare-mismatch.stderr") == "Error: recovery comparison failed: host=test-host id=$backup_id mismatches=1" ]]
+[[ $(<"$tmp_dir/compare-mismatch.stdout") != *"$test_secret"* ]]
+[[ $(<"$tmp_dir/compare-mismatch.stderr") != *"$test_secret"* ]]
+printf '%s\n' "$test_secret" >"$test_source_dir/identity key"
 
 ln -s /etc/passwd "$tmp_dir/malicious-link"
 tar \
@@ -230,5 +254,6 @@ collision_destination="$(<"$TEST_MV_DESTINATION")"
 
 help_output="$(bash "$test_script" --help)"
 [[ $help_output == *"local-host-recovery.sh backup"* ]]
+[[ $help_output == *"local-host-recovery.sh compare"* ]]
 
 printf 'local host recovery check passed\n'

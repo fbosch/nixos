@@ -97,6 +97,16 @@ verify-recovery $backup_id:
 verify-latest-recovery:
     sudo bash ./scripts/recovery/local-host-recovery.sh verify-latest
 
+# Compare current recovery sources with an archive by its backup ID
+[group('maintenance')]
+compare-recovery $backup_id:
+    sudo bash ./scripts/recovery/local-host-recovery.sh compare "$backup_id"
+
+# Compare current recovery sources with the newest archive
+[group('maintenance')]
+compare-latest-recovery:
+    sudo bash ./scripts/recovery/local-host-recovery.sh compare-latest
+
 # Show the GPG gist rotation actions without writing to GitHub
 [group('maintenance')]
 rotate-gpg-gist-dry:
