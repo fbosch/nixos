@@ -12,7 +12,7 @@ too expensive to implement in Lua.
 | [`focus-animation`](focus-animation/) | 0.1.10 | Add a scale-based `windowsFocus` animation leaf. |
 | [`inset-border`](inset-border/) | 0.3.0 | Draw focus-aware keylines inside window content. |
 | [`pointer-edge-hooks`](pointer-edge-hooks/) | 0.1.0 | Emit pointer zones relative to the bottom monitor edge. |
-| [`window-interaction-hooks`](window-interaction-hooks/) | 0.1.0 | Emit completion events for native window moves and resizes. |
+| [`window-interaction-hooks`](window-interaction-hooks/) | 0.2.0 | Emit live and completed native window move and resize events. |
 
 All plugins are MIT-licensed and currently packaged for `x86_64-linux`.
 
@@ -217,7 +217,7 @@ Lua API under `hl.plugin.pointer_edge_hooks`:
 | `start(showThreshold, hideThreshold)` | Start tracking and return whether the initial zone was emitted. |
 | `stop()` | Stop tracking and return whether tracking was active. |
 | `sync()` | Force the current zone to be emitted and return whether emission succeeded. |
-| `rebind()` | Re-register the custom event and return whether registration succeeded. |
+| `rebind()` | Re-registers the custom event and returns whether registration succeeded. |
 
 Thresholds are integers measured in logical pixels. `showThreshold` must be
 non-negative and `hideThreshold` must be greater than `showThreshold`. The
@@ -241,33 +241,43 @@ Call `rebind()` after a config reload for the same reason as
 ### `window-interaction-hooks`
 
 [`window-interaction-hooks/main.cpp`](window-interaction-hooks/main.cpp) observes
-Hyprland's native interactive move and resize controller. It emits one event
-after an interaction reaches the drag threshold and then finishes. It does not
-stream geometry during the interaction.
+Hyprland's native interactive move and resize controller. After the drag
+threshold is reached, it streams deduplicated geometry updates and emits a final
+completion event when the controller releases its target.
 
 Lua API under `hl.plugin.window_interaction_hooks`:
 
 | Function | Result |
 | --- | --- |
-| `rebind()` | Re-registers the custom event and returns whether registration succeeded. |
+| `rebind()` | Re-registers both custom events and returns whether registration succeeded. |
+| `supports_updates()` | Returns `true` when live update delivery is available. |
 
-The plugin emits `window_interaction_hooks.finished` with these fields in order:
+The plugin emits `window_interaction_hooks.updated` and
+`window_interaction_hooks.finished` with the same fields in order:
 
 | Position | Field | Type | Value |
 | --- | --- | --- | --- |
 | 1 | `window` | window | The affected Hyprland window. |
 | 2 | `kind` | string | `move` or `resize`. |
-| 3 | `x` | double | Final layout-box x coordinate. |
-| 4 | `y` | double | Final layout-box y coordinate. |
-| 5 | `width` | double | Final layout-box width. |
-| 6 | `height` | double | Final layout-box height. |
+| 3 | `x` | double | Current or final layout-box x coordinate. |
+| 4 | `y` | double | Current or final layout-box y coordinate. |
+| 5 | `width` | double | Current or final layout-box width. |
+| 6 | `height` | double | Current or final layout-box height. |
+
+Live updates are sampled after Hyprland applies pointer-driven geometry,
+deduplicated by layout box, and rate-limited to one emission per 16 milliseconds.
+The same update is mirrored to Socket2 for long-lived external consumers:
+
+```text
+windowinteractionupdated>>0x<window>,<move|resize>,<monitor-id>,<x>,<y>,<width>,<height>
+```
 
 The plugin recognizes normal moves and normal, forced-ratio, and
 blocked-ratio resizes. It ignores other mouse-bind modes and does not emit if
-the captured window is unmapped before completion.
+the captured window is unmapped before delivery or completion.
 
-Call `rebind()` after a config reload so the new Lua state receives the custom
-event.
+Call `rebind()` after a config reload so the new Lua state receives both custom
+events.
 
 ## Reload behavior
 
