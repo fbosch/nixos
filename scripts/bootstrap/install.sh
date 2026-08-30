@@ -193,7 +193,7 @@ generate_identities() {
   install -d -m 0755 "$identity_tree/etc/ssh" "$identity_tree/var/lib/sops-nix"
   install -d -m 0700 "$identity_tree/home/$user" "$identity_tree/home/$user/.config/sops/age"
 
-  tr -d '-' </proc/sys/kernel/random/uuid >"$identity_tree/etc/machine-id"
+  tr -d '\n-' </proc/sys/kernel/random/uuid >"$identity_tree/etc/machine-id"
   printf '\n' >>"$identity_tree/etc/machine-id"
   chmod 0444 "$identity_tree/etc/machine-id"
 
@@ -584,6 +584,7 @@ validate_resume_identities() {
   local required_file
   local secret_file
   local machine_id_value
+  local machine_id_size
   local derived_public_key
   local stored_public_key
   local -a required_files=(
@@ -603,7 +604,8 @@ validate_resume_identities() {
     fi
   done
   machine_id_value="$(<"$machine_id")"
-  if [[ ! $machine_id_value =~ ^[0-9a-f]{32}$ ]]; then
+  machine_id_size="$(wc -c <"$machine_id")"
+  if [ "$machine_id_size" -ne 33 ] || [[ ! $machine_id_value =~ ^[0-9a-f]{32}$ ]]; then
     printf 'Error    Cannot resume because the persisted machine ID is malformed.\n' >&2
     return 1
   fi

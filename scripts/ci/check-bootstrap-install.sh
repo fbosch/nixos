@@ -485,6 +485,11 @@ chmod 0600 \
   "$install_root/persist/home/fbb/.config/sops/age/keys.txt"
 validate_resume_identities "$resume_checkout"
 chmod 0644 "$install_root/persist/etc/machine-id"
+printf '\n' >>"$install_root/persist/etc/machine-id"
+if validate_resume_identities "$resume_checkout" >/dev/null 2>&1; then
+  printf 'resume identity validation accepted an extra machine ID newline\n' >&2
+  exit 1
+fi
 printf '%s\n' malformed >"$install_root/persist/etc/machine-id"
 if validate_resume_identities "$resume_checkout" >/dev/null 2>&1; then
   printf 'resume identity validation accepted a malformed machine ID\n' >&2

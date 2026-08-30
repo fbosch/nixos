@@ -10,7 +10,8 @@ let
     fi
 
     machine_id="$(<"$machine_id_path")"
-    if [[ ! "$machine_id" =~ ^[0-9a-f]{32}$ || "$machine_id" == "00000000000000000000000000000000" ]]; then
+    machine_id_size="$(wc -c < "$machine_id_path")"
+    if [[ "$machine_id_size" -ne 33 || ! "$machine_id" =~ ^[0-9a-f]{32}$ || "$machine_id" == "00000000000000000000000000000000" ]]; then
       echo "Persistent machine ID is empty or malformed: $machine_id_path" >&2
       exit 1
     fi
@@ -230,6 +231,10 @@ in
             printf '%s\n' '0123456789abcdef0123456789abcdef' > "$fixtures/valid"
             ${validator} "$fixtures/valid"
 
+            printf '\n' >> "$fixtures/valid"
+            expect_failure "$fixtures/valid"
+
+            printf '%s\n' '0123456789abcdef0123456789abcdef' > "$fixtures/valid"
             ln -s "$fixtures/valid" "$fixtures/symlink"
             expect_failure "$fixtures/symlink"
 
