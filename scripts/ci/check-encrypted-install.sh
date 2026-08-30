@@ -107,5 +107,19 @@ if grep -Eq 'part3|local-host-recovery|restore' <<<"$install_body"; then
   printf 'integrated encrypted install can reach plaintext or recovery logic\n' >&2
   exit 1
 fi
+storage_verifier="$(sed -n '/^verify_encrypted_storage() {$/,/^}$/p' "$installer")"
+for required_check in 'lvs --noheadings' 'pvs --noheadings' 'pv_count' 'mapper_device'; do
+  grep -Fq "$required_check" <<<"$storage_verifier" || {
+    printf 'encrypted storage verifier is missing %s\n' "$required_check" >&2
+    exit 1
+  }
+done
+if grep -Fq 'lsblk --inverse' <<<"$storage_verifier"; then
+  printf 'encrypted storage verifier still relies on ambiguous lsblk ancestry\n' >&2
+  exit 1
+fi
+# The target path must remain literal until the installer evaluates it.
+# shellcheck disable=SC2016
+grep -Fq 'ERASE $target_device AS LUKS2' <<<"$install_body"
 
 printf 'integrated encrypted installer contract check passed\n'

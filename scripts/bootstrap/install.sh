@@ -241,9 +241,22 @@ cleanup_gpg_runtime() {
 
 cleanup_target_storage() {
   local cleanup_failed="false"
+  local mapper_device
+  local pv_name
+  local pv_vg
 
   if [ "$target_storage_active" = "false" ]; then
     return
+  fi
+  if [ -z "$volume_group" ] && [ -n "$luks_mapping" ] && [ -b "/dev/mapper/$luks_mapping" ]; then
+    mapper_device="$(readlink -f -- "/dev/mapper/$luks_mapping")"
+    while read -r pv_name pv_vg; do
+      [ -n "$pv_name" ] || continue
+      if [ "$(readlink -f -- "$pv_name")" = "$mapper_device" ]; then
+        volume_group="$pv_vg"
+        break
+      fi
+    done < <(pvs --noheadings --options pv_name,vg_name 2>/dev/null || true)
   fi
   if [ -z "$volume_group" ] && [ -n "$target_system_device" ] && [ -b "$target_system_device" ]; then
     volume_group="$(lvs --noheadings --options vg_name "$target_system_device" 2>/dev/null || true)"
@@ -407,9 +420,10 @@ rotate_sops_recipient() {
       sops updatekeys --yes "$secret_file"
     done
 
-    SOPS_AGE_KEY_FILE="$system_age_key" sops --decrypt "${secret_files[0]}" >/dev/null
-    SOPS_AGE_KEY_FILE="$system_age_key" sops --decrypt secrets/common.yaml >/dev/null
-    SOPS_AGE_KEY_FILE="$user_age_key" sops --decrypt secrets/common.yaml >/dev/null
+    for secret_file in "${secret_files[@]}"; do
+      SOPS_AGE_KEY_FILE="$system_age_key" sops --decrypt "$secret_file" >/dev/null
+    done
+    SOPS_AGE_KEY_FILE="$user_age_key" sops --decrypt "${secret_files[0]}" >/dev/null
   )
 }
 
@@ -635,10 +649,13 @@ verify_target_mount() {
 
 verify_encrypted_storage() {
   local backing_device
-  local ancestor
-  local canonical_target
-  local system_on_target="false"
-  local swap_on_target="false"
+  local mapper_device
+  local pv_name
+  local pv_rows
+  local pv_vg
+  local system_vg
+  local swap_vg
+  local pv_count=0
 
   cryptsetup isLuks "$luks_device" || {
     printf 'Error    Evaluated LUKS device is not a LUKS container: %s\n' "$luks_device" >&2
@@ -654,21 +671,37 @@ verify_encrypted_storage() {
     return 1
   fi
 
-  canonical_target="$(readlink -f -- "$target_device")"
-  while read -r ancestor; do
-    if [ "$(readlink -f -- "$ancestor")" = "$canonical_target" ]; then
-      system_on_target="true"
-      break
+  system_vg="$(lvs --noheadings --options vg_name "$target_system_device")" || {
+    printf 'Error    Evaluated system device is not an active LVM logical volume: %s\n' "$target_system_device" >&2
+    return 1
+  }
+  swap_vg="$(lvs --noheadings --options vg_name "$target_swap_device")" || {
+    printf 'Error    Evaluated resume device is not an active LVM logical volume: %s\n' "$target_swap_device" >&2
+    return 1
+  }
+  system_vg="${system_vg//[[:space:]]/}"
+  swap_vg="${swap_vg//[[:space:]]/}"
+  if [ -z "$system_vg" ] || [ "$system_vg" != "$swap_vg" ]; then
+    printf 'Error    Evaluated system and resume devices do not share one LVM volume group.\n' >&2
+    return 1
+  fi
+  volume_group="$system_vg"
+
+  mapper_device="$(readlink -f -- "/dev/mapper/$luks_mapping")"
+  pv_rows="$(pvs --noheadings --options pv_name,vg_name --select "vg_name=$volume_group")" || {
+    printf 'Error    Failed to inspect physical volumes for volume group: %s\n' "$volume_group" >&2
+    return 1
+  }
+  while read -r pv_name pv_vg; do
+    [ -n "$pv_name" ] || continue
+    pv_count=$((pv_count + 1))
+    if [ "$pv_vg" != "$volume_group" ] || [ "$(readlink -f -- "$pv_name")" != "$mapper_device" ]; then
+      printf 'Error    Target volume group is not backed only by the evaluated LUKS mapping.\n' >&2
+      return 1
     fi
-  done < <(lsblk --inverse --noheadings --paths --output NAME "$target_system_device")
-  while read -r ancestor; do
-    if [ "$(readlink -f -- "$ancestor")" = "$canonical_target" ]; then
-      swap_on_target="true"
-      break
-    fi
-  done < <(lsblk --inverse --noheadings --paths --output NAME "$target_swap_device")
-  if [ "$system_on_target" != "true" ] || [ "$swap_on_target" != "true" ]; then
-    printf 'Error    Evaluated system and swap devices are not descendants of the target disk.\n' >&2
+  done <<<"$pv_rows"
+  if [ "$pv_count" -ne 1 ]; then
+    printf 'Error    Target volume group must contain exactly one physical volume; found %s.\n' "$pv_count" >&2
     return 1
   fi
 }
@@ -1011,6 +1044,7 @@ run_iso_install() {
     exit 1
   fi
   printf 'Success  Validated disk plan.\n' >&2
+  printf '%s\n' "$disko_preflight_output" >&2
   print_install_plan "$host" "$repository_revision"
   if [ "$install_dry_run" = "true" ]; then
     printf '\nSuccess  Dry run completed. No disk changes were made.\n'
@@ -1019,8 +1053,8 @@ run_iso_install() {
 
   printf '\n%bErase target disk%b\n' "$style_erase" "$style_reset" >&2
   printf '  This permanently deletes all data on %s.\n' "$target_device" >&2
-  read -r -p "Type 'ERASE $host' to install: " confirmation </dev/tty
-  if [ "$confirmation" != "ERASE $host" ]; then
+  read -r -p "Type 'ERASE $target_device AS LUKS2' to install: " confirmation </dev/tty
+  if [ "$confirmation" != "ERASE $target_device AS LUKS2" ]; then
     printf 'Info     Installation cancelled.\n'
     exit 0
   fi
@@ -1032,6 +1066,8 @@ run_iso_install() {
   verify_target_mount "$install_root/boot" "${target_device}-part1" vfat /
   verify_target_mount "$install_root/nix" "$target_system_device" btrfs /nix
   verify_target_mount "$install_root/persist" "$target_system_device" btrfs /persist
+  printf '%s\n' "$repository_revision" >"$install_root/persist/.nixos-install-revision"
+  chmod 0444 "$install_root/persist/.nixos-install-revision"
 
   swapon "$target_swap_device"
   target_swap_active="true"
@@ -1107,6 +1143,11 @@ run_iso_resume() {
   verify_target_mount "$install_root/boot" "${target_device}-part1" vfat /
   verify_target_mount "$install_root/nix" "$target_system_device" btrfs /nix
   verify_target_mount "$install_root/persist" "$target_system_device" btrfs /persist
+  if [ ! -f "$install_root/persist/.nixos-install-revision" ] ||
+    [ "$(<"$install_root/persist/.nixos-install-revision")" != "$repository_revision" ]; then
+    printf 'Error    Resume revision does not match the revision that created the encrypted target.\n' >&2
+    exit 1
+  fi
   swapon "$target_swap_device"
   target_swap_active="true"
 
