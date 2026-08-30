@@ -7,9 +7,6 @@
 #include <hyprland/src/output/Monitor.hpp>
 #include <hyprland/src/plugins/PluginAPI.hpp>
 
-#include <algorithm>
-#include <chrono>
-#include <cmath>
 #include <cstdint>
 #include <format>
 #include <optional>
@@ -26,16 +23,18 @@ extern "C" {
 
 namespace {
 
-    constexpr auto   EXPECTED_HYPRLAND_COMMIT = GIT_COMMIT_HASH;
-    constexpr double DEFAULT_REFRESH_RATE_HZ  = 60.0;
-    constexpr int    MIN_UPDATE_INTERVAL_MS   = 6;
-    constexpr int    MAX_UPDATE_INTERVAL_MS   = 17;
+    constexpr auto EXPECTED_HYPRLAND_COMMIT = GIT_COMMIT_HASH;
+
+    struct SPendingUpdate {
+        PHLMONITORREF monitor;
+        CBox          geometry;
+    };
 
     struct SInteraction {
-        PHLWINDOWREF                                         window;
-        std::string                                          kind;
-        std::optional<CBox>                                  lastGeometry;
-        std::optional<std::chrono::steady_clock::time_point> lastEmission;
+        PHLWINDOWREF                  window;
+        std::string                   kind;
+        std::optional<CBox>           lastGeometry;
+        std::optional<SPendingUpdate> pendingUpdate;
     };
 
     HANDLE                             g_handle = nullptr;
@@ -44,8 +43,10 @@ namespace {
     CHyprSignalListener                g_mouseMoveListener;
     CHyprSignalListener                g_mouseButtonListener;
     CHyprSignalListener                g_keyListener;
+    CHyprSignalListener                g_renderPreListener;
     std::optional<SInteraction>        g_interaction;
     uint64_t                           g_syncSequence = 0;
+    uint64_t                           g_deliverySequence = 0;
 
     std::optional<std::string_view> interactionKind(eMouseBindMode mode) {
         switch (mode) {
@@ -61,21 +62,8 @@ namespace {
         return first.x == second.x && first.y == second.y && first.width == second.width && first.height == second.height;
     }
 
-    std::chrono::milliseconds updateInterval(PHLWINDOW window) {
-        const auto monitor = window ? window->m_monitor.lock() : nullptr;
-        const auto refreshRate = monitor && std::isfinite(monitor->m_refreshRate) && monitor->m_refreshRate > 0.F ?
-            static_cast<double>(monitor->m_refreshRate) :
-            DEFAULT_REFRESH_RATE_HZ;
-        const auto intervalMs = static_cast<int>(std::lround(1000.0 / refreshRate));
-        return std::chrono::milliseconds{std::clamp(intervalMs, MIN_UPDATE_INTERVAL_MS, MAX_UPDATE_INTERVAL_MS)};
-    }
-
-    void postSocketUpdate(PHLWINDOW window, std::string_view kind, const CBox& geometry) {
-        if (!window || !IPC::Socket2::sock())
-            return;
-
-        const auto monitor = window->m_monitor.lock();
-        if (!monitor)
+    void postSocketUpdate(PHLWINDOW window, PHLMONITOR monitor, std::string_view kind, const CBox& geometry) {
+        if (!window || !monitor || !IPC::Socket2::sock())
             return;
 
         IPC::Socket2::sock()->postEvent({
@@ -92,35 +80,107 @@ namespace {
         });
     }
 
-    void emitUpdated(SInteraction& interaction) {
-        if (!g_updatedEvent)
+    void cancelPendingDelivery() {
+        if (g_deliverySequence && g_pEventLoopManager)
+            g_pEventLoopManager->removeDoLater(g_deliverySequence);
+        g_deliverySequence = 0;
+    }
+
+    void deliverPendingUpdate() {
+        g_deliverySequence = 0;
+        if (!g_interaction || !g_interaction->pendingUpdate || !g_updatedEvent)
             return;
 
-        const auto window = interaction.window.lock();
+        auto update = std::move(*g_interaction->pendingUpdate);
+        g_interaction->pendingUpdate.reset();
+
+        const auto window = g_interaction->window.lock();
         if (!Desktop::View::validMapped(window))
             return;
 
-        const auto geometry = window->layoutBox();
-        if (interaction.lastGeometry && sameGeometry(*interaction.lastGeometry, geometry))
-            return;
-
-        const auto now = std::chrono::steady_clock::now();
-        if (interaction.lastEmission && now - *interaction.lastEmission < updateInterval(window))
+        if (g_interaction->lastGeometry && sameGeometry(*g_interaction->lastGeometry, update.geometry))
             return;
 
         if (!g_updatedEvent->emit({
                 window,
-                interaction.kind,
-                geometry.x,
-                geometry.y,
-                geometry.width,
-                geometry.height,
+                g_interaction->kind,
+                update.geometry.x,
+                update.geometry.y,
+                update.geometry.width,
+                update.geometry.height,
             }))
             return;
 
-        postSocketUpdate(window, interaction.kind, geometry);
-        interaction.lastGeometry = geometry;
-        interaction.lastEmission = now;
+        postSocketUpdate(window, update.monitor.lock(), g_interaction->kind, update.geometry);
+        g_interaction->lastGeometry = update.geometry;
+    }
+
+    void schedulePendingDelivery() {
+        if (g_deliverySequence || !g_pEventLoopManager)
+            return;
+
+        g_deliverySequence = g_pEventLoopManager->doLater([] { deliverPendingUpdate(); });
+    }
+
+    bool captureActiveInteraction() {
+        if (!g_handle || !g_layoutManager)
+            return false;
+
+        const auto& controller = g_layoutManager->dragController();
+        if (!controller)
+            return false;
+
+        const auto target = controller->target();
+        if (!target || !controller->dragThresholdReached())
+            return false;
+
+        const auto kind   = interactionKind(controller->mode());
+        const auto window = target->window();
+        if (!kind || !Desktop::View::validMapped(window))
+            return false;
+
+        const auto captured = g_interaction ? g_interaction->window.lock() : nullptr;
+        if (!g_interaction || captured != window || g_interaction->kind != *kind) {
+            cancelPendingDelivery();
+            g_interaction = SInteraction{.window = window, .kind = std::string{*kind}};
+        }
+
+        return true;
+    }
+
+    void captureFrameUpdate(PHLMONITOR monitor) {
+        if (!monitor || !captureActiveInteraction() || !g_interaction)
+            return;
+
+        const auto window = g_interaction->window.lock();
+        if (!Desktop::View::validMapped(window) || window->m_monitor.lock() != monitor)
+            return;
+
+        const auto geometry = window->layoutBox();
+        if (g_interaction->lastGeometry && sameGeometry(*g_interaction->lastGeometry, geometry))
+            return;
+        if (g_interaction->pendingUpdate && sameGeometry(g_interaction->pendingUpdate->geometry, geometry))
+            return;
+
+        g_interaction->pendingUpdate = SPendingUpdate{.monitor = monitor, .geometry = geometry};
+        schedulePendingDelivery();
+    }
+
+    void flushFinalUpdate() {
+        if (!g_interaction)
+            return;
+
+        cancelPendingDelivery();
+
+        const auto window = g_interaction->window.lock();
+        if (!Desktop::View::validMapped(window))
+            return;
+
+        g_interaction->pendingUpdate = SPendingUpdate{
+            .monitor  = window->m_monitor,
+            .geometry = window->layoutBox(),
+        };
+        deliverPendingUpdate();
     }
 
     void emitFinished(SInteraction interaction) {
@@ -142,6 +202,17 @@ namespace {
         });
     }
 
+    void finishInteraction() {
+        if (!g_interaction)
+            return;
+
+        flushFinalUpdate();
+
+        auto finished = std::move(*g_interaction);
+        g_interaction.reset();
+        emitFinished(std::move(finished));
+    }
+
     void syncInteraction() {
         if (!g_handle || !g_layoutManager)
             return;
@@ -151,31 +222,20 @@ namespace {
             return;
 
         const auto target = controller->target();
-        if (target && controller->dragThresholdReached()) {
-            const auto kind   = interactionKind(controller->mode());
-            const auto window = target->window();
-            if (!kind || !Desktop::View::validMapped(window))
-                return;
-
-            const auto captured = g_interaction ? g_interaction->window.lock() : nullptr;
-            if (!g_interaction || captured != window || g_interaction->kind != *kind)
-                g_interaction = SInteraction{.window = window, .kind = std::string{*kind}};
-
-            emitUpdated(*g_interaction);
+        if (target) {
+            if (controller->dragThresholdReached())
+                captureActiveInteraction();
             return;
         }
 
-        if (!target && g_interaction) {
-            auto finished = std::move(*g_interaction);
-            g_interaction.reset();
-            emitFinished(std::move(finished));
-        }
+        if (g_interaction)
+            finishInteraction();
     }
 
     void scheduleSync(bool captureCurrent) {
-        // Button and key events can release the drag target before the idle turn,
-        // so capture their current state first. Mouse movement is sampled only
-        // after Hyprland has applied the new geometry.
+        // Input events are emitted before Hyprland mutates the drag controller.
+        // Preserve the active target before button/key release, then observe the
+        // resulting lifecycle state from idle. Geometry delivery is frame-driven.
         if (captureCurrent)
             syncInteraction();
 
@@ -192,10 +252,12 @@ namespace {
         if (g_syncSequence && g_pEventLoopManager)
             g_pEventLoopManager->removeDoLater(g_syncSequence);
         g_syncSequence = 0;
+        cancelPendingDelivery();
 
         g_mouseMoveListener.reset();
         g_mouseButtonListener.reset();
         g_keyListener.reset();
+        g_renderPreListener.reset();
         g_interaction.reset();
 
         if (g_handle && g_finishedEvent)
@@ -304,10 +366,11 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     g_mouseMoveListener   = Event::bus()->m_events.input.mouse.move.listen([](const auto&, auto&) { scheduleSync(false); });
     g_mouseButtonListener = Event::bus()->m_events.input.mouse.button.listen([](const auto&, auto&) { scheduleSync(true); });
     g_keyListener         = Event::bus()->m_events.input.keyboard.key.listen([](const auto&, auto&) { scheduleSync(true); });
+    g_renderPreListener   = Event::bus()->m_events.render.pre.listen([](PHLMONITOR monitor) { captureFrameUpdate(monitor); });
 
     const auto description = PLUGIN_DESCRIPTION_INFO{
         "window-interaction-hooks",
-        "Emit live and completed interactive window move and resize events",
+        "Emit frame-coalesced and completed interactive window move and resize events",
         "local",
         "0.2.0",
     };
