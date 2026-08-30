@@ -264,11 +264,16 @@ The plugin emits `window_interaction_hooks.updated` and
 | 5 | `width` | double | Current or final layout-box width. |
 | 6 | `height` | double | Current or final layout-box height. |
 
-Live updates are sampled after Hyprland applies pointer-driven geometry and
-deduplicated by layout box. Their cadence is derived from the window's current
-monitor refresh rate using `round(1000 / refreshRate)` milliseconds, clamped
-between 6 and 17 milliseconds. Invalid or unavailable refresh rates use a 60 Hz
-fallback. The cadence is recalculated when the window crosses monitors.
+Live updates are captured from `render.pre` for the interacted window's current
+monitor after Hyprland applies pointer-driven geometry. At most one changed
+layout box is retained per render cycle, and unchanged geometry is discarded.
+Lua callbacks and Socket2 writes are queued for the next event-loop turn rather
+than running inside the render callback. This follows the monitor's actual frame
+scheduling instead of applying a hardcoded or calculated millisecond interval.
+
+When an interaction ends, any pending or newer final geometry is delivered
+before `window_interaction_hooks.finished`, preserving update-before-finish
+ordering even when the release occurs before an idle delivery.
 
 The same update is mirrored to Socket2 for long-lived external consumers:
 
