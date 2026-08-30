@@ -1,11 +1,15 @@
 #include <hyprland/src/desktop/view/window/Window.hpp>
 #include <hyprland/src/event/EventBus.hpp>
+#include <hyprland/src/ipc/s2/S2.hpp>
 #include <hyprland/src/layout/LayoutManager.hpp>
 #include <hyprland/src/layout/target/Target.hpp>
 #include <hyprland/src/managers/eventLoop/EventLoopManager.hpp>
+#include <hyprland/src/output/Monitor.hpp>
 #include <hyprland/src/plugins/PluginAPI.hpp>
 
+#include <chrono>
 #include <cstdint>
+#include <format>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -21,14 +25,18 @@ extern "C" {
 namespace {
 
     constexpr auto EXPECTED_HYPRLAND_COMMIT = GIT_COMMIT_HASH;
+    constexpr auto UPDATE_INTERVAL = std::chrono::milliseconds(16);
 
     struct SInteraction {
-        PHLWINDOWREF window;
-        std::string  kind;
+        PHLWINDOWREF                                         window;
+        std::string                                          kind;
+        std::optional<CBox>                                  lastGeometry;
+        std::optional<std::chrono::steady_clock::time_point> lastEmission;
     };
 
     HANDLE                             g_handle = nullptr;
     SP<Event::CEventBus::CCustomEvent> g_finishedEvent;
+    SP<Event::CEventBus::CCustomEvent> g_updatedEvent;
     CHyprSignalListener                g_mouseMoveListener;
     CHyprSignalListener                g_mouseButtonListener;
     CHyprSignalListener                g_keyListener;
@@ -43,6 +51,63 @@ namespace {
             case MBIND_RESIZE_BLOCK_RATIO: return "resize";
             default: return std::nullopt;
         }
+    }
+
+    bool sameGeometry(const CBox& first, const CBox& second) {
+        return first.x == second.x && first.y == second.y && first.width == second.width && first.height == second.height;
+    }
+
+    void postSocketUpdate(PHLWINDOW window, std::string_view kind, const CBox& geometry) {
+        if (!window || !IPC::Socket2::sock())
+            return;
+
+        const auto monitor = window->m_monitor.lock();
+        if (!monitor)
+            return;
+
+        IPC::Socket2::sock()->postEvent({
+            .event = "windowinteractionupdated",
+            .data  = std::format(
+                "0x{:x},{},{},{},{},{},{}",
+                reinterpret_cast<uintptr_t>(window.get()),
+                kind,
+                monitor->m_id,
+                geometry.x,
+                geometry.y,
+                geometry.width,
+                geometry.height),
+        });
+    }
+
+    void emitUpdated(SInteraction& interaction) {
+        if (!g_updatedEvent)
+            return;
+
+        const auto window = interaction.window.lock();
+        if (!Desktop::View::validMapped(window))
+            return;
+
+        const auto geometry = window->layoutBox();
+        if (interaction.lastGeometry && sameGeometry(*interaction.lastGeometry, geometry))
+            return;
+
+        const auto now = std::chrono::steady_clock::now();
+        if (interaction.lastEmission && now - *interaction.lastEmission < UPDATE_INTERVAL)
+            return;
+
+        if (!g_updatedEvent->emit({
+                window,
+                interaction.kind,
+                geometry.x,
+                geometry.y,
+                geometry.width,
+                geometry.height,
+            }))
+            return;
+
+        postSocketUpdate(window, interaction.kind, geometry);
+        interaction.lastGeometry = geometry;
+        interaction.lastEmission = now;
     }
 
     void emitFinished(SInteraction interaction) {
@@ -76,8 +141,14 @@ namespace {
         if (target && controller->dragThresholdReached()) {
             const auto kind   = interactionKind(controller->mode());
             const auto window = target->window();
-            if (kind && Desktop::View::validMapped(window))
-                g_interaction = SInteraction{window, std::string{*kind}};
+            if (!kind || !Desktop::View::validMapped(window))
+                return;
+
+            const auto captured = g_interaction ? g_interaction->window.lock() : nullptr;
+            if (!g_interaction || captured != window || g_interaction->kind != *kind)
+                g_interaction = SInteraction{.window = window, .kind = std::string{*kind}};
+
+            emitUpdated(*g_interaction);
             return;
         }
 
@@ -88,10 +159,12 @@ namespace {
         }
     }
 
-    void scheduleSync() {
-        // Input events are emitted before Hyprland mutates the drag controller.
-        // Capture the active interaction now, then observe its final state from idle.
-        syncInteraction();
+    void scheduleSync(bool captureCurrent) {
+        // Button and key events can release the drag target before the idle turn,
+        // so capture their current state first. Mouse movement is sampled only
+        // after Hyprland has applied the new geometry.
+        if (captureCurrent)
+            syncInteraction();
 
         if (g_syncSequence || !g_pEventLoopManager)
             return;
@@ -114,8 +187,11 @@ namespace {
 
         if (g_handle && g_finishedEvent)
             HyprlandAPI::removeEvent(g_handle, g_finishedEvent->m_name);
+        if (g_handle && g_updatedEvent)
+            HyprlandAPI::removeEvent(g_handle, g_updatedEvent->m_name);
 
         g_finishedEvent.reset();
+        g_updatedEvent.reset();
         g_handle = nullptr;
     }
 
@@ -142,15 +218,31 @@ namespace {
     };
 
     // Config reloads replace Lua handlers without notifying already-loaded
-    // plugins. Re-registering the custom event exposes it to the new Lua state.
-    int rebindFinishedEvent(lua_State* state) {
-        if (!g_handle || !g_finishedEvent) {
+    // plugins. Re-registering the custom events exposes them to the new Lua state.
+    int rebindEvents(lua_State* state) {
+        if (!g_handle || !g_finishedEvent || !g_updatedEvent) {
             lua_pushboolean(state, false);
             return 1;
         }
 
         HyprlandAPI::removeEvent(g_handle, g_finishedEvent->m_name);
-        lua_pushboolean(state, HyprlandAPI::addEvent(g_handle, g_finishedEvent));
+        HyprlandAPI::removeEvent(g_handle, g_updatedEvent->m_name);
+
+        const bool finished = HyprlandAPI::addEvent(g_handle, g_finishedEvent);
+        const bool updated  = HyprlandAPI::addEvent(g_handle, g_updatedEvent);
+        if (!finished || !updated) {
+            if (finished)
+                HyprlandAPI::removeEvent(g_handle, g_finishedEvent->m_name);
+            if (updated)
+                HyprlandAPI::removeEvent(g_handle, g_updatedEvent->m_name);
+        }
+
+        lua_pushboolean(state, finished && updated);
+        return 1;
+    }
+
+    int supportsUpdates(lua_State* state) {
+        lua_pushboolean(state, true);
         return 1;
     }
 
@@ -176,23 +268,35 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
             Event::CEventBus::CCustomEvent::TYPE_DOUBLE,
             Event::CEventBus::CCustomEvent::TYPE_DOUBLE,
         });
+    g_updatedEvent = makeShared<Event::CEventBus::CCustomEvent>(
+        "window_interaction_hooks.updated",
+        std::vector{
+            Event::CEventBus::CCustomEvent::TYPE_WINDOW,
+            Event::CEventBus::CCustomEvent::TYPE_STRING,
+            Event::CEventBus::CCustomEvent::TYPE_DOUBLE,
+            Event::CEventBus::CCustomEvent::TYPE_DOUBLE,
+            Event::CEventBus::CCustomEvent::TYPE_DOUBLE,
+            Event::CEventBus::CCustomEvent::TYPE_DOUBLE,
+        });
 
     CPluginInitializationGuard cleanup;
-    if (!HyprlandAPI::addEvent(handle, g_finishedEvent))
-        throw std::runtime_error("window-interaction-hooks: failed to register finished event");
+    if (!HyprlandAPI::addEvent(handle, g_finishedEvent) || !HyprlandAPI::addEvent(handle, g_updatedEvent))
+        throw std::runtime_error("window-interaction-hooks: failed to register interaction events");
 
-    if (!HyprlandAPI::addLuaFunction(handle, "window_interaction_hooks", "rebind", rebindFinishedEvent))
+    if (!HyprlandAPI::addLuaFunction(handle, "window_interaction_hooks", "rebind", rebindEvents) ||
+        !HyprlandAPI::addLuaFunction(handle, "window_interaction_hooks", "supports_updates", supportsUpdates)) {
         throw std::runtime_error("window-interaction-hooks: failed to register Lua functions");
+    }
 
-    g_mouseMoveListener = Event::bus()->m_events.input.mouse.move.listen([](const auto&, auto&) { scheduleSync(); });
-    g_mouseButtonListener = Event::bus()->m_events.input.mouse.button.listen([](const auto&, auto&) { scheduleSync(); });
-    g_keyListener = Event::bus()->m_events.input.keyboard.key.listen([](const auto&, auto&) { scheduleSync(); });
+    g_mouseMoveListener   = Event::bus()->m_events.input.mouse.move.listen([](const auto&, auto&) { scheduleSync(false); });
+    g_mouseButtonListener = Event::bus()->m_events.input.mouse.button.listen([](const auto&, auto&) { scheduleSync(true); });
+    g_keyListener         = Event::bus()->m_events.input.keyboard.key.listen([](const auto&, auto&) { scheduleSync(true); });
 
     const auto description = PLUGIN_DESCRIPTION_INFO{
         "window-interaction-hooks",
-        "Emit completed interactive window move and resize events",
+        "Emit live and completed interactive window move and resize events",
         "local",
-        "0.1.0",
+        "0.2.0",
     };
     cleanup.release();
     return description;

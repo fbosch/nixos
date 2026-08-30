@@ -11,7 +11,7 @@ let
 in
 pkgs.gcc16Stdenv.mkDerivation {
   pname = "window-interaction-hooks";
-  version = "0.1.0";
+  version = "0.2.0";
 
   src = ./.;
 
@@ -29,7 +29,7 @@ pkgs.gcc16Stdenv.mkDerivation {
   '';
 
   meta = {
-    description = "Native interactive move and resize completion events for Hyprland";
+    description = "Native live and completed window interaction events for Hyprland";
     license = pkgs.lib.licenses.mit;
     maintainers = [ ];
     platforms = [ "x86_64-linux" ];
