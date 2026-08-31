@@ -11,3 +11,5 @@ source	file	/etc/mullvad-vpn/device.json
 source	file	/etc/mullvad-vpn/settings.json
 source	file	/var/lib/sops-nix/key.txt
 source	file	/home/fbb/.config/sops/age/keys.txt
+source	file	/home/fbb/.config/opencode/opencode.jsonc
+source	file	/home/fbb/.local/share/opencode/auth.json
