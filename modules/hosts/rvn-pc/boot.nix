@@ -19,15 +19,21 @@
         consoleLogLevel = 3; # Show only errors and critical messages
         kernelPackages = pkgs.cachyosKernels.linuxPackages-cachyos-latest;
         kernelModules = [ "ntsync" ];
-        initrd.kernelModules = [
-          "dm_mod"
-          "i915"
-          "nvidia"
-          "nvidia_modeset"
-          "nvidia_drm"
-          "ntsync"
-          "rtc_cmos"
-        ];
+        initrd = {
+          kernelModules = [
+            "dm_mod"
+            "i915"
+            "nvidia"
+            "nvidia_modeset"
+            "nvidia_drm"
+            "ntsync"
+            "rtc_cmos"
+          ];
+          # Optimize tmpfs usage for 32GB RAM system
+          verbose = false;
+          systemd.tpm2.enable = true;
+          luks.devices.cryptsystem.crypttabExtraOpts = [ "tpm2-device=atuo" ];
+        };
         kernelParams = [
           "quiet" # Suppress most kernel messages
           "splash" # Enable splash screen
@@ -50,12 +56,6 @@
           # Keep transparent huge pages available without forcing always-on compaction
           "transparent_hugepage=madvise"
         ];
-
-        # Optimize tmpfs usage for 32GB RAM system
-        initrd.verbose = false;
-
-        initrd.systemd.tpm2.enable = true;
-        initrd.luks.devices.cryptsystem.crypttabExtraOpts = [ "tpm2-device=atuo" ];
 
         tmp = {
           useTmpfs = true;

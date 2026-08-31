@@ -17,6 +17,7 @@ let
           codex
           openspec
           agent-browser
+          pi
         ])
         ++ pkgs.lib.optionals (!(hostMeta.corporate or false)) [ llmAgents.opencode ]
         ++ [
