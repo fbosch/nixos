@@ -18,7 +18,9 @@ test_secret="recovery-secret-sentinel"
 
 mkdir -p "$test_repo/scripts/recovery/manifests" "$tmp_dir/bin" "$test_destination" "$test_source_dir" "$test_persist_root"
 cp "$repo_root/scripts/recovery/local-host-recovery.sh" "$test_script"
-printf '%s\n' "$test_secret" >"$test_source_dir/identity key"
+persistent_source="$test_persist_root$test_source_dir/identity key"
+mkdir -p "${persistent_source%/*}"
+printf '%s\n' "$test_secret" >"$persistent_source"
 
 write_manifest() {
   local source_path="$1"
@@ -166,7 +168,7 @@ mapfile -t installer_compare_lines < <(TEST_HOSTNAME=nixos bash "$test_script" c
 mapfile -t latest_compare_lines < <(bash "$test_script" compare --latest)
 [[ ${latest_compare_lines[*]} == "${compare_lines[*]}" ]]
 
-printf 'changed current state\n' >"$test_source_dir/identity key"
+printf 'changed current state\n' >"$persistent_source"
 if bash "$test_script" compare "$backup_id" >"$tmp_dir/compare-mismatch.stdout" 2>"$tmp_dir/compare-mismatch.stderr"; then
   printf 'compare accepted mismatched current state\n' >&2
   exit 1
@@ -175,10 +177,8 @@ fi
 [[ $(<"$tmp_dir/compare-mismatch.stderr") == "Error: recovery comparison failed: host=test-host id=$backup_id mismatches=1" ]]
 [[ $(<"$tmp_dir/compare-mismatch.stdout") != *"$test_secret"* ]]
 [[ $(<"$tmp_dir/compare-mismatch.stderr") != *"$test_secret"* ]]
-printf '%s\n' "$test_secret" >"$test_source_dir/identity key"
+printf '%s\n' "$test_secret" >"$persistent_source"
 
-persistent_source="$test_persist_root$test_source_dir/identity key"
-mkdir -p "${persistent_source%/*}"
 printf 'changed persistent state\n' >"$persistent_source"
 if bash "$test_script" restore --latest >"$tmp_dir/restore-confirm.stdout" 2>"$tmp_dir/restore-confirm.stderr"; then
   printf 'restore mutated state without interactive confirmation or --yes\n' >&2

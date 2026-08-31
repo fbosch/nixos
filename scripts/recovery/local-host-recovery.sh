@@ -158,7 +158,7 @@ validate_destination() {
 }
 
 validate_sources() {
-  local index source_type source_path
+  local index source_type source_path current_source_path
 
   for index in "${!source_paths[@]}"; do
     source_type="${source_types[$index]}"
@@ -166,7 +166,8 @@ validate_sources() {
 
     case "$source_type" in
     file)
-      [[ -f $source_path && ! -L $source_path ]] ||
+      resolve_current_source "$source_path"
+      [[ -n $current_source_path ]] ||
         die "required recovery file is missing or has the wrong type: $source_path"
       ;;
     esac
@@ -250,7 +251,7 @@ verify_archive_members() {
 create_backup() {
   local host="$1"
   local manifest="$2"
-  local host_destination backup_id final_dir archive source_list
+  local host_destination backup_id final_dir archive source_path source_root current_source_path
 
   validate_sources
   host_destination="$(ensure_host_destination "$host")"
@@ -261,8 +262,6 @@ create_backup() {
   staging_dir="$(mktemp -d "$host_destination/.partial-$backup_id.XXXXXX")"
   chmod 0700 "$staging_dir"
   archive="$staging_dir/payload.tar"
-  source_list="$staging_dir/source-list"
-  write_source_list "$source_list"
 
   tar \
     --create \
@@ -272,14 +271,30 @@ create_backup() {
     --acls \
     --xattrs \
     --sparse \
-    --directory=/ \
-    --null \
-    --files-from="$source_list"
+    --files-from=/dev/null
+  for source_path in "${source_paths[@]}"; do
+    resolve_current_source "$source_path"
+    [[ -n $current_source_path ]] ||
+      die "recovery file disappeared while creating backup: $source_path"
+
+    source_root="/"
+    if [[ $current_source_path == "$persist_root$source_path" ]]; then
+      source_root="$persist_root"
+    fi
+
+    tar \
+      --append \
+      --file="$archive" \
+      --numeric-owner \
+      --acls \
+      --xattrs \
+      --sparse \
+      --directory="$source_root" \
+      -- "${source_path#/}"
+  done
   tar --list --file="$archive" >/dev/null
 
   install --mode=0600 -- "$manifest" "$staging_dir/manifest.tsv"
-  rm -f -- "$source_list"
-  list_file=""
 
   calculate_checksums "$staging_dir"
   printf '%s\n' "$checksum_value" >"$staging_dir/SHA256SUMS"
