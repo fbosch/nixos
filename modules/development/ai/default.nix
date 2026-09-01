@@ -12,6 +12,11 @@ let
       llmAgents = inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system};
       pi = llmAgents.pi.overrideAttrs (previous: {
         patches = (previous.patches or [ ]) ++ [ ./pi-selector-overlays.patch ];
+        # WezTerm erases fullscreen Kitty image rows when clears follow placement; remove after upstream #8306 is fixed.
+        postConfigure = (previous.postConfigure or "") + ''
+          patch -d node_modules/@earendil-works/pi-tui -p1 \
+            < ${./pi-fullscreen-images.patch}
+        '';
       });
     in
     {

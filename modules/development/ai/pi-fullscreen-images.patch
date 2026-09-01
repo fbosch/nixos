@@ -1,0 +1,24 @@
+--- a/dist/tui-alt-screen.js
++++ b/dist/tui-alt-screen.js
+@@ -1168,10 +1168,20 @@
+                 buffer += deleteAllKittyPlacements();
+         }
+         buffer += preparedKittyScreen.evictedImageDeletion;
++        const deferredKittyImages = [];
+         for (let row = 0; row < height; row++) {
+             if (!fullRedraw && !imagesNeedRedraw && screen[row] === this.previousScreen[row])
+                 continue;
+-            buffer += `\x1b[${row + 1};1H\x1b[2K${preparedKittyScreen.lines[row] ?? ""}`;
++            const line = preparedKittyScreen.lines[row] ?? "";
++            buffer += `\x1b[${row + 1};1H\x1b[2K`;
++            if (this.imageProtocol === "kitty" && isImageLine(line)) {
++                deferredKittyImages.push({ row, line });
++                continue;
++            }
++            buffer += line;
++        }
++        for (const { row, line } of deferredKittyImages) {
++            buffer += `\x1b[${row + 1};1H${line}`;
+         }
+         if (cursorPos) {
+             buffer += `\x1b[${cursorPos.row + 1};${Math.min(width, cursorPos.col) + 1}H`;
