@@ -2,11 +2,10 @@
 let
   flakeConfig = config;
   homeManagerDotfiles =
-    {
-      config,
-      pkgs,
-      lib,
-      ...
+    { config
+    , pkgs
+    , lib
+    , ...
     }:
     let
       hmConfig = config;

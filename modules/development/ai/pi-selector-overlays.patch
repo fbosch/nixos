@@ -1,3 +1,172 @@
+--- a/docs/settings.md
++++ b/docs/settings.md
+@@ -65,6 +65,7 @@
+ | `editorPaddingX` | number | `0` | Horizontal padding for input editor (0-3) |
+ | `outputPad` | number | `1` | Horizontal padding for user messages, assistant messages, and thinking (0 or 1) |
+ | `autocompleteMaxVisible` | number | `5` | Max visible items in autocomplete dropdown (3-20) |
++| `selectorOverlayWidth` | number | `72` | Selector modal width in terminal columns (minimum 40). Clamped to the terminal width; changes from `/settings` apply to the next selector |
+ | `showHardwareCursor` | boolean | `false` | Show the terminal cursor while TUI positions it for IME support |
+ | `tuiMode` | string | `"regular"` | Interactive TUI mode: `"regular"` or experimental `"fullscreen"`. Changes from `/settings` apply immediately; `--tui-mode` overrides this setting at startup |
+ | `fullscreenExitOutput` | string | `"transcript"` | Fullscreen exit output: `"transcript"` prints the final transcript and resume hint, while `"resume-hint"` restores the previous screen and prints only the resume hint. Has no effect in regular TUI mode |
+--- a/dist/core/settings-manager.d.ts
++++ b/dist/core/settings-manager.d.ts
+@@ -23,6 +23,8 @@
+ }
+ export type TuiMode = RendererTuiMode;
+ export type FullscreenExitOutput = "transcript" | "resume-hint";
++export declare const DEFAULT_SELECTOR_OVERLAY_WIDTH = 72;
++export declare const MIN_SELECTOR_OVERLAY_WIDTH = 40;
+ export interface TerminalSettings {
+     showImages?: boolean;
+     imageWidthCells?: number;
+@@ -107,6 +109,7 @@
+     editorPaddingX?: number;
+     outputPad?: 0 | 1;
+     autocompleteMaxVisible?: number;
++    selectorOverlayWidth?: number;
+     showHardwareCursor?: boolean;
+     markdown?: MarkdownSettings;
+     warnings?: WarningSettings;
+@@ -322,6 +325,8 @@
+     setOutputPad(padding: 0 | 1): void;
+     getAutocompleteMaxVisible(): number;
+     setAutocompleteMaxVisible(maxVisible: number): void;
++    getSelectorOverlayWidth(): number;
++    setSelectorOverlayWidth(width: number): void;
+     getCodeBlockIndent(): string;
+     getMermaidRenderingMode(): MermaidRenderingMode;
+     setMermaidRenderingMode(mode: MermaidRenderingMode): void;
+--- a/dist/core/settings-manager.js
++++ b/dist/core/settings-manager.js
+@@ -6,6 +6,8 @@
+ import { normalizePath, resolvePath } from "../utils/paths.js";
+ import { stripBom } from "../utils/text.js";
+ import { DEFAULT_HTTP_IDLE_TIMEOUT_MS, parseHttpIdleTimeoutMs } from "./http-dispatcher.js";
++export const DEFAULT_SELECTOR_OVERLAY_WIDTH = 72;
++export const MIN_SELECTOR_OVERLAY_WIDTH = 40;
+ function isMergeableObject(value) {
+     return typeof value === "object" && value !== null && !Array.isArray(value);
+ }
+@@ -38,6 +40,11 @@
+     }
+     return undefined;
+ }
++function normalizeSelectorOverlayWidth(width) {
++    if (typeof width !== "number" || Number.isFinite(width) === false)
++        return DEFAULT_SELECTOR_OVERLAY_WIDTH;
++    return Math.max(MIN_SELECTOR_OVERLAY_WIDTH, Math.floor(width));
++}
+ function toSettingsError(scope, error, path) {
+     return {
+         scope,
+@@ -972,6 +979,14 @@
+         this.markModified("autocompleteMaxVisible");
+         this.save();
+     }
++    getSelectorOverlayWidth() {
++        return normalizeSelectorOverlayWidth(this.settings.selectorOverlayWidth);
++    }
++    setSelectorOverlayWidth(width) {
++        this.globalSettings.selectorOverlayWidth = normalizeSelectorOverlayWidth(width);
++        this.markModified("selectorOverlayWidth");
++        this.save();
++    }
+     getCodeBlockIndent() {
+         return this.settings.markdown?.codeBlockIndent ?? "  ";
+     }
+--- a/dist/modes/interactive/components/settings-selector.d.ts
++++ b/dist/modes/interactive/components/settings-selector.d.ts
+@@ -1,7 +1,7 @@
+ import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
+ import { type Model, type Transport } from "@earendil-works/pi-ai";
+ import { Container, type ScrollViewScrollbar, SettingsList } from "@earendil-works/pi-tui";
+-import type { DefaultProjectTrust, FullscreenExitOutput, MermaidRenderingMode, TuiMode, WarningSettings } from "../../../core/settings-manager.ts";
++import { type DefaultProjectTrust, type FullscreenExitOutput, type MermaidRenderingMode, type TuiMode, type WarningSettings } from "../../../core/settings-manager.ts";
+ import { type TerminalTheme } from "../theme/theme.ts";
+ export interface SettingsConfig {
+     autoCompact: boolean;
+@@ -34,6 +34,7 @@
+     editorPaddingX: number;
+     outputPad: 0 | 1;
+     autocompleteMaxVisible: number;
++    selectorOverlayWidth?: number;
+     quietStartup: boolean;
+     defaultProjectTrust: DefaultProjectTrust;
+     clearOnShrink: boolean;
+@@ -70,6 +71,7 @@
+     onEditorPaddingXChange: (padding: number) => void;
+     onOutputPadChange: (padding: 0 | 1) => void;
+     onAutocompleteMaxVisibleChange: (maxVisible: number) => void;
++    onSelectorOverlayWidthChange?: (width: number) => void;
+     onQuietStartupChange: (enabled: boolean) => void;
+     onDefaultProjectTrustChange: (defaultProjectTrust: DefaultProjectTrust) => void;
+     onClearOnShrinkChange: (enabled: boolean) => void;
+--- a/dist/modes/interactive/components/settings-selector.js
++++ b/dist/modes/interactive/components/settings-selector.js
+@@ -1,6 +1,7 @@
+ import { getSupportedThinkingLevels } from "@earendil-works/pi-ai";
+ import { Container, getCapabilities, SettingsList, Spacer, Text, } from "@earendil-works/pi-tui";
+ import { formatHttpIdleTimeoutMs, HTTP_IDLE_TIMEOUT_CHOICES } from "../../../core/http-dispatcher.js";
++import { DEFAULT_SELECTOR_OVERLAY_WIDTH, } from "../../../core/settings-manager.js";
+ import { getSettingsListTheme, parseAutoThemeSetting, theme } from "../theme/theme.js";
+ import { DynamicBorder } from "./dynamic-border.js";
+ import { keyDisplayText } from "./keybinding-hints.js";
+@@ -573,9 +574,17 @@
+             currentValue: String(config.autocompleteMaxVisible),
+             values: ["3", "5", "7", "10", "15", "20"],
+         });
+-        // Clear on shrink toggle (insert after autocomplete-max-visible)
++        // Selector modal width (insert after autocomplete-max-visible)
+         const autocompleteIndex = items.findIndex((item) => item.id === "autocomplete-max-visible");
+         items.splice(autocompleteIndex + 1, 0, {
++            id: "selector-overlay-width",
++            label: "Selector modal width",
++            description: "Width in terminal columns; constrained by terminal size and applied to the next selector",
++            currentValue: String(config.selectorOverlayWidth ?? DEFAULT_SELECTOR_OVERLAY_WIDTH),
++            values: ["72", "80", "100", "120"],
++        });
++        // Clear on shrink toggle (insert after selector-overlay-width)
++        items.splice(autocompleteIndex + 2, 0, {
+             id: "clear-on-shrink",
+             label: "Clear on shrink",
+             description: "Clear empty rows when content shrinks (may cause flicker)",
+@@ -672,6 +681,9 @@
+                 case "autocomplete-max-visible":
+                     callbacks.onAutocompleteMaxVisibleChange(parseInt(newValue, 10));
+                     break;
++                case "selector-overlay-width":
++                    callbacks.onSelectorOverlayWidthChange?.(parseInt(newValue, 10));
++                    break;
+                 case "clear-on-shrink":
+                     callbacks.onClearOnShrinkChange(newValue === "true");
+                     break;
+--- a/dist/modes/interactive/components/tree-selector.d.ts
++++ b/dist/modes/interactive/components/tree-selector.d.ts
+@@ -23,6 +23,7 @@
+     onCopy?: (text: string | undefined) => void;
+     onLabelEdit?: (entryId: string, currentLabel: string | undefined) => void;
+     constructor(tree: SessionTreeNode[], currentLeafId: string | null, maxVisibleLines: number, initialSelectedId?: string, initialFilterMode?: FilterMode);
++    setMaxVisibleLines(maxVisibleLines: number): void;
+     /**
+      * Find the index of the nearest visible entry, walking up the parent chain if needed.
+      * Returns the index in filteredNodes, or the last index as fallback.
+@@ -79,12 +80,15 @@
+     private labelInput;
+     private labelInputContainer;
+     private treeContainer;
++    private treeHelp;
+     private onLabelChangeCallback?;
++    private readonly getViewportHeight?;
+     onCopy?: (text: string | undefined) => void;
+     private _focused;
+     get focused(): boolean;
+     set focused(value: boolean);
+-    constructor(tree: SessionTreeNode[], currentLeafId: string | null, terminalHeight: number, onSelect: (entryId: string) => void, onCancel: () => void, onLabelChange?: (entryId: string, label: string | undefined) => void, initialSelectedId?: string, initialFilterMode?: FilterMode);
++    constructor(tree: SessionTreeNode[], currentLeafId: string | null, terminalHeight: number, onSelect: (entryId: string) => void, onCancel: () => void, onLabelChange?: (entryId: string, label: string | undefined) => void, initialSelectedId?: string, initialFilterMode?: FilterMode, getViewportHeight?: () => number);
++    render(width: number): string[];
+     private showLabelInput;
+     private hideLabelInput;
+     handleInput(keyData: string): void;
 --- a/dist/modes/interactive/components/tree-selector.js
 +++ b/dist/modes/interactive/components/tree-selector.js
 @@ -69,6 +69,9 @@
@@ -95,6 +264,31 @@
      showLabelInput(entryId, currentLabel) {
          this.labelInput = new LabelInput(entryId, currentLabel);
          this.labelInput.onSubmit = (id, label) => {
+--- a/dist/modes/interactive/components/user-message-selector.d.ts
++++ b/dist/modes/interactive/components/user-message-selector.d.ts
+@@ -12,10 +12,11 @@
+     private selectedIndex;
+     onSelect?: (entryId: string) => void;
+     onCancel?: () => void;
+-    private maxVisible;
+-    constructor(messages: UserMessageItem[], initialSelectedId?: string);
++    private readonly getViewportHeight?;
++    constructor(messages: UserMessageItem[], initialSelectedId?: string, getViewportHeight?: () => number);
+     invalidate(): void;
+     render(width: number): string[];
++    private getMaxVisible;
+     handleInput(keyData: string): void;
+ }
+ /**
+@@ -23,7 +24,7 @@
+  */
+ export declare class UserMessageSelectorComponent extends Container {
+     private messageList;
+-    constructor(messages: UserMessageItem[], onSelect: (entryId: string) => void, onCancel: () => void, initialSelectedId?: string);
++    constructor(messages: UserMessageItem[], onSelect: (entryId: string) => void, onCancel: () => void, initialSelectedId?: string, getViewportHeight?: () => number);
+     getMessageList(): UserMessageList;
+ }
+ export {};
 --- a/dist/modes/interactive/components/user-message-selector.js
 +++ b/dist/modes/interactive/components/user-message-selector.js
 @@ -1,6 +1,9 @@
@@ -184,7 +378,7 @@
  function isExpandable(obj) {
      return typeof obj === "object" && obj !== null && "setExpanded" in obj && typeof obj.setExpanded === "function";
  }
-+const SELECTOR_OVERLAY_OPTIONS = { anchor: "center", width: 72, maxHeight: "100%", margin: 1 };
++const SELECTOR_OVERLAY_OPTIONS = { anchor: "center", maxHeight: "100%", margin: 1 };
 +class SelectorOverlayComponent {
 +    wantsKeyRelease;
 +    component;
@@ -225,7 +419,7 @@
  class ExpandableText extends Text {
      getCollapsedText;
      getExpandedText;
-@@ -3721,39 +3759,47 @@
+@@ -3721,39 +3759,50 @@
          dispose?.();
      }
      /**
@@ -271,7 +465,10 @@
 -        this.ui.requestRender();
 +        this.activeSelectorDispose = teardown;
 +        const overlay = new SelectorOverlayComponent(created.component, created.focus);
-+        const handle = this.ui.showOverlay(overlay, SELECTOR_OVERLAY_OPTIONS);
++        const handle = this.ui.showOverlay(overlay, {
++            ...SELECTOR_OVERLAY_OPTIONS,
++            width: this.settingsManager.getSelectorOverlayWidth(),
++        });
 +        closeOverlay = () => handle.hide();
      }
      showSettingsSelector() {
@@ -285,7 +482,25 @@
                  autoCompact: this.session.autoCompactionEnabled,
                  defaultModel,
                  currentModel: this.session.model,
-@@ -3945,8 +3991,8 @@
+@@ -3785,6 +3834,7 @@
+                 editorPaddingX: this.settingsManager.getEditorPaddingX(),
+                 outputPad: this.settingsManager.getOutputPad(),
+                 autocompleteMaxVisible: this.settingsManager.getAutocompleteMaxVisible(),
++                selectorOverlayWidth: this.settingsManager.getSelectorOverlayWidth(),
+                 quietStartup: this.settingsManager.getQuietStartup(),
+                 clearOnShrink: this.settingsManager.getClearOnShrink(),
+                 showTerminalProgress: this.settingsManager.getShowTerminalProgress(),
+@@ -3934,6 +3984,9 @@
+                         this.editor.setAutocompleteMaxVisible(maxVisible);
+                     }
+                 },
++                onSelectorOverlayWidthChange: (width) => {
++                    this.settingsManager.setSelectorOverlayWidth(width);
++                },
+                 onClearOnShrinkChange: (enabled) => {
+                     this.settingsManager.setClearOnShrink(enabled);
+                     this.ui.setClearOnShrink(enabled);
+@@ -3945,8 +3998,8 @@
                      this.settingsManager.setShowTerminalProgress(enabled);
                  },
                  onTuiModeChange: (mode) => {
@@ -295,7 +510,7 @@
                          this.showStatus("Close active overlays before changing TUI mode");
                          return;
                      }
-@@ -4316,7 +4362,7 @@
+@@ -4316,7 +4369,7 @@
              }, () => {
                  done();
                  this.ui.requestRender();
@@ -304,7 +519,7 @@
              return { component: selector, focus: selector.getMessageList() };
          });
      }
-@@ -4441,7 +4487,7 @@
+@@ -4441,7 +4494,7 @@
              }, (entryId, label) => {
                  this.sessionManager.appendLabelChange(entryId, label);
                  this.ui.requestRender();
