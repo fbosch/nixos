@@ -2,10 +2,11 @@
 let
   flakeConfig = config;
   homeManagerDotfiles =
-    { config
-    , pkgs
-    , lib
-    , ...
+    {
+      config,
+      pkgs,
+      lib,
+      ...
     }:
     let
       hmConfig = config;
@@ -50,6 +51,8 @@ let
         # Existing checkouts are reconciled separately by git_pull_system_repos.
         dotfiles = lib.hm.dag.entryAfter [ "writeBoundary" "linkGeneration" ] ''
           set -euo pipefail
+
+          $DRY_RUN_CMD ${pkgs.coreutils}/bin/install -d -m 0700 "$HOME/.pi/agent"
 
           did_bootstrap=false
           if [ ! -e ${REPO} ]; then
@@ -151,13 +154,17 @@ in
         find 0 scriptLines;
       checkoutIndex = lineIndex "checkout ${bootstrapRevision}";
       publishIndex = lineIndex ''mv "$BOOTSTRAP_REPO"'';
-      fallbackStowIndex = lineIndex ''/bin/stow --restow --verbose --dir ${dotfilesInputPath}'';
-      fallbackDeleteIndex = lineIndex ''/bin/stow --delete --verbose --dir ${dotfilesInputPath}'';
+      fallbackStowIndex = lineIndex "/bin/stow --restow --verbose --dir ${dotfilesInputPath}";
+      fallbackDeleteIndex = lineIndex "/bin/stow --delete --verbose --dir ${dotfilesInputPath}";
     in
     {
       nix-unit.tests.dotfilesActivation = {
         testActivationRestowsDotfiles = {
           expr = lib.hasInfix ''/bin/stow --restow --verbose --dir /home/tester/dotfiles --target "$HOME" .'' dotfilesScript;
+          expected = true;
+        };
+        testActivationSecuresPiAgentDirectory = {
+          expr = lib.hasInfix ''/bin/install -d -m 0700 "$HOME/.pi/agent"'' dotfilesScript;
           expected = true;
         };
         testBootstrapChecksOutPinnedRevision = {

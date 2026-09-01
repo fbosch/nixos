@@ -1,0 +1,100 @@
+--- a/dist/modes/interactive/interactive-mode.js
++++ b/dist/modes/interactive/interactive-mode.js
+@@ -79,6 +79,34 @@
+ function isExpandable(obj) {
+     return typeof obj === "object" && obj !== null && "setExpanded" in obj && typeof obj.setExpanded === "function";
+ }
++class SelectorOverlayComponent {
++    wantsKeyRelease;
++    component;
++    focus;
++    constructor(component, focus) {
++        this.component = component;
++        this.focus = focus;
++        this.wantsKeyRelease = focus.wantsKeyRelease ?? false;
++    }
++    render(width) {
++        const paddingX = width > 2 ? 1 : 0;
++        const contentWidth = Math.max(1, width - paddingX * 2);
++        const background = theme.getBgAnsi("customMessageBg");
++        return this.component.render(contentWidth).map((line) => {
++            const panelLine = line
++                .replaceAll("\x1b[0m", `\x1b[0m${background}`)
++                .replaceAll("\x1b[49m", `\x1b[49m${background}`);
++            const fillWidth = Math.max(0, contentWidth - visibleWidth(line));
++            return `${background}${" ".repeat(paddingX)}${panelLine}${" ".repeat(fillWidth + paddingX)}\x1b[49m`;
++        });
++    }
++    handleInput(data) {
++        this.focus.handleInput?.(data);
++    }
++    invalidate() {
++        this.component.invalidate();
++    }
++}
+ class ExpandableText extends Text {
+     getCollapsedText;
+     getExpandedText;
+@@ -3721,27 +3749,46 @@
+         dispose?.();
+     }
+     /**
+-     * Shows a selector component in place of the editor.
++     * Shows a selector component in place of the editor or as a modal overlay.
+      * @param create Factory that receives a `done` callback and returns the component and focus target
+      */
+     showSelector(create) {
+         const token = {};
+         let dispose;
+-        const done = () => {
++        let overlayOptions;
++        let closePresentation = () => { };
++        let disposed = false;
++        const teardown = () => {
++            if (disposed)
++                return;
++            disposed = true;
+             dispose?.();
++            closePresentation();
++        };
++        const done = () => {
++            teardown();
+             if (this.activeSelectorToken !== token)
+                 return;
+             this.activeSelectorToken = undefined;
+             this.activeSelectorDispose = undefined;
++            if (overlayOptions !== undefined)
++                return;
+             this.editorContainer.clear();
+             this.editorContainer.addChild(this.editor);
+             this.ui.setFocus(this.editor);
+         };
+         const created = create(done);
+         dispose = created.dispose;
++        overlayOptions = created.overlayOptions;
+         this.disposeActiveSelector();
+         this.activeSelectorToken = token;
+-        this.activeSelectorDispose = dispose;
++        this.activeSelectorDispose = teardown;
++        if (overlayOptions !== undefined) {
++            const overlay = new SelectorOverlayComponent(created.component, created.focus);
++            const handle = this.ui.showOverlay(overlay, overlayOptions);
++            closePresentation = () => handle.hide();
++            return;
++        }
+         this.editorContainer.clear();
+         this.editorContainer.addChild(created.component);
+         this.ui.setFocus(created.focus);
+@@ -3975,7 +4022,11 @@
+                     this.ui.requestRender();
+                 },
+             });
+-            return { component: selector, focus: selector.getSettingsList() };
++            return {
++                component: selector,
++                focus: selector.getSettingsList(),
++                overlayOptions: { anchor: "center", width: 72, margin: 1 },
++            };
+         });
+     }
+     handleThinkingCommand(searchTerm) {

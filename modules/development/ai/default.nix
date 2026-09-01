@@ -10,6 +10,9 @@ let
     { hostMeta, pkgs, ... }:
     let
       llmAgents = inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system};
+      pi = llmAgents.pi.overrideAttrs (previous: {
+        patches = (previous.patches or [ ]) ++ [ ./pi-settings-overlay.patch ];
+      });
     in
     {
       environment.systemPackages =
@@ -17,8 +20,8 @@ let
           codex
           openspec
           agent-browser
-          pi
         ])
+        ++ [ pi ]
         ++ pkgs.lib.optionals (!(hostMeta.corporate or false)) [ llmAgents.opencode ]
         ++ [
           pkgs.tesseract
