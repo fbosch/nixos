@@ -1,0 +1,315 @@
+--- a/dist/modes/interactive/components/tree-selector.js
++++ b/dist/modes/interactive/components/tree-selector.js
+@@ -69,6 +69,9 @@
+         this.selectedIndex = this.findNearestVisibleIndex(targetId);
+         this.lastSelectedId = this.filteredNodes[this.selectedIndex]?.node.entry.id ?? null;
+     }
++    setMaxVisibleLines(maxVisibleLines) {
++        this.maxVisibleLines = Math.max(1, maxVisibleLines);
++    }
+     /**
+      * Find the index of the nearest visible entry, walking up the parent chain if needed.
+      * Returns the index in filteredNodes, or the last index as fallback.
+@@ -1032,8 +1035,14 @@
+ }
+ /** Component that renders tree help as semantic rows with chunk-aware wrapping */
+ class TreeHelp {
++    visible = true;
++    setVisible(visible) {
++        this.visible = visible;
++    }
+     invalidate() { }
+     render(width) {
++        if (!this.visible)
++            return [];
+         const items = TREE_HELP_ITEMS.map(({ keys, label, labelFirst }) => {
+             const text = formatHelpKeys(keys);
+             if (!text)
+@@ -1169,7 +1178,9 @@
+     labelInput = null;
+     labelInputContainer;
+     treeContainer;
++    treeHelp;
+     onLabelChangeCallback;
++    getViewportHeight;
+     onCopy;
+     // Focusable implementation - propagate to labelInput when active for IME cursor positioning
+     _focused = false;
+@@ -1183,9 +1194,10 @@
+             this.labelInput.focused = value;
+         }
+     }
+-    constructor(tree, currentLeafId, terminalHeight, onSelect, onCancel, onLabelChange, initialSelectedId, initialFilterMode) {
++    constructor(tree, currentLeafId, terminalHeight, onSelect, onCancel, onLabelChange, initialSelectedId, initialFilterMode, getViewportHeight) {
+         super();
+         this.onLabelChangeCallback = onLabelChange;
++        this.getViewportHeight = getViewportHeight;
+         const maxVisibleLines = Math.max(5, Math.floor(terminalHeight / 2));
+         this.treeList = new TreeList(tree, currentLeafId, maxVisibleLines, initialSelectedId, initialFilterMode);
+         this.treeList.onSelect = onSelect;
+@@ -1198,7 +1210,8 @@
+         this.addChild(new Spacer(1));
+         this.addChild(new DynamicBorder());
+         this.addChild(new Text(theme.bold("  Session Tree"), 1, 0));
+-        this.addChild(new TreeHelp());
++        this.treeHelp = new TreeHelp();
++        this.addChild(this.treeHelp);
+         this.addChild(new SearchLine(this.treeList));
+         this.addChild(new DynamicBorder());
+         this.addChild(new Spacer(1));
+@@ -1210,6 +1223,37 @@
+             setTimeout(() => onCancel(), 100);
+         }
+     }
++    render(width) {
++        if (!this.getViewportHeight)
++            return super.render(width);
++        const viewportHeight = this.getViewportHeight();
++        this.treeHelp.setVisible(true);
++        let initialLines = super.render(width);
++        if (this.labelInput) {
++            if (initialLines.length > viewportHeight) {
++                this.treeHelp.setVisible(false);
++                initialLines = super.render(width);
++            }
++            return initialLines;
++        }
++        let chromeRows = initialLines.length - this.treeList.render(width).length;
++        if (chromeRows >= viewportHeight) {
++            this.treeHelp.setVisible(false);
++            initialLines = super.render(width);
++            chromeRows = initialLines.length - this.treeList.render(width).length;
++        }
++        let maxVisibleLines = viewportHeight - chromeRows;
++        let rendered = initialLines;
++        for (let attempt = 0; attempt < 2; attempt++) {
++            this.treeList.setMaxVisibleLines(maxVisibleLines);
++            rendered = super.render(width);
++            const overflow = rendered.length - viewportHeight;
++            if (overflow <= 0)
++                return rendered;
++            maxVisibleLines -= overflow;
++        }
++        return rendered;
++    }
+     showLabelInput(entryId, currentLabel) {
+         this.labelInput = new LabelInput(entryId, currentLabel);
+         this.labelInput.onSubmit = (id, label) => {
+--- a/dist/modes/interactive/components/user-message-selector.js
++++ b/dist/modes/interactive/components/user-message-selector.js
+@@ -1,6 +1,9 @@
+ import { Container, getKeybindings, Spacer, Text, truncateToWidth } from "@earendil-works/pi-tui";
+ import { theme } from "../theme/theme.js";
+ import { DynamicBorder } from "./dynamic-border.js";
++const DEFAULT_MAX_VISIBLE_MESSAGES = 10;
++const SELECTOR_CHROME_ROWS = 10;
++const MESSAGE_ROWS = 3;
+ /**
+  * Custom user message list component with selection
+  */
+@@ -9,10 +12,11 @@
+     selectedIndex = 0;
+     onSelect;
+     onCancel;
+-    maxVisible = 10; // Max messages visible
+-    constructor(messages, initialSelectedId) {
++    getViewportHeight;
++    constructor(messages, initialSelectedId, getViewportHeight) {
+         // Store messages in chronological order (oldest to newest)
+         this.messages = messages;
++        this.getViewportHeight = getViewportHeight;
+         const initialIndex = initialSelectedId ? messages.findIndex((message) => message.id === initialSelectedId) : -1;
+         // Start with selected message if provided, else default to the most recent
+         this.selectedIndex = initialIndex >= 0 ? initialIndex : Math.max(0, messages.length - 1);
+@@ -22,13 +26,14 @@
+     }
+     render(width) {
+         const lines = [];
++        const maxVisible = this.getMaxVisible();
+         if (this.messages.length === 0) {
+             lines.push(theme.fg("muted", "  No user messages found"));
+             return lines;
+         }
+         // Calculate visible range with scrolling
+-        const startIndex = Math.max(0, Math.min(this.selectedIndex - Math.floor(this.maxVisible / 2), this.messages.length - this.maxVisible));
+-        const endIndex = Math.min(startIndex + this.maxVisible, this.messages.length);
++        const startIndex = Math.max(0, Math.min(this.selectedIndex - Math.floor(maxVisible / 2), this.messages.length - maxVisible));
++        const endIndex = Math.min(startIndex + maxVisible, this.messages.length);
+         // Render visible messages (2 lines per message + blank line)
+         for (let i = startIndex; i < endIndex; i++) {
+             const message = this.messages[i];
+@@ -55,6 +60,12 @@
+         }
+         return lines;
+     }
++    getMaxVisible() {
++        const viewportHeight = this.getViewportHeight?.();
++        if (viewportHeight === undefined)
++            return DEFAULT_MAX_VISIBLE_MESSAGES;
++        return Math.max(1, Math.min(DEFAULT_MAX_VISIBLE_MESSAGES, Math.floor((viewportHeight - SELECTOR_CHROME_ROWS) / MESSAGE_ROWS)));
++    }
+     handleInput(keyData) {
+         const kb = getKeybindings();
+         // Up arrow - go to previous (older) message, wrap to bottom when at top
+@@ -85,7 +96,7 @@
+  */
+ export class UserMessageSelectorComponent extends Container {
+     messageList;
+-    constructor(messages, onSelect, onCancel, initialSelectedId) {
++    constructor(messages, onSelect, onCancel, initialSelectedId, getViewportHeight) {
+         super();
+         // Add header
+         this.addChild(new Spacer(1));
+@@ -95,7 +106,7 @@
+         this.addChild(new DynamicBorder());
+         this.addChild(new Spacer(1));
+         // Create message list
+-        this.messageList = new UserMessageList(messages, initialSelectedId);
++        this.messageList = new UserMessageList(messages, initialSelectedId, getViewportHeight);
+         this.messageList.onSelect = onSelect;
+         this.messageList.onCancel = onCancel;
+         this.addChild(this.messageList);
+--- a/dist/modes/interactive/interactive-mode.js
++++ b/dist/modes/interactive/interactive-mode.js
+@@ -7,7 +7,7 @@
+ import * as os from "node:os";
+ import * as path from "node:path";
+ import * as TuiLayouts from "@earendil-works/pi-tui";
+-import { CombinedAutocompleteProvider, Container, fuzzyFilter, getCapabilities, hyperlink, Markdown, matchesKey, ProcessTerminal, Spacer, setCapabilityOverrides, setKeybindings, Text, TruncatedText, TuiAltScreen, TuiMainScreen, visibleWidth, } from "@earendil-works/pi-tui";
++import { CombinedAutocompleteProvider, Container, fuzzyFilter, getCapabilities, hyperlink, isFocusable, Markdown, matchesKey, ProcessTerminal, Spacer, setCapabilityOverrides, setKeybindings, Text, TruncatedText, TuiAltScreen, TuiMainScreen, visibleWidth, } from "@earendil-works/pi-tui";
+ import chalk from "chalk";
+ import { spawn } from "child_process";
+ import { APP_NAME, APP_TITLE, CONFIG_DIR_NAME, getAgentDir, getAuthPath, getDebugLogPath, getDocsPath, VERSION, } from "../../config.js";
+@@ -79,6 +79,44 @@
+ function isExpandable(obj) {
+     return typeof obj === "object" && obj !== null && "setExpanded" in obj && typeof obj.setExpanded === "function";
+ }
++const SELECTOR_OVERLAY_OPTIONS = { anchor: "center", width: 72, maxHeight: "100%", margin: 1 };
++class SelectorOverlayComponent {
++    wantsKeyRelease;
++    component;
++    focus;
++    _focused = false;
++    constructor(component, focus) {
++        this.component = component;
++        this.focus = focus;
++        this.wantsKeyRelease = focus.wantsKeyRelease ?? false;
++    }
++    get focused() {
++        return this._focused;
++    }
++    set focused(value) {
++        this._focused = value;
++        if (isFocusable(this.focus))
++            this.focus.focused = value;
++    }
++    render(width) {
++        const paddingX = width > 2 ? 1 : 0;
++        const contentWidth = Math.max(1, width - paddingX * 2);
++        const background = theme.getBgAnsi("customMessageBg");
++        return this.component.render(contentWidth).map((line) => {
++            const panelLine = line
++                .replaceAll("\x1b[0m", `\x1b[0m${background}`)
++                .replaceAll("\x1b[49m", `\x1b[49m${background}`);
++            const fillWidth = Math.max(0, contentWidth - visibleWidth(line));
++            return `${background}${" ".repeat(paddingX)}${panelLine}${" ".repeat(fillWidth + paddingX)}\x1b[49m`;
++        });
++    }
++    handleInput(data) {
++        this.focus.handleInput?.(data);
++    }
++    invalidate() {
++        this.component.invalidate();
++    }
++}
+ class ExpandableText extends Text {
+     getCollapsedText;
+     getExpandedText;
+@@ -3721,39 +3759,47 @@
+         dispose?.();
+     }
+     /**
+-     * Shows a selector component in place of the editor.
++     * Shows a selector component as a modal overlay.
+      * @param create Factory that receives a `done` callback and returns the component and focus target
+      */
+     showSelector(create) {
+         const token = {};
+         let dispose;
+-        const done = () => {
++        let closeOverlay = () => { };
++        let disposed = false;
++        const teardown = () => {
++            if (disposed)
++                return;
++            disposed = true;
+             dispose?.();
++            closeOverlay();
++        };
++        const done = () => {
++            teardown();
+             if (this.activeSelectorToken !== token)
+                 return;
+             this.activeSelectorToken = undefined;
+             this.activeSelectorDispose = undefined;
+-            this.editorContainer.clear();
+-            this.editorContainer.addChild(this.editor);
+-            this.ui.setFocus(this.editor);
+         };
+         const created = create(done);
+         dispose = created.dispose;
++        if (disposed) {
++            dispose?.();
++            return;
++        }
+         this.disposeActiveSelector();
+         this.activeSelectorToken = token;
+-        this.activeSelectorDispose = dispose;
+-        this.editorContainer.clear();
+-        this.editorContainer.addChild(created.component);
+-        this.ui.setFocus(created.focus);
+-        this.ui.requestRender();
++        this.activeSelectorDispose = teardown;
++        const overlay = new SelectorOverlayComponent(created.component, created.focus);
++        const handle = this.ui.showOverlay(overlay, SELECTOR_OVERLAY_OPTIONS);
++        closeOverlay = () => handle.hide();
+     }
+     showSettingsSelector() {
+         this.showSelector((done) => {
+-            let selector;
+             const defaultProvider = this.settingsManager.getDefaultProvider();
+             const defaultModelId = this.settingsManager.getDefaultModel();
+             const defaultModel = defaultProvider && defaultModelId ? `${defaultProvider}/${defaultModelId}` : "not set";
+-            selector = new SettingsSelectorComponent({
++            const selector = new SettingsSelectorComponent({
+                 autoCompact: this.session.autoCompactionEnabled,
+                 defaultModel,
+                 currentModel: this.session.model,
+@@ -3945,8 +3991,8 @@
+                     this.settingsManager.setShowTerminalProgress(enabled);
+                 },
+                 onTuiModeChange: (mode) => {
++                    done();
+                     if (!this.switchTuiMode(mode)) {
+-                        selector?.getSettingsList().updateValue("tui-mode", this.ui.mode);
+                         this.showStatus("Close active overlays before changing TUI mode");
+                         return;
+                     }
+@@ -4316,7 +4362,7 @@
+             }, () => {
+                 done();
+                 this.ui.requestRender();
+-            }, initialSelectedId);
++            }, initialSelectedId, () => Math.max(1, this.ui.terminal.rows - 2));
+             return { component: selector, focus: selector.getMessageList() };
+         });
+     }
+@@ -4441,7 +4487,7 @@
+             }, (entryId, label) => {
+                 this.sessionManager.appendLabelChange(entryId, label);
+                 this.ui.requestRender();
+-            }, initialSelectedId, initialFilterMode);
++            }, initialSelectedId, initialFilterMode, () => Math.max(1, this.ui.terminal.rows - 2));
+             selector.onCopy = async (text) => {
+                 if (!text) {
+                     this.showError("Selected entry has no text to copy");

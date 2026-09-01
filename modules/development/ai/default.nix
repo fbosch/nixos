@@ -11,7 +11,7 @@ let
     let
       llmAgents = inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system};
       pi = llmAgents.pi.overrideAttrs (previous: {
-        patches = (previous.patches or [ ]) ++ [ ./pi-settings-overlay.patch ];
+        patches = (previous.patches or [ ]) ++ [ ./pi-selector-overlays.patch ];
       });
     in
     {
