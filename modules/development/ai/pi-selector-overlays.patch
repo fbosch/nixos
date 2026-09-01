@@ -1,37 +1,40 @@
 --- a/docs/settings.md
 +++ b/docs/settings.md
-@@ -65,6 +65,7 @@
+@@ -65,6 +65,8 @@
  | `editorPaddingX` | number | `0` | Horizontal padding for input editor (0-3) |
  | `outputPad` | number | `1` | Horizontal padding for user messages, assistant messages, and thinking (0 or 1) |
  | `autocompleteMaxVisible` | number | `5` | Max visible items in autocomplete dropdown (3-20) |
-+| `selectorOverlayWidth` | number | `72` | Selector modal width in terminal columns (minimum 40). Clamped to the terminal width; changes from `/settings` apply to the next selector |
++| `selectorOverlayWidth` | number | `72` | Default selector modal width in terminal columns (minimum 40). Clamped to the terminal width |
++| `selectorOverlayWidths` | object | `{}` | Per-selector width overrides for `settings`, `thinking`, `trust`, `model`, `scoped-models`, `fork`, `tree`, `session`, and `auth` |
  | `showHardwareCursor` | boolean | `false` | Show the terminal cursor while TUI positions it for IME support |
  | `tuiMode` | string | `"regular"` | Interactive TUI mode: `"regular"` or experimental `"fullscreen"`. Changes from `/settings` apply immediately; `--tui-mode` overrides this setting at startup |
  | `fullscreenExitOutput` | string | `"transcript"` | Fullscreen exit output: `"transcript"` prints the final transcript and resume hint, while `"resume-hint"` restores the previous screen and prints only the resume hint. Has no effect in regular TUI mode |
 --- a/dist/core/settings-manager.d.ts
 +++ b/dist/core/settings-manager.d.ts
-@@ -23,6 +23,8 @@
+@@ -23,6 +23,9 @@
  }
  export type TuiMode = RendererTuiMode;
  export type FullscreenExitOutput = "transcript" | "resume-hint";
++export type SelectorOverlayName = "settings" | "thinking" | "trust" | "model" | "scoped-models" | "fork" | "tree" | "session" | "auth";
 +export declare const DEFAULT_SELECTOR_OVERLAY_WIDTH = 72;
 +export declare const MIN_SELECTOR_OVERLAY_WIDTH = 40;
  export interface TerminalSettings {
      showImages?: boolean;
      imageWidthCells?: number;
-@@ -107,6 +109,7 @@
+@@ -107,6 +110,8 @@
      editorPaddingX?: number;
      outputPad?: 0 | 1;
      autocompleteMaxVisible?: number;
 +    selectorOverlayWidth?: number;
++    selectorOverlayWidths?: Partial<Record<SelectorOverlayName, number>>;
      showHardwareCursor?: boolean;
      markdown?: MarkdownSettings;
      warnings?: WarningSettings;
-@@ -322,6 +325,8 @@
+@@ -322,6 +327,8 @@
      setOutputPad(padding: 0 | 1): void;
      getAutocompleteMaxVisible(): number;
      setAutocompleteMaxVisible(maxVisible: number): void;
-+    getSelectorOverlayWidth(): number;
++    getSelectorOverlayWidth(selector?: SelectorOverlayName): number;
 +    setSelectorOverlayWidth(width: number): void;
      getCodeBlockIndent(): string;
      getMermaidRenderingMode(): MermaidRenderingMode;
@@ -59,11 +62,15 @@
  function toSettingsError(scope, error, path) {
      return {
          scope,
-@@ -972,6 +979,14 @@
+@@ -972,6 +979,18 @@
          this.markModified("autocompleteMaxVisible");
          this.save();
      }
-+    getSelectorOverlayWidth() {
++    getSelectorOverlayWidth(selector) {
++        const selectorWidth = selector ? this.settings.selectorOverlayWidths?.[selector] : undefined;
++        if (typeof selectorWidth === "number" && Number.isFinite(selectorWidth)) {
++            return normalizeSelectorOverlayWidth(selectorWidth);
++        }
 +        return normalizeSelectorOverlayWidth(this.settings.selectorOverlayWidth);
 +    }
 +    setSelectorOverlayWidth(width) {
@@ -116,12 +123,12 @@
              values: ["3", "5", "7", "10", "15", "20"],
          });
 -        // Clear on shrink toggle (insert after autocomplete-max-visible)
-+        // Selector modal width (insert after autocomplete-max-visible)
++        // Default selector modal width (insert after autocomplete-max-visible)
          const autocompleteIndex = items.findIndex((item) => item.id === "autocomplete-max-visible");
          items.splice(autocompleteIndex + 1, 0, {
 +            id: "selector-overlay-width",
-+            label: "Selector modal width",
-+            description: "Width in terminal columns; constrained by terminal size and applied to the next selector",
++            label: "Default selector modal width",
++            description: "Fallback width in terminal columns; per-selector JSON overrides take precedence",
 +            currentValue: String(config.selectorOverlayWidth ?? DEFAULT_SELECTOR_OVERLAY_WIDTH),
 +            values: ["72", "80", "100", "120"],
 +        });
@@ -226,7 +233,7 @@
          this.addChild(new SearchLine(this.treeList));
          this.addChild(new DynamicBorder());
          this.addChild(new Spacer(1));
-@@ -1210,6 +1223,37 @@
+@@ -1210,6 +1223,44 @@
              setTimeout(() => onCancel(), 100);
          }
      }
@@ -241,13 +248,20 @@
 +                this.treeHelp.setVisible(false);
 +                initialLines = super.render(width);
 +            }
-+            return initialLines;
++            if (initialLines.length <= viewportHeight)
++                return initialLines;
++            return this.labelInput.render(width).slice(0, viewportHeight);
 +        }
 +        let chromeRows = initialLines.length - this.treeList.render(width).length;
 +        if (chromeRows >= viewportHeight) {
 +            this.treeHelp.setVisible(false);
 +            initialLines = super.render(width);
 +            chromeRows = initialLines.length - this.treeList.render(width).length;
++        }
++        if (chromeRows >= viewportHeight) {
++            // On extremely short terminals, prioritize the focused list over optional modal chrome.
++            this.treeList.setMaxVisibleLines(1);
++            return this.treeList.render(width).slice(0, viewportHeight);
 +        }
 +        let maxVisibleLines = viewportHeight - chromeRows;
 +        let rendered = initialLines;
@@ -266,60 +280,50 @@
          this.labelInput.onSubmit = (id, label) => {
 --- a/dist/modes/interactive/components/user-message-selector.d.ts
 +++ b/dist/modes/interactive/components/user-message-selector.d.ts
-@@ -12,10 +12,11 @@
-     private selectedIndex;
-     onSelect?: (entryId: string) => void;
-     onCancel?: () => void;
--    private maxVisible;
--    constructor(messages: UserMessageItem[], initialSelectedId?: string);
-+    private readonly getViewportHeight?;
-+    constructor(messages: UserMessageItem[], initialSelectedId?: string, getViewportHeight?: () => number);
+@@ -16,6 +16,7 @@
+     constructor(messages: UserMessageItem[], initialSelectedId?: string);
      invalidate(): void;
      render(width: number): string[];
-+    private getMaxVisible;
++    setMaxVisible(maxVisible: number): void;
      handleInput(keyData: string): void;
  }
  /**
-@@ -23,7 +24,7 @@
+@@ -23,7 +24,9 @@
   */
  export declare class UserMessageSelectorComponent extends Container {
      private messageList;
 -    constructor(messages: UserMessageItem[], onSelect: (entryId: string) => void, onCancel: () => void, initialSelectedId?: string);
++    private readonly getViewportHeight?;
 +    constructor(messages: UserMessageItem[], onSelect: (entryId: string) => void, onCancel: () => void, initialSelectedId?: string, getViewportHeight?: () => number);
++    render(width: number): string[];
      getMessageList(): UserMessageList;
  }
  export {};
 --- a/dist/modes/interactive/components/user-message-selector.js
 +++ b/dist/modes/interactive/components/user-message-selector.js
-@@ -1,6 +1,9 @@
+@@ -1,6 +1,8 @@
  import { Container, getKeybindings, Spacer, Text, truncateToWidth } from "@earendil-works/pi-tui";
  import { theme } from "../theme/theme.js";
  import { DynamicBorder } from "./dynamic-border.js";
 +const DEFAULT_MAX_VISIBLE_MESSAGES = 10;
-+const SELECTOR_CHROME_ROWS = 10;
 +const MESSAGE_ROWS = 3;
  /**
   * Custom user message list component with selection
   */
-@@ -9,10 +12,11 @@
+@@ -9,7 +11,7 @@
      selectedIndex = 0;
      onSelect;
      onCancel;
 -    maxVisible = 10; // Max messages visible
--    constructor(messages, initialSelectedId) {
-+    getViewportHeight;
-+    constructor(messages, initialSelectedId, getViewportHeight) {
++    maxVisible = DEFAULT_MAX_VISIBLE_MESSAGES;
+     constructor(messages, initialSelectedId) {
          // Store messages in chronological order (oldest to newest)
          this.messages = messages;
-+        this.getViewportHeight = getViewportHeight;
-         const initialIndex = initialSelectedId ? messages.findIndex((message) => message.id === initialSelectedId) : -1;
-         // Start with selected message if provided, else default to the most recent
-         this.selectedIndex = initialIndex >= 0 ? initialIndex : Math.max(0, messages.length - 1);
-@@ -22,13 +26,14 @@
+@@ -22,13 +24,14 @@
      }
      render(width) {
          const lines = [];
-+        const maxVisible = this.getMaxVisible();
++        const maxVisible = this.maxVisible;
          if (this.messages.length === 0) {
              lines.push(theme.fg("muted", "  No user messages found"));
              return lines;
@@ -332,37 +336,58 @@
          // Render visible messages (2 lines per message + blank line)
          for (let i = startIndex; i < endIndex; i++) {
              const message = this.messages[i];
-@@ -55,6 +60,12 @@
+@@ -55,6 +58,9 @@
          }
          return lines;
      }
-+    getMaxVisible() {
-+        const viewportHeight = this.getViewportHeight?.();
-+        if (viewportHeight === undefined)
-+            return DEFAULT_MAX_VISIBLE_MESSAGES;
-+        return Math.max(1, Math.min(DEFAULT_MAX_VISIBLE_MESSAGES, Math.floor((viewportHeight - SELECTOR_CHROME_ROWS) / MESSAGE_ROWS)));
++    setMaxVisible(maxVisible) {
++        this.maxVisible = Math.max(1, Math.min(DEFAULT_MAX_VISIBLE_MESSAGES, maxVisible));
 +    }
      handleInput(keyData) {
          const kb = getKeybindings();
          // Up arrow - go to previous (older) message, wrap to bottom when at top
-@@ -85,7 +96,7 @@
+@@ -85,8 +91,10 @@
   */
  export class UserMessageSelectorComponent extends Container {
      messageList;
 -    constructor(messages, onSelect, onCancel, initialSelectedId) {
++    getViewportHeight;
 +    constructor(messages, onSelect, onCancel, initialSelectedId, getViewportHeight) {
          super();
++        this.getViewportHeight = getViewportHeight;
          // Add header
          this.addChild(new Spacer(1));
-@@ -95,7 +106,7 @@
-         this.addChild(new DynamicBorder());
-         this.addChild(new Spacer(1));
-         // Create message list
--        this.messageList = new UserMessageList(messages, initialSelectedId);
-+        this.messageList = new UserMessageList(messages, initialSelectedId, getViewportHeight);
-         this.messageList.onSelect = onSelect;
-         this.messageList.onCancel = onCancel;
-         this.addChild(this.messageList);
+         this.addChild(new Text(theme.bold("Fork from Message"), 1, 0));
+@@ -107,6 +115,29 @@
+             setTimeout(() => onCancel(), 100);
+         }
+     }
++    render(width) {
++        if (!this.getViewportHeight)
++            return super.render(width);
++        const viewportHeight = this.getViewportHeight();
++        this.messageList.setMaxVisible(DEFAULT_MAX_VISIBLE_MESSAGES);
++        let rendered = super.render(width);
++        if (rendered.length <= viewportHeight)
++            return rendered;
++        const listRows = this.messageList.render(width).length;
++        const chromeRows = rendered.length - listRows;
++        const availableListRows = viewportHeight - chromeRows;
++        let maxVisible = Math.floor(availableListRows / MESSAGE_ROWS);
++        for (let attempt = 0; attempt < 2 && maxVisible > 0; attempt++) {
++            this.messageList.setMaxVisible(maxVisible);
++            rendered = super.render(width);
++            if (rendered.length <= viewportHeight)
++                return rendered;
++            maxVisible--;
++        }
++        // On extremely short terminals, prioritize the focused list over optional modal chrome.
++        this.messageList.setMaxVisible(1);
++        return this.messageList.render(width).slice(0, viewportHeight);
++    }
+     getMessageList() {
+         return this.messageList;
+     }
 --- a/dist/modes/interactive/interactive-mode.js
 +++ b/dist/modes/interactive/interactive-mode.js
 @@ -7,7 +7,7 @@
@@ -427,7 +452,8 @@
 +     * Shows a selector component as a modal overlay.
       * @param create Factory that receives a `done` callback and returns the component and focus target
       */
-     showSelector(create) {
+-    showSelector(create) {
++    showSelector(selectorName, create) {
          const token = {};
          let dispose;
 -        const done = () => {
@@ -467,13 +493,14 @@
 +        const overlay = new SelectorOverlayComponent(created.component, created.focus);
 +        const handle = this.ui.showOverlay(overlay, {
 +            ...SELECTOR_OVERLAY_OPTIONS,
-+            width: this.settingsManager.getSelectorOverlayWidth(),
++            width: this.settingsManager.getSelectorOverlayWidth(selectorName),
 +        });
 +        closeOverlay = () => handle.hide();
      }
      showSettingsSelector() {
-         this.showSelector((done) => {
+-        this.showSelector((done) => {
 -            let selector;
++        this.showSelector("settings", (done) => {
              const defaultProvider = this.settingsManager.getDefaultProvider();
              const defaultModelId = this.settingsManager.getDefaultModel();
              const defaultModel = defaultProvider && defaultModelId ? `${defaultProvider}/${defaultModelId}` : "not set";
@@ -510,6 +537,51 @@
                          this.showStatus("Close active overlays before changing TUI mode");
                          return;
                      }
+@@ -4004,7 +4057,7 @@
+         }
+     }
+     showThinkingSelector() {
+-        this.showSelector((done) => {
++        this.showSelector("thinking", (done) => {
+             const selectLevel = (level, persist) => {
+                 this.selectThinkingLevel(level, persist);
+                 done();
+@@ -4133,7 +4186,7 @@
+         const cwd = this.sessionManager.getCwd();
+         const trustStore = new ProjectTrustStore(this.runtimeHost.services.agentDir);
+         const savedDecision = trustStore.getEntry(cwd);
+-        this.showSelector((done) => {
++        this.showSelector("trust", (done) => {
+             const selector = new TrustSelectorComponent({
+                 cwd,
+                 savedDecision,
+@@ -4152,7 +4205,7 @@
+         });
+     }
+     showModelSelector(initialSearchInput) {
+-        this.showSelector((done) => {
++        this.showSelector("model", (done) => {
+             const selectModel = async (model, persist) => {
+                 try {
+                     await this.session.setModel(model, { persist });
+@@ -4215,7 +4268,7 @@
+             this.updateAvailableProviderCount();
+             this.ui.requestRender();
+         };
+-        this.showSelector((done) => {
++        this.showSelector("scoped-models", (done) => {
+             let disposed = false;
+             let timedOut = false;
+             const controller = new AbortController();
+@@ -4298,7 +4351,7 @@
+             return;
+         }
+         const initialSelectedId = userMessages[userMessages.length - 1]?.entryId;
+-        this.showSelector((done) => {
++        this.showSelector("fork", (done) => {
+             const selector = new UserMessageSelectorComponent(userMessages.map((m) => ({ id: m.entryId, text: m.text })), async (entryId) => {
+                 done();
+                 try {
 @@ -4316,7 +4369,7 @@
              }, () => {
                  done();
@@ -519,6 +591,15 @@
              return { component: selector, focus: selector.getMessageList() };
          });
      }
+@@ -4347,7 +4400,7 @@
+             this.showStatus("No entries in session");
+             return;
+         }
+-        this.showSelector((done) => {
++        this.showSelector("tree", (done) => {
+             const selector = new TreeSelectorComponent(tree, realLeafId, this.ui.terminal.rows, async (entryId) => {
+                 // Selecting the current leaf is a no-op (already there)
+                 if (entryId === this.sessionManager.getLeafId()) {
 @@ -4441,7 +4494,7 @@
              }, (entryId, label) => {
                  this.sessionManager.appendLabelChange(entryId, label);
@@ -528,3 +609,39 @@
              selector.onCopy = async (text) => {
                  if (!text) {
                      this.showError("Selected entry has no text to copy");
+@@ -4459,7 +4512,7 @@
+         });
+     }
+     showSessionSelector() {
+-        this.showSelector((done) => {
++        this.showSelector("session", (done) => {
+             const selector = new SessionSelectorComponent((onProgress) => SessionManager.list(this.sessionManager.getCwd(), this.sessionManager.getSessionDir(), onProgress), (onProgress) => this.sessionManager.usesDefaultSessionDir()
+                 ? SessionManager.listAll(onProgress)
+                 : SessionManager.listAll(this.sessionManager.getSessionDir(), onProgress), async (sessionPath) => {
+@@ -4626,7 +4679,7 @@
+         const title = providerOptions?.[0]
+             ? `Select authentication method for ${providerOptions[0].name}:`
+             : "Select authentication method:";
+-        this.showSelector((done) => {
++        this.showSelector("auth", (done) => {
+             const selector = new ExtensionSelectorComponent(title, options, (option) => {
+                 done();
+                 const authType = option === subscriptionLabel ? "oauth" : "api_key";
+@@ -4656,7 +4709,7 @@
+             this.showStatus(message);
+             return;
+         }
+-        this.showSelector((done) => {
++        this.showSelector("auth", (done) => {
+             const selector = new OAuthSelectorComponent("login", providerOptions, async (providerId, selectedAuthType) => {
+                 done();
+                 const providerOption = providerOptions.find((provider) => provider.id === providerId && provider.authType === selectedAuthType);
+@@ -4693,7 +4746,7 @@
+             this.showStatus("No stored credentials to remove. /logout only removes credentials saved by /login; environment variables and models.json config are unchanged.");
+             return;
+         }
+-        this.showSelector((done) => {
++        this.showSelector("auth", (done) => {
+             const selector = new OAuthSelectorComponent(mode, providerOptions, async (providerId) => {
+                 done();
+                 const providerOption = providerOptions.find((provider) => provider.id === providerId);

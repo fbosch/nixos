@@ -51,8 +51,6 @@ let
         dotfiles = lib.hm.dag.entryAfter [ "writeBoundary" "linkGeneration" ] ''
           set -euo pipefail
 
-          $DRY_RUN_CMD ${pkgs.coreutils}/bin/install -d -m 0700 "$HOME/.pi/agent"
-
           did_bootstrap=false
           if [ ! -e ${REPO} ]; then
             echo "Bootstrapping dotfiles repository at revision ${DOTFILES_BOOTSTRAP_REV}..."
@@ -108,6 +106,7 @@ let
               echo "Stowing bootstrapped dotfiles..."
             fi
             $DRY_RUN_CMD ${pkgs.stow}/bin/stow ${stowFlags} --dir ${REPO} --target "$HOME" .
+            $DRY_RUN_CMD ${pkgs.coreutils}/bin/install -d -m 0700 "$HOME/.pi/agent"
           fi
         '';
       };
@@ -155,6 +154,8 @@ in
       publishIndex = lineIndex ''mv "$BOOTSTRAP_REPO"'';
       fallbackStowIndex = lineIndex "/bin/stow --restow --verbose --dir ${dotfilesInputPath}";
       fallbackDeleteIndex = lineIndex "/bin/stow --delete --verbose --dir ${dotfilesInputPath}";
+      checkoutStowIndex = lineIndex "/bin/stow --restow --verbose --dir /home/tester/dotfiles";
+      securePiAgentIndex = lineIndex ''/bin/install -d -m 0700 "$HOME/.pi/agent"'';
     in
     {
       nix-unit.tests.dotfilesActivation = {
@@ -164,6 +165,13 @@ in
         };
         testActivationSecuresPiAgentDirectory = {
           expr = lib.hasInfix ''/bin/install -d -m 0700 "$HOME/.pi/agent"'' dotfilesScript;
+          expected = true;
+        };
+        testActivationSecuresPiAgentDirectoryAfterStow = {
+          expr =
+            checkoutStowIndex != null
+            && securePiAgentIndex != null
+            && checkoutStowIndex < securePiAgentIndex;
           expected = true;
         };
         testBootstrapChecksOutPinnedRevision = {
