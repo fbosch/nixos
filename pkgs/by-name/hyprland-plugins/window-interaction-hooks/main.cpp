@@ -1,3 +1,4 @@
+#include <hyprland/src/config/ConfigValue.hpp>
 #include <hyprland/src/desktop/view/window/Window.hpp>
 #include <hyprland/src/event/EventBus.hpp>
 #include <hyprland/src/ipc/s2/S2.hpp>
@@ -24,6 +25,15 @@ extern "C" {
 namespace {
 
     constexpr auto EXPECTED_HYPRLAND_COMMIT = GIT_COMMIT_HASH;
+
+    // Hyprland clears the controller latch after invoking a bind, but zero disables the threshold entirely.
+    constexpr bool interactionThresholdReached(Config::INTEGER configuredThreshold, bool controllerReached) {
+        return configuredThreshold <= 0 || controllerReached;
+    }
+
+    static_assert(interactionThresholdReached(0, false));
+    static_assert(!interactionThresholdReached(1, false));
+    static_assert(interactionThresholdReached(1, true));
 
     struct SPendingUpdate {
         PHLMONITORREF monitor;
@@ -131,8 +141,10 @@ namespace {
         if (!controller)
             return false;
 
-        const auto target = controller->target();
-        if (!target || !controller->dragThresholdReached())
+        static auto PDRAGTHRESHOLD = CConfigValue<Config::INTEGER>("binds:drag_threshold");
+
+        const auto  target = controller->target();
+        if (!target || !interactionThresholdReached(*PDRAGTHRESHOLD, controller->dragThresholdReached()))
             return false;
 
         const auto kind   = interactionKind(controller->mode());
@@ -224,8 +236,7 @@ namespace {
 
         const auto target = controller->target();
         if (target) {
-            if (controller->dragThresholdReached())
-                captureActiveInteraction();
+            captureActiveInteraction();
             return;
         }
 
