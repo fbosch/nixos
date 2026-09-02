@@ -36,11 +36,13 @@ let
   homeManagerPi =
     { lib, pkgs, ... }:
     {
-      home.activation.securePiAgentDirectory = lib.hm.dag.entryBefore [ "dotfiles" ] ''
-        set -euo pipefail
+      home.activation.securePiAgentDirectory = lib.hm.dag.entryBetween [ "dotfiles" ]
+        [ "writeBoundary" "linkGeneration" ]
+        ''
+          set -euo pipefail
 
-        $DRY_RUN_CMD ${pkgs.coreutils}/bin/install -d -m 0700 "$HOME/.pi/agent"
-      '';
+          $DRY_RUN_CMD ${pkgs.coreutils}/bin/install -d -m 0700 "$HOME/.pi/agent"
+        '';
     };
 in
 {
@@ -103,6 +105,10 @@ in
         testRunsBeforeDotfiles = {
           expr = securePiAgentDirectory.before;
           expected = [ "dotfiles" ];
+        };
+        testRunsAfterHomeManagerWrites = {
+          expr = securePiAgentDirectory.after;
+          expected = [ "writeBoundary" "linkGeneration" ];
         };
       };
     };

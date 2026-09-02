@@ -14,7 +14,7 @@ let
       DOTFILES_FALLBACK = lib.escapeShellArg inputs.dotfiles.outPath;
       DOTFILES_BOOTSTRAP_REV = inputs.dotfiles.rev or "master";
       DOTFILES_BOOTSTRAP_URL = lib.escapeShellArg flakeConfig.flake.meta.dotfiles.url;
-      stowFlags = "--restow --verbose";
+      stowFlags = "--restow --no-folding --verbose";
     in
     {
       home.packages = with pkgs; [
@@ -151,13 +151,13 @@ in
         find 0 scriptLines;
       checkoutIndex = lineIndex "checkout ${bootstrapRevision}";
       publishIndex = lineIndex ''mv "$BOOTSTRAP_REPO"'';
-      fallbackStowIndex = lineIndex "/bin/stow --restow --verbose --dir ${dotfilesInputPath}";
+      fallbackStowIndex = lineIndex "/bin/stow --restow --no-folding --verbose --dir ${dotfilesInputPath}";
       fallbackDeleteIndex = lineIndex "/bin/stow --delete --verbose --dir ${dotfilesInputPath}";
     in
     {
       nix-unit.tests.dotfilesActivation = {
         testActivationRestowsDotfiles = {
-          expr = lib.hasInfix ''/bin/stow --restow --verbose --dir /home/tester/dotfiles --target "$HOME" .'' dotfilesScript;
+          expr = lib.hasInfix ''/bin/stow --restow --no-folding --verbose --dir /home/tester/dotfiles --target "$HOME" .'' dotfilesScript;
           expected = true;
         };
         testBootstrapChecksOutPinnedRevision = {
