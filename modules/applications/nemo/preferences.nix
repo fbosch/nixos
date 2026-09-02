@@ -22,6 +22,7 @@
         file://${config.xdg.userDirs.download} Downloads
         file://${config.xdg.userDirs.pictures} Pictures
         file:///mnt/games Games
+        file:///mnt/nas NAS
         file://${config.xdg.userDirs.projects} Projects
       '';
 

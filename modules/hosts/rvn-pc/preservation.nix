@@ -40,14 +40,6 @@ let
           mode = "0755";
         }
         {
-          directory = "/var/lib/NetworkManager";
-          mode = "0755";
-        }
-        {
-          directory = "/etc/NetworkManager/system-connections";
-          mode = "0700";
-        }
-        {
           directory = "/var/lib/systemd/timers";
           mode = "0755";
         }
@@ -145,6 +137,7 @@ in
           inputs.home-manager.nixosModules.home-manager
           config.flake.modules.nixos.users
           config.flake.modules.nixos.secrets
+          config.flake.modules.nixos."system/networkmanager"
           config.flake.modules.nixos."services/attic"
           config.flake.modules.nixos."system/tiered-service-startup"
           config.flake.modules.nixos.vpn
