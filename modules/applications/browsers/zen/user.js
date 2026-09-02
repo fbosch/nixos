@@ -95,7 +95,7 @@ user_pref("dom.media.webcodecs.h265.enabled", true);
 user_pref("media.wmf.hevc.enabled", true);
 user_pref(
   "media.videocontrols.picture-in-picture.enable-when-switching-tabs.enabled",
-  true
+  true,
 );
 user_pref("media.ffmpeg.vaapi.enabled", true);
 user_pref("media.hardware-video-decoding.force-enabled", true);
@@ -114,6 +114,7 @@ user_pref("config.trim_on_minimize", true);
 user_pref("timer.auto_increase_timer_resolution", true);
 user_pref("widget.wayland.opaque-region.enabled", false);
 user_pref("widget.wayland.fractional-scale.enabled", true);
+user_pref("full-screen-api.ignore-widgets", true);
 user_pref("gfx.wayland.hdr", false);
 user_pref("widget.dmabuf.force-enabled", true);
 user_pref("widget.macos.titlebar-blend", true);

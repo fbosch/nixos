@@ -79,5 +79,6 @@ user_pref(
 user_pref("floorp.zenmode.enabled", false);
 
 // Sidebar + chrome tweaks
+user_pref("full-screen-api.ignore-widgets", true);
 user_pref("sidebar.visibility", "hide-sidebar");
 user_pref("userChrome.hidden.urlbar_iconbox", true);
