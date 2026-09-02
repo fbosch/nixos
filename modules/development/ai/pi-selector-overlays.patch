@@ -399,11 +399,12 @@
  import chalk from "chalk";
  import { spawn } from "child_process";
  import { APP_NAME, APP_TITLE, CONFIG_DIR_NAME, getAgentDir, getAuthPath, getDebugLogPath, getDocsPath, VERSION, } from "../../config.js";
-@@ -79,6 +79,44 @@
+@@ -79,6 +79,66 @@
  function isExpandable(obj) {
      return typeof obj === "object" && obj !== null && "setExpanded" in obj && typeof obj.setExpanded === "function";
  }
 +const SELECTOR_OVERLAY_OPTIONS = { anchor: "center", maxHeight: "100%", margin: 1 };
++const LOGIN_PROMPT_CANCEL = Symbol("loginPromptCancel");
 +class SelectorOverlayComponent {
 +    wantsKeyRelease;
 +    component;
@@ -441,10 +442,31 @@
 +        this.component.invalidate();
 +    }
 +}
++const SELECTOR_OVERLAY_NAMES = new Map([
++    [SettingsSelectorComponent, "settings"],
++    [ThinkingSelectorComponent, "thinking"],
++    [TrustSelectorComponent, "trust"],
++    [ModelSelectorComponent, "model"],
++    [ScopedModelsSelectorComponent, "scoped-models"],
++    [UserMessageSelectorComponent, "fork"],
++    [TreeSelectorComponent, "tree"],
++    [SessionSelectorComponent, "session"],
++    // Built-in showSelector uses this generic component for auth method selection.
++    [ExtensionSelectorComponent, "auth"],
++    [LoginDialogComponent, "auth"],
++    [OAuthSelectorComponent, "auth"],
++]);
++function getSelectorOverlayName(component) {
++    for (const [ComponentType, name] of SELECTOR_OVERLAY_NAMES) {
++        if (component instanceof ComponentType)
++            return name;
++    }
++    return undefined;
++}
  class ExpandableText extends Text {
      getCollapsedText;
      getExpandedText;
-@@ -3721,39 +3759,50 @@
+@@ -3721,39 +3781,79 @@
          dispose?.();
      }
      /**
@@ -452,8 +474,7 @@
 +     * Shows a selector component as a modal overlay.
       * @param create Factory that receives a `done` callback and returns the component and focus target
       */
--    showSelector(create) {
-+    showSelector(selectorName, create) {
+     showSelector(create) {
          const token = {};
          let dispose;
 -        const done = () => {
@@ -490,17 +511,45 @@
 -        this.ui.setFocus(created.focus);
 -        this.ui.requestRender();
 +        this.activeSelectorDispose = teardown;
-+        const overlay = new SelectorOverlayComponent(created.component, created.focus);
-+        const handle = this.ui.showOverlay(overlay, {
++        const handle = this.showComponentOverlay(created.component, created.focus);
++        closeOverlay = () => handle.hide();
+     }
++    showComponentOverlay(component, focus, selectorName = getSelectorOverlayName(component)) {
++        const overlay = new SelectorOverlayComponent(component, focus);
++        return this.ui.showOverlay(overlay, {
 +            ...SELECTOR_OVERLAY_OPTIONS,
 +            width: this.settingsManager.getSelectorOverlayWidth(selectorName),
 +        });
-+        closeOverlay = () => handle.hide();
-     }
++    }
++    showModalComponent(component, focus = component, onDismiss) {
++        let close = () => { };
++        let closing = false;
++        this.showSelector((done) => {
++            close = () => {
++                closing = true;
++                done();
++            };
++            return {
++                component,
++                focus,
++                dispose: () => {
++                    component.dispose?.();
++                    if (!closing)
++                        onDismiss?.();
++                },
++            };
++        });
++        return () => close();
++    }
++    showLoginDialogModal(dialog) {
++        return this.showModalComponent(dialog, dialog, () => {
++            dialog[LOGIN_PROMPT_CANCEL]?.();
++            dialog.cancel();
++        });
++    }
      showSettingsSelector() {
--        this.showSelector((done) => {
+         this.showSelector((done) => {
 -            let selector;
-+        this.showSelector("settings", (done) => {
              const defaultProvider = this.settingsManager.getDefaultProvider();
              const defaultModelId = this.settingsManager.getDefaultModel();
              const defaultModel = defaultProvider && defaultModelId ? `${defaultProvider}/${defaultModelId}` : "not set";
@@ -509,7 +558,7 @@
                  autoCompact: this.session.autoCompactionEnabled,
                  defaultModel,
                  currentModel: this.session.model,
-@@ -3785,6 +3834,7 @@
+@@ -3785,6 +3885,7 @@
                  editorPaddingX: this.settingsManager.getEditorPaddingX(),
                  outputPad: this.settingsManager.getOutputPad(),
                  autocompleteMaxVisible: this.settingsManager.getAutocompleteMaxVisible(),
@@ -517,7 +566,7 @@
                  quietStartup: this.settingsManager.getQuietStartup(),
                  clearOnShrink: this.settingsManager.getClearOnShrink(),
                  showTerminalProgress: this.settingsManager.getShowTerminalProgress(),
-@@ -3934,6 +3984,9 @@
+@@ -3934,6 +4035,9 @@
                          this.editor.setAutocompleteMaxVisible(maxVisible);
                      }
                  },
@@ -527,7 +576,7 @@
                  onClearOnShrinkChange: (enabled) => {
                      this.settingsManager.setClearOnShrink(enabled);
                      this.ui.setClearOnShrink(enabled);
-@@ -3945,8 +3998,8 @@
+@@ -3945,8 +4049,8 @@
                      this.settingsManager.setShowTerminalProgress(enabled);
                  },
                  onTuiModeChange: (mode) => {
@@ -537,52 +586,7 @@
                          this.showStatus("Close active overlays before changing TUI mode");
                          return;
                      }
-@@ -4004,7 +4057,7 @@
-         }
-     }
-     showThinkingSelector() {
--        this.showSelector((done) => {
-+        this.showSelector("thinking", (done) => {
-             const selectLevel = (level, persist) => {
-                 this.selectThinkingLevel(level, persist);
-                 done();
-@@ -4133,7 +4186,7 @@
-         const cwd = this.sessionManager.getCwd();
-         const trustStore = new ProjectTrustStore(this.runtimeHost.services.agentDir);
-         const savedDecision = trustStore.getEntry(cwd);
--        this.showSelector((done) => {
-+        this.showSelector("trust", (done) => {
-             const selector = new TrustSelectorComponent({
-                 cwd,
-                 savedDecision,
-@@ -4152,7 +4205,7 @@
-         });
-     }
-     showModelSelector(initialSearchInput) {
--        this.showSelector((done) => {
-+        this.showSelector("model", (done) => {
-             const selectModel = async (model, persist) => {
-                 try {
-                     await this.session.setModel(model, { persist });
-@@ -4215,7 +4268,7 @@
-             this.updateAvailableProviderCount();
-             this.ui.requestRender();
-         };
--        this.showSelector((done) => {
-+        this.showSelector("scoped-models", (done) => {
-             let disposed = false;
-             let timedOut = false;
-             const controller = new AbortController();
-@@ -4298,7 +4351,7 @@
-             return;
-         }
-         const initialSelectedId = userMessages[userMessages.length - 1]?.entryId;
--        this.showSelector((done) => {
-+        this.showSelector("fork", (done) => {
-             const selector = new UserMessageSelectorComponent(userMessages.map((m) => ({ id: m.entryId, text: m.text })), async (entryId) => {
-                 done();
-                 try {
-@@ -4316,7 +4369,7 @@
+@@ -4316,7 +4420,7 @@
              }, () => {
                  done();
                  this.ui.requestRender();
@@ -591,16 +595,7 @@
              return { component: selector, focus: selector.getMessageList() };
          });
      }
-@@ -4347,7 +4400,7 @@
-             this.showStatus("No entries in session");
-             return;
-         }
--        this.showSelector((done) => {
-+        this.showSelector("tree", (done) => {
-             const selector = new TreeSelectorComponent(tree, realLeafId, this.ui.terminal.rows, async (entryId) => {
-                 // Selecting the current leaf is a no-op (already there)
-                 if (entryId === this.sessionManager.getLeafId()) {
-@@ -4441,7 +4494,7 @@
+@@ -4441,7 +4545,7 @@
              }, (entryId, label) => {
                  this.sessionManager.appendLabelChange(entryId, label);
                  this.ui.requestRender();
@@ -609,39 +604,187 @@
              selector.onCopy = async (text) => {
                  if (!text) {
                      this.showError("Selected entry has no text to copy");
-@@ -4459,7 +4512,7 @@
+@@ -4796,48 +4900,31 @@
+             .finally(() => clearTimeout(timeout));
+     }
+     showAmbientAuthDialog(providerOption) {
+-        const restoreEditor = () => {
+-            this.editorContainer.clear();
+-            this.editorContainer.addChild(this.editor);
+-            this.ui.setFocus(this.editor);
+-            this.ui.requestRender();
+-        };
+-        const dialog = new LoginDialogComponent(this.ui, providerOption.id, () => restoreEditor(), providerOption.name, `${providerOption.name} setup`);
++        let closeDialog = () => { };
++        const dialog = new LoginDialogComponent(this.ui, providerOption.id, () => closeDialog(), providerOption.name, `${providerOption.name} setup`);
+         dialog.showInfo(`${providerOption.method?.name ?? "Authentication"} is configured outside ${APP_NAME}.`, [], true);
+-        this.editorContainer.clear();
+-        this.editorContainer.addChild(dialog);
+-        this.ui.setFocus(dialog);
+-        this.ui.requestRender();
++        closeDialog = this.showLoginDialogModal(dialog);
+     }
+     async showApiKeyLoginDialog(providerId, providerName) {
+         const previousModel = this.session.model;
+         const dialog = new LoginDialogComponent(this.ui, providerId, (_success, _message) => {
+             // Completion handled below
+         }, providerName);
+         if (providerId === "amazon-bedrock") {
+             dialog.showDetails([
+                 theme.fg("text", "You can also use an AWS profile, IAM keys, or role-based credentials."),
+                 theme.fg("muted", "See:"),
+                 theme.fg("accent", `  ${path.join(getDocsPath(), "providers.md")}`),
+             ]);
+         }
+-        this.editorContainer.clear();
+-        this.editorContainer.addChild(dialog);
+-        this.ui.setFocus(dialog);
+-        this.ui.requestRender();
+-        const restoreEditor = () => {
+-            this.editorContainer.clear();
+-            this.editorContainer.addChild(this.editor);
+-            this.ui.setFocus(this.editor);
+-            this.ui.requestRender();
+-        };
++        const restoreEditor = this.showLoginDialogModal(dialog);
+         try {
+             await this.loginProvider(dialog, providerId, "api_key");
+             restoreEditor();
+             await this.completeProviderAuthentication(providerId, providerName, "api_key", previousModel);
+         }
+         catch (error) {
+             restoreEditor();
+             const errorMsg = error instanceof Error ? error.message : String(error);
+             if (error instanceof CredentialSynchronizationError) {
+                 this.showError(`Saved API key for ${providerName}, but local model state could not be synchronized: ${errorMsg}`);
+@@ -4847,103 +4934,99 @@
+             }
+         }
+     }
+     showAuthSelect(dialog, prompt) {
+         return new Promise((resolve, reject) => {
+-            const restoreDialog = () => {
+-                this.editorContainer.clear();
+-                this.editorContainer.addChild(dialog);
+-                this.ui.setFocus(dialog);
+-                this.ui.requestRender();
+-            };
+             const labels = prompt.options.map((option) => option.label);
+-            const selector = new ExtensionSelectorComponent(prompt.message, labels, (optionLabel) => {
+-                restoreDialog();
+-                const id = prompt.options.find((option) => option.label === optionLabel)?.id;
+-                if (id)
+-                    resolve(id);
+-                else
+-                    reject(new Error("Login cancelled"));
+-            }, () => {
+-                restoreDialog();
+-                reject(new Error("Login cancelled"));
+-            });
+-            this.editorContainer.clear();
+-            this.editorContainer.addChild(selector);
+-            this.ui.setFocus(selector);
+-            this.ui.requestRender();
++            let handle;
++            const closeSelector = () => {
++                prompt.signal?.removeEventListener("abort", onAbort);
++                handle?.hide();
++                dialog[LOGIN_PROMPT_CANCEL] = undefined;
++            };
++            const onAbort = () => {
++                closeSelector();
++                reject(new Error("Login cancelled"));
++            };
++            const selector = new ExtensionSelectorComponent(prompt.message, labels, (optionLabel) => {
++                closeSelector();
++                const id = prompt.options.find((option) => option.label === optionLabel)?.id;
++                if (id)
++                    resolve(id);
++                else
++                    reject(new Error("Login cancelled"));
++            }, () => {
++                closeSelector();
++                reject(new Error("Login cancelled"));
++            });
++            prompt.signal?.addEventListener("abort", onAbort, { once: true });
++            dialog[LOGIN_PROMPT_CANCEL] = onAbort;
++            handle = this.showComponentOverlay(selector, selector, "auth");
          });
      }
-     showSessionSelector() {
--        this.showSelector((done) => {
-+        this.showSelector("session", (done) => {
-             const selector = new SessionSelectorComponent((onProgress) => SessionManager.list(this.sessionManager.getCwd(), this.sessionManager.getSessionDir(), onProgress), (onProgress) => this.sessionManager.usesDefaultSessionDir()
-                 ? SessionManager.listAll(onProgress)
-                 : SessionManager.listAll(this.sessionManager.getSessionDir(), onProgress), async (sessionPath) => {
-@@ -4626,7 +4679,7 @@
-         const title = providerOptions?.[0]
-             ? `Select authentication method for ${providerOptions[0].name}:`
-             : "Select authentication method:";
--        this.showSelector((done) => {
-+        this.showSelector("auth", (done) => {
-             const selector = new ExtensionSelectorComponent(title, options, (option) => {
-                 done();
-                 const authType = option === subscriptionLabel ? "oauth" : "api_key";
-@@ -4656,7 +4709,7 @@
-             this.showStatus(message);
-             return;
+     async showAuthPrompt(dialog, prompt) {
++        if (prompt.signal?.aborted)
++            throw new Error("Login cancelled");
+         let response;
+         if (prompt.type === "select") {
+             response = this.showAuthSelect(dialog, prompt);
          }
--        this.showSelector((done) => {
-+        this.showSelector("auth", (done) => {
-             const selector = new OAuthSelectorComponent("login", providerOptions, async (providerId, selectedAuthType) => {
-                 done();
-                 const providerOption = providerOptions.find((provider) => provider.id === providerId && provider.authType === selectedAuthType);
-@@ -4693,7 +4746,7 @@
-             this.showStatus("No stored credentials to remove. /logout only removes credentials saved by /login; environment variables and models.json config are unchanged.");
-             return;
+         else if (prompt.type === "manual_code") {
+             response = dialog.showManualInput(prompt.message);
          }
--        this.showSelector((done) => {
-+        this.showSelector("auth", (done) => {
-             const selector = new OAuthSelectorComponent(mode, providerOptions, async (providerId) => {
-                 done();
-                 const providerOption = providerOptions.find((provider) => provider.id === providerId);
+         else {
+             response = dialog.showPrompt(prompt.message, prompt.placeholder);
+         }
+         if (!prompt.signal)
+             return response;
+         if (prompt.signal.aborted)
+             throw new Error("Login cancelled");
+         const signal = prompt.signal;
+         let onAbort;
+         const aborted = new Promise((_resolve, reject) => {
+             onAbort = () => reject(new Error("Login cancelled"));
+             signal.addEventListener("abort", onAbort, { once: true });
+         });
+         try {
+             return await Promise.race([response, aborted]);
+         }
+         finally {
+             if (onAbort)
+                 signal.removeEventListener("abort", onAbort);
+         }
+     }
+     notifyAuthDialog(dialog, event) {
+         if (event.type === "auth_url") {
+             dialog.showAuth(event.url, event.instructions);
+         }
+         else if (event.type === "device_code") {
+             dialog.showDeviceCode(event);
+             dialog.showWaiting("Waiting for authentication...");
+         }
+         else if (event.type === "info") {
+             dialog.showInfo(event.message, event.links);
+         }
+         else {
+             dialog.showProgress(event.message);
+         }
+     }
+     async loginProvider(dialog, providerId, method) {
+         await this.session.modelRuntime.login(providerId, method, {
+             signal: dialog.signal,
+             prompt: (prompt) => this.showAuthPrompt(dialog, prompt),
+             notify: (event) => this.notifyAuthDialog(dialog, event),
+         });
+     }
+     async showLoginDialog(providerId, providerName) {
+         const previousModel = this.session.model;
+         const dialog = new LoginDialogComponent(this.ui, providerId, (_success, _message) => { }, providerName);
+-        this.editorContainer.clear();
+-        this.editorContainer.addChild(dialog);
+-        this.ui.setFocus(dialog);
+-        this.ui.requestRender();
+-        const restoreEditor = () => {
+-            this.editorContainer.clear();
+-            this.editorContainer.addChild(this.editor);
+-            this.ui.setFocus(this.editor);
+-            this.ui.requestRender();
+-        };
++        const restoreEditor = this.showLoginDialogModal(dialog);
+         try {
+             await this.loginProvider(dialog, providerId, "oauth");
+             restoreEditor();
+             await this.completeProviderAuthentication(providerId, providerName, "oauth", previousModel);
+         }
+         catch (error) {
+             restoreEditor();
+             const errorMsg = error instanceof Error ? error.message : String(error);
+             if (error instanceof CredentialSynchronizationError) {
+                 this.showError(`Logged in to ${providerName}, but local model state could not be synchronized: ${errorMsg}`);

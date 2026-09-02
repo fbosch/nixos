@@ -33,6 +33,15 @@ let
           inputs.herdr.packages.${pkgs.stdenv.hostPlatform.system}.default
         ];
     };
+  homeManagerPi =
+    { lib, pkgs, ... }:
+    {
+      home.activation.securePiAgentDirectory = lib.hm.dag.entryBefore [ "dotfiles" ] ''
+        set -euo pipefail
+
+        $DRY_RUN_CMD ${pkgs.coreutils}/bin/install -d -m 0700 "$HOME/.pi/agent"
+      '';
+    };
 in
 {
   flake = {
@@ -61,6 +70,40 @@ in
             }
         );
 
+      homeManager.development = homeManagerPi;
+
     };
   };
+
+  perSystem =
+    { lib, pkgs, ... }:
+    let
+      piHomeConfig =
+        (inputs.home-manager.lib.homeManagerConfiguration {
+          inherit pkgs;
+          modules = [
+            homeManagerPi
+            {
+              home = {
+                username = "tester";
+                homeDirectory = "/home/tester";
+                stateVersion = "25.05";
+              };
+            }
+          ];
+        }).config;
+      securePiAgentDirectory = piHomeConfig.home.activation.securePiAgentDirectory;
+    in
+    {
+      nix-unit.tests.piActivation = {
+        testSecuresPiAgentDirectory = {
+          expr = lib.hasInfix ''/bin/install -d -m 0700 "$HOME/.pi/agent"'' securePiAgentDirectory.data;
+          expected = true;
+        };
+        testRunsBeforeDotfiles = {
+          expr = securePiAgentDirectory.before;
+          expected = [ "dotfiles" ];
+        };
+      };
+    };
 }
