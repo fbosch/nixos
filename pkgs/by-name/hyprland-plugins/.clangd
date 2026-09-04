@@ -1,0 +1,8 @@
+# Refresh these paths when the Hyprland flake input changes.
+CompileFlags:
+  Add:
+    - -std=c++26
+    - -I/nix/store/15yfb8cqqwqx6b3yyxas7d9igynssxk9-hyprland-0.56.0+date=2026-09-04_34ce982-dev/include
+    - -I/nix/store/15yfb8cqqwqx6b3yyxas7d9igynssxk9-hyprland-0.56.0+date=2026-09-04_34ce982-dev/include/hyprland/protocols
+    - -I/nix/store/15yfb8cqqwqx6b3yyxas7d9igynssxk9-hyprland-0.56.0+date=2026-09-04_34ce982-dev/include/hyprland
+    - -I/nix/store/15yfb8cqqwqx6b3yyxas7d9igynssxk9-hyprland-0.56.0+date=2026-09-04_34ce982-dev/include/hyprland/src
