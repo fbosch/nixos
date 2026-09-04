@@ -60,7 +60,7 @@
         builtins.toJSON {
           default-prefix = "${config.home.homeDirectory}/Faugus";
           mangohud = "False";
-          gamemode = "False";
+          gamemode = "True";
           no-sleep-enabled = "False";
           default-runner = "";
           lossless-location = "${config.home.homeDirectory}/.steam/steam/steamapps/common/Lossless Scaling/Lossless.dll";
