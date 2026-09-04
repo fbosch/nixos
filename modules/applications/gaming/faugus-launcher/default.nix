@@ -6,10 +6,11 @@
     };
 
   flake.modules.homeManager.applications =
-    { config
-    , lib
-    , pkgs
-    , ...
+    {
+      config,
+      lib,
+      pkgs,
+      ...
     }:
     let
       faugusPrefixRequirements = [
@@ -20,12 +21,10 @@
         }
       ];
       faugusPrefixRequirementsFile = pkgs.writeText "faugus-prefix-requirements.tsv" (
-        lib.concatMapStringsSep "\n"
-          (
-            requirement:
-            "${requirement.selection}\t${requirement.runner}\t${lib.concatStringsSep " " (lib.sort builtins.lessThan (lib.unique requirement.verbs))}"
-          )
-          faugusPrefixRequirements
+        lib.concatMapStringsSep "\n" (
+          requirement:
+          "${requirement.selection}\t${requirement.runner}\t${lib.concatStringsSep " " (lib.sort builtins.lessThan (lib.unique requirement.verbs))}"
+        ) faugusPrefixRequirements
         + "\n"
       );
       faugusPrefixSetup = pkgs.writeShellApplication {
@@ -61,7 +60,7 @@
         builtins.toJSON {
           default-prefix = "${config.home.homeDirectory}/Faugus";
           mangohud = "False";
-          gamemode = "True";
+          gamemode = "False";
           no-sleep-enabled = "False";
           default-runner = "";
           lossless-location = "${config.home.homeDirectory}/.steam/steam/steamapps/common/Lossless Scaling/Lossless.dll";
@@ -123,7 +122,7 @@
 
       xdg.desktopEntries.faugus-launcher = {
         name = "Faugus Launcher";
-        exec = "gamemoderun env WINEFSYNC=1 WINEESYNC=1 DXVK_HUD=0 DXVK_STATE_CACHE=1 faugus-launcher %U";
+        exec = "env WINEFSYNC=1 WINEESYNC=1 DXVK_HUD=0 DXVK_STATE_CACHE=1 faugus-launcher %U";
         icon = "faugus-launcher";
         type = "Application";
         categories = [ "Game" ];
