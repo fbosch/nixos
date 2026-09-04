@@ -124,6 +124,7 @@ uniform float thick;
 uniform int gradientLength;
 uniform vec4 gradient[10];
 uniform float angle;
+uniform float alpha;
 uniform int blendMode;
 
 const float SMOOTHING_CONSTANT = 3.14159265358979323846 / 5.34665792551;
@@ -315,14 +316,16 @@ void main() {
 
     vec4 destinationPixel = FETCH_DESTINATION();
     float destinationAlpha = destinationPixel.a;
-    if (destinationAlpha <= 0.00001)
-        discard;
 
     vec4 border = gradientColor(v_texcoord);
-    float borderAlpha = clamp(border.a * coverage, 0.0, 1.0);
-    vec3 destination = clamp(destinationPixel.rgb / destinationAlpha, 0.0, 1.0);
-    vec3 blended = clamp(blendColor(clamp(border.rgb, 0.0, 1.0), destination), 0.0, 1.0);
-    fragColor = vec4(mix(destination, blended, borderAlpha) * destinationAlpha, destinationAlpha);
+    float borderAlpha = clamp(border.a * coverage * alpha, 0.0, 1.0);
+    vec3 source = clamp(border.rgb, 0.0, 1.0);
+    vec3 destination = destinationAlpha > 0.00001 ? clamp(destinationPixel.rgb / destinationAlpha, 0.0, 1.0) : vec3(0.0);
+    vec3 blended = clamp(blendColor(source, destination), 0.0, 1.0);
+    float outputAlpha = borderAlpha + destinationAlpha * (1.0 - borderAlpha);
+    vec3 outputColor =
+        (1.0 - borderAlpha) * destinationPixel.rgb + borderAlpha * ((1.0 - destinationAlpha) * source + destinationAlpha * blended);
+    fragColor = vec4(outputColor, outputAlpha);
 }
 )GLSL";
 
@@ -535,6 +538,7 @@ void main() {
         shader->setUniformFloat(SHADER_RADIUS_OUTER, data.outerRound == -1 ? rounding : data.outerRound);
         shader->setUniformFloat(SHADER_ROUNDING_POWER, data.roundingPower);
         shader->setUniformFloat(SHADER_THICK, scaledBorderSize);
+        shader->setUniformFloat(SHADER_ALPHA, data.a);
         glUniform1i(g_blendModeUniform, blendModeIndex());
 
         const auto& color = data.grad1;

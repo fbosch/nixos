@@ -7,6 +7,7 @@ let
     {
       environment.systemPackages = with pkgs; [
         clang
+        clang-tools
         go
         rustup
         zig
