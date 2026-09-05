@@ -37,6 +37,16 @@ pull-priceghost-postgres:
 push-attic $target='' $jobs='3':
     nix develop -c bash -euo pipefail -c 'if [[ -z $target ]]; then target=".#nixosConfigurations.$(hostname).config.system.build.toplevel"; fi; nix path-info -r "$target" | attic push --jobs "$jobs" --no-closure nix-cache --stdin'
 
+# Build all local Hyprland plugins and run their regression tests
+[group('checks')]
+check-hyprland-plugins:
+    nix build .#checks.x86_64-linux.hyprland-plugins --no-link --print-build-logs
+
+# Generate the Hyprland plugin compilation database for clangd
+[group('setup')]
+configure-hyprland-plugins:
+    nix develop .#hyprland-plugins -c cmake --fresh -S pkgs/by-name/hyprland-plugins -B pkgs/by-name/hyprland-plugins/build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_TESTING=ON
+
 # Validate documented service ports against rvn-srv declarations
 [group('checks')]
 check-service-ports:

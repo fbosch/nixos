@@ -31,6 +31,8 @@
 #include <string_view>
 #include <vector>
 
+#include "gradient_shader.hpp"
+
 using namespace Render;
 using namespace Render::GL;
 
@@ -83,12 +85,14 @@ void main() {
 }
 )GLSL";
 
-    constexpr std::string_view FRAGMENT_SHADER = R"GLSL(#version 300 es
+    constexpr std::string_view FRAGMENT_SHADER_HEADER = R"GLSL(#version 300 es
 #extension GL_KHR_blend_equation_advanced : require
 
 precision highp float;
 
-layout(blend_support_all_equations) out;
+)GLSL";
+
+    constexpr std::string_view FRAGMENT_SHADER_BODY = R"GLSL(layout(blend_support_all_equations) out;
 
 in vec2 v_texcoord;
 
@@ -131,27 +135,9 @@ vec4 gradientColor(vec2 normalizedCoord) {
     if (gradientLength == 1)
         return okLabAToSrgb(gradient[0]);
 
-    float finalAngle;
-    if (angle > 4.71) {
-        normalizedCoord.y = 1.0 - normalizedCoord.y;
-        finalAngle = 6.28 - angle;
-    } else if (angle > 3.14) {
-        normalizedCoord = vec2(1.0) - normalizedCoord;
-        finalAngle = angle - 3.14;
-    } else if (angle > 1.57) {
-        normalizedCoord.x = 1.0 - normalizedCoord.x;
-        finalAngle = 3.14 - angle;
-    } else {
-        finalAngle = angle;
-    }
-
-    float sine = sin(finalAngle);
-    float progress = (normalizedCoord.y * sine + normalizedCoord.x * (1.0 - sine)) * float(gradientLength - 1);
-    if (progress >= float(gradientLength - 1))
-        return okLabAToSrgb(gradient[gradientLength - 1]);
-
+    float progress = gradientProgress(normalizedCoord.x, normalizedCoord.y, angle, gradientLength);
     int lower = int(floor(progress));
-    int upper = lower + 1;
+    int upper = min(lower + 1, gradientLength - 1);
     vec4 color = mix(gradient[lower], gradient[upper], progress - float(lower));
     return okLabAToSrgb(color);
 }
@@ -344,7 +330,8 @@ void main() {
         }
 
         g_advancedBlendShader = makeShared<CShader>();
-        g_advancedBlendSupported = g_advancedBlendShader->createProgram(std::string(VERTEX_SHADER), std::string(FRAGMENT_SHADER), true, true);
+        const auto fragmentShader = std::string(FRAGMENT_SHADER_HEADER) + std::string(gradient_shader::source) + std::string(FRAGMENT_SHADER_BODY);
+        g_advancedBlendSupported = g_advancedBlendShader->createProgram(std::string(VERTEX_SHADER), fragmentShader, true, true);
         if (!g_advancedBlendSupported) {
             g_advancedBlendShader.reset();
             HyprlandAPI::addNotification(g_handle, "adaptive-soft-shadow: shader failed; using neutral shadows", CHyprColor{1.F, 0.3F, 0.3F, 1.F}, 5000.F);
@@ -706,11 +693,11 @@ void main() {
 
 } // namespace
 
-APICALL EXPORT std::string PLUGIN_API_VERSION() {
+extern "C" __attribute__((visibility("default"))) std::string PLUGIN_API_VERSION() {
     return HYPRLAND_API_VERSION;
 }
 
-APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
+extern "C" __attribute__((visibility("default"))) PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     const auto version = HyprlandAPI::getHyprlandVersion(handle);
     if (version.hash != EXPECTED_HYPRLAND_COMMIT)
         throw std::runtime_error("adaptive-soft-shadow: unsupported Hyprland commit");
@@ -757,7 +744,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     };
 }
 
-APICALL EXPORT void PLUGIN_EXIT() {
+extern "C" __attribute__((visibility("default"))) void PLUGIN_EXIT() {
     g_windowOpenListener.reset();
     // Transformed windows can retain plugin elements in nested passes that removeAllOfType cannot reach.
     if (g_pHyprRenderer)

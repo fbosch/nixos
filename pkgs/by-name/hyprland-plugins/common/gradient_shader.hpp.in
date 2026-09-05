@@ -1,0 +1,11 @@
+#pragma once
+
+#include <string_view>
+
+namespace gradient_shader {
+
+inline constexpr std::string_view source = R"GLSL(
+@GRADIENT_GLSL_SOURCE@
+)GLSL";
+
+}

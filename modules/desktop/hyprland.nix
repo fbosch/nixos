@@ -1,5 +1,33 @@
 { inputs, ... }:
 {
+  perSystem =
+    { config
+    , lib
+    , pkgs
+    , system
+    , ...
+    }:
+    lib.optionalAttrs (system == "x86_64-linux") (
+      let
+        plugins = lib.filterAttrs (name: _: lib.hasPrefix "hyprland-plugins/" name) config.packages;
+        hyprland = inputs.hyprland.packages.${system}.hyprland;
+        hyprlandPkgs = import inputs.hyprland.inputs.nixpkgs { inherit system; };
+      in
+      {
+        checks.hyprland-plugins = pkgs.linkFarm "hyprland-plugins" (
+          lib.mapAttrsToList
+            (_: plugin: {
+              name = plugin.pname;
+              path = plugin;
+            })
+            plugins
+        );
+        devShells.hyprland-plugins = (hyprlandPkgs.mkShell.override { inherit (hyprland) stdenv; }) {
+          inputsFrom = lib.attrValues plugins;
+        };
+      }
+    );
+
   flake.modules = {
     homeManager.desktop = {
       dconf.settings."org/gnome/desktop/interface".toolkit-accessibility = true;
@@ -7,9 +35,8 @@
 
     nixos = {
       desktop =
-        {
-          pkgs,
-          ...
+        { pkgs
+        , ...
         }:
         let
           inherit (pkgs.stdenv.hostPlatform) system;

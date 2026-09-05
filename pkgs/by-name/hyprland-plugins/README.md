@@ -25,7 +25,9 @@ same commit hash. Rebuild these packages whenever the Hyprland input changes.
 Mixing a plugin from one system generation with Hyprland from another is not
 supported.
 
-The packages use Hyprland's Nixpkgs input, GCC 16, CMake, and C++26. Each
+The packages use Hyprland's Nixpkgs input and compiler environment, CMake,
+and C++26. The shared builder lives in
+[`lib/mk-hyprland-plugin.nix`](../../../lib/mk-hyprland-plugin.nix). Each
 package installs one shared library under `$out/lib`.
 
 [`modules/desktop/hyprland.nix`](../../../modules/desktop/hyprland.nix) installs
@@ -46,6 +48,25 @@ The matching Lua integrations live in the
 [`dotfiles` repository](https://github.com/fbosch/dotfiles/tree/master/.config/hypr/plugins).
 They load each library with `hl.plugin.load()` and configure or subscribe to the
 interfaces described below.
+
+## Building and testing
+
+Run these from the repository root:
+
+1. Run `just check-hyprland-plugins` to build all eight libraries and run the
+   focus-geometry and gradient regression tests. This also runs as
+   `checks.x86_64-linux.hyprland-plugins` during `nix flake check`.
+2. Run `just configure-hyprland-plugins` before editing C++, and again after
+   updating the Hyprland input. It configures all plugins in the matching Nix
+   development shell and generates `build/compile_commands.json` for `.clangd`.
+   The build directory is ignored by Git.
+
+The tests use CTest and the C++ standard library, with no separate test
+framework. They exercise production geometry-restoration logic and the shared
+GLSL gradient arithmetic compiled as C++. They do not validate GPU output,
+compositor callback timing, or Lua event ordering across reloads. Those still
+need a separate Hyprland session for runtime testing. Neither recipe loads a
+plugin or changes the running compositor.
 
 ## Renderer plugins
 
@@ -126,7 +147,9 @@ The leaf starts with style `popin 96%`, speed `1`, and disabled state. A
 configured `popin N%` start scale is clamped to 50 through 100 percent;
 unsupported or malformed styles use 96 percent. No focus animation runs when
 the window's position or size is already animated, or when the start scale is
-100 percent.
+100 percent. If a native position or size animation interrupts the effect,
+the plugin stops scaling and restores geometry components that are not being
+animated by Hyprland.
 
 The implementation modifies Hyprland's internal animation tree because the
 plugin API cannot add animation leaves. This makes the exact-commit requirement

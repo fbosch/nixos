@@ -6,6 +6,8 @@
 #include <hyprland/src/plugins/PluginAPI.hpp>
 #include <hyprland/src/render/Renderer.hpp>
 
+#include "focus_animation_geometry.h"
+
 #include <algorithm>
 #include <charconv>
 #include <cmath>
@@ -34,6 +36,7 @@ namespace {
     CHyprSignalListener g_destroyListener;
     PHLWINDOWREF        g_window;
     PHLANIMVAR<float>   g_scale;
+    bool                g_focusEffectRelinquished = false;
 
     SP<SAnimationPropertyConfig> prepareAnimationLeaf() {
         // Hyprland has no plugin API for adding animation leaves. Plugins are
@@ -104,17 +107,29 @@ namespace {
 
         auto& position = window->positionAnimation();
         auto& size     = window->sizeAnimation();
-        if (!position || !size || position->isBeingAnimated() || size->isBeingAnimated())
+        const auto geometry = focus_animation::inspectGeometry(position.get(), size.get());
+        if (!geometry.hasInactiveVariable())
             return;
 
         if (g_pHyprRenderer)
             g_pHyprRenderer->damageWindow(window, true);
 
-        position->value() = position->goal();
-        size->value()     = size->goal();
+        geometry.restoreInactive();
 
         if (g_pHyprRenderer)
             g_pHyprRenderer->damageWindow(window, true);
+    }
+
+    void finishAnimation(WP<Hyprutils::Animation::CBaseAnimatedVariable>) {
+        if (!g_scale)
+            return;
+
+        // Hyprutils invokes update callbacks directly. Clear this callback only
+        // from the separate end callback, never while updateScale is running.
+        g_scale->setUpdateCallback(nullptr);
+        restoreWindowGeometry();
+        g_window.reset();
+        g_focusEffectRelinquished = false;
     }
 
     void stopAnimation() {
@@ -124,6 +139,7 @@ namespace {
         restoreWindowGeometry();
         g_scale.reset();
         g_window.reset();
+        g_focusEffectRelinquished = false;
     }
 
     void updateScale(WP<Hyprutils::Animation::CBaseAnimatedVariable> animation) {
@@ -133,7 +149,15 @@ namespace {
 
         auto& position = window->positionAnimation();
         auto& size     = window->sizeAnimation();
-        if (!position || !size || position->isBeingAnimated() || size->isBeingAnimated())
+        const auto geometry = focus_animation::inspectGeometry(position.get(), size.get());
+        if (!position || !size || geometry.hasNativeAnimation()) {
+            if (!g_focusEffectRelinquished) {
+                g_focusEffectRelinquished = true;
+                restoreWindowGeometry();
+            }
+            return;
+        }
+        if (g_focusEffectRelinquished)
             return;
 
         const auto* scaleAnimation = static_cast<CAnimatedVariable<float>*>(animation.get());
@@ -175,6 +199,7 @@ namespace {
         g_window = window;
         Animation::mgr()->createAnimation(1.F, g_scale, config, window, AVARDAMAGE_ENTIRE);
         g_scale->setUpdateCallback(updateScale);
+        g_scale->setCallbackOnEnd(finishAnimation);
 
         if (!g_scale->enabled()) {
             stopAnimation();
@@ -191,6 +216,7 @@ namespace {
     }
 
     int prepareAnimationLeafLua(lua_State* state) {
+        stopAnimation();
         if (!prepareAnimationLeaf())
             return luaL_error(state, "focus-animation: windows animation parent is unavailable");
 
@@ -221,11 +247,11 @@ namespace {
 
 } // namespace
 
-APICALL EXPORT std::string PLUGIN_API_VERSION() {
+extern "C" __attribute__((visibility("default"))) std::string PLUGIN_API_VERSION() {
     return HYPRLAND_API_VERSION;
 }
 
-APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
+extern "C" __attribute__((visibility("default"))) PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     const auto version = HyprlandAPI::getHyprlandVersion(handle);
     if (version.hash != EXPECTED_HYPRLAND_COMMIT)
         throw std::runtime_error("focus-animation: unsupported Hyprland commit");
@@ -262,6 +288,6 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     };
 }
 
-APICALL EXPORT void PLUGIN_EXIT() {
+extern "C" __attribute__((visibility("default"))) void PLUGIN_EXIT() {
     cleanupPluginState();
 }

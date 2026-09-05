@@ -35,6 +35,8 @@
 #include <utility>
 #include <vector>
 
+#include "gradient_shader.hpp"
+
 using namespace Render;
 using namespace Render::GL;
 
@@ -151,27 +153,9 @@ vec4 gradientColor(vec2 normalizedCoord) {
     if (gradientLength == 1)
         return okLabAToSrgb(gradient[0]);
 
-    float finalAngle;
-    if (angle > 4.71) {
-        normalizedCoord.y = 1.0 - normalizedCoord.y;
-        finalAngle = 6.28 - angle;
-    } else if (angle > 3.14) {
-        normalizedCoord = vec2(1.0) - normalizedCoord;
-        finalAngle = angle - 3.14;
-    } else if (angle > 1.57) {
-        normalizedCoord.x = 1.0 - normalizedCoord.x;
-        finalAngle = 3.14 - angle;
-    } else {
-        finalAngle = angle;
-    }
-
-    float sine = sin(finalAngle);
-    float progress = (normalizedCoord.y * sine + normalizedCoord.x * (1.0 - sine)) * float(gradientLength - 1);
-    if (progress >= float(gradientLength - 1))
-        return okLabAToSrgb(gradient[gradientLength - 1]);
-
+    float progress = gradientProgress(normalizedCoord.x, normalizedCoord.y, angle, gradientLength);
     int lower = int(floor(progress));
-    int upper = lower + 1;
+    int upper = min(lower + 1, gradientLength - 1);
     return okLabAToSrgb(mix(gradient[lower], gradient[upper], progress - float(lower)));
 }
 
@@ -450,6 +434,7 @@ void main() {
             return false;
         }
 
+        fragmentShader += gradient_shader::source;
         fragmentShader += FRAGMENT_SHADER_BODY;
         g_advancedBlendShader = makeShared<CShader>();
         g_advancedBlendSupported = g_advancedBlendShader->createProgram(std::string(VERTEX_SHADER), fragmentShader, true, true);
@@ -812,11 +797,11 @@ void main() {
 
 } // namespace
 
-APICALL EXPORT std::string PLUGIN_API_VERSION() {
+extern "C" __attribute__((visibility("default"))) std::string PLUGIN_API_VERSION() {
     return HYPRLAND_API_VERSION;
 }
 
-APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
+extern "C" __attribute__((visibility("default"))) PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     const auto version = HyprlandAPI::getHyprlandVersion(handle);
     if (version.hash != EXPECTED_HYPRLAND_COMMIT)
         throw std::runtime_error("inset-border: unsupported Hyprland commit");
@@ -859,7 +844,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     };
 }
 
-APICALL EXPORT void PLUGIN_EXIT() {
+extern "C" __attribute__((visibility("default"))) void PLUGIN_EXIT() {
     g_windowOpenListener.reset();
     if (g_pHyprRenderer)
         g_pHyprRenderer->currentPass().clear();

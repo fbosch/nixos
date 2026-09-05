@@ -1,4 +1,6 @@
 # Build results
+/pkgs/by-name/hyprland-plugins/build/
+/pkgs/by-name/hyprland-plugins/*/build/
 result
 result-*
 *.log

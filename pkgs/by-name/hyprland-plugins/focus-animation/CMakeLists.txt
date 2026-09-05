@@ -10,3 +10,9 @@ pkg_check_modules(HYPRLAND REQUIRED IMPORTED_TARGET hyprland)
 
 add_library(focus-animation SHARED main.cpp)
 target_link_libraries(focus-animation PRIVATE PkgConfig::HYPRLAND)
+
+include(CTest)
+if(BUILD_TESTING)
+    add_executable(focus-animation-geometry-test focus_animation_geometry_test.cpp)
+    add_test(NAME focus-animation-geometry-test COMMAND focus-animation-geometry-test)
+endif()
