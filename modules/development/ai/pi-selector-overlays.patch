@@ -394,8 +394,8 @@
  import * as os from "node:os";
  import * as path from "node:path";
  import * as TuiLayouts from "@earendil-works/pi-tui";
--import { CombinedAutocompleteProvider, Container, fuzzyFilter, getCapabilities, hyperlink, Markdown, matchesKey, ProcessTerminal, Spacer, setCapabilityOverrides, setKeybindings, Text, TruncatedText, TuiAltScreen, TuiMainScreen, visibleWidth, } from "@earendil-works/pi-tui";
-+import { CombinedAutocompleteProvider, Container, fuzzyFilter, getCapabilities, hyperlink, isFocusable, Markdown, matchesKey, ProcessTerminal, Spacer, setCapabilityOverrides, setKeybindings, Text, TruncatedText, TuiAltScreen, TuiMainScreen, visibleWidth, } from "@earendil-works/pi-tui";
+-import { CombinedAutocompleteProvider, Container, fuzzyFilter, getCapabilities, hyperlink, Markdown, matchesKey, Spacer, setCapabilityOverrides, setKeybindings, Text, TruncatedText, TuiAltScreen, TuiMainScreen, visibleWidth, } from "@earendil-works/pi-tui";
++import { CombinedAutocompleteProvider, Container, fuzzyFilter, getCapabilities, hyperlink, isFocusable, Markdown, matchesKey, Spacer, setCapabilityOverrides, setKeybindings, Text, TruncatedText, TuiAltScreen, TuiMainScreen, visibleWidth, } from "@earendil-works/pi-tui";
  import chalk from "chalk";
  import { spawn } from "child_process";
  import { APP_NAME, APP_TITLE, CONFIG_DIR_NAME, getAgentDir, getAuthPath, getDebugLogPath, getDocsPath, VERSION, } from "../../config.js";
