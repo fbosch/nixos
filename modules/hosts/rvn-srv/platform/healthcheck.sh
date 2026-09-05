@@ -280,7 +280,6 @@ for unit in \
   postgresql.service \
   tailscaled.service \
   home-assistant.service \
-  forgejo.service \
   plex.service \
   uptime-kuma.service \
   gluetun.service \
@@ -308,14 +307,12 @@ check_disk /mnt/nas/video
 
 section "Local Ports"
 check_tcp_port "uptime-kuma" 127.0.0.1 3001
-check_tcp_port "forgejo" "$host_address" 3000
 check_tcp_port "linkwarden" 127.0.0.1 3100
 check_tcp_port "pihole" "$host_address" 8082
 check_tcp_port "glances" 127.0.0.1 61208
 
 section "HTTP APIs"
 check_http_status "uptime-kuma" http://127.0.0.1:3001/
-check_http_status "forgejo" "http://${host_address}:3000/"
 check_http_status "linkwarden" http://127.0.0.1:3100/
 check_http_status "pihole" "http://${host_address}:8082/admin/"
 check_http_status "glances" http://127.0.0.1:61208/

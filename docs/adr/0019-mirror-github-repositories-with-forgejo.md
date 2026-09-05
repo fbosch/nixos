@@ -1,6 +1,6 @@
 # Mirror GitHub Repositories With Forgejo
 
-**Status:** accepted
+**Status:** superseded by [ADR 0020](0020-move-forgejo-to-nas-native-runtime.md)
 **Date:** 2026-08-20
 
 ## Context
