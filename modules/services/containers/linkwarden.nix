@@ -43,7 +43,7 @@ in
 
         imageTag = lib.mkOption {
           type = lib.types.str;
-          default = "v2.16.1";
+          default = "v2.16.2";
           description = "Linkwarden container image tag";
         };
 
