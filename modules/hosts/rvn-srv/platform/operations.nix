@@ -49,7 +49,7 @@
       };
 
       glance-container = {
-        configDir = "/home/${config.flake.meta.user.username}/.config/glance";
+        configDir = "/home/${config.flake.meta.user.username}/dotfiles/.config/glance";
         cpus = "2.0";
         memory = "1g";
         memoryReservation = "512m";
