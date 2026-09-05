@@ -1,6 +1,6 @@
 { inputs, stdenv }:
 
-import ../../../../lib/mk-hyprland-plugin.nix { inherit inputs stdenv; } {
+import ../mk-hyprland-plugin.nix { inherit inputs stdenv; } {
   pname = "adaptive-soft-shadow";
   version = "0.2.2";
   src = ./.;

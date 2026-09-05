@@ -1,6 +1,6 @@
 { inputs, stdenv }:
 
-import ../../../../lib/mk-hyprland-plugin.nix { inherit inputs stdenv; } {
+import ../mk-hyprland-plugin.nix { inherit inputs stdenv; } {
   pname = "focus-animation";
   version = "0.1.10";
   src = ./.;

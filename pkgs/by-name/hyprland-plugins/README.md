@@ -27,7 +27,7 @@ supported.
 
 The packages use Hyprland's Nixpkgs input and compiler environment, CMake,
 and C++26. The shared builder lives in
-[`lib/mk-hyprland-plugin.nix`](../../../lib/mk-hyprland-plugin.nix). Each
+[`mk-hyprland-plugin.nix`](mk-hyprland-plugin.nix). Each
 package installs one shared library under `$out/lib`.
 
 [`modules/desktop/hyprland.nix`](../../../modules/desktop/hyprland.nix) installs

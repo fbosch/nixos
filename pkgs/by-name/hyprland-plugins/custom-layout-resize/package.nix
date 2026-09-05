@@ -1,6 +1,6 @@
 { inputs, stdenv }:
 
-import ../../../../lib/mk-hyprland-plugin.nix { inherit inputs stdenv; } {
+import ../mk-hyprland-plugin.nix { inherit inputs stdenv; } {
   pname = "custom-layout-resize";
   version = "0.3.1";
   src = ./.;

@@ -15,7 +15,7 @@ let
   };
   inherit (pkgs) lib;
   hyprland = inputs.hyprland.packages.${stdenv.hostPlatform.system}.hyprland;
-  pluginRoot = ../pkgs/by-name/hyprland-plugins;
+  pluginRoot = ./.;
   # Darwin must be able to inspect meta.platforms without evaluating Hyprland's Linux-only linker.
   pluginStdenv = if stdenv.hostPlatform.isLinux then hyprland.stdenv else stdenv;
 in
