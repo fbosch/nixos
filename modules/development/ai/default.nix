@@ -10,14 +10,23 @@ let
     { hostMeta, pkgs, ... }:
     let
       llmAgents = inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system};
-      pi = llmAgents.pi.overrideAttrs (previous: {
-        patches = (previous.patches or [ ]) ++ [ ./pi-selector-overlays.patch ];
-        # WezTerm erases fullscreen Kitty image rows when clears follow placement; remove after upstream #8306 is fixed.
-        postConfigure = (previous.postConfigure or "") + ''
-          patch -d node_modules/@earendil-works/pi-tui -p1 \
-            < ${./pi-fullscreen-images.patch}
-        '';
-      });
+      pi = llmAgents.pi.overrideAttrs (
+        previous:
+        assert pkgs.lib.assertMsg (
+          previous.version == "0.85.0"
+        ) "Review pi-openai-capabilities.patch before upgrading Pi from 0.85.0";
+        {
+          patches = (previous.patches or [ ]) ++ [ ./pi-selector-overlays.patch ];
+          # These dependency files exist only after configure, before Bun compiles Pi.
+          postConfigure = (previous.postConfigure or "") + ''
+            # WezTerm fullscreen image fix; remove after upstream #8306 is fixed.
+            patch -d node_modules/@earendil-works/pi-tui -p1 \
+              < ${./pi-fullscreen-images.patch}
+            patch --batch --fuzz=0 -p1 < ${./pi-openai-capabilities.patch}
+            PI_NATIVE_TEST_ROOT="$PWD" bun test ${./tests}
+          '';
+        }
+      );
     in
     {
       environment.systemPackages =
