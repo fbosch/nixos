@@ -1,6 +1,7 @@
-{ config
-, lib
-, ...
+{
+  config,
+  lib,
+  ...
 }:
 {
   flake.modules.nixos."hosts/rvn-srv/platform" = { hostMeta, ... }: {
@@ -106,6 +107,9 @@
           strict-order = true;
           listen-address = "127.0.0.1";
           bind-interfaces = true;
+          address = [
+            "/${config.flake.meta.synology.domain}/${config.flake.meta.nas.ipAddress}"
+          ];
           server = [
             "192.168.1.46"
             "192.168.1.202"
