@@ -340,6 +340,33 @@ test("marks namespaced client tools but rejects invalid final hook output", asyn
   });
 });
 
+test("connection-level Codex metadata does not enter the response event stream", async () => {
+  await withFakeSocket(async () => {
+    const exchange = await createOpenAICodexExchange(model(), context(), {
+      apiKey: token(),
+      openAICapabilities: { asyncTools: true, steering: true },
+    });
+    await exchange.create();
+    const socket = FakeWebSocket.instances[0];
+    socket.event({
+      type: "codex.rate_limits",
+      plan_type: "plus",
+      rate_limits: { allowed: true, limit_reached: false },
+    });
+    socket.event({
+      type: "codex.response.metadata",
+      headers: { "x-models-etag": "etag-123" },
+    });
+    socket.event({ type: "responsesapi.websocket_timing", elapsed_ms: 1 });
+    socket.event({ type: "response.created", response: { id: "r1" } });
+    socket.event({ type: "response.completed", response: { id: "r1" } });
+    const iterator = exchange.events[Symbol.asyncIterator]();
+    assert.equal((await iterator.next()).value.type, "response.created");
+    assert.equal((await iterator.next()).value.type, "response.completed");
+    exchange.close();
+  });
+});
+
 test("batched terminal frames cannot advance steering state ahead of the consumer", async () => {
   await withFakeSocket(async () => {
     const exchange = await createOpenAICodexExchange(model(), context(), {

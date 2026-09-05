@@ -6,11 +6,12 @@ compiles Pi. The existing selector-overlay and fullscreen-image patches remain
 in place.
 
 The dotfiles extension `~/dotfiles/.pi/agent/extensions/openai-capabilities.ts`
-opts in only `openai-codex/gpt-6-astra-fast` through
+opts in both `openai-codex/gpt-6-astra` and `openai-codex/gpt-6-astra-fast` through
 `registerOpenAICapabilities({ provider, model, asyncTools, steering, asyncToolNames? })`.
 Registration uses exact provider/model selectors, rejects duplicates, and cannot
 change during a run. Other models retain the ordinary agent loop. Fast aliases
-still request their base model with `service_tier: "priority"`.
+still request their base model with `service_tier: "priority"`; standard Astra
+keeps its existing service tier.
 
 ## Behavior and limits
 
@@ -47,7 +48,7 @@ no dependency was added to work around it.
 Building does not activate the package or restow the renamed extension. Deploy
 both repositories through their normal workflows before restarting Pi.
 
-Live GPT-6 Astra backend acceptance remains **unverified**: both protocol probes
+Live native async-tool and steering acceptance remain **unverified**: both initial protocol probes
 were rejected by the account usage limit before feature support could be tested.
 The patch does not establish server-side capability or authentication entitlement.
 

@@ -4035,7 +4035,7 @@ diff --git a/node_modules/@earendil-works/pi-ai/dist/api/openai-codex-responses.
 diff --git a/node_modules/@earendil-works/pi-ai/dist/api/openai-codex-responses.js b/node_modules/@earendil-works/pi-ai/dist/api/openai-codex-responses.js
 --- a/node_modules/@earendil-works/pi-ai/dist/api/openai-codex-responses.js
 +++ b/node_modules/@earendil-works/pi-ai/dist/api/openai-codex-responses.js
-@@ -426,6 +426,313 @@
+@@ -426,6 +426,321 @@
      }
      return body;
  }
@@ -4103,6 +4103,11 @@ diff --git a/node_modules/@earendil-works/pi-ai/dist/api/openai-codex-responses.
 +    visit(tools ?? []);
 +    return advertised;
 +}
++const CODEX_NATIVE_INFORMATIONAL_EVENTS = new Set([
++    "codex.rate_limits",
++    "codex.response.metadata",
++    "responsesapi.websocket_timing",
++]);
 +class OpenAICodexNativeEventReader {
 +    socket;
 +    signal;
@@ -4144,6 +4149,9 @@ diff --git a/node_modules/@earendil-works/pi-ai/dist/api/openai-codex-responses.
 +                throw new CodexProtocolError("Invalid Codex WebSocket event");
 +            }
 +            this.armIdleTimer();
++            // Codex sends metadata at connection scope, including before
++            // response.created. Pi does not expose this metadata yet.
++            if (CODEX_NATIVE_INFORMATIONAL_EVENTS.has(parsed.type)) return;
 +            this.push(parsed);
 +        }).catch((cause) => {
 +            this.fail(cause instanceof Error ? cause : new CodexProtocolError(`Invalid Codex WebSocket JSON: ${formatThrownValue(cause)}`));
