@@ -195,6 +195,10 @@ const checkpoint = (phase, callId) => (event) =>
   event.record.phase === phase &&
   (!callId || event.record.callId === callId);
 const tick = () => new Promise((resolve) => setImmediate(resolve));
+const steerEvent = (type, id = "steer_1", previousResponseId = "r1") => ({
+  type,
+  steer: { id, previous_response_id: previousResponseId },
+});
 
 // Every response is manually released: tests prove tools start while the terminal is withheld.
 test(
@@ -621,7 +625,7 @@ for (const terminal of [undefined, "steered"]) {
         s.agent.state.messages.filter((m) => m.role === "user").length,
         1,
       );
-      s.exchange.push({ type: "response.steer.accepted" });
+      s.exchange.push(steerEvent("response.steer.accepted"));
       await s.wait(checkpoint("steer_accepted"));
       s.exchange.end("r1", terminal);
       await s.wait((e) => e.type === "turn_end");
@@ -676,8 +680,15 @@ test(
     await s.exchange.waitFor(() => s.exchange.steered.length === 1);
     s.exchange.end();
     await s.wait((e) => e.type === "turn_end");
-    s.exchange.push({ type: "response.steer.pending" });
+    s.exchange.push(steerEvent("response.steer.accepted"));
+    const accepted = (await s.wait(checkpoint("steer_accepted"))).record;
+    assert.equal(accepted.steerId, "steer_1");
+    s.exchange.push(steerEvent("response.steer.pending"));
     await s.exchange.waitFor(() => s.exchange.created.length === 2);
+    assert.equal(
+      s.events.filter(checkpoint("steer_accepted")).at(-1).record.steerId,
+      "steer_1",
+    );
     assert.equal(s.exchange.created[1].previousResponseId, "r1");
     assert.equal(s.exchange.created[1].context, undefined);
     assert.equal(refreshes, 0);
@@ -692,6 +703,133 @@ test(
     assert.equal(s.agent.hasQueuedMessages(), false);
   },
 );
+
+for (const invalid of [
+  {
+    name: "a wrong nested predecessor on acceptance",
+    events: [steerEvent("response.steer.accepted", "steer_1", "other")],
+  },
+  {
+    name: "a missing nested steer object on acceptance",
+    events: [
+      {
+        type: "response.steer.accepted",
+        previous_response_id: "r1",
+      },
+    ],
+  },
+  {
+    name: "an empty server id on acceptance",
+    events: [steerEvent("response.steer.accepted", "")],
+  },
+  {
+    name: "a different server id on pending",
+    events: [
+      steerEvent("response.steer.accepted"),
+      steerEvent("response.steer.pending", "steer_other"),
+    ],
+  },
+  {
+    name: "a different server id on failure",
+    events: [
+      steerEvent("response.steer.accepted"),
+      {
+        ...steerEvent("response.steer.failed", "steer_other"),
+        error: { message: "denied" },
+      },
+    ],
+  },
+]) {
+  test(
+    `invalid steering acknowledgement (${invalid.name}) remains uncertain without continuation`,
+    { timeout: 3000 },
+    async () => {
+      const s = setup();
+      const run = s.agent.prompt("go");
+      await s.exchange.waitFor(() => s.exchange.created.length === 1);
+      s.exchange.start();
+      await s.wait(
+        (event) =>
+          event.type === "message_start" && event.message.role === "assistant",
+      );
+      s.agent.steer(user("keep"));
+      await s.exchange.waitFor(() => s.exchange.steered.length === 1);
+      for (const event of invalid.events) s.exchange.push(event);
+      await tick();
+      const failed = s.events.filter(checkpoint("steer_failed")).at(-1)?.record;
+      assert.equal(failed?.status, "uncertain");
+      assert.equal(
+        s.agent.steeringQueue.messages[0].openAI.deliveryStatus,
+        "uncertain",
+      );
+      assert.equal(s.events.filter(checkpoint("steer_incorporated")).length, 0);
+      assert.equal(s.exchange.created.length, 1);
+      assert.ok(s.agent.state.errorMessage);
+      s.exchange.disconnect();
+      await run;
+    },
+  );
+}
+
+for (const [name, acknowledgements] of [
+  [
+    "pre-acceptance failure without a server id",
+    [
+      {
+        type: "response.steer.failed",
+        steer: { previous_response_id: "r1" },
+        error: { message: "denied" },
+      },
+    ],
+  ],
+  [
+    "pre-acceptance failure with a null server id",
+    [
+      {
+        type: "response.steer.failed",
+        steer: { id: null, previous_response_id: "r1" },
+        error: { message: "denied" },
+      },
+    ],
+  ],
+  [
+    "matched failure after acceptance",
+    [
+      steerEvent("response.steer.accepted"),
+      {
+        ...steerEvent("response.steer.failed"),
+        error: { message: "denied" },
+      },
+    ],
+  ],
+]) {
+  test(
+    `${name} marks the reserved steering input failed`,
+    { timeout: 3000 },
+    async () => {
+      const s = setup();
+      const run = s.agent.prompt("go");
+      await s.exchange.waitFor(() => s.exchange.created.length === 1);
+      s.exchange.start();
+      await s.wait(
+        (event) =>
+          event.type === "message_start" && event.message.role === "assistant",
+      );
+      s.agent.steer(user("keep"));
+      await s.exchange.waitFor(() => s.exchange.steered.length === 1);
+      for (const event of acknowledgements) s.exchange.push(event);
+      await run;
+      const failed = s.events.filter(checkpoint("steer_failed")).at(-1).record;
+      assert.equal(failed.status, "failed");
+      assert.equal(
+        s.agent.steeringQueue.messages[0].openAI.deliveryStatus,
+        "failed",
+      );
+      assert.equal(s.events.filter(checkpoint("steer_incorporated")).length, 0);
+      assert.equal(s.exchange.created.length, 1);
+    },
+  );
+}
 
 for (const mode of ["rejected", "disconnect", "send-failure"]) {
   test(
@@ -710,7 +848,7 @@ for (const mode of ["rejected", "disconnect", "send-failure"]) {
       await s.exchange.waitFor(() => s.exchange.steered.length === 1);
       if (mode === "rejected")
         s.exchange.push({
-          type: "response.steer.failed",
+          ...steerEvent("response.steer.failed"),
           error: { message: "denied" },
         });
       if (mode === "disconnect") s.exchange.disconnect();
@@ -934,7 +1072,7 @@ test(
     s.agent.steer(user("first"));
     await s.exchange.waitFor(() => s.exchange.steered.length === 1);
     s.agent.steer(user("second"));
-    s.exchange.push({ type: "response.steer.accepted" });
+    s.exchange.push(steerEvent("response.steer.accepted"));
     s.exchange.end();
     await s.wait((e) => e.type === "turn_end");
     await tick();
@@ -947,7 +1085,7 @@ test(
     await s.exchange.waitFor(() => s.exchange.steered.length === 2);
     assert.equal(s.exchange.steered[1].previousResponseId, "r2");
     assert.equal(s.agent.hasQueuedMessages(), true);
-    s.exchange.push({ type: "response.steer.accepted" });
+    s.exchange.push(steerEvent("response.steer.accepted", "steer_2", "r2"));
     s.exchange.end("r2");
     s.exchange.answer("r3");
     await run;
@@ -974,7 +1112,7 @@ test(
     );
     s.agent.steer(user("keep"));
     await s.exchange.waitFor(() => s.exchange.steered.length === 1);
-    s.exchange.push({ type: "response.steer.accepted" });
+    s.exchange.push(steerEvent("response.steer.accepted"));
     s.exchange.end();
     await s.wait((e) => e.type === "turn_end");
     s.agent.abort();

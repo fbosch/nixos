@@ -14,6 +14,15 @@ const moduleUrl = pathToFileURL(
 );
 const { createOpenAICodexExchange } = await import(moduleUrl.href);
 
+function deferred() {
+  let resolve, reject;
+  const promise = new Promise((a, b) => {
+    resolve = a;
+    reject = b;
+  });
+  return { promise, resolve, reject };
+}
+
 class FakeWebSocket {
   static instances = [];
   constructor(url, options) {
@@ -243,6 +252,94 @@ test("aborts the single reader without replaying a request", async () => {
     controller.abort();
     await assert.rejects(iterator.next(), /Request was aborted/);
     assert.equal(socket.sent.length, 1);
+  });
+});
+
+test("drains received successor frames before a clean close", async () => {
+  await withFakeSocket(async () => {
+    const exchange = await createOpenAICodexExchange(model(), context(), {
+      apiKey: token(),
+      openAICapabilities: { asyncTools: true, steering: true },
+    });
+    const socket = FakeWebSocket.instances[0];
+    exchange.create();
+    socket.event({ type: "response.created", response: { id: "r1" } });
+    socket.event({ type: "response.completed", response: { id: "r1" } });
+    socket.event({ type: "response.created", response: { id: "r2" } });
+    socket.event({ type: "response.completed", response: { id: "r2" } });
+    socket.close();
+    const iterator = exchange.events[Symbol.asyncIterator]();
+    assert.deepEqual(
+      [
+        (await iterator.next()).value.response.id,
+        (await iterator.next()).value.response.id,
+        (await iterator.next()).value.response.id,
+        (await iterator.next()).value.response.id,
+      ],
+      ["r1", "r1", "r2", "r2"],
+    );
+    await assert.rejects(iterator.next(), /WebSocket closed 1000/);
+  });
+});
+
+test("drains received successor frames before a socket error", async () => {
+  await withFakeSocket(async () => {
+    const exchange = await createOpenAICodexExchange(model(), context(), {
+      apiKey: token(),
+      openAICapabilities: { asyncTools: true, steering: true },
+    });
+    const socket = FakeWebSocket.instances[0];
+    exchange.create();
+    socket.event({ type: "response.created", response: { id: "r1" } });
+    socket.event({ type: "response.completed", response: { id: "r1" } });
+    socket.event({ type: "response.created", response: { id: "r2" } });
+    socket.event({ type: "response.completed", response: { id: "r2" } });
+    socket.emit("error", {});
+    const iterator = exchange.events[Symbol.asyncIterator]();
+    assert.deepEqual(
+      [
+        (await iterator.next()).value.response.id,
+        (await iterator.next()).value.response.id,
+        (await iterator.next()).value.response.id,
+        (await iterator.next()).value.response.id,
+      ],
+      ["r1", "r1", "r2", "r2"],
+    );
+    await assert.rejects(iterator.next(), /WebSocket error/);
+  });
+});
+
+test("abort rejects immediately while a blob frame is decoding and never emits it", async () => {
+  await withFakeSocket(async () => {
+    const controller = new AbortController();
+    const bytes = deferred();
+    const exchange = await createOpenAICodexExchange(model(), context(), {
+      apiKey: token(),
+      signal: controller.signal,
+      openAICapabilities: { asyncTools: true, steering: true },
+    });
+    const socket = FakeWebSocket.instances[0];
+    exchange.create();
+    const decoding = deferred();
+    socket.emit("message", {
+      data: {
+        arrayBuffer: () => {
+          decoding.resolve();
+          return bytes.promise;
+        },
+      },
+    });
+    const iterator = exchange.events[Symbol.asyncIterator]();
+    await decoding.promise;
+    controller.abort();
+    await assert.rejects(iterator.next(), /Request was aborted/);
+    bytes.resolve(
+      new TextEncoder().encode(
+        JSON.stringify({ type: "response.created", response: { id: "late" } }),
+      ).buffer,
+    );
+    await new Promise(setImmediate);
+    await assert.rejects(iterator.next(), /Request was aborted/);
   });
 });
 

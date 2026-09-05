@@ -21,9 +21,12 @@ keeps its existing service tier.
 - Results are collected at response boundaries and submitted once with their
   original OpenAI call IDs. This implementation does not start an explicit next
   response while tools from the preceding response are still running.
-- Steering uses `response.steer` on the same WebSocket. Acceptance alone does not
-  mark input delivered; the successor response confirms incorporation. Pending
+- Steering uses `response.steer` on the same WebSocket. Acknowledgments must match
+  the reserved predecessor and server-assigned `steer.id`. Acceptance alone does
+  not mark input delivered; the successor response confirms incorporation. Pending
   steering can request predecessor tool outputs without repeating the input.
+- Received messages are decoded before subsequent socket close/error events.
+  Explicit abort remains immediate and discards unfinished decoding.
 - Rejected or uncertain steering retains its original input but is excluded from
   automatic submission, including subsequent runs. Follow-up messages remain
   separate. Review the response before explicitly resending uncertain input.
@@ -48,8 +51,10 @@ no dependency was added to work around it.
 Building does not activate the package or restow the renamed extension. Deploy
 both repositories through their normal workflows before restarting Pi.
 
-Live native async-tool and steering acceptance remain **unverified**: both initial protocol probes
-were rejected by the account usage limit before feature support could be tested.
+Live async tool execution and one steering continuation have been observed on
+standard Astra. Text-only steering attempts also disconnected after acceptance.
+The receive-order and acknowledgment-correlation fixes have not yet been verified
+against the live backend; the cause of those disconnects remains unconfirmed.
 The patch does not establish server-side capability or authentication entitlement.
 
 Before upgrading Pi, review the patch against the new npm source and rerun the

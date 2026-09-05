@@ -3518,7 +3518,7 @@ diff --git a/node_modules/@earendil-works/pi-agent-core/dist/openai-exchange-loo
 diff --git a/node_modules/@earendil-works/pi-agent-core/dist/openai-exchange-loop.js b/node_modules/@earendil-works/pi-agent-core/dist/openai-exchange-loop.js
 --- /dev/null
 +++ b/node_modules/@earendil-works/pi-agent-core/dist/openai-exchange-loop.js
-@@ -0,0 +1,399 @@
+@@ -0,0 +1,414 @@
 +import { AssistantMessageEventStream, convertResponsesMessages, processResponsesStream } from "@earendil-works/pi-ai";
 +
 +const PROVIDERS = new Set(["openai", "openai-codex", "opencode"]);
@@ -3636,6 +3636,17 @@ diff --git a/node_modules/@earendil-works/pi-agent-core/dist/openai-exchange-loo
 +        steeringJob.catch(fail);
 +        return steeringJob;
 +    };
++    const validateSteeringEvent = (event, requireId = true) => {
++        if (!steering) throw new Error("OpenAI acknowledged unreserved steering");
++        if (event.steer?.previous_response_id !== steering.responseId)
++            throw new Error("OpenAI acknowledged steering for a different predecessor");
++        const id = event.steer.id;
++        if ((requireId || id != null) && (typeof id !== "string" || id.length === 0))
++            throw new Error("OpenAI steering event has an invalid id");
++        if (steering.steerId !== undefined && id !== steering.steerId)
++            throw new Error("OpenAI acknowledged a different steering submission");
++        return id ?? undefined;
++    };
 +    const startResponse = async (id) => {
 +        if (response) throw new Error("OpenAI created a successor before the predecessor ended");
 +        responseId = id;
@@ -3644,7 +3655,7 @@ diff --git a/node_modules/@earendil-works/pi-agent-core/dist/openai-exchange-loo
 +                throw new Error("OpenAI successor arrived without steering acceptance");
 +            if (id === steering.responseId) throw new Error("OpenAI steering successor reused the predecessor id");
 +            const incorporated = steering.messages.map((message) => ({ ...message, openAI: { ...message.openAI, responseId: id, predecessorResponseId: steering.responseId, deliveryStatus: "incorporated" } }));
-+            await checkpoint({ phase: "steer_incorporated", responseId: id, predecessorResponseId: steering.responseId, status: "incorporated", messages: incorporated });
++            await checkpoint({ phase: "steer_incorporated", responseId: id, predecessorResponseId: steering.responseId, steerId: steering.steerId, status: "incorporated", messages: incorporated });
 +            await config.commitNativeSteeringMessages?.();
 +            steering = undefined;
 +            for (const message of incorporated) await publish(message);
@@ -3808,13 +3819,17 @@ diff --git a/node_modules/@earendil-works/pi-agent-core/dist/openai-exchange-loo
 +            if (event.type === "error" || event.type === "response.failed" || event.type === "response.cancelled")
 +                throw new Error(event.message ?? event.error?.message ?? event.response?.error?.message ?? `OpenAI protocol error: ${event.type}`);
 +            if (event.type === "response.steer.failed" || event.type === "response.steer.rejected") {
-+                if (steering) { steering.status = "failed"; for (const message of steering.messages) message.openAI.deliveryStatus = "failed"; await checkpoint({ phase: "steer_failed", ...steering }); }
++                // Rejection can precede acceptance, before a server steering id is known.
++                const steerId = validateSteeringEvent(event, false);
++                steering.steerId = steerId;
++                steering.status = "failed";
++                for (const message of steering.messages) message.openAI.deliveryStatus = "failed";
++                await checkpoint({ phase: "steer_failed", ...steering });
 +                throw new Error(event.error?.message ?? "OpenAI steering was rejected; input remains queued");
 +            }
 +            if (event.type === "response.steer.accepted" || event.type === "response.steer.pending") {
-+                if (!steering) throw new Error("OpenAI acknowledged unreserved steering");
-+                if (event.previous_response_id !== undefined && event.previous_response_id !== steering.responseId)
-+                    throw new Error("OpenAI acknowledged steering for a different predecessor");
++                const steerId = validateSteeringEvent(event);
++                steering.steerId = steerId;
 +                steering.status = event.type === "response.steer.pending" ? "pending" : "accepted";
 +                for (const message of steering.messages) message.openAI.deliveryStatus = "accepted";
 +                await checkpoint({ phase: "steer_accepted", ...steering });
@@ -3959,7 +3974,7 @@ diff --git a/node_modules/@earendil-works/pi-agent-core/dist/types.d.ts b/node_m
      /**
       * Called before a tool is executed, after arguments have been validated.
       *
-@@ -367,6 +391,22 @@
+@@ -367,6 +391,24 @@
      /** Tools available for this run. */
      tools?: AgentTool<any>[];
  }
@@ -3970,6 +3985,8 @@ diff --git a/node_modules/@earendil-works/pi-agent-core/dist/types.d.ts b/node_m
 +    phase: "call_intent" | "call_complete" | "result_send" | "steer_reserved" | "steer_sent" | "steer_accepted" | "steer_incorporated" | "steer_failed";
 +    responseId?: string;
 +    predecessorResponseId?: string;
++    /** Server-assigned steering id, available after acknowledgment. */
++    steerId?: string;
 +    callId?: string;
 +    rawCallId?: string;
 +    status?: "reserved" | "accepted" | "pending" | "incorporated" | "failed" | "complete" | "error" | "uncertain";
@@ -3982,7 +3999,7 @@ diff --git a/node_modules/@earendil-works/pi-agent-core/dist/types.d.ts b/node_m
  /**
   * Events emitted by the Agent for UI updates.
   *
-@@ -395,6 +435,9 @@
+@@ -395,6 +437,9 @@
  } | {
      type: "message_end";
      message: AgentMessage;
@@ -4035,7 +4052,7 @@ diff --git a/node_modules/@earendil-works/pi-ai/dist/api/openai-codex-responses.
 diff --git a/node_modules/@earendil-works/pi-ai/dist/api/openai-codex-responses.js b/node_modules/@earendil-works/pi-ai/dist/api/openai-codex-responses.js
 --- a/node_modules/@earendil-works/pi-ai/dist/api/openai-codex-responses.js
 +++ b/node_modules/@earendil-works/pi-ai/dist/api/openai-codex-responses.js
-@@ -426,6 +426,321 @@
+@@ -426,6 +426,327 @@
      }
      return body;
  }
@@ -4142,6 +4159,8 @@ diff --git a/node_modules/@earendil-works/pi-ai/dist/api/openai-codex-responses.
 +            if (this.ended)
 +                return;
 +            const text = await decodeWebSocketData(event?.data);
++            if (this.ended)
++                return;
 +            if (!text)
 +                throw new CodexProtocolError("Invalid empty Codex WebSocket event");
 +            const parsed = JSON.parse(text);
@@ -4157,11 +4176,15 @@ diff --git a/node_modules/@earendil-works/pi-ai/dist/api/openai-codex-responses.
 +            this.fail(cause instanceof Error ? cause : new CodexProtocolError(`Invalid Codex WebSocket JSON: ${formatThrownValue(cause)}`));
 +        });
 +    }
++    // Received close/error events must not overtake earlier message decoding.
++    // Explicit abort stays immediate, including while a frame is decoding.
 +    onError(event) {
-+        this.fail(extractWebSocketError(event));
++        const error = extractWebSocketError(event);
++        this.decodeChain = this.decodeChain.then(() => this.fail(error));
 +    }
 +    onClose(event) {
-+        this.fail(extractWebSocketCloseError(event));
++        const error = extractWebSocketCloseError(event);
++        this.decodeChain = this.decodeChain.then(() => this.fail(error));
 +    }
 +    onAbort() {
 +        this.fail(new Error("Request was aborted"));
