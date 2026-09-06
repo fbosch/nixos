@@ -32,6 +32,84 @@ in
     let
       cfg = config.services.linkwarden-container;
       containersFile = sopsFiles.containers;
+      meilisearchVersion = lib.removePrefix "v" cfg.meilisearch.imageTag;
+      meilisearchBackupBeforeUpgrade = pkgs.writeShellApplication {
+        name = "linkwarden-meilisearch-backup-before-upgrade";
+        runtimeInputs = [
+          pkgs.coreutils
+          pkgs.findutils
+        ];
+        text = ''
+          set -euo pipefail
+
+          data_dir=${lib.escapeShellArg cfg.dataDir}
+          target_version=${lib.escapeShellArg meilisearchVersion}
+          database="$data_dir/meili_data/data.ms"
+          version_file="$database/VERSION"
+
+          if [[ ! -f "$version_file" ]]; then
+            if [[ -e "$database" ]]; then
+              printf 'Meilisearch database exists without a VERSION file at %s.\n' "$database" >&2
+              exit 1
+            fi
+            exit 0
+          fi
+
+          current_version="$(tr -d '[:space:]' < "$version_file")"
+          if [[ "$current_version" == "$target_version" ]]; then
+            exit 0
+          fi
+
+          backup_root="$data_dir/meili-backups"
+          fingerprint="$(
+            cd "$database"
+            find . -printf '%P\0%y\0%s\0%T@\0' |
+              sort -z |
+              sha256sum |
+              cut -d ' ' -f 1
+          )"
+          backup="$backup_root/data.ms-$current_version-before-$target_version-$fingerprint"
+          completion_marker="$backup.complete"
+          install -d -m 0750 "$backup_root"
+
+          if [[ -e "$backup" && ! -f "$completion_marker" ]]; then
+            printf 'Incomplete Meilisearch backup requires inspection: %s.\n' "$backup" >&2
+            exit 1
+          fi
+
+          if [[ ! -e "$backup" ]]; then
+            rm -f -- "$completion_marker"
+            temporary="$(mktemp -d "$backup_root/.data.ms-backup.XXXXXX")"
+            trap 'rm -rf -- "$temporary"' EXIT
+            cp -a --reflink=auto -- "$database" "$temporary/data.ms"
+
+            if [[ ! -f "$temporary/data.ms/VERSION" ]] ||
+              [[ "$(tr -d '[:space:]' < "$temporary/data.ms/VERSION")" != "$current_version" ]]; then
+              printf 'Temporary Meilisearch backup does not match database version %s.\n' \
+                "$current_version" >&2
+              exit 1
+            fi
+
+            sync -f "$temporary/data.ms"
+            mv -- "$temporary/data.ms" "$backup"
+            rmdir -- "$temporary"
+            trap - EXIT
+            sync -f "$backup_root"
+            install -m 0400 /dev/null "$completion_marker"
+            sync -f "$backup_root"
+          fi
+
+          if [[ ! -f "$backup/VERSION" ]] ||
+            [[ "$(tr -d '[:space:]' < "$backup/VERSION")" != "$current_version" ]]; then
+            printf 'Meilisearch backup at %s does not match database version %s.\n' \
+              "$backup" "$current_version" >&2
+            exit 1
+          fi
+
+          printf 'Prepared Meilisearch %s to %s upgrade; backup: %s\n' \
+            "$current_version" "$target_version" "$backup"
+        '';
+      };
     in
     {
       options.services.linkwarden-container = {
@@ -127,6 +205,12 @@ in
         };
 
         meilisearch = {
+          imageTag = lib.mkOption {
+            type = lib.types.strMatching "^v[0-9]+\\.[0-9]+\\.[0-9]+$";
+            default = "v1.53.1";
+            description = "Meilisearch container image tag";
+          };
+
           cpus = lib.mkOption {
             type = lib.types.nullOr lib.types.str;
             default = "1.0";
@@ -240,10 +324,11 @@ in
 
             [Container]
             ContainerName=linkwarden-meilisearch
-            Image=docker.io/getmeili/meilisearch:v1.53.1
+            Image=docker.io/getmeili/meilisearch:${cfg.meilisearch.imageTag}
             Network=linkwarden.network
             PodmanArgs=--network-alias=meilisearch
             EnvironmentFile=${cfg.envFile}
+            Environment=MEILI_UPGRADE_DB=true
             Volume=${cfg.dataDir}/meili_data:/meili_data
             ${lib.optionalString (cfg.meilisearch.cpus != null) "PodmanArgs=--cpus=${cfg.meilisearch.cpus}"}
             ${lib.optionalString (cfg.meilisearch.memory != null) "Memory=${cfg.meilisearch.memory}"}
@@ -252,11 +337,12 @@ in
 
             [Service]
             Slice=${(startupPolicy.quadlet config "linkwarden-meilisearch.service").slice}
+            ExecStartPre=${meilisearchBackupBeforeUpgrade}/bin/linkwarden-meilisearch-backup-before-upgrade
             RestrictAddressFamilies=~AF_ALG
             SystemCallArchitectures=native
             Restart=always
             RestartSec=10
-            TimeoutStartSec=60
+            TimeoutStartSec=1h
 
             [Install]
             WantedBy=${(startupPolicy.quadlet config "linkwarden-meilisearch.service").target}
