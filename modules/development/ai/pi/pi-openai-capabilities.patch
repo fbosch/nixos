@@ -1,7 +1,8 @@
 diff --git a/dist/core/agent-session.d.ts b/dist/core/agent-session.d.ts
+index 89f96e8..9e5811e 100644
 --- a/dist/core/agent-session.d.ts
 +++ b/dist/core/agent-session.d.ts
-@@ -37,7 +37,8 @@
+@@ -37,7 +37,8 @@ export interface ParsedSkillBlock {
   */
  export declare function parseSkillBlock(text: string): ParsedSkillBlock | null;
  /** Session-specific events that extend the core AgentEvent */
@@ -11,7 +12,7 @@ diff --git a/dist/core/agent-session.d.ts b/dist/core/agent-session.d.ts
      type: "agent_end";
  }> | {
      type: "agent_end";
-@@ -124,11 +125,11 @@
+@@ -124,11 +125,11 @@ export interface AgentSessionConfig {
      /** Optional denylist of tool names. When provided, these tool names are not exposed. */
      excludedToolNames?: string[];
      /**
@@ -28,7 +29,7 @@ diff --git a/dist/core/agent-session.d.ts b/dist/core/agent-session.d.ts
      baseToolsOverride?: Record<string, AgentTool>;
      /** Mutable ref used by Agent to access the current ExtensionRunner */
      extensionRunnerRef?: {
-@@ -247,13 +248,13 @@
+@@ -247,13 +248,13 @@ export declare class AgentSession {
      private _getRequiredRequestAuth;
      private _getSummarizationRequestAuth;
      /**
@@ -49,7 +50,7 @@ diff --git a/dist/core/agent-session.d.ts b/dist/core/agent-session.d.ts
      private _installAgentToolHooks;
      private _compactBeforeNextAssistantResponse;
      private _installAgentNextTurnRefresh;
-@@ -273,17 +274,17 @@
+@@ -273,17 +274,17 @@ export declare class AgentSession {
      private _replaceMessageInPlace;
      private _emitExtensionEvent;
      /**
@@ -74,7 +75,7 @@ diff --git a/dist/core/agent-session.d.ts b/dist/core/agent-session.d.ts
      dispose(): void;
      /** Full agent state */
      get state(): AgentState;
-@@ -300,21 +301,21 @@
+@@ -300,21 +301,21 @@ export declare class AgentSession {
      /** Current retry attempt (0 if not retrying) */
      get retryAttempt(): number;
      /**
@@ -106,7 +107,7 @@ diff --git a/dist/core/agent-session.d.ts b/dist/core/agent-session.d.ts
      setActiveToolsByName(toolNames: string[]): void;
      /** Whether compaction or branch summarization is currently running */
      get isCompacting(): boolean;
-@@ -348,55 +349,55 @@
+@@ -348,55 +349,55 @@ export declare class AgentSession {
      private _runAgentPrompt;
      private _handlePostAgentRun;
      /**
@@ -192,7 +193,7 @@ diff --git a/dist/core/agent-session.d.ts b/dist/core/agent-session.d.ts
       * @param options.triggerTurn If true and not streaming, triggers a new LLM turn
       * @param options.deliverAs Delivery mode: "steer", "followUp", or "nextTurn"
       */
-@@ -406,15 +407,15 @@
+@@ -406,15 +407,15 @@ export declare class AgentSession {
      }): Promise<void>;
      private _appendCustomMessage;
      /**
@@ -215,7 +216,7 @@ diff --git a/dist/core/agent-session.d.ts b/dist/core/agent-session.d.ts
       * @param options.deliverAs Delivery mode when streaming: "steer" or "followUp"
       * @param options.expandPromptTemplates Whether to dispatch extension commands and expand skill commands and prompt templates. Default: false.
       */
-@@ -423,13 +424,15 @@
+@@ -423,13 +424,15 @@ export declare class AgentSession {
          expandPromptTemplates?: boolean;
      }): Promise<void>;
      /**
@@ -234,7 +235,7 @@ diff --git a/dist/core/agent-session.d.ts b/dist/core/agent-session.d.ts
      };
      /** Number of pending messages (includes both steering and follow-up) */
      get pendingMessageCount(): number;
-@@ -439,93 +442,93 @@
+@@ -439,93 +442,93 @@ export declare class AgentSession {
      getFollowUpMessages(): readonly string[];
      get resourceLoader(): ResourceLoader;
      /**
@@ -374,7 +375,7 @@ diff --git a/dist/core/agent-session.d.ts b/dist/core/agent-session.d.ts
      setAutoCompactionEnabled(enabled: boolean): void;
      /** Whether auto-compaction is enabled */
      get autoCompactionEnabled(): boolean;
-@@ -542,34 +545,34 @@
+@@ -542,34 +545,34 @@ export declare class AgentSession {
          beforeSessionStart?: () => void | Promise<void>;
      }): Promise<void>;
      /**
@@ -424,7 +425,7 @@ diff --git a/dist/core/agent-session.d.ts b/dist/core/agent-session.d.ts
       * @param onChunk Optional streaming callback for output
       * @param options.excludeFromContext If true, command output won't be sent to LLM (!! prefix)
       * @param options.id Optional identifier included in bash execution update events
-@@ -581,34 +584,34 @@
+@@ -581,34 +584,34 @@ export declare class AgentSession {
          operations?: BashOperations;
      }): Promise<BashResult>;
      /**
@@ -473,7 +474,7 @@ diff --git a/dist/core/agent-session.d.ts b/dist/core/agent-session.d.ts
       * @param options.summarize Whether user wants to summarize abandoned branch
       * @param options.customInstructions Custom instructions for summarizer
       * @param options.replaceInstructions If true, customInstructions replaces the default prompt
-@@ -627,22 +630,22 @@
+@@ -627,22 +630,22 @@ export declare class AgentSession {
          summaryEntry?: BranchSummaryEntry;
      }>;
      /**
@@ -504,7 +505,7 @@ diff --git a/dist/core/agent-session.d.ts b/dist/core/agent-session.d.ts
       * @param options Optional export presentation settings
       * @returns Path to exported file
       */
-@@ -650,26 +653,26 @@
+@@ -650,26 +653,26 @@ export declare class AgentSession {
          themeName?: string;
      }): Promise<string>;
      /**
@@ -543,17 +544,10 @@ diff --git a/dist/core/agent-session.d.ts b/dist/core/agent-session.d.ts
  //# sourceMappingURL=agent-session.d.ts.map
 \ No newline at end of file
 diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
+index 66e874e..327398c 100644
 --- a/dist/core/agent-session.js
 +++ b/dist/core/agent-session.js
-@@ -13,6 +13,7 @@
-  * Modes use this class and add their own I/O layer on top.
-  */
- import { readFileSync } from "node:fs";
-+import { randomUUID } from "node:crypto";
- import { basename, dirname } from "node:path";
- import { contentText } from "@earendil-works/pi-ai";
- import { clampThinkingLevel, cleanupSessionResources, getSupportedThinkingLevels, isContextOverflow, isRecoverableLength, isRetryableAssistantError, modelsAreEqual, resetApiProviders, streamSimple, } from "@earendil-works/pi-ai/compat";
-@@ -26,9 +27,11 @@
+@@ -26,9 +26,11 @@ import { calculateContextTokens, collectEntriesForBranchSummary, compact, estima
  import { DEFAULT_THINKING_LEVEL, THINKING_LEVEL_OPTIONS } from "./defaults.js";
  import { exportSessionToHtml } from "./export-html/index.js";
  import { createToolHtmlRenderer } from "./export-html/tool-renderer.js";
@@ -566,17 +560,7 @@ diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
  import { expandPromptTemplate } from "./prompt-templates.js";
  import { exportSessionToJsonl } from "./session-export.js";
  import { getLatestCompactionEntry } from "./session-manager.js";
-@@ -89,6 +92,9 @@
-     _steeringMessages = [];
-     /** Tracks pending follow-up messages for UI display. Removed when delivered. */
-     _followUpMessages = [];
-+  _steeringDeliveryIds = [];
-+  _followUpDeliveryIds = [];
-+  _pendingOpenAIDeliveries = new Map();
-     /** Messages queued to be included with the next user prompt as context ("asides"). */
-     _pendingNextTurnMessages = [];
-     /** Context-only custom messages queued during a run, flushed once the current turn's tool results are in. */
-@@ -144,7 +150,8 @@
+@@ -144,7 +146,8 @@ export class AgentSession {
          this._customTools = config.customTools ?? [];
          this._cwd = config.cwd;
          this._modelRuntime = config.modelRuntime;
@@ -586,53 +570,10 @@ diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
          this._initialActiveToolNames = config.initialActiveToolNames;
          this._allowedToolNames = config.allowedToolNames ? new Set(config.allowedToolNames) : undefined;
          this._excludedToolNames = config.excludedToolNames ? new Set(config.excludedToolNames) : undefined;
-@@ -159,6 +166,94 @@
+@@ -159,6 +162,50 @@ export class AgentSession {
              activeToolNames: this._initialActiveToolNames,
              includeAllExtensionTools: true,
          });
-+    this._persistOpenAIRecoveryWarnings();
-+  }
-+  _persistOpenAIRecoveryWarnings() {
-+    const branch = this.sessionManager.getBranch();
-+    if (
-+      !branch.some(
-+        (entry) =>
-+          entry.type === "custom" &&
-+          entry.customType === OPENAI_CHECKPOINT_TYPE,
-+      )
-+    )
-+      return;
-+    const displayed = new Set(
-+      branch
-+        .filter(
-+          (entry) =>
-+            entry.type === "custom_message" &&
-+            entry.customType === OPENAI_CHECKPOINT_TYPE,
-+        )
-+        .flatMap((entry) =>
-+          (entry.details?.messages ?? []).map(
-+            (message) => message.openAI?.deliveryId,
-+          ),
-+        ),
-+    );
-+    for (const message of this.sessionManager.buildSessionContext().messages) {
-+      if (
-+        message.role !== "custom" ||
-+        message.customType !== OPENAI_CHECKPOINT_TYPE
-+      )
-+        continue;
-+      const ids = (message.details?.messages ?? [])
-+        .map((pending) => pending.openAI?.deliveryId)
-+        .filter(Boolean);
-+      if (!ids.length || ids.every((id) => displayed.has(id))) continue;
-+      this.sessionManager.appendCustomMessageEntry(
-+        OPENAI_CHECKPOINT_TYPE,
-+        message.content,
-+        true,
-+        structuredClone(message.details),
-+      );
-+      for (const id of ids) displayed.add(id);
-+    }
 +  }
 +  async _createOpenAIExchange(model, context, options) {
 +    const timeout = this.settingsManager.getHttpIdleTimeoutMs();
@@ -663,10 +604,9 @@ diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
 +      this.model,
 +    );
 +    this.agent.openAICapabilities =
-+      registration && (registration.asyncTools || registration.steering)
++      registration?.asyncTools
 +        ? Object.freeze({
-+            asyncTools: registration.asyncTools,
-+            steering: registration.steering,
++            asyncTools: true,
 +            ...(registration.asyncToolNames === undefined
 +              ? {}
 +              : { asyncToolNames: registration.asyncToolNames }),
@@ -681,7 +621,7 @@ diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
      }
      get modelRuntime() {
          return this._modelRuntime;
-@@ -213,13 +308,13 @@
+@@ -213,13 +260,13 @@ export class AgentSession {
          }
      }
      /**
@@ -702,7 +642,7 @@ diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
      _installAgentToolHooks() {
          this.agent.beforeToolCall = async ({ toolCall, args }) => {
              const runner = this._extensionRunner;
-@@ -272,7 +367,10 @@
+@@ -272,7 +319,10 @@ export class AgentSession {
          };
      }
      async _compactBeforeNextAssistantResponse(context) {
@@ -714,7 +654,7 @@ diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
          const settings = this.settingsManager.getCompactionSettings();
          if (!model ||
              model.contextWindow <= 0 ||
-@@ -358,23 +456,100 @@
+@@ -358,7 +408,18 @@ export class AgentSession {
      _lastAssistantMessage = undefined;
      /** Internal handler for agent events - shared by subscribe and reconnect */
      _handleAgentEvent = async (event) => {
@@ -723,53 +663,10 @@ diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
 +        
 +    if (event.type === "openai_checkpoint") {
 +      // Persist before any awaited extension callback or tool permission hook.
-+      const record = structuredClone(event.record);
-+      this.sessionManager.appendCustomEntry(OPENAI_CHECKPOINT_TYPE, record);
-+      const deliveryStatus =
-+        record.phase === "steer_incorporated"
-+          ? "incorporated"
-+          : record.phase === "steer_accepted"
-+            ? "accepted"
-+            : record.phase === "steer_sent"
-+              ? "sent"
-+              : record.phase === "steer_failed" ||
-+                  record.phase === "steer_uncertain"
-+                ? record.status === "failed"
-+                  ? "failed"
-+                  : "uncertain"
-+                : "pending";
-+      for (const message of record.messages ?? []) {
-+        const id = message.openAI?.deliveryId;
-+        if (id && this._pendingOpenAIDeliveries.has(id)) {
-+          this._pendingOpenAIDeliveries.set(id, {
-+            ...structuredClone(message),
-+            openAI: { ...message.openAI, version: 1, deliveryStatus },
-+          });
-+        }
-+      }
-+      if (
-+        record.phase === "steer_failed" ||
-+        record.phase === "steer_uncertain"
-+      ) {
-+        const text =
-+          "Steering delivery failed or is uncertain. Review the response before explicitly resending; pending input will not be sent automatically.";
-+        const details = {
-+          exchangeId: record.exchangeId,
-+          messages: record.messages,
-+          deliveryStatus: record.status,
-+        };
-+        const id = this.sessionManager.appendCustomMessageEntry(
-+          OPENAI_CHECKPOINT_TYPE,
-+          text,
-+          true,
-+          details,
-+        );
-+        this._emit({
-+          type: "entry_appended",
-+          entry: this.sessionManager.getEntry(id),
-+        });
-+        this._extensionRunner.getUIContext().notify(text, "warning");
-+      }
++      this.sessionManager.appendCustomEntry(
++        OPENAI_CHECKPOINT_TYPE,
++        structuredClone(event.record),
++      );
 +      this._emit(event);
 +      return;
 +    }
@@ -777,49 +674,7 @@ diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
          // This ensures the UI sees the updated queue state
          if (event.type === "message_start" && event.message.role === "user") {
              this._overflowRecoveryAttempted = false;
-             const messageText = contentText(event.message.content, "");
--            if (messageText) {
-+            if (event.message.openAI) {
-+        const id = event.message.openAI.deliveryId;
-+        for (const [queue, ids] of [
-+          [this._steeringMessages, this._steeringDeliveryIds],
-+          [this._followUpMessages, this._followUpDeliveryIds],
-+        ]) {
-+          const index = ids.indexOf(id);
-+          if (id && index !== -1) {
-+            queue.splice(index, 1);
-+            ids.splice(index, 1);
-+            this._pendingOpenAIDeliveries.delete(id);
-+            this._emitQueueUpdate();
-+            break;
-+          }
-+        }
-+      } else if (messageText) {
-                 // Check steering queue first
--                const steeringIndex = this._steeringMessages.indexOf(messageText);
-+                const steeringIndex = this._steeringMessages.findIndex(
-+          (text, index) =>
-+            text === messageText && !this._steeringDeliveryIds[index],
-+        );
-                 if (steeringIndex !== -1) {
-                     this._steeringMessages.splice(steeringIndex, 1);
-+          this._steeringDeliveryIds.splice(steeringIndex, 1);
-                     this._emitQueueUpdate();
-                 }
-                 else {
-                     // Check follow-up queue
--                    const followUpIndex = this._followUpMessages.indexOf(messageText);
-+                    const followUpIndex = this._followUpMessages.findIndex(
-+            (text, index) =>
-+              text === messageText && !this._followUpDeliveryIds[index],
-+          );
-                     if (followUpIndex !== -1) {
-                         this._followUpMessages.splice(followUpIndex, 1);
-+            this._followUpDeliveryIds.splice(followUpIndex, 1);
-                         this._emitQueueUpdate();
-                     }
-                 }
-@@ -522,7 +697,11 @@
+@@ -522,7 +583,11 @@ export class AgentSession {
                      replacement.content == null
                      ? { ...replacement, content: [] }
                      : replacement;
@@ -832,7 +687,7 @@ diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
              }
          }
          else if (event.type === "tool_execution_start") {
-@@ -556,10 +735,10 @@
+@@ -556,10 +621,10 @@ export class AgentSession {
          }
      }
      /**
@@ -847,7 +702,7 @@ diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
      subscribe(listener) {
          this._eventListeners.push(listener);
          // Return unsubscribe function for this specific listener
-@@ -578,9 +757,9 @@
+@@ -578,9 +643,9 @@ export class AgentSession {
          }
      }
      /**
@@ -860,7 +715,7 @@ diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
      dispose() {
          try {
              this.abortRetry();
-@@ -629,15 +808,15 @@
+@@ -629,15 +694,15 @@ export class AgentSession {
          return this._retryAttempt;
      }
      /**
@@ -881,7 +736,7 @@ diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
      getAllTools() {
          return Array.from(this._toolDefinitions.values()).map(({ definition, sourceInfo }) => ({
              name: definition.name,
-@@ -651,11 +830,11 @@
+@@ -651,11 +716,11 @@ export class AgentSession {
          return this._toolDefinitions.get(name)?.definition;
      }
      /**
@@ -898,7 +753,7 @@ diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
      setActiveToolsByName(toolNames) {
          const tools = [];
          const validToolNames = [];
-@@ -770,7 +949,8 @@
+@@ -770,7 +835,8 @@ export class AgentSession {
      // Prompting
      // =========================================================================
      async _runAgentPrompt(messages) {
@@ -908,7 +763,7 @@ diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
          try {
              await this.agent.prompt(messages);
              while (await this._handlePostAgentRun()) {
-@@ -790,7 +970,16 @@
+@@ -790,7 +856,16 @@ export class AgentSession {
          if (!msg) {
              return false;
          }
@@ -926,7 +781,7 @@ diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
              return true;
          }
          if (msg.stopReason === "error" && this._retryAttempt > 0) {
-@@ -810,12 +999,12 @@
+@@ -810,12 +885,12 @@ export class AgentSession {
          return this.agent.hasQueuedMessages();
      }
      /**
@@ -945,7 +800,7 @@ diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
       * @throws Error if no model selected or no API key available (when not streaming)
       */
      async prompt(text, options) {
-@@ -949,8 +1138,8 @@
+@@ -949,8 +1024,8 @@ export class AgentSession {
          await this._runAgentPrompt(messages);
      }
      /**
@@ -956,7 +811,7 @@ diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
      async _tryExecuteExtensionCommand(text) {
          // Parse command name and args
          const spaceIndex = text.indexOf(" ");
-@@ -976,10 +1165,10 @@
+@@ -976,10 +1051,10 @@ export class AgentSession {
          }
      }
      /**
@@ -971,7 +826,7 @@ diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
      _expandSkillCommand(text) {
          if (!text.startsWith("/skill:"))
              return text;
-@@ -1006,11 +1195,11 @@
+@@ -1006,11 +1081,11 @@ export class AgentSession {
          }
      }
      /**
@@ -988,7 +843,7 @@ diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
       * @throws Error if text is an extension command
       */
      async steer(text, images) {
-@@ -1024,10 +1213,10 @@
+@@ -1024,10 +1099,10 @@ export class AgentSession {
          await this._queueSteer(expandedText, images);
      }
      /**
@@ -1003,7 +858,7 @@ diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
       * @throws Error if text is an extension command
       */
      async followUp(text, images) {
-@@ -1041,40 +1230,64 @@
+@@ -1041,8 +1116,8 @@ export class AgentSession {
          await this._queueFollowUp(expandedText, images);
      }
      /**
@@ -1012,79 +867,31 @@ diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
 +   * Internal: Queue a steering message (already expanded, no extension command check).
 +   */
      async _queueSteer(text, images) {
--        this._steeringMessages.push(text);
-+        
-+        
-+    const deliveryId = this.agent.openAICapabilities ? randomUUID() : undefined;
-+    this._steeringDeliveryIds.push(deliveryId);
-+    this._steeringMessages.push(text);
+         this._steeringMessages.push(text);
          this._emitQueueUpdate();
-         const content = [{ type: "text", text }];
-         if (images) {
-             content.push(...images);
-         }
--        this.agent.steer({
-+        const message ={
-             role: "user",
-             content,
-             timestamp: Date.now(),
--        });
--    }
--    /**
+@@ -1057,8 +1132,8 @@ export class AgentSession {
+         });
+     }
+     /**
 -     * Internal: Queue a follow-up message (already expanded, no extension command check).
 -     */
-+        
-+        
-+      ...(deliveryId
-+        ? { openAI: { version: 1, deliveryId, deliveryStatus: "pending" } }
-+        : {}),
-+    };
-+    if (deliveryId)
-+      this._pendingOpenAIDeliveries.set(deliveryId, structuredClone(message));
-+    this.agent.steer(message);
-+    }
-+    /**
 +   * Internal: Queue a follow-up message (already expanded, no extension command check).
 +   */
      async _queueFollowUp(text, images) {
--        this._followUpMessages.push(text);
-+        
-+        
-+    const deliveryId = this.agent.openAICapabilities ? randomUUID() : undefined;
-+    this._followUpDeliveryIds.push(deliveryId);
-+    this._followUpMessages.push(text);
+         this._followUpMessages.push(text);
          this._emitQueueUpdate();
-         const content = [{ type: "text", text }];
-         if (images) {
-             content.push(...images);
-         }
--        this.agent.followUp({
-+        const message ={
-             role: "user",
-             content,
-             timestamp: Date.now(),
--        });
--    }
--    /**
+@@ -1073,8 +1148,8 @@ export class AgentSession {
+         });
+     }
+     /**
 -     * Throw an error if the text is an extension command.
 -     */
-+        
-+        
-+      ...(deliveryId
-+        ? { openAI: { version: 1, deliveryId, deliveryStatus: "pending" } }
-+        : {}),
-+    };
-+    if (deliveryId)
-+      this._pendingOpenAIDeliveries.set(deliveryId, structuredClone(message));
-+    this.agent.followUp(message);
-+    }
-+    /**
 +   * Throw an error if the text is an extension command.
 +   */
      _throwIfExtensionCommand(text) {
          const spaceIndex = text.indexOf(" ");
          const commandName = spaceIndex === -1 ? text.slice(1) : text.slice(1, spaceIndex);
-@@ -1084,15 +1297,15 @@
+@@ -1084,15 +1159,15 @@ export class AgentSession {
          }
      }
      /**
@@ -1109,7 +916,7 @@ diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
       * @param options.triggerTurn If true and not streaming, triggers a new LLM turn
       * @param options.deliverAs Delivery mode: "steer", "followUp", or "nextTurn"
       */
-@@ -1138,9 +1351,9 @@
+@@ -1138,9 +1213,9 @@ export class AgentSession {
          this._emit({ type: "message_end", message: appMessage });
      }
      /**
@@ -1122,7 +929,7 @@ diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
      _flushPendingCustomMessages() {
          if (this._pendingCustomMessages.length === 0)
              return;
-@@ -1151,10 +1364,10 @@
+@@ -1151,10 +1226,10 @@ export class AgentSession {
          }
      }
      /**
@@ -1137,7 +944,7 @@ diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
       * @param options.deliverAs Delivery mode when streaming: "steer" or "followUp"
       * @param options.expandPromptTemplates Whether to dispatch extension commands and expand skill commands and prompt templates. Default: false.
       */
-@@ -1188,18 +1401,26 @@
+@@ -1188,9 +1263,9 @@ export class AgentSession {
          });
      }
      /**
@@ -1150,26 +957,7 @@ diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
       */
      clearQueue() {
          const steering = [...this._steeringMessages];
-         const followUp = [...this._followUpMessages];
-         this._steeringMessages = [];
-         this._followUpMessages = [];
--        this.agent.clearAllQueues();
-+        
-+        
-+    const messages = [...this._pendingOpenAIDeliveries.values()].map(
-+      (message) => structuredClone(message),
-+    );
-+    this._steeringDeliveryIds = [];
-+    this._followUpDeliveryIds = [];
-+    this._pendingOpenAIDeliveries.clear();
-+    this.agent.clearAllQueues();
-         this._emitQueueUpdate();
--        return { steering, followUp };
-+        return { steering, followUp  , ...(messages.length ? { messages } : {}) };
-     }
-     /** Number of pending messages (includes both steering and follow-up) */
-     get pendingMessageCount() {
-@@ -1217,8 +1438,8 @@
+@@ -1217,8 +1292,8 @@ export class AgentSession {
          return this._resourceLoader;
      }
      /**
@@ -1180,7 +968,7 @@ diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
      async abort() {
          this.abortRetry();
          this.abortCompaction();
-@@ -1246,13 +1467,16 @@
+@@ -1246,13 +1321,16 @@ export class AgentSession {
          });
      }
      /**
@@ -1202,7 +990,7 @@ diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
              throw new Error(`No API key for ${model.provider}/${model.id}`);
          }
          const previousModel = this.model;
-@@ -1284,9 +1508,9 @@
+@@ -1284,9 +1362,9 @@ export class AgentSession {
          this.settingsManager.setEnabledModels([...enabledModels, modelReference]);
      }
      /**
@@ -1215,7 +1003,7 @@ diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
       * @returns The new model info, or undefined if only one model available
       */
      async cycleModel(direction = "forward", options = {}) {
-@@ -1296,7 +1520,10 @@
+@@ -1296,7 +1374,10 @@ export class AgentSession {
          return this._cycleAvailableModel(direction, options);
      }
      async _cycleScopedModel(direction, options) {
@@ -1227,7 +1015,7 @@ diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
          const scopedModels = this._scopedModels.filter((scoped) => availableIds.has(`${scoped.model.provider}\0${scoped.model.id}`));
          if (scopedModels.length <= 1)
              return undefined;
-@@ -1325,7 +1552,10 @@
+@@ -1325,7 +1406,10 @@ export class AgentSession {
          return { model: next.model, thinkingLevel: this.thinkingLevel, isScoped: true };
      }
      async _cycleAvailableModel(direction, options) {
@@ -1239,7 +1027,7 @@ diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
          if (availableModels.length <= 1)
              return undefined;
          const currentModel = this.model;
-@@ -1352,11 +1582,11 @@
+@@ -1352,11 +1436,11 @@ export class AgentSession {
      // Thinking Level Management
      // =========================================================================
      /**
@@ -1256,7 +1044,7 @@ diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
      setThinkingLevel(level, options = {}) {
          const availableLevels = this.getAvailableThinkingLevels();
          const effectiveLevel = availableLevels.includes(level) ? level : this._clampThinkingLevel(level, availableLevels);
-@@ -1378,8 +1608,8 @@
+@@ -1378,8 +1462,8 @@ export class AgentSession {
          }
      }
      /**
@@ -1267,7 +1055,7 @@ diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
       */
      cycleThinkingLevel(options = {}) {
          if (!this.supportsThinking())
-@@ -1392,17 +1622,17 @@
+@@ -1392,17 +1476,17 @@ export class AgentSession {
          return nextLevel;
      }
      /**
@@ -1290,7 +1078,7 @@ diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
      supportsThinking() {
          return !!this.model?.reasoning;
      }
-@@ -1430,17 +1660,17 @@
+@@ -1430,17 +1514,17 @@ export class AgentSession {
          this.agent.followUpMode = this.settingsManager.getFollowUpMode();
      }
      /**
@@ -1314,7 +1102,7 @@ diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
      setFollowUpMode(mode) {
          this.agent.followUpMode = mode;
          this.settingsManager.setFollowUpMode(mode);
-@@ -1457,22 +1687,25 @@
+@@ -1457,22 +1541,25 @@ export class AgentSession {
          this._resolveIdleWaitIfIdle();
      }
      /**
@@ -1354,7 +1142,7 @@ diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
          this._compactionAbortController = new AbortController();
          this._emit({ type: "compaction_start", reason: "manual" });
          let fromExtension = false;
-@@ -1494,7 +1727,7 @@
+@@ -1494,7 +1581,7 @@ export class AgentSession {
              }
              let extensionCompaction;
              if (this._extensionRunner.hasHandlers("session_before_compact")) {
@@ -1363,7 +1151,7 @@ diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
                      type: "session_before_compact",
                      preparation,
                      branchEntries: pathEntries,
-@@ -1502,7 +1735,7 @@
+@@ -1502,7 +1589,7 @@ export class AgentSession {
                      reason: "manual",
                      willRetry: false,
                      signal: this._compactionAbortController.signal,
@@ -1372,7 +1160,7 @@ diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
                  if (result?.cancel) {
                      throw new Error("Compaction cancelled");
                  }
-@@ -1598,41 +1831,48 @@
+@@ -1598,41 +1685,48 @@ export class AgentSession {
          }
      }
      /**
@@ -1443,7 +1231,7 @@ diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
          if (!settings.enabled)
              return false;
          // Skip if message was aborted (user cancelled) - unless skipAbortedCheck is false
-@@ -1727,12 +1967,12 @@
+@@ -1727,12 +1821,12 @@ export class AgentSession {
          return false;
      }
      /**
@@ -1462,7 +1250,7 @@ diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
       * @param willRetry Whether to continue the interrupted turn after overflow compaction
       * @returns Whether the post-run loop should call `agent.continue()`
       */
-@@ -1755,7 +1995,7 @@
+@@ -1755,7 +1849,7 @@ export class AgentSession {
              started = true;
              let extensionCompaction;
              if (this._extensionRunner.hasHandlers("session_before_compact")) {
@@ -1471,7 +1259,7 @@ diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
                      type: "session_before_compact",
                      preparation,
                      branchEntries: pathEntries,
-@@ -1763,7 +2003,7 @@
+@@ -1763,7 +1857,7 @@ export class AgentSession {
                      reason,
                      willRetry,
                      signal: this._autoCompactionAbortController.signal,
@@ -1480,7 +1268,7 @@ diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
                  if (extensionResult?.cancel) {
                      this._emit({
                          type: "compaction_end",
-@@ -1894,8 +2134,8 @@
+@@ -1894,8 +1988,8 @@ export class AgentSession {
          }
      }
      /**
@@ -1491,7 +1279,7 @@ diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
      setAutoCompactionEnabled(enabled) {
          this.settingsManager.setCompactionEnabled(enabled);
      }
-@@ -2215,7 +2455,10 @@
+@@ -2215,7 +2309,10 @@ export class AgentSession {
          });
      }
      async reload(options) {
@@ -1503,7 +1291,7 @@ diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
          const previousFlagValues = oldRunner.getFlagValues();
          await emitSessionShutdownEvent(oldRunner, { type: "session_shutdown", reason: "reload" });
          oldRunner.invalidate();
-@@ -2242,21 +2485,24 @@
+@@ -2242,21 +2339,24 @@ export class AgentSession {
      // Auto-Retry
      // =========================================================================
      /**
@@ -1537,7 +1325,7 @@ diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
      _summarizationRetryCallbacks(source) {
          return {
              onRetryScheduled: (attempt, maxAttempts, delayMs, errorMessage) => {
-@@ -2280,8 +2526,8 @@
+@@ -2280,8 +2380,8 @@ export class AgentSession {
          };
      }
      /**
@@ -1548,7 +1336,7 @@ diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
       */
      async _prepareRetry(message) {
          const settings = this.settingsManager.getRetrySettings();
-@@ -2330,8 +2576,8 @@
+@@ -2330,8 +2430,8 @@ export class AgentSession {
          return true;
      }
      /**
@@ -1559,7 +1347,7 @@ diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
      abortRetry() {
          this._retryAbortController?.abort();
      }
-@@ -2344,8 +2590,8 @@
+@@ -2344,8 +2444,8 @@ export class AgentSession {
          return this.settingsManager.getRetryEnabled();
      }
      /**
@@ -1570,7 +1358,7 @@ diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
      setAutoRetryEnabled(enabled) {
          this.settingsManager.setRetryEnabled(enabled);
      }
-@@ -2353,9 +2599,9 @@
+@@ -2353,9 +2453,9 @@ export class AgentSession {
      // Bash Execution
      // =========================================================================
      /**
@@ -1583,7 +1371,7 @@ diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
       * @param onChunk Optional streaming callback for output
       * @param options.excludeFromContext If true, command output won't be sent to LLM (!! prefix)
       * @param options.id Optional identifier included in bash execution update events
-@@ -2384,9 +2630,9 @@
+@@ -2384,9 +2484,9 @@ export class AgentSession {
          }
      }
      /**
@@ -1596,7 +1384,7 @@ diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
      recordBashResult(command, result, options) {
          const bashMessage = {
              role: "bashExecution",
-@@ -2412,8 +2658,8 @@
+@@ -2412,8 +2512,8 @@ export class AgentSession {
          }
      }
      /**
@@ -1607,7 +1395,7 @@ diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
      abortBash() {
          for (const abortController of [...this._bashAbortControllers]) {
              abortController.abort();
-@@ -2428,9 +2674,9 @@
+@@ -2428,9 +2528,9 @@ export class AgentSession {
          return this._pendingBashMessages.length > 0;
      }
      /**
@@ -1620,7 +1408,7 @@ diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
      _flushPendingBashMessages() {
          if (this._pendingBashMessages.length === 0)
              return;
-@@ -2446,8 +2692,8 @@
+@@ -2446,8 +2546,8 @@ export class AgentSession {
      // Session Management
      // =========================================================================
      /**
@@ -1631,7 +1419,7 @@ diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
      setSessionName(name) {
          this.sessionManager.appendSessionInfo(name);
          const event = { type: "session_info_changed", name: this.sessionManager.getSessionName() };
-@@ -2458,10 +2704,10 @@
+@@ -2458,10 +2558,10 @@ export class AgentSession {
      // Tree Navigation
      // =========================================================================
      /**
@@ -1646,7 +1434,7 @@ diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
       * @param options.summarize Whether user wants to summarize abandoned branch
       * @param options.customInstructions Custom instructions for summarizer
       * @param options.replaceInstructions If true, customInstructions replaces the default prompt
-@@ -2508,11 +2754,11 @@
+@@ -2508,11 +2608,11 @@ export class AgentSession {
              let fromExtension = false;
              // Emit session_before_tree event
              if (this._extensionRunner.hasHandlers("session_before_tree")) {
@@ -1660,19 +1448,18 @@ diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
                  if (result?.cancel) {
                      return { cancelled: true };
                  }
-@@ -2612,7 +2858,10 @@
+@@ -2612,7 +2712,9 @@ export class AgentSession {
                  this.sessionManager.appendLabelChange(targetId, label);
              }
              // Update agent state
 -            const sessionContext = this.sessionManager.buildSessionContext();
 +            
 +            
-+      this._persistOpenAIRecoveryWarnings();
 +      const sessionContext = this.sessionManager.buildSessionContext();
              this.agent.state.messages = sessionContext.messages;
              // Emit session_tree event
              await this._extensionRunner.emit({
-@@ -2631,8 +2880,8 @@
+@@ -2631,8 +2733,8 @@ export class AgentSession {
          }
      }
      /**
@@ -1683,7 +1470,7 @@ diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
      getUserMessagesForForking() {
          const entries = this.sessionManager.getEntries();
          const result = [];
-@@ -2649,10 +2898,10 @@
+@@ -2649,10 +2751,10 @@ export class AgentSession {
          return result;
      }
      /**
@@ -1698,7 +1485,7 @@ diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
      getSessionStats() {
          let userMessages = 0;
          let assistantMessages = 0;
-@@ -2747,8 +2996,8 @@
+@@ -2747,8 +2849,8 @@ export class AgentSession {
          };
      }
      /**
@@ -1709,7 +1496,7 @@ diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
       * @param options Optional export presentation settings
       * @returns Path to exported file
       */
-@@ -2767,9 +3016,9 @@
+@@ -2767,9 +2869,9 @@ export class AgentSession {
          });
      }
      /**
@@ -1722,7 +1509,7 @@ diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
       * @returns The resolved output file path.
       */
      exportToJsonl(outputPath) {
-@@ -2779,9 +3028,9 @@
+@@ -2779,9 +2881,9 @@ export class AgentSession {
      // Utilities
      // =========================================================================
      /**
@@ -1735,7 +1522,7 @@ diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
       */
      getLastAssistantText() {
          const lastAssistant = this.messages
-@@ -2816,14 +3065,14 @@
+@@ -2816,14 +2918,14 @@ export class AgentSession {
          return context;
      }
      /**
@@ -1755,6 +1542,7 @@ diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
          return this._extensionRunner;
      }
 diff --git a/dist/core/extensions/index.d.ts b/dist/core/extensions/index.d.ts
+index 8d96bef..cf1c2ce 100644
 --- a/dist/core/extensions/index.d.ts
 +++ b/dist/core/extensions/index.d.ts
 @@ -1,12 +1,175 @@
@@ -1941,9 +1729,10 @@ diff --git a/dist/core/extensions/index.d.ts b/dist/core/extensions/index.d.ts
 \ No newline at end of file
 +//# sourceMappingURL=index.d.ts.map
 diff --git a/dist/core/extensions/loader.js b/dist/core/extensions/loader.js
+index e8e8859..2e442cd 100644
 --- a/dist/core/extensions/loader.js
 +++ b/dist/core/extensions/loader.js
-@@ -25,6 +25,10 @@
+@@ -25,6 +25,10 @@ import * as _bundledPiCodingAgent from "../../index.js";
  import { resolvePath } from "../../utils/paths.js";
  import { createEventBus } from "../event-bus.js";
  import { execCommand } from "../exec.js";
@@ -1954,7 +1743,7 @@ diff --git a/dist/core/extensions/loader.js b/dist/core/extensions/loader.js
  import { readPiManifest } from "../pi-manifest.js";
  import { createSyntheticSourceInfo } from "../source-info.js";
  import { time } from "../timings.js";
-@@ -160,7 +164,26 @@
+@@ -160,7 +164,26 @@ export function createExtensionRuntime() {
          getThinkingLevel: notInitialized,
          setThinkingLevel: notInitialized,
          flagValues: new Map(),
@@ -1982,7 +1771,7 @@ diff --git a/dist/core/extensions/loader.js b/dist/core/extensions/loader.js
          pendingNativeProviderRegistrations: [],
          assertActive,
          invalidate: (message) => {
-@@ -172,6 +195,7 @@
+@@ -172,6 +195,7 @@ export function createExtensionRuntime() {
              for (const unsubscribe of eventBusUnsubscribers)
                  unsubscribe();
              eventBusUnsubscribers.clear();
@@ -1990,7 +1779,7 @@ diff --git a/dist/core/extensions/loader.js b/dist/core/extensions/loader.js
          },
          trackEventBusSubscription: (unsubscribe) => {
              let active = true;
-@@ -206,7 +230,8 @@
+@@ -206,7 +230,8 @@ export function createExtensionRuntime() {
   * Action methods delegate to the shared runtime.
   */
  function createExtensionAPI(extension, runtime, cwd, eventBus) {
@@ -2000,7 +1789,7 @@ diff --git a/dist/core/extensions/loader.js b/dist/core/extensions/loader.js
      const pendingRuntimeChanges = [];
      const loadingUnsubscribers = [];
      let state = "loading";
-@@ -224,6 +249,7 @@
+@@ -224,6 +249,7 @@ function createExtensionAPI(extension, runtime, cwd, eventBus) {
      };
      const clearPending = () => {
          pendingFlagValues.clear();
@@ -2008,7 +1797,7 @@ diff --git a/dist/core/extensions/loader.js b/dist/core/extensions/loader.js
          pendingRuntimeChanges.length = 0;
          loadingUnsubscribers.length = 0;
      };
-@@ -258,7 +284,8 @@
+@@ -258,7 +284,8 @@ function createExtensionAPI(extension, runtime, cwd, eventBus) {
          registerFlag(name, options) {
              assertActive();
              if (options.default !== undefined && typeof options.default !== options.type) {
@@ -2018,7 +1807,7 @@ diff --git a/dist/core/extensions/loader.js b/dist/core/extensions/loader.js
              }
              extension.flags.set(name, { name, extensionPath: extension.path, ...options });
              if (options.default !== undefined && !runtime.flagValues.has(name)) {
-@@ -348,7 +375,23 @@
+@@ -348,7 +375,23 @@ function createExtensionAPI(extension, runtime, cwd, eventBus) {
              assertActive();
              runtime.setThinkingLevel(level);
          },
@@ -2043,7 +1832,7 @@ diff --git a/dist/core/extensions/loader.js b/dist/core/extensions/loader.js
              assertActive();
              if (typeof providerOrName === "string") {
                  if (!config)
-@@ -382,12 +425,20 @@
+@@ -382,12 +425,20 @@ function createExtensionAPI(extension, runtime, cwd, eventBus) {
              if (state !== "loading")
                  return;
              runtime.assertActive();
@@ -2065,7 +1854,7 @@ diff --git a/dist/core/extensions/loader.js b/dist/core/extensions/loader.js
              state = "active";
              clearPending();
          },
-@@ -466,7 +517,8 @@
+@@ -466,7 +517,8 @@ async function initializeExtension(factory, extensionPath, resolvedPath, cwd, ev
          load.discard();
          throw error;
      }
@@ -2076,6 +1865,7 @@ diff --git a/dist/core/extensions/loader.js b/dist/core/extensions/loader.js
  }
  async function loadExtension(extensionPath, cwd, eventBus, runtime, cacheToken) {
 diff --git a/dist/core/extensions/runner.d.ts b/dist/core/extensions/runner.d.ts
+index 1aad928..fcf6775 100644
 --- a/dist/core/extensions/runner.d.ts
 +++ b/dist/core/extensions/runner.d.ts
 @@ -2,7 +2,10 @@
@@ -2090,7 +1880,7 @@ diff --git a/dist/core/extensions/runner.d.ts b/dist/core/extensions/runner.d.ts
  import type { KeyId } from "@earendil-works/pi-tui";
  import type { ResourceDiagnostic } from "../diagnostics.ts";
  import type { KeybindingsConfig } from "../keybindings.ts";
-@@ -19,7 +22,8 @@
+@@ -19,7 +22,8 @@ interface BeforeAgentStartCombinedResult {
   * Events handled by the generic emit() method.
   * Events with dedicated emitXxx() methods are excluded for stronger type safety.
   */
@@ -2100,7 +1890,7 @@ diff --git a/dist/core/extensions/runner.d.ts b/dist/core/extensions/runner.d.ts
  type RunnerEmitResult<TEvent extends RunnerEmitEvent> = TEvent extends {
      type: "session_before_switch";
  } ? SessionBeforeSwitchResult | undefined : TEvent extends {
-@@ -100,6 +104,9 @@
+@@ -100,6 +104,9 @@ export declare class ExtensionRunner {
      private uiPromptDepth;
      private activeUIPrompt;
      constructor(extensions: Extension[], runtime: ExtensionRuntime, cwd: string, sessionManager: SessionManager, modelRegistry: ModelRegistry);
@@ -2110,7 +1900,7 @@ diff --git a/dist/core/extensions/runner.d.ts b/dist/core/extensions/runner.d.ts
      bindCore(actions: ExtensionActions, contextActions: ExtensionContextActions, providerActions?: {
          registerProvider?: (name: string, config: ProviderConfig) => void;
          registerNativeProvider?: (provider: Provider) => void;
-@@ -136,15 +143,15 @@
+@@ -136,15 +143,15 @@ export declare class ExtensionRunner {
      getCommandDiagnostics(): ResourceDiagnostic[];
      getCommand(name: string): ResolvedCommand | undefined;
      /**
@@ -2133,6 +1923,7 @@ diff --git a/dist/core/extensions/runner.d.ts b/dist/core/extensions/runner.d.ts
      createCommandContext(): ExtensionCommandContext;
      private isSessionBeforeEvent;
 diff --git a/dist/core/extensions/runner.js b/dist/core/extensions/runner.js
+index d23e6d5..9858e0f 100644
 --- a/dist/core/extensions/runner.js
 +++ b/dist/core/extensions/runner.js
 @@ -2,6 +2,7 @@
@@ -2143,7 +1934,7 @@ diff --git a/dist/core/extensions/runner.js b/dist/core/extensions/runner.js
  // Extension shortcuts compete with canonical keybinding ids from keybindings.json.
  // Only editor-global shortcuts are reserved here. Picker-specific bindings are not.
  const RESERVED_KEYBINDINGS_FOR_EXTENSION_CONFLICTS = [
-@@ -67,7 +68,7 @@
+@@ -67,7 +68,7 @@ export async function emitProjectTrustEvent(extensionsResult, event, ctx) {
              continue;
          for (const handler of handlers) {
              try {
@@ -2152,7 +1943,7 @@ diff --git a/dist/core/extensions/runner.js b/dist/core/extensions/runner.js
                  if (handlerResult.trusted === "undecided") {
                      continue;
                  }
-@@ -152,10 +153,21 @@
+@@ -152,10 +153,21 @@ export class ExtensionRunner {
      constructor(extensions, runtime, cwd, sessionManager, modelRegistry) {
          this.extensions = extensions;
          this.runtime = runtime;
@@ -2175,7 +1966,7 @@ diff --git a/dist/core/extensions/runner.js b/dist/core/extensions/runner.js
      }
      bindCore(actions, contextActions, providerActions) {
          // Copy actions into the shared runtime (all extension APIs reference this)
-@@ -432,7 +444,7 @@
+@@ -432,7 +444,7 @@ export class ExtensionRunner {
          return undefined;
      }
      getMarkdownTransformers() {
@@ -2184,7 +1975,7 @@ diff --git a/dist/core/extensions/runner.js b/dist/core/extensions/runner.js
      }
      getEntryRenderer(customType) {
          for (const ext of this.extensions) {
-@@ -486,9 +498,9 @@
+@@ -486,9 +498,9 @@ export class ExtensionRunner {
          return this.resolveRegisteredCommands().find((command) => command.invocationName === name);
      }
      /**
@@ -2197,7 +1988,7 @@ diff --git a/dist/core/extensions/runner.js b/dist/core/extensions/runner.js
      shutdown() {
          this.shutdownHandler();
      }
-@@ -497,9 +509,9 @@
+@@ -497,9 +509,9 @@ export class ExtensionRunner {
          return this.runtime.getActiveTools();
      }
      /**
@@ -2210,7 +2001,7 @@ diff --git a/dist/core/extensions/runner.js b/dist/core/extensions/runner.js
      createContext() {
          const runner = this;
          const getModel = this.getModel;
-@@ -662,7 +674,7 @@
+@@ -662,7 +674,7 @@ export class ExtensionRunner {
              for (const handler of handlers) {
                  try {
                      const currentEvent = { ...event, message: currentMessage };
@@ -2219,7 +2010,7 @@ diff --git a/dist/core/extensions/runner.js b/dist/core/extensions/runner.js
                      if (!handlerResult?.message)
                          continue;
                      if (handlerResult.message.role !== currentMessage.role) {
-@@ -700,7 +712,7 @@
+@@ -700,7 +712,7 @@ export class ExtensionRunner {
                  continue;
              for (const handler of handlers) {
                  try {
@@ -2228,7 +2019,7 @@ diff --git a/dist/core/extensions/runner.js b/dist/core/extensions/runner.js
                      if (!handlerResult)
                          continue;
                      if (handlerResult.content !== undefined) {
-@@ -985,7 +997,7 @@
+@@ -985,7 +997,7 @@ export class ExtensionRunner {
                          source,
                          streamingBehavior,
                      };
@@ -2238,9 +2029,10 @@ diff --git a/dist/core/extensions/runner.js b/dist/core/extensions/runner.js
                          return result;
                      if (result?.action === "transform") {
 diff --git a/dist/core/extensions/types.d.ts b/dist/core/extensions/types.d.ts
+index 94ca072..2382b54 100644
 --- a/dist/core/extensions/types.d.ts
 +++ b/dist/core/extensions/types.d.ts
-@@ -47,7 +47,8 @@
+@@ -47,7 +47,8 @@ export interface ExtensionWidgetOptions {
      placement?: WidgetPlacement;
  }
  /** Raw terminal input listener for extensions. */
@@ -2250,7 +2042,7 @@ diff --git a/dist/core/extensions/types.d.ts b/dist/core/extensions/types.d.ts
      consume?: boolean;
      data?: string;
  } | undefined;
-@@ -83,38 +84,42 @@
+@@ -83,38 +84,42 @@ export interface ExtensionUIContext {
      /** Show or hide the built-in interactive working loader row during streaming. */
      setWorkingVisible(visible: boolean): void;
      /**
@@ -2309,7 +2101,7 @@ diff --git a/dist/core/extensions/types.d.ts b/dist/core/extensions/types.d.ts
          dispose?(): void;
      }) | Promise<Component & {
          dispose?(): void;
-@@ -136,37 +141,37 @@
+@@ -136,37 +141,37 @@ export interface ExtensionUIContext {
      /** Stack additional autocomplete behavior on top of the built-in provider. */
      addAutocompleteProvider(factory: AutocompleteProviderFactory): void;
      /**
@@ -2377,7 +2169,7 @@ diff --git a/dist/core/extensions/types.d.ts b/dist/core/extensions/types.d.ts
       */
      setEditorComponent(factory: EditorFactory | undefined): void;
      /** Get the currently configured custom editor factory, or undefined when using the default editor. */
-@@ -222,9 +227,9 @@
+@@ -222,9 +227,9 @@ export interface ExtensionContext {
      /** Current model (may be undefined) */
      model: Model<any> | undefined;
      /** Models scoped to this session (resolved from `--models` /
@@ -2390,7 +2182,7 @@ diff --git a/dist/core/extensions/types.d.ts b/dist/core/extensions/types.d.ts
      scopedModels: readonly ScopedModel[];
      /** Current thinking level, when provided by the session runtime. */
      thinkingLevel?: ThinkingLevel;
-@@ -361,12 +366,12 @@
+@@ -361,12 +366,12 @@ export interface ToolDefinition<TParams extends TSchema = TSchema, TDetails = un
      /** Optional compatibility shim to prepare raw tool call arguments before schema validation. Must return an object conforming to TParams. */
      prepareArguments?: (args: unknown) => Static<TParams>;
      /**
@@ -2409,7 +2201,7 @@ diff --git a/dist/core/extensions/types.d.ts b/dist/core/extensions/types.d.ts
      executionMode?: ToolExecutionMode;
      /** Execute the tool. */
      execute(toolCallId: string, params: Static<TParams>, signal: AbortSignal | undefined, onUpdate: AgentToolUpdateCallback<TDetails> | undefined, ctx: ExtensionContext): Promise<AgentToolResult<TDetails>>;
-@@ -509,7 +514,8 @@
+@@ -509,7 +514,8 @@ export interface SessionTreeEvent {
      summaryEntry?: BranchSummaryEntry;
      fromExtension?: boolean;
  }
@@ -2419,7 +2211,7 @@ diff --git a/dist/core/extensions/types.d.ts b/dist/core/extensions/types.d.ts
  /** Fired before each LLM call. Can modify messages. */
  export interface ContextEvent {
      type: "context";
-@@ -666,7 +672,8 @@
+@@ -666,7 +672,8 @@ export interface InputEvent {
      streamingBehavior?: "steer" | "followUp";
  }
  /** Result from input event handler */
@@ -2429,7 +2221,7 @@ diff --git a/dist/core/extensions/types.d.ts b/dist/core/extensions/types.d.ts
      action: "continue";
  } | {
      action: "transform";
-@@ -721,7 +728,8 @@
+@@ -721,7 +728,8 @@ export interface CustomToolCallEvent extends ToolCallEventBase {
   * `event.input` is mutable. Mutate it in place to patch tool arguments before execution.
   * Later `tool_call` handlers see earlier mutations. No re-validation is performed after mutation.
   */
@@ -2439,7 +2231,7 @@ diff --git a/dist/core/extensions/types.d.ts b/dist/core/extensions/types.d.ts
  interface ToolResultEventBase {
      type: "tool_result";
      toolCallId: string;
-@@ -768,7 +776,8 @@
+@@ -768,7 +776,8 @@ export interface CustomToolResultEvent extends ToolResultEventBase {
      details: unknown;
  }
  /** Fired after a tool executes. Can modify result. */
@@ -2449,7 +2241,7 @@ diff --git a/dist/core/extensions/types.d.ts b/dist/core/extensions/types.d.ts
  export declare function isBashToolResult(e: ToolResultEvent): e is BashToolResultEvent;
  export declare function isPowerShellToolResult(e: ToolResultEvent): e is PowerShellToolResultEvent;
  export declare function isReadToolResult(e: ToolResultEvent): e is ReadToolResultEvent;
-@@ -810,7 +819,8 @@
+@@ -810,7 +819,8 @@ export declare function isToolCallEventType<TName extends string, TInput extends
      input: TInput;
  };
  /** Union of all event types */
@@ -2459,7 +2251,7 @@ diff --git a/dist/core/extensions/types.d.ts b/dist/core/extensions/types.d.ts
  export interface ContextEventResult {
      messages?: AgentMessage[];
  }
-@@ -820,9 +830,9 @@
+@@ -820,9 +830,9 @@ export interface ToolCallEventResult {
      block?: boolean;
      reason?: string;
      /**
@@ -2472,7 +2264,7 @@ diff --git a/dist/core/extensions/types.d.ts b/dist/core/extensions/types.d.ts
      terminate?: boolean;
  }
  /** Result from user_bash event handler */
-@@ -903,8 +913,18 @@
+@@ -903,8 +913,17 @@ export type ExtensionHandler<E, R = undefined> = (event: E, ctx: ExtensionContex
  /**
   * ExtensionAPI passed to extension factory functions.
   */
@@ -2480,7 +2272,6 @@ diff --git a/dist/core/extensions/types.d.ts b/dist/core/extensions/types.d.ts
 +  readonly provider: string;
 +  readonly model: string;
 +  readonly asyncTools: boolean;
-+  readonly steering: boolean;
 +  readonly asyncToolNames?: readonly string[];
 +}
  export interface ExtensionAPI {
@@ -2492,7 +2283,7 @@ diff --git a/dist/core/extensions/types.d.ts b/dist/core/extensions/types.d.ts
      on(event: "resources_discover", handler: ExtensionHandler<ResourcesDiscoverEvent, ResourcesDiscoverResult>): void;
      on(event: "session_start", handler: ExtensionHandler<SessionStartEvent>): void;
      on(event: "session_info_changed", handler: ExtensionHandler<SessionInfoChangedEvent>): void;
-@@ -950,7 +970,8 @@
+@@ -950,7 +969,8 @@ export interface ExtensionAPI {
          handler: (ctx: ExtensionContext) => Promise<void> | void;
      }): void;
      /** Register a CLI flag. */
@@ -2502,7 +2293,7 @@ diff --git a/dist/core/extensions/types.d.ts b/dist/core/extensions/types.d.ts
          description?: string;
          type: "boolean";
          default?: boolean;
-@@ -973,10 +994,10 @@
+@@ -973,10 +993,10 @@ export interface ExtensionAPI {
          deliverAs?: "steer" | "followUp" | "nextTurn";
      }): void;
      /**
@@ -2517,7 +2308,7 @@ diff --git a/dist/core/extensions/types.d.ts b/dist/core/extensions/types.d.ts
      sendUserMessage(content: string | (TextContent | ImageContent)[], options?: {
          deliverAs?: "steer" | "followUp";
          expandPromptTemplates?: boolean;
-@@ -1000,31 +1021,31 @@
+@@ -1000,31 +1020,31 @@ export interface ExtensionAPI {
      /** Get available slash commands in the current session. */
      getCommands(): SlashCommandInfo[];
      /**
@@ -2568,7 +2359,7 @@ diff --git a/dist/core/extensions/types.d.ts b/dist/core/extensions/types.d.ts
       * // Register a new provider with custom models
       * pi.registerProvider("my-proxy", {
       *   baseUrl: "https://proxy.example.com",
-@@ -1066,16 +1087,16 @@
+@@ -1066,16 +1086,16 @@ export interface ExtensionAPI {
      registerProvider(provider: Provider): void;
      registerProvider(name: string, config: ProviderConfig): void;
      /**
@@ -2595,7 +2386,7 @@ diff --git a/dist/core/extensions/types.d.ts b/dist/core/extensions/types.d.ts
       * pi.unregisterProvider("my-proxy");
       */
      unregisterProvider(name: string): void;
-@@ -1093,11 +1114,11 @@
+@@ -1093,11 +1113,11 @@ export interface ProviderConfig {
      /** API type. Required at provider or model level when defining models. */
      api?: Api;
      /**
@@ -2612,7 +2403,7 @@ diff --git a/dist/core/extensions/types.d.ts b/dist/core/extensions/types.d.ts
      streamSimple?: (model: Model<Api>, context: Context, options?: SimpleStreamOptions) => AssistantMessageEventStream;
      /** Custom headers to include in requests. */
      headers?: Record<string, string>;
-@@ -1106,9 +1127,9 @@
+@@ -1106,9 +1126,9 @@ export interface ProviderConfig {
      /** Models to register. If provided, replaces all existing models for this provider. */
      models?: ProviderModelConfig[];
      /**
@@ -2625,7 +2416,7 @@ diff --git a/dist/core/extensions/types.d.ts b/dist/core/extensions/types.d.ts
      refreshModels?(context: RefreshModelsContext): Promise<ProviderModelConfig[]>;
      /** OAuth provider for /login support. The `id` is set automatically from the provider name. */
      oauth?: {
-@@ -1157,7 +1178,8 @@
+@@ -1157,7 +1177,8 @@ export interface ProviderModelConfig {
  }
  /** Extension factory function type. Supports both sync and async initialization. */
  export type ExtensionFactory = (pi: ExtensionAPI) => void | Promise<void>;
@@ -2635,7 +2426,7 @@ diff --git a/dist/core/extensions/types.d.ts b/dist/core/extensions/types.d.ts
      /** Display name shown as `<inline:name>` in the startup Extensions list. */
      name: string;
      factory: ExtensionFactory;
-@@ -1211,7 +1233,13 @@
+@@ -1211,7 +1232,13 @@ export type SetLabelHandler = (entryId: string, label: string | undefined) => vo
   * Contains flag values (defaults set during registration, CLI values set after).
   */
  export interface ExtensionRuntimeState {
@@ -2650,7 +2441,7 @@ diff --git a/dist/core/extensions/types.d.ts b/dist/core/extensions/types.d.ts
      /** Legacy provider-config registrations queued during extension loading, processed when runner binds. */
      pendingProviderRegistrations: Array<{
          name: string;
-@@ -1230,11 +1258,11 @@
+@@ -1230,11 +1257,11 @@ export interface ExtensionRuntimeState {
      /** Retain an event-bus subscription until this runtime is invalidated. */
      trackEventBusSubscription: (unsubscribe: () => void) => () => void;
      /**
@@ -2668,9 +2459,10 @@ diff --git a/dist/core/extensions/types.d.ts b/dist/core/extensions/types.d.ts
      registerNativeProvider: (provider: Provider, extensionPath?: string) => void;
      unregisterProvider: (name: string, extensionPath?: string) => void;
 diff --git a/dist/core/model-runtime.d.ts b/dist/core/model-runtime.d.ts
+index e6fbba5..11945a3 100644
 --- a/dist/core/model-runtime.d.ts
 +++ b/dist/core/model-runtime.d.ts
-@@ -84,6 +84,16 @@
+@@ -84,6 +84,16 @@ export declare class ModelRuntime implements Models {
      listCredentials(options?: AuthOperationOptions): Promise<readonly CredentialInfo[]>;
      getProviderAuthStatus(providerId: string): AuthStatus;
      private prepareRequest;
@@ -2688,6 +2480,7 @@ diff --git a/dist/core/model-runtime.d.ts b/dist/core/model-runtime.d.ts
      complete<TApi extends Api>(model: Model<TApi>, context: Context, options?: ModelsApiStreamOptions<TApi>): Promise<AssistantMessage>;
      streamSimple(model: Model<Api>, context: Context, options?: ModelsSimpleStreamOptions): AssistantMessageEventStream;
 diff --git a/dist/core/model-runtime.js b/dist/core/model-runtime.js
+index fbcc6cb..23b80ff 100644
 --- a/dist/core/model-runtime.js
 +++ b/dist/core/model-runtime.js
 @@ -1,5 +1,6 @@
@@ -2698,7 +2491,7 @@ diff --git a/dist/core/model-runtime.js b/dist/core/model-runtime.js
  import * as builtinProviderCatalog from "@earendil-works/pi-ai/providers/all";
  import { getAgentDir } from "../config.js";
  import { operationSignal, raceWithAbortSignal } from "../utils/abort.js";
-@@ -244,7 +245,7 @@
+@@ -244,7 +245,7 @@ export class ModelRuntime {
              const all = [...this.models.getModels()];
              const availableById = new Map([...this.snapshot.available.filter((model) => model.provider !== providerId), ...available].map((model) => [
                  `${model.provider}\0${model.id}`,
@@ -2707,7 +2500,7 @@ diff --git a/dist/core/model-runtime.js b/dist/core/model-runtime.js
              ]));
              this.snapshot = {
                  all,
-@@ -449,7 +450,23 @@
+@@ -449,7 +450,23 @@ export class ModelRuntime {
              },
          };
      }
@@ -2733,6 +2526,8 @@ diff --git a/dist/core/model-runtime.js b/dist/core/model-runtime.js
              const prepared = await this.prepareRequest(model, options);
              return prepared.provider.stream(prepared.model, context, prepared.options);
 diff --git a/dist/core/openai-capabilities.d.ts b/dist/core/openai-capabilities.d.ts
+new file mode 100644
+index 0000000..b243850
 --- /dev/null
 +++ b/dist/core/openai-capabilities.d.ts
 @@ -0,0 +1,15 @@
@@ -2752,9 +2547,11 @@ diff --git a/dist/core/openai-capabilities.d.ts b/dist/core/openai-capabilities.
 +  project: (entry: SessionEntry) => AgentMessage[],
 +): AgentMessage[];
 diff --git a/dist/core/openai-capabilities.js b/dist/core/openai-capabilities.js
+new file mode 100644
+index 0000000..f0efb11
 --- /dev/null
 +++ b/dist/core/openai-capabilities.js
-@@ -0,0 +1,215 @@
+@@ -0,0 +1,213 @@
 +export const OPENAI_CHECKPOINT_TYPE = "openai-capabilities-v1";
 +
 +export function snapshotOpenAICapabilities(value) {
@@ -2764,11 +2561,10 @@ diff --git a/dist/core/openai-capabilities.js b/dist/core/openai-capabilities.js
 +    !value.provider.trim() ||
 +    typeof value.model !== "string" ||
 +    !value.model.trim() ||
-+    typeof value.asyncTools !== "boolean" ||
-+    typeof value.steering !== "boolean"
++    typeof value.asyncTools !== "boolean"
 +  ) {
 +    throw new Error(
-+      "OpenAI capabilities require nonempty provider/model and boolean asyncTools/steering.",
++      "OpenAI capabilities require nonempty provider/model and boolean asyncTools.",
 +    );
 +  }
 +  const names = value.asyncToolNames;
@@ -2787,7 +2583,6 @@ diff --git a/dist/core/openai-capabilities.js b/dist/core/openai-capabilities.js
 +    provider: value.provider,
 +    model: value.model,
 +    asyncTools: value.asyncTools,
-+    steering: value.steering,
 +    ...(names === undefined
 +      ? {}
 +      : { asyncToolNames: Object.freeze([...names]) }),
@@ -2971,9 +2766,10 @@ diff --git a/dist/core/openai-capabilities.js b/dist/core/openai-capabilities.js
 +  return slots.map((slot) => slot.message);
 +}
 diff --git a/dist/core/session-manager.js b/dist/core/session-manager.js
+index fbb784f..7829572 100644
 --- a/dist/core/session-manager.js
 +++ b/dist/core/session-manager.js
-@@ -8,6 +8,10 @@
+@@ -8,6 +8,10 @@ import { StringDecoder } from "string_decoder";
  import { APP_NAME, getAgentDir as getDefaultAgentDir, getSessionsDir } from "../config.js";
  import { normalizePath, resolvePath } from "../utils/paths.js";
  import { createBranchSummaryMessage, createCompactionSummaryMessage, createCustomMessage, } from "./messages.js";
@@ -2984,7 +2780,7 @@ diff --git a/dist/core/session-manager.js b/dist/core/session-manager.js
  export const CURRENT_SESSION_VERSION = 3;
  function createSessionId() {
      return uuidv7();
-@@ -232,7 +236,10 @@
+@@ -232,7 +236,10 @@ export function buildContextEntries(entries, leafId, byId) {
  export function buildSessionContext(entries, leafId, byId) {
      const path = buildSessionPath(entries, leafId, byId);
      const { thinkingLevel, model } = getSessionContextSettings(path);
@@ -2996,7 +2792,7 @@ diff --git a/dist/core/session-manager.js b/dist/core/session-manager.js
      return { messages, thinkingLevel, model };
  }
  /**
-@@ -740,7 +747,10 @@
+@@ -740,7 +747,10 @@ export class SessionManager {
          if (!this.persist || !this.sessionFile)
              return;
          const hasAssistant = this.fileEntries.some((e) => e.type === "message" && e.message.role === "assistant");
@@ -3008,7 +2804,7 @@ diff --git a/dist/core/session-manager.js b/dist/core/session-manager.js
              if (this.flushed) {
                  appendFileSync(this.sessionFile, `${JSON.stringify(entry)}\n`);
              }
-@@ -773,11 +783,11 @@
+@@ -773,11 +783,11 @@ export class SessionManager {
          this._persist(entry);
      }
      /** Append a message as child of current leaf, then advance leaf. Returns entry id.
@@ -3025,7 +2821,7 @@ diff --git a/dist/core/session-manager.js b/dist/core/session-manager.js
      appendMessage(message) {
          const entry = {
              type: "message",
-@@ -871,8 +881,8 @@
+@@ -871,8 +881,8 @@ export class SessionManager {
          return undefined;
      }
      /**
@@ -3036,7 +2832,7 @@ diff --git a/dist/core/session-manager.js b/dist/core/session-manager.js
       * @param content Message content (string or TextContent/ImageContent array)
       * @param display Whether to show in TUI (true = styled display, false = hidden)
       * @param details Optional extension-specific metadata (not sent to LLM)
-@@ -905,8 +915,8 @@
+@@ -905,8 +915,8 @@ export class SessionManager {
          return this.byId.get(id);
      }
      /**
@@ -3047,7 +2843,7 @@ diff --git a/dist/core/session-manager.js b/dist/core/session-manager.js
      getChildren(parentId) {
          const children = [];
          for (const entry of this.byId.values()) {
-@@ -917,16 +927,16 @@
+@@ -917,16 +927,16 @@ export class SessionManager {
          return children;
      }
      /**
@@ -3070,7 +2866,7 @@ diff --git a/dist/core/session-manager.js b/dist/core/session-manager.js
      appendLabelChange(targetId, label) {
          if (!this.byId.has(targetId)) {
              throw new Error(`Entry ${targetId} not found`);
-@@ -951,10 +961,10 @@
+@@ -951,10 +961,10 @@ export class SessionManager {
          return entry.id;
      }
      /**
@@ -3085,7 +2881,7 @@ diff --git a/dist/core/session-manager.js b/dist/core/session-manager.js
      getBranch(fromId) {
          const path = [];
          const startId = fromId ?? this.leafId;
-@@ -967,39 +977,39 @@
+@@ -967,39 +977,39 @@ export class SessionManager {
          return path;
      }
      /**
@@ -3141,7 +2937,7 @@ diff --git a/dist/core/session-manager.js b/dist/core/session-manager.js
      getTree() {
          const entries = this.getEntries();
          const nodeMap = new Map();
-@@ -1041,11 +1051,11 @@
+@@ -1041,11 +1051,11 @@ export class SessionManager {
      // Branching
      // =========================================================================
      /**
@@ -3158,7 +2954,7 @@ diff --git a/dist/core/session-manager.js b/dist/core/session-manager.js
      branch(branchFromId) {
          if (!this.byId.has(branchFromId)) {
              throw new Error(`Entry ${branchFromId} not found`);
-@@ -1053,18 +1063,18 @@
+@@ -1053,18 +1063,18 @@ export class SessionManager {
          this.leafId = branchFromId;
      }
      /**
@@ -3185,7 +2981,7 @@ diff --git a/dist/core/session-manager.js b/dist/core/session-manager.js
      branchWithSummary(branchFromId, summary, details, fromHook, usage) {
          if (branchFromId !== null && !this.byId.has(branchFromId)) {
              throw new Error(`Entry ${branchFromId} not found`);
-@@ -1086,10 +1096,10 @@
+@@ -1086,10 +1096,10 @@ export class SessionManager {
          return entry.id;
      }
      /**
@@ -3200,7 +2996,7 @@ diff --git a/dist/core/session-manager.js b/dist/core/session-manager.js
      createBranchedSession(leafId) {
          const previousSessionFile = this.sessionFile;
          const path = this.getBranch(leafId);
-@@ -1199,8 +1209,8 @@
+@@ -1199,8 +1209,8 @@ export class SessionManager {
          return undefined;
      }
      /**
@@ -3211,7 +3007,7 @@ diff --git a/dist/core/session-manager.js b/dist/core/session-manager.js
       * @param sessionDir Optional session directory. If omitted, uses default (~/.pi/agent/sessions/<encoded-cwd>/).
       */
      static create(cwd, sessionDir, options) {
-@@ -1208,8 +1218,8 @@
+@@ -1208,8 +1218,8 @@ export class SessionManager {
          return new SessionManager(cwd, dir, undefined, true, options);
      }
      /**
@@ -3222,7 +3018,7 @@ diff --git a/dist/core/session-manager.js b/dist/core/session-manager.js
       * @param sessionDir Optional session directory for /new or /branch. If omitted, derives from file's parent.
       * @param cwdOverride Optional cwd override instead of the session header cwd.
       */
-@@ -1237,8 +1247,8 @@
+@@ -1237,8 +1247,8 @@ export class SessionManager {
          return new SessionManager(cwd, dir, resolvedPath, true, undefined, preloadedFileEntries);
      }
      /**
@@ -3233,7 +3029,7 @@ diff --git a/dist/core/session-manager.js b/dist/core/session-manager.js
       * @param sessionDir Optional session directory. If omitted, uses default (~/.pi/agent/sessions/<encoded-cwd>/).
       */
      static continueRecent(cwd, sessionDir) {
-@@ -1255,9 +1265,9 @@
+@@ -1255,9 +1265,9 @@ export class SessionManager {
          return new SessionManager(cwd, "", undefined, false, options, entries);
      }
      /**
@@ -3246,7 +3042,7 @@ diff --git a/dist/core/session-manager.js b/dist/core/session-manager.js
       * @param targetCwd Target working directory (where the new session will be stored)
       * @param sessionDir Optional session directory. If omitted, uses default for targetCwd.
       */
-@@ -1303,8 +1313,8 @@
+@@ -1303,8 +1313,8 @@ export class SessionManager {
          return new SessionManager(resolvedTargetCwd, dir, newSessionFile, true);
      }
      /**
@@ -3258,6 +3054,7 @@ diff --git a/dist/core/session-manager.js b/dist/core/session-manager.js
       * @param onProgress Optional callback for progress updates (loaded, total)
       */
 diff --git a/dist/index.d.ts b/dist/index.d.ts
+index e2b640b..2271f34 100644
 --- a/dist/index.d.ts
 +++ b/dist/index.d.ts
 @@ -1,3 +1,4 @@
@@ -3266,6 +3063,7 @@ diff --git a/dist/index.d.ts b/dist/index.d.ts
  export { CONFIG_DIR_NAME, getAgentDir, getDocsPath, getExamplesPath, getPackageDir, getReadmePath, VERSION, } from "./config.ts";
  export { AgentSession, type AgentSessionConfig, type AgentSessionEvent, type AgentSessionEventListener, type ModelCycleResult, type ParsedSkillBlock, type PromptOptions, parseSkillBlock, type SessionStats, } from "./core/agent-session.ts";
 diff --git a/node_modules/@earendil-works/pi-agent-core/dist/agent-loop.js b/node_modules/@earendil-works/pi-agent-core/dist/agent-loop.js
+index ca1186c..af20f79 100644
 --- a/node_modules/@earendil-works/pi-agent-core/dist/agent-loop.js
 +++ b/node_modules/@earendil-works/pi-agent-core/dist/agent-loop.js
 @@ -4,6 +4,7 @@
@@ -3276,7 +3074,7 @@ diff --git a/node_modules/@earendil-works/pi-agent-core/dist/agent-loop.js b/nod
  /**
   * Start an agent loop with a new prompt message.
   * The prompt is added to the context and events are emitted for it.
-@@ -52,7 +53,7 @@
+@@ -52,7 +53,7 @@ export async function runAgentLoop(prompts, context, config, emit, signal, strea
          await emit({ type: "message_start", message: prompt });
          await emit({ type: "message_end", message: prompt });
      }
@@ -3285,7 +3083,7 @@ diff --git a/node_modules/@earendil-works/pi-agent-core/dist/agent-loop.js b/nod
      return newMessages;
  }
  export async function runAgentLoopContinue(context, config, emit, signal, streamFn) {
-@@ -66,7 +67,7 @@
+@@ -66,7 +67,7 @@ export async function runAgentLoopContinue(context, config, emit, signal, stream
      const currentContext = { ...context };
      await emit({ type: "agent_start" });
      await emit({ type: "turn_start" });
@@ -3294,7 +3092,7 @@ diff --git a/node_modules/@earendil-works/pi-agent-core/dist/agent-loop.js b/nod
      return newMessages;
  }
  function createAgentStream() {
-@@ -76,6 +77,12 @@
+@@ -76,6 +77,12 @@ function createAgentStream() {
   * Main loop logic shared by agentLoop and agentLoopContinue.
   */
  async function runLoop(initialContext, newMessages, initialConfig, signal, emit, streamFunction) {
@@ -3308,6 +3106,7 @@ diff --git a/node_modules/@earendil-works/pi-agent-core/dist/agent-loop.js b/nod
      let config = initialConfig;
      let lastCompletedTurn;
 diff --git a/node_modules/@earendil-works/pi-agent-core/dist/agent.d.ts b/node_modules/@earendil-works/pi-agent-core/dist/agent.d.ts
+index 42e1eab..762cbd6 100644
 --- a/node_modules/@earendil-works/pi-agent-core/dist/agent.d.ts
 +++ b/node_modules/@earendil-works/pi-agent-core/dist/agent.d.ts
 @@ -1,5 +1,5 @@
@@ -3317,7 +3116,7 @@ diff --git a/node_modules/@earendil-works/pi-agent-core/dist/agent.d.ts b/node_m
  export type { QueueMode } from "./types.ts";
  /** Options for constructing an {@link Agent}. */
  export interface AgentOptions {
-@@ -22,6 +22,8 @@
+@@ -22,6 +22,8 @@ export interface AgentOptions {
      transport?: Transport;
      maxRetryDelayMs?: number;
      toolExecution?: ToolExecutionMode;
@@ -3326,17 +3125,16 @@ diff --git a/node_modules/@earendil-works/pi-agent-core/dist/agent.d.ts b/node_m
  }
  /**
   * Stateful wrapper around the low-level agent loop.
-@@ -56,6 +58,9 @@
+@@ -56,6 +58,8 @@ export declare class Agent {
      maxRetryDelayMs?: number;
      /** Tool execution strategy for assistant messages that contain multiple tool calls. */
      toolExecution: ToolExecutionMode;
 +    openAICapabilities?: OpenAICapabilities;
 +    openAIExchange?: OpenAIExchangeFactory;
-+    private nativeSteeringSink?;
      constructor(options: AgentOptions);
      /**
       * Subscribe to agent lifecycle events.
-@@ -90,7 +95,7 @@
+@@ -90,7 +94,7 @@ export declare class Agent {
      clearFollowUpQueue(): void;
      /** Remove all queued steering and follow-up messages. */
      clearAllQueues(): void;
@@ -3346,76 +3144,15 @@ diff --git a/node_modules/@earendil-works/pi-agent-core/dist/agent.d.ts b/node_m
      /** Active abort signal for the current run, if any. */
      get signal(): AbortSignal | undefined;
 diff --git a/node_modules/@earendil-works/pi-agent-core/dist/agent.js b/node_modules/@earendil-works/pi-agent-core/dist/agent.js
+index ee4f225..8b27eec 100644
 --- a/node_modules/@earendil-works/pi-agent-core/dist/agent.js
 +++ b/node_modules/@earendil-works/pi-agent-core/dist/agent.js
-@@ -50,6 +50,7 @@
- }
- class PendingMessageQueue {
-     messages = [];
-+    reserved = [];
-     mode;
-     constructor(mode) {
-         this.mode = mode;
-@@ -57,21 +58,40 @@
-     enqueue(message) {
-         this.messages.push(message);
-     }
-+    deliverable() {
-+        // An uncertain send may already have reached the server. Keep its input
-+        // available for explicit recovery, but never submit it on the next run.
-+        return this.messages.filter((message) => message.openAI?.deliveryStatus !== "failed" && message.openAI?.deliveryStatus !== "uncertain");
-+    }
-     hasItems() {
--        return this.messages.length > 0;
-+        return this.deliverable().length > 0;
-+    }
-+    reserve() {
-+        if (this.reserved.length) return [];
-+        const ready = this.deliverable();
-+        this.reserved = this.mode === "all" ? ready : ready.slice(0, 1);
-+        return this.reserved;
-+    }
-+    commit() {
-+        const reserved = new Set(this.reserved);
-+        this.messages = this.messages.filter((message) => !reserved.has(message));
-+        this.reserved = [];
-+    }
-+    release(messages) {
-+        for (let i = 0; i < this.reserved.length; i++) {
-+            const index = this.messages.indexOf(this.reserved[i]);
-+            if (index >= 0) this.messages[index] = messages[i];
-+            else this.messages.splice(i, 0, messages[i]);
-+        }
-+        this.reserved = [];
-     }
-     drain() {
--        if (this.mode === "all") {
--            const drained = this.messages.slice();
--            this.messages = [];
--            return drained;
--        }
--        const first = this.messages[0];
--        if (!first) {
--            return [];
--        }
--        this.messages = this.messages.slice(1);
--        return [first];
-+        if (this.reserved.length) return [];
-+        const ready = this.deliverable();
-+        const drained = this.mode === "all" ? ready : ready.slice(0, 1);
-+        const selected = new Set(drained);
-+        this.messages = this.messages.filter((message) => !selected.has(message));
-+        return drained;
-     }
-     clear() {
-         this.messages = [];
-@@ -110,13 +130,18 @@
+@@ -110,13 +110,17 @@ export class Agent {
      maxRetryDelayMs;
      /** Tool execution strategy for assistant messages that contain multiple tool calls. */
      toolExecution;
 +    openAICapabilities;
 +    openAIExchange;
-+    nativeSteeringSink;
      constructor(options) {
          // Older compiled consumers may omit options or streamFn even though the current API requires them.
          const runtimeOptions = options ?? {};
@@ -3429,7 +3166,7 @@ diff --git a/node_modules/@earendil-works/pi-agent-core/dist/agent.js b/node_mod
          this.getApiKey = runtimeOptions.getApiKey;
          this.onPayload = runtimeOptions.onPayload;
          this.onResponse = runtimeOptions.onResponse;
-@@ -132,6 +157,8 @@
+@@ -132,6 +136,8 @@ export class Agent {
          this.transport = runtimeOptions.transport ?? "auto";
          this.maxRetryDelayMs = runtimeOptions.maxRetryDelayMs;
          this.toolExecution = runtimeOptions.toolExecution ?? "parallel";
@@ -3438,40 +3175,16 @@ diff --git a/node_modules/@earendil-works/pi-agent-core/dist/agent.js b/node_mod
      }
      /**
       * Subscribe to agent lifecycle events.
-@@ -172,6 +199,8 @@
-     /** Queue a message to be injected after the current assistant turn finishes. */
-     steer(message) {
-         this.steeringQueue.enqueue(message);
-+        // The native driver owns failure reporting and reservation recovery.
-+        void this.nativeSteeringSink?.().catch(() => {});
-     }
-     /** Queue a message to run only after the agent would otherwise stop. */
-     followUp(message) {
-@@ -190,7 +219,7 @@
-         this.clearSteeringQueue();
-         this.clearFollowUpQueue();
-     }
--    /** Returns true when either queue still contains pending messages. */
-+    /** Returns true for deliverable queued messages, excluding retained failed/uncertain native input. */
-     hasQueuedMessages() {
-         return this.steeringQueue.hasItems() || this.followUpQueue.hasItems();
-     }
-@@ -297,6 +326,14 @@
+@@ -297,6 +303,8 @@ export class Agent {
              thinkingBudgets: this.thinkingBudgets,
              maxRetryDelayMs: this.maxRetryDelayMs,
              toolExecution: this.toolExecution,
 +            openAICapabilities: this.openAICapabilities ? { ...this.openAICapabilities, asyncToolNames: this.openAICapabilities.asyncToolNames?.slice() } : undefined,
 +            openAIExchange: this.openAIExchange,
-+            setNativeSteeringSink: (sink) => {
-+                this.nativeSteeringSink = sink;
-+            },
-+            reserveNativeSteeringMessages: async () => this.steeringQueue.reserve(),
-+            commitNativeSteeringMessages: async () => this.steeringQueue.commit(),
-+            releaseNativeSteeringMessages: async (messages) => this.steeringQueue.release(messages),
              beforeToolCall: this.beforeToolCall,
              afterToolCall: this.afterToolCall,
              shouldStopAfterTurn: shouldStopAfterTurn
-@@ -356,6 +393,7 @@
+@@ -356,6 +364,7 @@ export class Agent {
              usage: EMPTY_USAGE,
              stopReason: aborted ? "aborted" : "error",
              errorMessage: error instanceof Error ? error.message : String(error),
@@ -3479,15 +3192,9 @@ diff --git a/node_modules/@earendil-works/pi-agent-core/dist/agent.js b/node_mod
              timestamp: Date.now(),
          };
          await this.processEvents({ type: "message_start", message: failureMessage });
-@@ -364,6 +402,7 @@
-         await this.processEvents({ type: "agent_end", messages: [failureMessage] });
-     }
-     finishRun() {
-+        this.nativeSteeringSink = undefined;
-         this._state.isStreaming = false;
-         this._state.streamingMessage = undefined;
-         this._state.pendingToolCalls = new Set();
 diff --git a/node_modules/@earendil-works/pi-agent-core/dist/openai-exchange-loop.d.ts b/node_modules/@earendil-works/pi-agent-core/dist/openai-exchange-loop.d.ts
+new file mode 100644
+index 0000000..51a8bc7
 --- /dev/null
 +++ b/node_modules/@earendil-works/pi-agent-core/dist/openai-exchange-loop.d.ts
 @@ -0,0 +1,24 @@
@@ -3516,9 +3223,11 @@ diff --git a/node_modules/@earendil-works/pi-agent-core/dist/openai-exchange-loo
 +    helpers: NativeToolHelpers,
 +): Promise<void>;
 diff --git a/node_modules/@earendil-works/pi-agent-core/dist/openai-exchange-loop.js b/node_modules/@earendil-works/pi-agent-core/dist/openai-exchange-loop.js
+new file mode 100644
+index 0000000..7423c8f
 --- /dev/null
 +++ b/node_modules/@earendil-works/pi-agent-core/dist/openai-exchange-loop.js
-@@ -0,0 +1,414 @@
+@@ -0,0 +1,329 @@
 +import { AssistantMessageEventStream, convertResponsesMessages, processResponsesStream } from "@earendil-works/pi-ai";
 +
 +const PROVIDERS = new Set(["openai", "openai-codex", "opencode"]);
@@ -3598,9 +3307,6 @@ diff --git a/node_modules/@earendil-works/pi-agent-core/dist/openai-exchange-loo
 +    let exchange;
 +    let response;
 +    let responseId;
-+    let steering;
-+    let steeringJob = Promise.resolve();
-+    let deliverySequence = 0;
 +    let responseSequence = 0;
 +    let preflight = Promise.resolve();
 +    const running = new Set();
@@ -3614,52 +3320,9 @@ diff --git a/node_modules/@earendil-works/pi-agent-core/dist/openai-exchange-loo
 +        await emit({ type: "message_start", message });
 +        await emit({ type: "message_end", message });
 +    };
-+    const flushSteering = () => {
-+        steeringJob = steeringJob.then(async () => {
-+            if (!config.openAICapabilities.steering || steering || !response || response.ended || signal.aborted) return;
-+            if (!config.reserveNativeSteeringMessages && !config.getSteeringMessages) return;
-+            if (!config.reserveNativeSteeringMessages)
-+                throw new Error("Native steering requires reservation callbacks; destructive queue polling is not supported");
-+            const messages = await config.reserveNativeSteeringMessages();
-+            if (!messages.length) return;
-+            steering = { responseId, status: "reserved", messages: messages.map((message) => ({ ...snapshot(message),
-+                openAI: { version: 1, exchangeId, responseId, deliveryStatus: "pending", deliveryId: message.openAI?.deliveryId ?? `${exchangeId}:${++deliverySequence}` } })) };
-+            await checkpoint({ phase: "steer_reserved", ...steering });
-+            // Reserve before sending: even a synchronous transport callback cannot admit a second group.
-+            steering.status = "uncertain";
-+            for (const message of steering.messages) message.openAI.deliveryStatus = "sent";
-+            await checkpoint({ phase: "steer_sent", ...steering });
-+            const input = wire(await config.convertToLlm(steering.messages));
-+            ensureActive();
-+            await exchange.steer(responseId, input);
-+        });
-+        steeringJob.catch(fail);
-+        return steeringJob;
-+    };
-+    const validateSteeringEvent = (event, requireId = true) => {
-+        if (!steering) throw new Error("OpenAI acknowledged unreserved steering");
-+        if (event.steer?.previous_response_id !== steering.responseId)
-+            throw new Error("OpenAI acknowledged steering for a different predecessor");
-+        const id = event.steer.id;
-+        if ((requireId || id != null) && (typeof id !== "string" || id.length === 0))
-+            throw new Error("OpenAI steering event has an invalid id");
-+        if (steering.steerId !== undefined && id !== steering.steerId)
-+            throw new Error("OpenAI acknowledged a different steering submission");
-+        return id ?? undefined;
-+    };
 +    const startResponse = async (id) => {
 +        if (response) throw new Error("OpenAI created a successor before the predecessor ended");
 +        responseId = id;
-+        if (steering) {
-+            if (steering.status !== "accepted" && steering.status !== "pending")
-+                throw new Error("OpenAI successor arrived without steering acceptance");
-+            if (id === steering.responseId) throw new Error("OpenAI steering successor reused the predecessor id");
-+            const incorporated = steering.messages.map((message) => ({ ...message, openAI: { ...message.openAI, responseId: id, predecessorResponseId: steering.responseId, deliveryStatus: "incorporated" } }));
-+            await checkpoint({ phase: "steer_incorporated", responseId: id, predecessorResponseId: steering.responseId, steerId: steering.steerId, status: "incorporated", messages: incorporated });
-+            await config.commitNativeSteeringMessages?.();
-+            steering = undefined;
-+            for (const message of incorporated) await publish(message);
-+        }
 +        const output = createOutput(config.model, { version: 1, exchangeId, responseId: id });
 +        const input = new ParserInput();
 +        const parser = new AssistantMessageEventStream();
@@ -3672,10 +3335,9 @@ diff --git a/node_modules/@earendil-works/pi-agent-core/dist/openai-exchange-loo
 +            for await (const event of parser)
 +                await emit({ type: "message_update", assistantMessageEvent: event, message: snapshot(output) });
 +        })();
-+        state.parse = processResponsesStream(input, output, parser, config.model, { ...exchange.responseOptions, allowSteeringInterruption: true });
++        state.parse = processResponsesStream(input, output, parser, config.model, exchange.responseOptions);
 +        state.parse.catch(fail);
 +        state.forward.catch(fail);
-+        await flushSteering();
 +    };
 +    const reserve = (item, state, index) => {
 +        const parsed = strictCall(item, exchange.responseOptions);
@@ -3782,24 +3444,23 @@ diff --git a/node_modules/@earendil-works/pi-agent-core/dist/openai-exchange-loo
 +        if (config.transformContext) messages = await config.transformContext(messages, signal);
 +        return { systemPrompt: context.systemPrompt, messages: await config.convertToLlm(messages), tools: context.tools };
 +    };
-+    const sendResults = async (state, pendingSteering = false) => {
-+        const unsent = [...calls.values()].filter((entry) => entry.message && !entry.sent && (!pendingSteering || entry.responseId === state.id))
++    const sendContinuation = async (state, queuedMessages = []) => {
++        const unsent = [...calls.values()].filter((entry) => entry.message && !entry.sent)
 +            .sort((a, b) => a.state.sequence - b.state.sequence || a.index - b.index);
-+        if (!unsent.length) {
-+            if (pendingSteering && !state.entries.some((entry) => entry.sent))
-+                throw new Error("OpenAI pending steering requested tool outputs without completed calls");
-+            return false;
++        if (!unsent.length && !queuedMessages.length) return false;
++        const toolPayload = unsent.flatMap((entry) => entry.wire);
++        if (unsent.length) {
++            await checkpoint({ phase: "result_send", responseId: state.id, status: "uncertain", messages: unsent.map((entry) => entry.message), payload: toolPayload });
++            for (const entry of unsent) entry.sent = true;
 +        }
-+        const payload = unsent.flatMap((entry) => entry.wire);
-+        await checkpoint({ phase: "result_send", responseId: state.id, status: "uncertain", messages: unsent.map((entry) => entry.message), payload });
-+        for (const entry of unsent) entry.sent = true;
-+        // Pending steering must keep the predecessor's settings; ordinary continuations refresh dynamic tools.
-+        const nextContext = pendingSteering ? undefined : await refreshContext();
++        const queuedPayload = queuedMessages.length
++            ? wire(await config.convertToLlm(queuedMessages))
++            : [];
++        const nextContext = await refreshContext();
 +        ensureActive();
-+        await exchange.create(payload, state.id, nextContext);
++        await exchange.create([...toolPayload, ...queuedPayload], state.id, nextContext);
 +        return true;
 +    };
-+    let completedResponse;
 +    try {
 +        if (!config.openAIExchange) throw new Error("OpenAI native capabilities are enabled but no openAIExchange factory is configured");
 +        let messages = context.messages;
@@ -3808,7 +3469,6 @@ diff --git a/node_modules/@earendil-works/pi-agent-core/dist/openai-exchange-loo
 +        const initialContext = { systemPrompt: context.systemPrompt, messages: await config.convertToLlm(messages), tools: context.tools };
 +        ensureActive();
 +        exchange = await config.openAIExchange(config.model, initialContext, { ...config, apiKey, signal });
-+        config.setNativeSteeringSink?.(flushSteering);
 +        ensureActive();
 +        await Promise.race([exchange.create(), failure]);
 +        const iterator = exchange.events[Symbol.asyncIterator]();
@@ -3818,28 +3478,8 @@ diff --git a/node_modules/@earendil-works/pi-agent-core/dist/openai-exchange-loo
 +            const event = next.value;
 +            if (event.type === "error" || event.type === "response.failed" || event.type === "response.cancelled")
 +                throw new Error(event.message ?? event.error?.message ?? event.response?.error?.message ?? `OpenAI protocol error: ${event.type}`);
-+            if (event.type === "response.steer.failed" || event.type === "response.steer.rejected") {
-+                // Rejection can precede acceptance, before a server steering id is known.
-+                const steerId = validateSteeringEvent(event, false);
-+                steering.steerId = steerId;
-+                steering.status = "failed";
-+                for (const message of steering.messages) message.openAI.deliveryStatus = "failed";
-+                await checkpoint({ phase: "steer_failed", ...steering });
-+                throw new Error(event.error?.message ?? "OpenAI steering was rejected; input remains queued");
-+            }
-+            if (event.type === "response.steer.accepted" || event.type === "response.steer.pending") {
-+                const steerId = validateSteeringEvent(event);
-+                steering.steerId = steerId;
-+                steering.status = event.type === "response.steer.pending" ? "pending" : "accepted";
-+                for (const message of steering.messages) message.openAI.deliveryStatus = "accepted";
-+                await checkpoint({ phase: "steer_accepted", ...steering });
-+                if (!response && completedResponse && steering.status === "pending") await sendResults(completedResponse, true);
-+                continue;
-+            }
 +            if (event.type === "response.created") {
 +                if (typeof event.response?.id !== "string") throw new Error("OpenAI response has no id");
-+                if (steering && event.response.previous_response_id !== undefined && event.response.previous_response_id !== steering.responseId)
-+                    throw new Error("OpenAI steering successor has a different predecessor");
 +                if (lastTurn) { await emit({ type: "turn_start" }); lastTurn = undefined; }
 +                await startResponse(event.response.id);
 +            }
@@ -3870,21 +3510,14 @@ diff --git a/node_modules/@earendil-works/pi-agent-core/dist/openai-exchange-loo
 +            const results = await publishResults(state);
 +            lastTurn = { message: state.output, toolResults: results, context, newMessages };
 +            await emit({ type: "turn_end", message: state.output, toolResults: results });
-+            completedResponse = state;
 +            response = undefined;
-+            await steeringJob;
 +            if (state.output.stopReason === "error") throw new Error(state.output.errorMessage ?? "OpenAI response failed");
-+            if (steering) {
-+                // Accepted steering owns the automatic successor. Only pending steering asks us to supply outputs.
-+                if (steering.status === "pending") await sendResults(state, true);
-+                continue;
-+            }
 +            if (await config.shouldStopAfterTurn?.(lastTurn)) break;
 +            if (state.entries.length && state.entries.every((entry) => entry.finalized?.result.terminate === true)) break;
-+            if (await sendResults(state)) continue;
-+            // Follow-ups are ordinary input, never part of a steering reservation.
 +            const queuedSteering = await config.getSteeringMessages?.() ?? [];
-+            const followUps = queuedSteering.length ? queuedSteering : await config.getFollowUpMessages?.() ?? [];
++            for (const message of queuedSteering) await publish(message);
++            if (await sendContinuation(state, queuedSteering)) continue;
++            const followUps = await config.getFollowUpMessages?.() ?? [];
 +            if (!followUps.length) break;
 +            for (const message of followUps) await publish(message);
 +            const input = wire(await config.convertToLlm(followUps));
@@ -3897,7 +3530,7 @@ diff --git a/node_modules/@earendil-works/pi-agent-core/dist/openai-exchange-loo
 +        controller.abort();
 +        response?.input.end();
 +        response?.parser.end();
-+        await Promise.allSettled([response?.parse, response?.forward, steeringJob]);
++        await Promise.allSettled([response?.parse, response?.forward]);
 +        await drain();
 +        let error;
 +        if (response && !response.published) {
@@ -3909,10 +3542,6 @@ diff --git a/node_modules/@earendil-works/pi-agent-core/dist/openai-exchange-loo
 +            response.published = true;
 +        }
 +        for (const state of new Set([...calls.values()].map((entry) => entry.state))) await publishResults(state);
-+        if (steering && steering.status !== "failed") {
-+            for (const message of steering.messages) message.openAI.deliveryStatus = "uncertain";
-+            await checkpoint({ phase: "steer_failed", ...steering, status: "uncertain" });
-+        }
 +        if (!error) {
 +            // Local send failures are not another version of a server response;
 +            // sharing its id would replace the complete assistant on recovery.
@@ -3924,19 +3553,15 @@ diff --git a/node_modules/@earendil-works/pi-agent-core/dist/openai-exchange-loo
 +        await emit({ type: "turn_end", message: error, toolResults: [] });
 +        await emit({ type: "agent_end", messages: newMessages });
 +    } finally {
-+        config.setNativeSteeringSink?.(undefined);
 +        externalSignal?.removeEventListener("abort", onAbort);
-+        try {
-+            if (steering) await config.releaseNativeSteeringMessages?.(steering.messages);
-+        } finally {
-+            exchange?.close();
-+        }
++        exchange?.close();
 +    }
 +}
 diff --git a/node_modules/@earendil-works/pi-agent-core/dist/types.d.ts b/node_modules/@earendil-works/pi-agent-core/dist/types.d.ts
+index 4942001..51111fd 100644
 --- a/node_modules/@earendil-works/pi-agent-core/dist/types.d.ts
 +++ b/node_modules/@earendil-works/pi-agent-core/dist/types.d.ts
-@@ -20,6 +20,21 @@
+@@ -20,6 +20,21 @@ export type StreamFn = (model: Model<Api>, context: Context, options?: SimpleStr
   *   while tool-result message artifacts are emitted later in assistant source order.
   */
  export type ToolExecutionMode = "sequential" | "parallel";
@@ -3958,23 +3583,16 @@ diff --git a/node_modules/@earendil-works/pi-agent-core/dist/types.d.ts b/node_m
  /**
   * Controls how many queued user messages are injected when the agent loop reaches a queue drain point.
   *
-@@ -230,6 +245,15 @@
+@@ -230,6 +245,8 @@ export interface AgentLoopConfig extends SimpleStreamOptions {
       * Default: "parallel"
       */
      toolExecution?: ToolExecutionMode;
 +    openAICapabilities?: OpenAICapabilities;
 +    openAIExchange?: OpenAIExchangeFactory;
-+    setNativeSteeringSink?: (sink: (() => Promise<void>) | undefined) => void;
-+    /** Reserve without consuming input; one unresolved group per exchange. Never includes follow-ups. */
-+    reserveNativeSteeringMessages?: () => Promise<AgentMessage[]>;
-+    /** Consume the reservation only after the automatic successor confirms incorporation. */
-+    commitNativeSteeringMessages?: () => Promise<void>;
-+    /** Retain input, including stable delivery metadata, after rejection or uncertain delivery. */
-+    releaseNativeSteeringMessages?: (messages: AgentMessage[]) => Promise<void>;
      /**
       * Called before a tool is executed, after arguments have been validated.
       *
-@@ -367,6 +391,24 @@
+@@ -367,6 +384,24 @@ export interface AgentContext {
      /** Tools available for this run. */
      tools?: AgentTool<any>[];
  }
@@ -3999,7 +3617,7 @@ diff --git a/node_modules/@earendil-works/pi-agent-core/dist/types.d.ts b/node_m
  /**
   * Events emitted by the Agent for UI updates.
   *
-@@ -395,6 +437,9 @@
+@@ -395,6 +430,9 @@ export type AgentEvent = {
  } | {
      type: "message_end";
      message: AgentMessage;
@@ -4010,16 +3628,16 @@ diff --git a/node_modules/@earendil-works/pi-agent-core/dist/types.d.ts b/node_m
      type: "tool_execution_start";
      toolCallId: string;
 diff --git a/node_modules/@earendil-works/pi-ai/dist/api/openai-codex-responses.d.ts b/node_modules/@earendil-works/pi-ai/dist/api/openai-codex-responses.d.ts
+index 704476d..86ab5a6 100644
 --- a/node_modules/@earendil-works/pi-ai/dist/api/openai-codex-responses.d.ts
 +++ b/node_modules/@earendil-works/pi-ai/dist/api/openai-codex-responses.d.ts
-@@ -1,5 +1,27 @@
+@@ -1,5 +1,25 @@
  import type { ResponseCreateParamsStreaming } from "openai/resources/responses/responses.js";
 -import type { SimpleStreamOptions, StreamFunction, StreamOptions } from "../types.ts";
 +import type { Context, Model, SimpleStreamOptions, StreamFunction, StreamOptions, ThinkingLevel } from "../types.ts";
 +import type { OpenAIResponsesStreamOptions } from "./openai-responses-shared.ts";
 +export interface OpenAICapabilities {
 +    asyncTools: boolean;
-+    steering: boolean;
 +    asyncToolNames?: readonly string[];
 +}
 +export interface OpenAICodexNativeExchangeOptions extends OpenAICodexResponsesOptions {
@@ -4033,7 +3651,6 @@ diff --git a/node_modules/@earendil-works/pi-ai/dist/api/openai-codex-responses.
 +export interface OpenAICodexExchange {
 +    events: AsyncIterable<OpenAICodexRawResponseEvent>;
 +    create(input?: readonly Record<string, unknown>[], previousResponseId?: string, context?: Context): Promise<void>;
-+    steer(previousResponseId: string, input: string | readonly Record<string, unknown>[]): void;
 +    close(): void;
 +    advertisedAsyncToolNames: ReadonlySet<string>;
 +    responseOptions: OpenAIResponsesStreamOptions;
@@ -4041,7 +3658,7 @@ diff --git a/node_modules/@earendil-works/pi-ai/dist/api/openai-codex-responses.
  export interface OpenAICodexResponsesOptions extends StreamOptions {
      reasoningEffort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
      reasoningSummary?: "auto" | "concise" | "detailed" | "off" | "on" | null;
-@@ -7,6 +29,7 @@
+@@ -7,6 +27,7 @@ export interface OpenAICodexResponsesOptions extends StreamOptions {
      textVerbosity?: "low" | "medium" | "high";
      toolChoice?: "auto" | "none" | "required";
  }
@@ -4050,9 +3667,10 @@ diff --git a/node_modules/@earendil-works/pi-ai/dist/api/openai-codex-responses.
  export declare const streamSimple: StreamFunction<"openai-codex-responses", SimpleStreamOptions>;
  export interface OpenAICodexWebSocketDebugStats {
 diff --git a/node_modules/@earendil-works/pi-ai/dist/api/openai-codex-responses.js b/node_modules/@earendil-works/pi-ai/dist/api/openai-codex-responses.js
+index bf979d4..2cf7aa2 100644
 --- a/node_modules/@earendil-works/pi-ai/dist/api/openai-codex-responses.js
 +++ b/node_modules/@earendil-works/pi-ai/dist/api/openai-codex-responses.js
-@@ -426,6 +426,327 @@
+@@ -426,6 +426,310 @@ function buildRequestBody(model, context, options, cacheSessionId, grammarToolIn
      }
      return body;
  }
@@ -4061,18 +3679,17 @@ diff --git a/node_modules/@earendil-works/pi-ai/dist/api/openai-codex-responses.
 +}
 +function validateNativeCapabilities(capabilities) {
 +    const asyncTools = capabilities?.asyncTools ?? false;
-+    const steering = capabilities?.steering ?? false;
-+    if (typeof asyncTools !== "boolean" || typeof steering !== "boolean") {
++    if (typeof asyncTools !== "boolean") {
 +        throw new Error("Invalid OpenAI native capabilities");
 +    }
 +    const names = capabilities?.asyncToolNames;
 +    if (names === undefined) {
-+        return { asyncTools, steering, asyncToolNames: undefined };
++        return { asyncTools, asyncToolNames: undefined };
 +    }
 +    if (!asyncTools || !Array.isArray(names) || names.some((name) => typeof name !== "string" || name.length === 0) || new Set(names).size !== names.length) {
 +        throw new Error("Invalid OpenAI native async tool allowlist");
 +    }
-+    return { asyncTools, steering, asyncToolNames: new Set(names) };
++    return { asyncTools, asyncToolNames: new Set(names) };
 +}
 +function markAndValidateNativeTools(body, context, capabilities) {
 +    if (!isNativeWireObject(body) || typeof body.model !== "string" || body.model.length === 0 || body.stream !== true) {
@@ -4345,28 +3962,12 @@ diff --git a/node_modules/@earendil-works/pi-ai/dist/api/openai-codex-responses.
 +            }
 +            if (activeResponseId !== undefined || awaitingResponse)
 +                throw new Error("Cannot continue while an OpenAI native response is active");
-+            // Explicit continuations refresh dynamic tool definitions; automatic
-+            // steering successors inherit settings and never enter this path.
++            // Explicit continuations refresh dynamic tool definitions.
 +            if (nextContext)
 +                requestBody = await prepareBody(nextContext);
 +            const { input: _input, previous_response_id: _previousResponseId, type: _type, ...settings } = requestBody;
 +            awaitingResponse = true;
 +            send({ type: "response.create", ...settings, previous_response_id: previousResponseId, input });
-+        },
-+        steer(previousResponseId, input) {
-+            if (!capabilities.steering) {
-+                throw new Error("OpenAI native steering is not enabled");
-+            }
-+            if (typeof previousResponseId !== "string" || previousResponseId.length === 0) {
-+                throw new Error("OpenAI native steering requires previous_response_id");
-+            }
-+            if (activeResponseId !== previousResponseId) {
-+                throw new Error("OpenAI native steering requires the active response.created id");
-+            }
-+            if (typeof input !== "string" && (!Array.isArray(input) || input.length === 0 || input.some((item) => !isNativeWireObject(item) || item.role !== "user"))) {
-+                throw new Error("OpenAI native steering input must be text or non-empty user message items");
-+            }
-+            send({ type: "response.steer", previous_response_id: previousResponseId, input });
 +        },
 +        close() {
 +            if (closed)
@@ -4380,22 +3981,11 @@ diff --git a/node_modules/@earendil-works/pi-ai/dist/api/openai-codex-responses.
  function getServiceTierCostMultiplier(model, serviceTier) {
      switch (serviceTier) {
          case "flex":
-diff --git a/node_modules/@earendil-works/pi-ai/dist/api/openai-responses-shared.d.ts b/node_modules/@earendil-works/pi-ai/dist/api/openai-responses-shared.d.ts
---- a/node_modules/@earendil-works/pi-ai/dist/api/openai-responses-shared.d.ts
-+++ b/node_modules/@earendil-works/pi-ai/dist/api/openai-responses-shared.d.ts
-@@ -2,6 +2,8 @@
- import type { Api, AssistantMessage, Context, Model, Tool, Usage } from "../types.ts";
- import type { AssistantMessageEventStream } from "../utils/event-stream.ts";
- export interface OpenAIResponsesStreamOptions {
-+    /** Only the native exchange driver can consume automatic steering successors. */
-+    allowSteeringInterruption?: boolean;
-     serviceTier?: ResponseCreateParamsStreaming["service_tier"];
-     grammarToolInputProperties?: ReadonlyMap<string, string>;
-     resolveServiceTier?: (responseServiceTier: ResponseCreateParamsStreaming["service_tier"] | undefined, requestServiceTier: ResponseCreateParamsStreaming["service_tier"] | undefined) => ResponseCreateParamsStreaming["service_tier"] | undefined;
 diff --git a/node_modules/@earendil-works/pi-ai/dist/api/openai-responses-shared.js b/node_modules/@earendil-works/pi-ai/dist/api/openai-responses-shared.js
+index 43e463d..6a92070 100644
 --- a/node_modules/@earendil-works/pi-ai/dist/api/openai-responses-shared.js
 +++ b/node_modules/@earendil-works/pi-ai/dist/api/openai-responses-shared.js
-@@ -182,6 +182,7 @@
+@@ -182,6 +182,7 @@ export function convertResponsesMessages(model, context, allowedToolCallProvider
                              type: "custom_tool_call",
                              id: itemId,
                              call_id: callId,
@@ -4403,7 +3993,7 @@ diff --git a/node_modules/@earendil-works/pi-ai/dist/api/openai-responses-shared
                              name: toolCall.name,
                              input: sanitizeSurrogates(getGrammarToolInput(toolCall.name, toolCall.arguments, customInputProperty)),
                              ...(canReplayNamespace && toolCall.namespace !== undefined
-@@ -194,6 +195,7 @@
+@@ -194,6 +195,7 @@ export function convertResponsesMessages(model, context, allowedToolCallProvider
                              type: "function_call",
                              id: itemId,
                              call_id: callId,
@@ -4411,18 +4001,7 @@ diff --git a/node_modules/@earendil-works/pi-ai/dist/api/openai-responses-shared
                              name: toolCall.name,
                              arguments: JSON.stringify(toolCall.arguments),
                              ...(canReplayNamespace && toolCall.namespace !== undefined
-@@ -464,7 +466,9 @@
-         const incompleteDetails = response?.incomplete_details;
-         const incompleteReason = typeof incompleteDetails?.reason === "string" ? incompleteDetails.reason : undefined;
-         output.rawStopReason = incompleteReason ? `${status}.${incompleteReason}` : status;
--        const mappedStop = mapStopReason(status, incompleteReason);
-+        const mappedStop = options?.allowSteeringInterruption && status === "incomplete" && incompleteReason === "steered"
-+            ? { stopReason: "stop" }
-+            : mapStopReason(status, incompleteReason);
-         output.stopReason = mappedStop.stopReason;
-         if (mappedStop.errorMessage === undefined)
-             delete output.errorMessage;
-@@ -607,6 +611,8 @@
+@@ -607,6 +609,8 @@ export async function processResponsesStream(openaiStream, output, stream, model
                  slot?.type === "toolCall" &&
                  slot.block.partialJson !== undefined) {
                  slot.block.arguments = parseStreamingJson(item.arguments || slot.block.partialJson || "{}");
@@ -4431,7 +4010,7 @@ diff --git a/node_modules/@earendil-works/pi-ai/dist/api/openai-responses-shared
                  if (item.namespace !== undefined)
                      slot.block.namespace = item.namespace;
                  // Finalize in-place and strip the scratch buffer so replay only
-@@ -622,6 +628,8 @@
+@@ -622,6 +626,8 @@ export async function processResponsesStream(openaiStream, output, stream, model
              }
              else if (item.type === "custom_tool_call" && slot?.type === "toolCall" && slot.block.customInput) {
                  pushToolCallDelta(slot, appendCustomToolCallInput(slot.block, item.input ?? getCustomToolCallInput(slot.block), true));
@@ -4441,14 +4020,13 @@ diff --git a/node_modules/@earendil-works/pi-ai/dist/api/openai-responses-shared
                      slot.block.namespace = item.namespace;
                  delete slot.block.customInput;
 diff --git a/node_modules/@earendil-works/pi-ai/dist/api/transform-messages.js b/node_modules/@earendil-works/pi-ai/dist/api/transform-messages.js
+index 6aa6aa2..4ffedbf 100644
 --- a/node_modules/@earendil-works/pi-ai/dist/api/transform-messages.js
 +++ b/node_modules/@earendil-works/pi-ai/dist/api/transform-messages.js
-@@ -34,6 +34,56 @@
-             };
-         }
+@@ -36,6 +36,56 @@ function downgradeUnsupportedImages(messages, model) {
          return msg;
-+    });
-+}
+     });
+ }
 +function projectNativeHistory(messages, model) {
 +    const projectedExchanges = new Set();
 +    const callExchanges = new Map();
@@ -4497,10 +4075,12 @@ diff --git a/node_modules/@earendil-works/pi-ai/dist/api/transform-messages.js b
 +        if (message.stopReason === "error" || message.stopReason === "aborted")
 +            content.push({ type: "text", text: "This historical response was interrupted. Recorded tool outcomes remain valid; do not assume unfinished operations did not run." });
 +        return { ...message, content, stopReason: "stop" };
-     });
- }
++    });
++}
  /**
-@@ -46,7 +96,7 @@
+  * Normalize tool call ID for cross-provider compatibility.
+  * OpenAI Responses API generates IDs that are 450+ chars with special characters like `|`.
+@@ -46,7 +96,7 @@ export function transformMessages(messages, model, normalizeToolCallId) {
      const toolCallIdMap = new Map();
      // Normalize null/undefined content from untyped callers (custom tools, hand-built
      // histories, old session files) so downstream code can rely on the type contract.
@@ -4509,7 +4089,7 @@ diff --git a/node_modules/@earendil-works/pi-ai/dist/api/transform-messages.js b
      const imageAwareMessages = downgradeUnsupportedImages(normalizedMessages, model);
      // First pass: transform messages (unsupported image downgrade, thinking blocks, tool call ID normalization)
      const transformed = imageAwareMessages.map((msg) => {
-@@ -125,12 +175,15 @@
+@@ -125,12 +175,15 @@ export function transformMessages(messages, model, normalizeToolCallId) {
      // Second pass: insert synthetic empty tool results for orphaned tool calls
      // This preserves thinking signatures and satisfies API requirements
      const result = [];
@@ -4527,9 +4107,10 @@ diff --git a/node_modules/@earendil-works/pi-ai/dist/api/transform-messages.js b
                          role: "toolResult",
                          toolCallId: tc.id,
 diff --git a/node_modules/@earendil-works/pi-ai/dist/index.d.ts b/node_modules/@earendil-works/pi-ai/dist/index.d.ts
+index e1fc25f..a38e78a 100644
 --- a/node_modules/@earendil-works/pi-ai/dist/index.d.ts
 +++ b/node_modules/@earendil-works/pi-ai/dist/index.d.ts
-@@ -7,6 +7,8 @@
+@@ -7,6 +7,8 @@ export type { GoogleOptions } from "./api/google-generative-ai.ts";
  export type { GoogleApiThinkingLevel, ResolvedGoogleThinkingLevel } from "./api/google-shared.ts";
  export type { GoogleVertexOptions } from "./api/google-vertex.ts";
  export * from "./api/lazy.ts";
@@ -4539,6 +4120,7 @@ diff --git a/node_modules/@earendil-works/pi-ai/dist/index.d.ts b/node_modules/@
  export type { OpenAICodexResponsesOptions, OpenAICodexWebSocketDebugStats } from "./api/openai-codex-responses.ts";
  export type { OpenAICompletionsOptions } from "./api/openai-completions.ts";
 diff --git a/node_modules/@earendil-works/pi-ai/dist/index.js b/node_modules/@earendil-works/pi-ai/dist/index.js
+index 07f020c..1b5c209 100644
 --- a/node_modules/@earendil-works/pi-ai/dist/index.js
 +++ b/node_modules/@earendil-works/pi-ai/dist/index.js
 @@ -1,5 +1,7 @@
@@ -4550,9 +4132,10 @@ diff --git a/node_modules/@earendil-works/pi-ai/dist/index.js b/node_modules/@ea
  export * from "./auth/credential-store.js";
  export * from "./auth/helpers.js";
 diff --git a/node_modules/@earendil-works/pi-ai/dist/types.d.ts b/node_modules/@earendil-works/pi-ai/dist/types.d.ts
+index 85f9521..ee20097 100644
 --- a/node_modules/@earendil-works/pi-ai/dist/types.d.ts
 +++ b/node_modules/@earendil-works/pi-ai/dist/types.d.ts
-@@ -255,6 +255,8 @@
+@@ -255,6 +255,8 @@ export interface ImageContent {
  }
  export interface ToolCall {
      type: "toolCall";
@@ -4561,7 +4144,7 @@ diff --git a/node_modules/@earendil-works/pi-ai/dist/types.d.ts b/node_modules/@
      id: string;
      name: string;
      arguments: Record<string, any>;
-@@ -299,13 +301,24 @@
+@@ -299,13 +301,24 @@ export interface DeferredHandle {
      /** Provider conversion data required to reconstruct the final assistant message. */
      data?: JsonValue;
  }
@@ -4586,7 +4169,7 @@ diff --git a/node_modules/@earendil-works/pi-ai/dist/types.d.ts b/node_modules/@
      content: (TextContent | ThinkingContent | ToolCall)[];
      api: Api;
      provider: ProviderId;
-@@ -329,6 +342,7 @@
+@@ -329,6 +342,7 @@ export interface AssistantMessage {
  }
  export interface ToolResultMessage<TDetails = any> {
      role: "toolResult";

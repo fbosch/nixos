@@ -18,7 +18,6 @@ let
               patch -d node_modules/@earendil-works/pi-tui -p1 \
                 < ${./pi-fullscreen-images.patch}
               patch --batch --fuzz=0 -p1 < ${./pi-openai-capabilities.patch}
-              PI_NATIVE_TEST_ROOT="$PWD" bun test ${./tests}
             '';
           }
       );
