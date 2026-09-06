@@ -1,0 +1,205 @@
+diff --git a/dist/core/agent-session-services.d.ts b/dist/core/agent-session-services.d.ts
+--- a/dist/core/agent-session-services.d.ts
++++ b/dist/core/agent-session-services.d.ts
+@@ -1,6 +1,6 @@
+ import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
+ import type { Model } from "@earendil-works/pi-ai";
+-import type { SessionStartEvent, ToolDefinition } from "./extensions/index.ts";
++import type { ExtensionMode, SessionStartEvent, ToolDefinition } from "./extensions/index.ts";
+ import { ModelRuntime } from "./model-runtime.ts";
+ import { type DefaultResourceLoaderOptions, type ResourceLoader, type ResourceLoaderReloadOptions } from "./resource-loader.ts";
+ import { type CreateAgentSessionOptions, type CreateAgentSessionResult } from "./sdk.ts";
+@@ -28,6 +28,10 @@
+     cwd: string;
+     agentDir?: string;
+     settingsManager?: SettingsManager;
++    /** Session context used for pre-availability extension hooks. */
++    sessionManager?: SessionManager;
++    sessionStartEvent?: SessionStartEvent;
++    mode?: ExtensionMode;
+     modelRuntime?: ModelRuntime;
+     modelRuntimeSignal?: AbortSignal;
+     extensionFlagValues?: Map<string, boolean | string>;
+diff --git a/dist/core/agent-session-services.js b/dist/core/agent-session-services.js
+--- a/dist/core/agent-session-services.js
++++ b/dist/core/agent-session-services.js
+@@ -2,6 +2,8 @@
+ import { getAgentDir } from "../config.js";
+ import { resolvePath } from "../utils/paths.js";
+ import { ModelRuntime } from "./model-runtime.js";
++import { ModelRegistry } from "./model-registry.js";
++import { ExtensionRunner } from "./extensions/runner.js";
+ import { DefaultResourceLoader, } from "./resource-loader.js";
+ import { createAgentSession } from "./sdk.js";
+ import { SettingsManager } from "./settings-manager.js";
+@@ -58,6 +60,7 @@
+             authPath: join(agentDir, "auth.json"),
+             modelsPath: join(agentDir, "models.json"),
+             signal: options.modelRuntimeSignal,
++            refreshOnCreate: false,
+         }));
+     const settingsManager = options.settingsManager ?? SettingsManager.create(cwd, agentDir);
+     const resourceLoader = new DefaultResourceLoader({
+@@ -95,8 +98,28 @@
+         }
+     }
+     extensionsResult.runtime.pendingNativeProviderRegistrations = [];
+-    await modelRuntime.refresh({ allowNetwork: false });
+     diagnostics.push(...applyExtensionFlagValues(resourceLoader, options.extensionFlagValues));
++    if (options.sessionManager) {
++        const startupRunner = new ExtensionRunner(extensionsResult.extensions, extensionsResult.runtime, cwd, options.sessionManager, new ModelRegistry(modelRuntime), {
++            isProjectTrusted: () => settingsManager.isProjectTrusted(),
++            mode: options.mode,
++        });
++        startupRunner.onError(({ extensionPath, event, error }) => {
++            diagnostics.push({
++                type: "error",
++                message: `Extension "${extensionPath}" error during ${event}: ${error}`,
++            });
++        });
++        const sessionStartEvent = options.sessionStartEvent ?? { type: "session_start", reason: "startup" };
++        await startupRunner.emitBeforeModelAvailability({
++            type: "before_model_availability",
++            reason: sessionStartEvent.reason,
++            ...(sessionStartEvent.previousSessionFile
++                ? { previousSessionFile: sessionStartEvent.previousSessionFile }
++                : {}),
++        });
++    }
++    await modelRuntime.refresh({ allowNetwork: false });
+     return {
+         cwd,
+         agentDir,
+diff --git a/dist/core/extensions/index.d.ts b/dist/core/extensions/index.d.ts
+--- a/dist/core/extensions/index.d.ts
++++ b/dist/core/extensions/index.d.ts
+@@ -36,6 +36,7 @@
+   BashToolResultEvent,
+   BeforeAgentStartEvent,
+   BeforeAgentStartEventResult,
++  BeforeModelAvailabilityEvent,
+   BeforeProviderHeadersEvent,
+   BeforeProviderRequestEvent,
+   BeforeProviderRequestEventResult,
+diff --git a/dist/core/extensions/runner.d.ts b/dist/core/extensions/runner.d.ts
+--- a/dist/core/extensions/runner.d.ts
++++ b/dist/core/extensions/runner.d.ts
+@@ -12,7 +12,7 @@
+ import type { ModelRegistry } from "../model-registry.ts";
+ import type { SessionManager } from "../session-manager.ts";
+ import type { BuildSystemPromptOptions } from "../system-prompt.ts";
+-import type { BeforeAgentStartEvent, BeforeAgentStartEventResult, BeforeProviderHeadersEvent, BeforeProviderRequestEvent, ContextEvent, EntryRenderer, Extension, ExtensionActions, ExtensionCommandContext, ExtensionCommandContextActions, ExtensionContext, ExtensionContextActions, ExtensionError, ExtensionEvent, ExtensionFlag, ExtensionMode, ExtensionRuntime, ExtensionShortcut, ExtensionUIContext, InputEvent, InputEventResult, InputSource, LoadExtensionsResult, MarkdownTransformer, MessageEndEvent, MessageRenderer, ProjectTrustContext, ProjectTrustEvent, ProjectTrustEventResult, ProviderConfig, RegisteredTool, ReplacedSessionContext, ResolvedCommand, ResourcesDiscoverEvent, SessionBeforeCompactResult, SessionBeforeForkResult, SessionBeforeSwitchResult, SessionBeforeTreeResult, SessionShutdownEvent, ToolCallEvent, ToolCallEventResult, ToolResultEvent, ToolResultEventResult, UserBashEvent, UserBashEventResult } from "./types.ts";
++import type { BeforeAgentStartEvent, BeforeAgentStartEventResult, BeforeModelAvailabilityEvent, BeforeProviderHeadersEvent, BeforeProviderRequestEvent, ContextEvent, EntryRenderer, Extension, ExtensionActions, ExtensionCommandContext, ExtensionCommandContextActions, ExtensionContext, ExtensionContextActions, ExtensionError, ExtensionEvent, ExtensionFlag, ExtensionMode, ExtensionRuntime, ExtensionShortcut, ExtensionUIContext, InputEvent, InputEventResult, InputSource, LoadExtensionsResult, MarkdownTransformer, MessageEndEvent, MessageRenderer, ProjectTrustContext, ProjectTrustEvent, ProjectTrustEventResult, ProviderConfig, RegisteredTool, ReplacedSessionContext, ResolvedCommand, ResourcesDiscoverEvent, SessionBeforeCompactResult, SessionBeforeForkResult, SessionBeforeSwitchResult, SessionBeforeTreeResult, SessionShutdownEvent, ToolCallEvent, ToolCallEventResult, ToolResultEvent, ToolResultEventResult, UserBashEvent, UserBashEventResult } from "./types.ts";
+ /** Combined result from all before_agent_start handlers */
+ interface BeforeAgentStartCombinedResult {
+     messages?: NonNullable<BeforeAgentStartEventResult["message"]>[];
+@@ -23,7 +23,7 @@
+  * Events with dedicated emitXxx() methods are excluded for stronger type safety.
+  */
+ type RunnerEmitEvent = Exclude<ExtensionEvent, 
+-  | ToolCallEvent | ProjectTrustEvent | ToolResultEvent | UserBashEvent | ContextEvent | BeforeProviderRequestEvent | BeforeProviderHeadersEvent | BeforeAgentStartEvent | MessageEndEvent | ResourcesDiscoverEvent | InputEvent>;
++  | ToolCallEvent | ProjectTrustEvent | ToolResultEvent | UserBashEvent | ContextEvent | BeforeProviderRequestEvent | BeforeProviderHeadersEvent | BeforeAgentStartEvent | MessageEndEvent | ResourcesDiscoverEvent | BeforeModelAvailabilityEvent | InputEvent>;
+ type RunnerEmitResult<TEvent extends RunnerEmitEvent> = TEvent extends {
+     type: "session_before_switch";
+ } ? SessionBeforeSwitchResult | undefined : TEvent extends {
+@@ -103,7 +103,10 @@
+     private staleMessage;
+     private uiPromptDepth;
+     private activeUIPrompt;
+-    constructor(extensions: Extension[], runtime: ExtensionRuntime, cwd: string, sessionManager: SessionManager, modelRegistry: ModelRegistry);
++    constructor(extensions: Extension[], runtime: ExtensionRuntime, cwd: string, sessionManager: SessionManager, modelRegistry: ModelRegistry, options?: {
++        isProjectTrusted?: () => boolean;
++        mode?: ExtensionMode;
++    });
+   getOpenAICapabilities(
+     model: Model<Api> | undefined,
+   ): Readonly<import("./types.ts").OpenAICapabilityRegistration> | undefined;
+@@ -156,6 +159,7 @@
+     createCommandContext(): ExtensionCommandContext;
+     private isSessionBeforeEvent;
+     emit<TEvent extends RunnerEmitEvent>(event: TEvent): Promise<RunnerEmitResult<TEvent>>;
++    emitBeforeModelAvailability(event: BeforeModelAvailabilityEvent): Promise<void>;
+     emitMessageEnd(event: MessageEndEvent): Promise<AgentMessage | undefined>;
+     emitToolResult(event: ToolResultEvent): Promise<ToolResultEventResult | undefined>;
+     emitToolCall(event: ToolCallEvent): Promise<ToolCallEventResult | undefined>;
+diff --git a/dist/core/extensions/runner.js b/dist/core/extensions/runner.js
+--- a/dist/core/extensions/runner.js
++++ b/dist/core/extensions/runner.js
+@@ -150,7 +150,7 @@
+     staleMessage;
+     uiPromptDepth = 0;
+     activeUIPrompt;
+-    constructor(extensions, runtime, cwd, sessionManager, modelRegistry) {
++    constructor(extensions, runtime, cwd, sessionManager, modelRegistry, options) {
+         this.extensions = extensions;
+         this.runtime = runtime;
+         
+@@ -161,6 +161,10 @@
+         this.cwd = cwd;
+         this.sessionManager = sessionManager;
+         this.modelRegistry = modelRegistry;
++        if (options?.isProjectTrusted)
++            this.isProjectTrustedFn = options.isProjectTrusted;
++        if (options?.mode)
++            this.mode = options.mode;
+   }
+   getOpenAICapabilities(model) {
+     this.runtime.assertActive();
+@@ -632,6 +636,9 @@
+             event.type === "session_before_compact" ||
+             event.type === "session_before_tree");
+     }
++    async emitBeforeModelAvailability(event) {
++        await this.emit(event);
++    }
+     async emit(event) {
+         const ctx = this.createContext();
+         let result;
+diff --git a/dist/core/extensions/types.d.ts b/dist/core/extensions/types.d.ts
+--- a/dist/core/extensions/types.d.ts
++++ b/dist/core/extensions/types.d.ts
+@@ -417,6 +417,14 @@
+     promptPaths?: string[];
+     themePaths?: string[];
+ }
++/** Fired before Pi refreshes the model catalog for a session. */
++export interface BeforeModelAvailabilityEvent {
++    type: "before_model_availability";
++    /** Why this model availability check is happening. */
++    reason: SessionStartEvent["reason"];
++    /** Previously active session file, when one exists. */
++    previousSessionFile?: string;
++}
+ /** Fired when a session is started, loaded, or reloaded */
+ export interface SessionStartEvent {
+     type: "session_start";
+@@ -820,7 +828,7 @@
+ };
+ /** Union of all event types */
+ export type ExtensionEvent = 
+-  | ProjectTrustEvent | ResourcesDiscoverEvent | SessionEvent | ContextEvent | BeforeProviderRequestEvent | BeforeProviderHeadersEvent | AfterProviderResponseEvent | BeforeAgentStartEvent | AgentStartEvent | AgentEndEvent | AgentSettledEvent | UIPromptStartEvent | UIPromptEndEvent | TurnStartEvent | TurnEndEvent | MessageStartEvent | MessageUpdateEvent | MessageEndEvent | ToolExecutionStartEvent | ToolExecutionUpdateEvent | ToolExecutionEndEvent | ModelSelectEvent | ThinkingLevelSelectEvent | UserBashEvent | InputEvent | ToolCallEvent | ToolResultEvent;
++  | ProjectTrustEvent | ResourcesDiscoverEvent | BeforeModelAvailabilityEvent | SessionEvent | ContextEvent | BeforeProviderRequestEvent | BeforeProviderHeadersEvent | AfterProviderResponseEvent | BeforeAgentStartEvent | AgentStartEvent | AgentEndEvent | AgentSettledEvent | UIPromptStartEvent | UIPromptEndEvent | TurnStartEvent | TurnEndEvent | MessageStartEvent | MessageUpdateEvent | MessageEndEvent | ToolExecutionStartEvent | ToolExecutionUpdateEvent | ToolExecutionEndEvent | ModelSelectEvent | ThinkingLevelSelectEvent | UserBashEvent | InputEvent | ToolCallEvent | ToolResultEvent;
+ export interface ContextEventResult {
+     messages?: AgentMessage[];
+ }
+@@ -925,6 +933,7 @@
+   registerOpenAICapabilities(registration: OpenAICapabilityRegistration): void;
+   on(event: "project_trust", handler: ProjectTrustHandler): void;
+     on(event: "resources_discover", handler: ExtensionHandler<ResourcesDiscoverEvent, ResourcesDiscoverResult>): void;
++    on(event: "before_model_availability", handler: ExtensionHandler<BeforeModelAvailabilityEvent>): void;
+     on(event: "session_start", handler: ExtensionHandler<SessionStartEvent>): void;
+     on(event: "session_info_changed", handler: ExtensionHandler<SessionInfoChangedEvent>): void;
+     on(event: "session_before_switch", handler: ExtensionHandler<SessionBeforeSwitchEvent, SessionBeforeSwitchResult>): void;
+diff --git a/dist/main.js b/dist/main.js
+--- a/dist/main.js
++++ b/dist/main.js
+@@ -704,6 +704,9 @@
+         const services = await createAgentSessionServices({
+             cwd,
+             agentDir,
++            sessionManager,
++            sessionStartEvent,
++            mode: appMode,
+             settingsManager: runtimeSettingsManager,
+             modelRuntimeSignal: AbortSignal.timeout(15_000),
+             extensionFlagValues: parsed.unknownFlags,

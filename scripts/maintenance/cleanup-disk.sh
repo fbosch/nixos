@@ -203,6 +203,274 @@ inspect_system_podman_storage() {
   show_report "$report"
 }
 
+# containers/image removes these directories when an image destination closes;
+# surviving directories belong to interrupted image-copy operations.
+manage_system_podman_temp_storage() {
+  local mode="$1"
+  shift
+
+  sudo bash -s -- "$mode" "$@" <<'ROOT'
+set -uo pipefail
+
+mode="$1"
+shift
+readonly temp_root="/var/tmp"
+readonly minimum_age_seconds=900
+podman_socket_was_active=false
+podman_service_was_active=false
+
+if [[ $mode != report && $mode != clean ]]; then
+  printf 'Unsupported Podman temporary-storage operation: %s\n' "$mode" >&2
+  exit 2
+fi
+
+if [[ $(readlink -f -- "$temp_root") != "$temp_root" ]]; then
+  printf '%s must not be a symbolic link.\n' "$temp_root" >&2
+  exit 1
+fi
+
+has_mount() {
+  local directory="$1" mountpoint mountpoints
+
+  if ! mountpoints="$(findmnt -rn -o TARGET)"; then
+    printf 'Could not inspect mountpoints before Podman temporary-storage cleanup.\n' >&2
+    return 2
+  fi
+
+  while IFS= read -r mountpoint; do
+    case "$mountpoint" in
+    "$directory" | "$directory"/*) return 0 ;;
+    esac
+  done <<<"$mountpoints"
+
+  return 1
+}
+
+is_stale_temp_directory() {
+  local directory="$1" name metadata modified now mount_status
+
+  name="${directory##*/}"
+  [[ $directory =~ ^/var/tmp/container_images_storage[0-9]+$ ]] || return 1
+  [[ $name =~ ^container_images_storage[0-9]+$ ]] || return 1
+  [[ -d $directory && ! -L $directory ]] || return 1
+
+  metadata="$(stat -c '%u:%g:%Y' -- "$directory")" || return 1
+  [[ ${metadata%%:*} == 0 && ${metadata#*:} == 0:* ]] || return 1
+  modified="${metadata##*:}"
+  now="$(date +%s)"
+  ((now - modified > minimum_age_seconds)) || return 1
+
+  has_mount "$directory"
+  mount_status=$?
+  case "$mount_status" in
+  0)
+    printf 'Skipping mounted Podman temporary path: %s\n' "$directory" >&2
+    return 1
+    ;;
+  1) ;;
+  *) return 1 ;;
+  esac
+}
+
+report_candidates() {
+  local directory identity size
+  local -a directories=("$temp_root"/container_images_storage*)
+
+  if ((${#directories[@]} > 1000)); then
+    printf 'Refusing to inspect %s Podman temporary directories at once.\n' "${#directories[@]}" >&2
+    return 1
+  fi
+
+  for directory in "${directories[@]}"; do
+    is_stale_temp_directory "$directory" || continue
+    identity="$(stat -c '%d:%i' -- "$directory")" || return 1
+    size="$(du -sx -B1 -- "$directory" | cut -f1)" || return 1
+    printf '%s\t%s\t%s\t%s\n' \
+      "$size" \
+      "$(stat -c '%y' -- "$directory")" \
+      "$identity" \
+      "$directory"
+  done
+}
+
+producer_is_running() {
+  local process executable name
+
+  for process in /proc/[0-9]*; do
+    executable="$(readlink "$process/exe" 2>/dev/null)" || continue
+    name="${executable##*/}"
+    case "$name" in
+    podman | .podman-wrapped | buildah | skopeo)
+      printf 'Image-copy process is still running: PID %s (%s)\n' "${process##*/}" "$name" >&2
+      return 0
+      ;;
+    esac
+  done
+
+  return 1
+}
+
+clean_candidates() {
+  local entry expected_identity directory current_identity size
+  local status=0
+
+  systemctl --quiet is-active podman.socket && podman_socket_was_active=true
+  systemctl --quiet is-active podman.service && podman_service_was_active=true
+
+  restore_podman_api() {
+    local restore_status=0
+
+    if [[ $podman_socket_was_active == true ]]; then
+      systemctl start podman.socket || restore_status=1
+    fi
+    if [[ $podman_service_was_active == true ]]; then
+      systemctl start podman.service || restore_status=1
+    fi
+
+    return "$restore_status"
+  }
+
+  trap 'restore_podman_api || true' EXIT
+
+  if ! systemctl stop podman.socket; then
+    printf 'Could not stop podman.socket.\n' >&2
+    return 1
+  fi
+  if ! systemctl stop podman.service; then
+    printf 'Could not stop podman.service.\n' >&2
+    return 1
+  fi
+  if producer_is_running; then
+    printf 'Stop active Podman, Buildah, or Skopeo operations before cleaning temporary storage.\n' >&2
+    return 1
+  fi
+
+  for entry in "$@"; do
+    expected_identity="${entry%%|*}"
+    directory="${entry#*|}"
+
+    if ! is_stale_temp_directory "$directory"; then
+      printf 'skipped\t0\t%s\tno longer eligible\n' "$directory"
+      status=1
+      continue
+    fi
+
+    current_identity="$(stat -c '%d:%i' -- "$directory")" || {
+      printf 'skipped\t0\t%s\tcould not verify identity\n' "$directory"
+      status=1
+      continue
+    }
+    if [[ $current_identity != "$expected_identity" ]]; then
+      printf 'skipped\t0\t%s\tidentity changed after approval\n' "$directory"
+      status=1
+      continue
+    fi
+
+    size="$(du -sx -B1 -- "$directory" | cut -f1)" || {
+      printf 'skipped\t0\t%s\tcould not measure allocation\n' "$directory"
+      status=1
+      continue
+    }
+    if rm -rf --one-file-system -- "$directory" && [[ ! -e $directory ]]; then
+      printf 'removed\t%s\t%s\n' "$size" "$directory"
+    else
+      printf 'failed\t%s\t%s\tremoval incomplete\n' "$size" "$directory"
+      status=1
+    fi
+  done
+
+  if ! restore_podman_api; then
+    printf 'Could not restore the Podman API service state.\n' >&2
+    status=1
+  fi
+  trap - EXIT
+
+  return "$status"
+}
+
+case "$mode" in
+report)
+  report_candidates
+  ;;
+clean)
+  clean_candidates "$@"
+  ;;
+esac
+ROOT
+}
+
+clean_system_podman_temp_storage() {
+  local raw_report report cleanup_report removed_report
+  local candidate_count candidate_size removed_count removed_size
+  local before_available after_available available_gain cleanup_status
+  local _size _modified identity path
+  local -a approved_candidates=()
+
+  section "Stale system Podman temporary storage"
+
+  if ! raw_report="$(manage_system_podman_temp_storage report)"; then
+    gum style --foreground 1 "Could not inspect system Podman temporary storage."
+    return
+  fi
+
+  if [[ -z $raw_report ]]; then
+    gum style --foreground 10 "No stale system Podman temporary directories were found."
+    return
+  fi
+
+  while IFS=$'\t' read -r _size _modified identity path; do
+    approved_candidates+=("${identity}|${path}")
+  done <<<"$raw_report"
+
+  candidate_count="${#approved_candidates[@]}"
+  candidate_size="$(printf '%s\n' "$raw_report" | awk -F '\t' '{ total += $1 } END { printf "%.0f", total }')"
+
+  report="$({
+    printf 'Stale root-owned Podman image-copy directories\n'
+    printf 'Candidates: %s\n' "$candidate_count"
+    printf 'Estimated allocated size: %s\n' "$(numfmt --to=iec-i --suffix=B "$candidate_size")"
+    printf 'Selection: older than 15 minutes, with no nested mounts\n'
+    printf '\nALLOCATED\tMODIFIED\tPATH\n'
+    printf '%s\n' "$raw_report" |
+      sort -n |
+      awk -F '\t' 'BEGIN { OFS = "\t" } { print $1, $2, $4 }' |
+      numfmt --field=1 --to=iec-i --suffix=B
+  })"
+
+  show_report "$report"
+
+  gum style --foreground 214 \
+    "Cleanup briefly stops the rootful Podman API; running containers remain running."
+  if ! gum confirm "Permanently delete these ${candidate_count} stale Podman temporary directories?"; then
+    return
+  fi
+
+  before_available="$(df --output=avail -B1 / | tail -1 | tr -d ' ')"
+  if cleanup_report="$(manage_system_podman_temp_storage clean "${approved_candidates[@]}")"; then
+    cleanup_status=0
+  else
+    cleanup_status=$?
+  fi
+  after_available="$(df --output=avail -B1 / | tail -1 | tr -d ' ')"
+  available_gain="$((after_available - before_available))"
+  ((available_gain >= 0)) || available_gain=0
+
+  removed_report="$(printf '%s\n' "$cleanup_report" | awk -F '\t' '$1 == "removed"')"
+  if [[ -n $removed_report ]]; then
+    removed_count="$(printf '%s\n' "$removed_report" | wc -l)"
+    removed_size="$(printf '%s\n' "$removed_report" | awk -F '\t' '{ total += $2 } END { printf "%.0f", total }')"
+    gum style --foreground 10 \
+      "Removed ${removed_count} directories (estimated $(numfmt --to=iec-i --suffix=B "$removed_size"); available space increased by $(numfmt --to=iec-i --suffix=B "$available_gain"))."
+  else
+    gum style --foreground 214 "No approved directories were removed."
+  fi
+
+  if ((cleanup_status != 0)); then
+    printf '%s\n' "$cleanup_report" | awk -F '\t' '$1 != "removed"'
+    gum style --foreground 1 "Some directories were skipped or could not be removed."
+  fi
+}
+
 inspect_deleted_open_files() {
   local raw_report report
 
@@ -400,6 +668,7 @@ while true; do
     "Inspect system data usage" \
     "Inspect user Podman storage" \
     "Inspect system Podman storage" \
+    "Clean stale system Podman temporary storage" \
     "Inspect deleted files still held open" \
     "Collect unreachable Nix store paths" \
     "Prune dangling user Podman images" \
@@ -420,6 +689,9 @@ while true; do
     ;;
   "Inspect system Podman storage")
     inspect_system_podman_storage
+    ;;
+  "Clean stale system Podman temporary storage")
+    clean_system_podman_temp_storage
     ;;
   "Inspect deleted files still held open")
     inspect_deleted_open_files

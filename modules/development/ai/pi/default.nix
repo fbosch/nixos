@@ -9,7 +9,7 @@ let
           assert pkgs.lib.assertMsg
             (
               previous.version == "0.85.0"
-            ) "Review pi-openai-capabilities.patch before upgrading Pi from 0.85.0";
+            ) "Review Pi patches before upgrading Pi from 0.85.0";
           {
             patches = (previous.patches or [ ]) ++ [ ./pi-selector-overlays.patch ];
             # These dependency files exist only after configure, before Bun compiles Pi.
@@ -18,6 +18,7 @@ let
               patch -d node_modules/@earendil-works/pi-tui -p1 \
                 < ${./pi-fullscreen-images.patch}
               patch --batch --fuzz=0 -p1 < ${./pi-openai-capabilities.patch}
+              patch --batch --fuzz=0 -p1 < ${./pi-auth-profiles-startup.patch}
             '';
           }
       );
