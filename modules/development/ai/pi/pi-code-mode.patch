@@ -1,0 +1,386 @@
+diff --git a/dist/core/agent-session.d.ts b/dist/core/agent-session.d.ts
+index 9e5811e..61a6edb 100644
+--- a/dist/core/agent-session.d.ts
++++ b/dist/core/agent-session.d.ts
+@@ -242,0 +243,2 @@ export declare class AgentSession {
++    private _runningToolCalls;
++    private _nestedToolCallIds;
+@@ -542,0 +545 @@ export declare class AgentSession {
++    private _invokeTool;
+diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
+index 327398c..44827a3 100644
+--- a/dist/core/agent-session.js
++++ b/dist/core/agent-session.js
+@@ -17 +17 @@ import { basename, dirname } from "node:path";
+-import { contentText } from "@earendil-works/pi-ai";
++import { contentText, uuidv7 } from "@earendil-works/pi-ai";
+@@ -72,0 +73,7 @@ function estimateMessagesTokens(messages) {
++function sourceInfoMatches(left, right) {
++    return left.path === right.path &&
++        left.source === right.source &&
++        left.scope === right.scope &&
++        left.origin === right.origin &&
++        left.baseDir === right.baseDir;
++}
+@@ -135,0 +143,3 @@ export class AgentSession {
++    /** Running tool calls are tracked so nested dispatch cannot be invoked out of band. */
++    _runningToolCalls = new Map();
++    _nestedToolCallIds = new Set();
+@@ -421,0 +432,8 @@ export class AgentSession {
++    if (event.type === "tool_execution_start") {
++      this._runningToolCalls.set(event.toolCallId, event.toolName);
++    } else if (event.type === "tool_execution_end") {
++      this._runningToolCalls.delete(event.toolCallId);
++    } else if (event.type === "agent_end") {
++      this._runningToolCalls.clear();
++      this._nestedToolCallIds.clear();
++    }
+@@ -707 +725 @@ export class AgentSession {
+-        return Array.from(this._toolDefinitions.values()).map(({ definition, sourceInfo }) => ({
++        return Array.from(this._toolDefinitions.values()).map(({ definition, sourceInfo, registrationId }) => ({
+@@ -711,0 +730 @@ export class AgentSession {
++            programmatic: definition.programmatic,
+@@ -712,0 +732 @@ export class AgentSession {
++            registrationId,
+@@ -2140,0 +2161 @@ export class AgentSession {
++            invokeTool: (toolName, input, options) => this._invokeTool(toolName, input, options),
+@@ -2219,0 +2241 @@ export class AgentSession {
++                registrationId: uuidv7(),
+@@ -2225,0 +2248 @@ export class AgentSession {
++                registrationId: uuidv7(),
+@@ -2275,0 +2299,40 @@ export class AgentSession {
++    async _invokeTool(toolName, input, options) {
++        const parentToolName = this._runningToolCalls.get(options.parentToolCallId);
++        if (!parentToolName) {
++            throw new Error("Nested tool invocation requires a currently running parent tool call.");
++        }
++        if (this._nestedToolCallIds.has(options.parentToolCallId)) {
++            throw new Error("Nested tool invocation is limited to one level.");
++        }
++        const parentDefinition = this._toolDefinitions.get(parentToolName);
++        if (!parentDefinition || !sourceInfoMatches(parentDefinition.sourceInfo, options.callerSourceInfo)) {
++            throw new Error("Only the extension that owns the running parent tool may invoke nested tools.");
++        }
++        if (!this.getActiveToolNames().includes(toolName)) {
++            throw new Error(`Nested tool is not active: ${toolName}`);
++        }
++        const targetDefinition = this._toolDefinitions.get(toolName);
++        if (!targetDefinition) {
++            throw new Error(`Nested tool is not registered: ${toolName}`);
++        }
++        if (targetDefinition.definition.programmatic !== "read-only") {
++            throw new Error(`Nested tool is not approved for read-only programmatic use: ${toolName}`);
++        }
++        if (options.expectedRegistrationId !== targetDefinition.registrationId) {
++            throw new Error(`Nested tool registration changed before invocation: ${toolName}`);
++        }
++        if (!sourceInfoMatches(targetDefinition.sourceInfo, options.expectedSourceInfo)) {
++            throw new Error(`Nested tool provenance changed before invocation: ${toolName}`);
++        }
++        const toolCallId = uuidv7();
++        this._nestedToolCallIds.add(toolCallId);
++        try {
++            return await this.agent.invokeTool(toolName, input, {
++                toolCallId,
++                signal: options.signal,
++            });
++        }
++        finally {
++            this._nestedToolCallIds.delete(toolCallId);
++        }
++    }
+diff --git a/dist/core/extensions/index.d.ts b/dist/core/extensions/index.d.ts
+index 87ccd6a..db0ac8d 100644
+--- a/dist/core/extensions/index.d.ts
++++ b/dist/core/extensions/index.d.ts
+@@ -86,0 +87,3 @@ export type {
++  InvokedToolResult,
++  InvokeToolHandler,
++  InvokeToolOptions,
+diff --git a/dist/core/extensions/loader.js b/dist/core/extensions/loader.js
+index 2e442cd..c6a0063 100644
+--- a/dist/core/extensions/loader.js
++++ b/dist/core/extensions/loader.js
+@@ -158,0 +159 @@ export function createExtensionRuntime() {
++        invokeTool: () => Promise.reject(new Error("Extension runtime not initialized")),
+@@ -357,0 +359,7 @@ function createExtensionAPI(extension, runtime, cwd, eventBus) {
++        invokeTool(toolName, input, options) {
++            assertActive();
++            return runtime.invokeTool(toolName, input, {
++                ...options,
++                callerSourceInfo: extension.sourceInfo,
++            });
++        },
+diff --git a/dist/core/extensions/runner.js b/dist/core/extensions/runner.js
+index a1b245a..157ecd0 100644
+--- a/dist/core/extensions/runner.js
++++ b/dist/core/extensions/runner.js
+@@ -185,0 +186 @@ export class ExtensionRunner {
++        this.runtime.invokeTool = actions.invokeTool;
+diff --git a/dist/core/extensions/types.d.ts b/dist/core/extensions/types.d.ts
+index 063ada5..c88d75a 100644
+--- a/dist/core/extensions/types.d.ts
++++ b/dist/core/extensions/types.d.ts
+@@ -355,0 +356,2 @@ export interface ToolDefinition<TParams extends TSchema = TSchema, TDetails = un
++    /** Explicit opt-in for trusted programmatic callers. Routing metadata, not authorization. */
++    programmatic?: "read-only";
+@@ -1026,0 +1029,2 @@ export interface ExtensionAPI {
++    /** Invoke an active tool from a tool owned by this extension. */
++    invokeTool(toolName: string, input: unknown, options: InvokeToolOptions): Promise<InvokedToolResult>;
+@@ -1228 +1232 @@ export type GetActiveToolsHandler = () => string[];
+-export type ToolInfo = Pick<ToolDefinition, "name" | "description" | "parameters" | "promptGuidelines"> & {
++export type ToolInfo = Pick<ToolDefinition, "name" | "description" | "parameters" | "promptGuidelines" | "programmatic"> & {
+@@ -1229,0 +1234,2 @@ export type ToolInfo = Pick<ToolDefinition, "name" | "description" | "parameters
++    /** Opaque identity for this registration generation. */
++    registrationId: string;
+@@ -1231,0 +1238,19 @@ export type GetAllToolsHandler = () => ToolInfo[];
++export interface InvokeToolOptions {
++    /** The currently running tool call that owns this nested invocation. */
++    parentToolCallId: string;
++    /** Abort only this nested invocation while preserving parent cancellation. */
++    signal?: AbortSignal;
++    /** Reject if the target provenance changed after discovery. */
++    expectedSourceInfo: SourceInfo;
++    /** Reject if the target registration generation changed after discovery. */
++    expectedRegistrationId: string;
++}
++export interface InvokedToolResult {
++    toolCallId: string;
++    toolName: string;
++    result: AgentToolResult<unknown>;
++    isError: boolean;
++}
++export type InvokeToolHandler = (toolName: string, input: unknown, options: InvokeToolOptions & {
++    callerSourceInfo: SourceInfo;
++}) => Promise<InvokedToolResult>;
+@@ -1290,0 +1316 @@ export interface ExtensionActions {
++    invokeTool: InvokeToolHandler;
+diff --git a/dist/core/index.d.ts b/dist/core/index.d.ts
+index a1b9d76..98be928 100644
+--- a/dist/core/index.d.ts
++++ b/dist/core/index.d.ts
+@@ -11 +11 @@ export { areExperimentalFeaturesEnabled } from "./experimental.ts";
+-export { type AgentEndEvent, type AgentSettledEvent, type AgentStartEvent, type AgentToolResult, type AgentToolUpdateCallback, type BeforeAgentStartEvent, type BeforeAgentStartEventResult, type BuildSystemPromptOptions, type ContextEvent, defineTool, discoverAndLoadExtensions, type ExecOptions, type ExecResult, type Extension, type ExtensionAPI, type ExtensionCommandContext, type ExtensionContext, type ExtensionError, type ExtensionEvent, type ExtensionFactory, type ExtensionFlag, type ExtensionHandler, ExtensionRunner, type ExtensionShortcut, type ExtensionUIContext, type InlineExtension, type LoadExtensionsResult, type MessageRenderer, type RegisteredCommand, type SessionBeforeCompactEvent, type SessionBeforeForkEvent, type SessionBeforeSwitchEvent, type SessionBeforeTreeEvent, type SessionCompactEvent, type SessionShutdownEvent, type SessionStartEvent, type SessionTreeEvent, type ToolCallEvent, type ToolCallEventResult, type ToolDefinition, type ToolRenderResultOptions, type ToolResultEvent, type TurnEndEvent, type TurnStartEvent, type WorkingIndicatorOptions, } from "./extensions/index.ts";
++export { type AgentEndEvent, type AgentSettledEvent, type AgentStartEvent, type AgentToolResult, type AgentToolUpdateCallback, type BeforeAgentStartEvent, type BeforeAgentStartEventResult, type BuildSystemPromptOptions, type ContextEvent, defineTool, discoverAndLoadExtensions, type ExecOptions, type ExecResult, type Extension, type ExtensionAPI, type ExtensionCommandContext, type ExtensionContext, type ExtensionError, type ExtensionEvent, type ExtensionFactory, type ExtensionFlag, type ExtensionHandler, ExtensionRunner, type ExtensionShortcut, type ExtensionUIContext, type InlineExtension, type InvokedToolResult, type InvokeToolHandler, type InvokeToolOptions, type LoadExtensionsResult, type MessageRenderer, type RegisteredCommand, type SessionBeforeCompactEvent, type SessionBeforeForkEvent, type SessionBeforeSwitchEvent, type SessionBeforeTreeEvent, type SessionCompactEvent, type SessionShutdownEvent, type SessionStartEvent, type SessionTreeEvent, type ToolCallEvent, type ToolCallEventResult, type ToolDefinition, type ToolRenderResultOptions, type ToolResultEvent, type TurnEndEvent, type TurnStartEvent, type WorkingIndicatorOptions, } from "./extensions/index.ts";
+diff --git a/dist/core/tools/read.js b/dist/core/tools/read.js
+index eef9b7c..bd7d750 100644
+--- a/dist/core/tools/read.js
++++ b/dist/core/tools/read.js
+@@ -37,0 +38 @@ export function createReadToolDefinition(cwd, options) {
++        programmatic: "read-only",
+diff --git a/dist/core/tools/tool-definition-wrapper.js b/dist/core/tools/tool-definition-wrapper.js
+index e05fec9..fb594dc 100644
+--- a/dist/core/tools/tool-definition-wrapper.js
++++ b/dist/core/tools/tool-definition-wrapper.js
+@@ -6,0 +7 @@ export function wrapToolDefinition(definition, ctxFactory) {
++        programmatic: definition.programmatic,
+@@ -28,0 +30 @@ export function createToolDefinitionFromAgentTool(tool) {
++        programmatic: tool.programmatic,
+diff --git a/dist/index.d.ts b/dist/index.d.ts
+index 2271f34..b5391c2 100644
+--- a/dist/index.d.ts
++++ b/dist/index.d.ts
+@@ -8 +8 @@ export { createEventBus, type EventBus, type EventBusController } from "./core/e
+-export type { AgentEndEvent, AgentSettledEvent, AgentStartEvent, AgentToolResult, AgentToolUpdateCallback, AppKeybinding, AutocompleteProviderFactory, BashToolCallEvent, BeforeAgentStartEvent, BeforeAgentStartEventResult, BeforeProviderHeadersEvent, BeforeProviderRequestEvent, BeforeProviderRequestEventResult, BuildSystemPromptOptions, CompactOptions, ContextEvent, ContextUsage, CustomToolCallEvent, EditToolCallEvent, EntryRenderer, EntryRenderOptions, ExecOptions, ExecResult, Extension, ExtensionActions, ExtensionAPI, ExtensionCommandContext, ExtensionCommandContextActions, ExtensionContext, ExtensionContextActions, ExtensionError, ExtensionEvent, ExtensionFactory, ExtensionFlag, ExtensionHandler, ExtensionRuntime, ExtensionShortcut, ExtensionUIContext, ExtensionUIDialogOptions, ExtensionWidgetOptions, FindToolCallEvent, GrepToolCallEvent, InlineExtension, InputEvent, InputEventResult, InputSource, KeybindingsManager, LoadExtensionsResult, LsToolCallEvent, MarkdownTransformContext, MarkdownTransformer, MessageEndEvent, MessageRenderer, MessageRenderOptions, MessageStartEvent, MessageUpdateEvent, PowerShellToolCallEvent, ProjectTrustContext, ProjectTrustEvent, ProjectTrustEventDecision, ProjectTrustEventResult, ProjectTrustHandler, ProviderConfig, ProviderModelConfig, ReadToolCallEvent, RegisteredCommand, RegisteredTool, ResolvedCommand, SessionBeforeCompactEvent, SessionBeforeForkEvent, SessionBeforeSwitchEvent, SessionBeforeTreeEvent, SessionCompactEvent, SessionInfoChangedEvent, SessionShutdownEvent, SessionStartEvent, SessionTreeEvent, SlashCommandInfo, SlashCommandSource, SourceInfo, TerminalInputHandler, ToolCallEvent, ToolCallEventResult, ToolDefinition, ToolExecutionEndEvent, ToolExecutionMode, ToolExecutionStartEvent, ToolExecutionUpdateEvent, ToolInfo, ToolRenderResultOptions, ToolResultEvent, TurnEndEvent, TurnStartEvent, UIPromptEndEvent, UIPromptKind, UIPromptStartEvent, UserBashEvent, UserBashEventResult, WidgetPlacement, WorkingIndicatorOptions, WriteToolCallEvent, } from "./core/extensions/index.ts";
++export type { AgentEndEvent, AgentSettledEvent, AgentStartEvent, AgentToolResult, AgentToolUpdateCallback, AppKeybinding, AutocompleteProviderFactory, BashToolCallEvent, BeforeAgentStartEvent, BeforeAgentStartEventResult, BeforeProviderHeadersEvent, BeforeProviderRequestEvent, BeforeProviderRequestEventResult, BuildSystemPromptOptions, CompactOptions, ContextEvent, ContextUsage, CustomToolCallEvent, EditToolCallEvent, EntryRenderer, EntryRenderOptions, ExecOptions, ExecResult, Extension, ExtensionActions, ExtensionAPI, ExtensionCommandContext, ExtensionCommandContextActions, ExtensionContext, ExtensionContextActions, ExtensionError, ExtensionEvent, ExtensionFactory, ExtensionFlag, ExtensionHandler, ExtensionRuntime, ExtensionShortcut, ExtensionUIContext, ExtensionUIDialogOptions, ExtensionWidgetOptions, FindToolCallEvent, GrepToolCallEvent, InlineExtension, InputEvent, InputEventResult, InputSource, InvokedToolResult, InvokeToolHandler, InvokeToolOptions, KeybindingsManager, LoadExtensionsResult, LsToolCallEvent, MarkdownTransformContext, MarkdownTransformer, MessageEndEvent, MessageRenderer, MessageRenderOptions, MessageStartEvent, MessageUpdateEvent, PowerShellToolCallEvent, ProjectTrustContext, ProjectTrustEvent, ProjectTrustEventDecision, ProjectTrustEventResult, ProjectTrustHandler, ProviderConfig, ProviderModelConfig, ReadToolCallEvent, RegisteredCommand, RegisteredTool, ResolvedCommand, SessionBeforeCompactEvent, SessionBeforeForkEvent, SessionBeforeSwitchEvent, SessionBeforeTreeEvent, SessionCompactEvent, SessionInfoChangedEvent, SessionShutdownEvent, SessionStartEvent, SessionTreeEvent, SlashCommandInfo, SlashCommandSource, SourceInfo, TerminalInputHandler, ToolCallEvent, ToolCallEventResult, ToolDefinition, ToolExecutionEndEvent, ToolExecutionMode, ToolExecutionStartEvent, ToolExecutionUpdateEvent, ToolInfo, ToolRenderResultOptions, ToolResultEvent, TurnEndEvent, TurnStartEvent, UIPromptEndEvent, UIPromptKind, UIPromptStartEvent, UserBashEvent, UserBashEventResult, WidgetPlacement, WorkingIndicatorOptions, WriteToolCallEvent, } from "./core/extensions/index.ts";
+diff --git a/docs/extensions.md b/docs/extensions.md
+index ce13db6..fb6cb40 100644
+--- a/docs/extensions.md
++++ b/docs/extensions.md
+@@ -1697 +1697,27 @@ pi.setActiveTools(["read", "bash"]); // Switch to read-only
+-`pi.getAllTools()` returns `name`, `description`, `parameters`, `promptGuidelines`, and `sourceInfo`.
++`pi.getAllTools()` returns `name`, `description`, `parameters`, `promptGuidelines`, `programmatic`, `sourceInfo`, and an opaque `registrationId`.
++
++### pi.invokeTool(name, input, options)
++
++Invoke an active tool marked `programmatic: "read-only"` from inside a tool owned by the same extension. The marker controls routing only; Pi still runs the nested call through normal argument validation, tool hooks, permissions, cancellation, and tool execution events. The result is returned to the extension without adding a tool-result message to the conversation.
++
++Pass the current tool call ID as `parentToolCallId`. Pi rejects calls made outside a running parent tool, calls from a different extension, inactive targets, changed target registrations, and nesting beyond one level.
++
++```typescript
++async execute(toolCallId, params, signal) {
++  const target = pi.getAllTools().find((tool) => tool.name === "read");
++  if (!target) throw new Error("read is not registered");
++
++  const nested = await pi.invokeTool(
++    "read",
++    { path: params.path },
++    {
++      parentToolCallId: toolCallId,
++      signal,
++      expectedSourceInfo: target.sourceInfo,
++      expectedRegistrationId: target.registrationId,
++    },
++  );
++
++  return nested.result;
++}
++```
+diff --git a/node_modules/@earendil-works/pi-agent-core/dist/agent-loop.d.ts b/node_modules/@earendil-works/pi-agent-core/dist/agent-loop.d.ts
+index e2616c0..66c1292 100644
+--- a/node_modules/@earendil-works/pi-agent-core/dist/agent-loop.d.ts
++++ b/node_modules/@earendil-works/pi-agent-core/dist/agent-loop.d.ts
+@@ -6 +6,2 @@ import { EventStream } from "@earendil-works/pi-ai";
+-import type { AgentContext, AgentEvent, AgentLoopConfig, AgentMessage, StreamFn } from "./types.ts";
++import type { AgentContext, AgentEvent, AgentLoopConfig, AgentMessage, AgentToolCall, AgentToolResult, StreamFn } from "./types.ts";
++import type { AssistantMessage } from "@earendil-works/pi-ai";
+@@ -7,0 +9,7 @@ export type AgentEventSink = (event: AgentEvent) => Promise<void> | void;
++export interface ExecutedToolCall {
++    toolCall: AgentToolCall;
++    result: AgentToolResult<any>;
++    isError: boolean;
++}
++/** Execute one tool call through the normal tool hooks without inserting a transcript message. */
++export declare function executeToolCall(currentContext: AgentContext, assistantMessage: AssistantMessage, toolCall: AgentToolCall, config: AgentLoopConfig, signal: AbortSignal | undefined, emit: AgentEventSink): Promise<ExecutedToolCall>;
+diff --git a/node_modules/@earendil-works/pi-agent-core/dist/agent-loop.js b/node_modules/@earendil-works/pi-agent-core/dist/agent-loop.js
+index af20f79..f8456b5 100644
+--- a/node_modules/@earendil-works/pi-agent-core/dist/agent-loop.js
++++ b/node_modules/@earendil-works/pi-agent-core/dist/agent-loop.js
+@@ -299,0 +300,22 @@ async function executeToolCalls(currentContext, assistantMessage, config, signal
++/**
++ * Execute one tool call through the agent's normal preparation and finalization hooks.
++ * The caller owns transcript insertion and the final tool_execution_end event.
++ */
++export async function executeToolCall(currentContext, assistantMessage, toolCall, config, signal, emit) {
++    await emit({
++        type: "tool_execution_start",
++        toolCallId: toolCall.id,
++        toolName: toolCall.name,
++        args: toolCall.arguments,
++    });
++    const preparation = await prepareToolCall(currentContext, assistantMessage, toolCall, config, signal);
++    if (preparation.kind === "immediate") {
++        return {
++            toolCall,
++            result: preparation.result,
++            isError: preparation.isError,
++        };
++    }
++    const executed = await executePreparedToolCall(preparation, signal, emit);
++    return finalizeExecutedToolCall(currentContext, assistantMessage, preparation, executed, config, signal);
++}
+@@ -304,19 +326 @@ async function executeToolCallsSequential(currentContext, assistantMessage, tool
+-        await emit({
+-            type: "tool_execution_start",
+-            toolCallId: toolCall.id,
+-            toolName: toolCall.name,
+-            args: toolCall.arguments,
+-        });
+-        const preparation = await prepareToolCall(currentContext, assistantMessage, toolCall, config, signal);
+-        let finalized;
+-        if (preparation.kind === "immediate") {
+-            finalized = {
+-                toolCall,
+-                result: preparation.result,
+-                isError: preparation.isError,
+-            };
+-        }
+-        else {
+-            const executed = await executePreparedToolCall(preparation, signal, emit);
+-            finalized = await finalizeExecutedToolCall(currentContext, assistantMessage, preparation, executed, config, signal);
+-        }
++        const finalized = await executeToolCall(currentContext, assistantMessage, toolCall, config, signal, emit);
+diff --git a/node_modules/@earendil-works/pi-agent-core/dist/agent.d.ts b/node_modules/@earendil-works/pi-agent-core/dist/agent.d.ts
+index 762cbd6..f8d8c97 100644
+--- a/node_modules/@earendil-works/pi-agent-core/dist/agent.d.ts
++++ b/node_modules/@earendil-works/pi-agent-core/dist/agent.d.ts
+@@ -2 +2 @@ import type { ImageContent, Message, SimpleStreamOptions, ThinkingBudgets, Trans
+-import type { AfterToolCallContext, AfterToolCallResult, AgentEvent, AgentLoopTurnUpdate, AgentMessage, AgentState, BeforeToolCallContext, BeforeToolCallResult, OpenAICapabilities, OpenAIExchangeFactory, PrepareNextTurnContext, QueueMode, ShouldStopAfterTurnContext, StreamFn, ToolExecutionMode } from "./types.ts";
++import type { AfterToolCallContext, AfterToolCallResult, AgentEvent, AgentLoopTurnUpdate, AgentMessage, AgentState, AgentToolResult, BeforeToolCallContext, BeforeToolCallResult, OpenAICapabilities, OpenAIExchangeFactory, PrepareNextTurnContext, QueueMode, ShouldStopAfterTurnContext, StreamFn, ToolExecutionMode } from "./types.ts";
+@@ -3,0 +4,10 @@ export type { QueueMode } from "./types.ts";
++export interface AgentInvokeToolOptions {
++    toolCallId?: string;
++    signal?: AbortSignal;
++}
++export interface AgentInvokeToolResult {
++    toolCallId: string;
++    toolName: string;
++    result: AgentToolResult<any>;
++    isError: boolean;
++}
+@@ -115,0 +126,2 @@ export declare class Agent {
++    /** Execute an active tool inside the current run without adding a transcript message. */
++    invokeTool(toolName: string, args: unknown, options?: AgentInvokeToolOptions): Promise<AgentInvokeToolResult>;
+diff --git a/node_modules/@earendil-works/pi-agent-core/dist/agent.js b/node_modules/@earendil-works/pi-agent-core/dist/agent.js
+index 8b27eec..4df7c48 100644
+--- a/node_modules/@earendil-works/pi-agent-core/dist/agent.js
++++ b/node_modules/@earendil-works/pi-agent-core/dist/agent.js
+@@ -1 +1,2 @@
+-import { runAgentLoop, runAgentLoopContinue } from "./agent-loop.js";
++import { uuidv7 } from "@earendil-works/pi-ai";
++import { executeToolCall, runAgentLoop, runAgentLoopContinue } from "./agent-loop.js";
+@@ -262,0 +264,65 @@ export class Agent {
++    /** Execute an active tool inside the current run without adding a transcript message. */
++    async invokeTool(toolName, args, options = {}) {
++        const activeSignal = this.signal;
++        if (!activeSignal) {
++            throw new Error("Nested tool invocation requires an active agent run.");
++        }
++        const signal = options.signal && options.signal !== activeSignal
++            ? AbortSignal.any([activeSignal, options.signal])
++            : activeSignal;
++        signal.throwIfAborted();
++        const toolCallId = options.toolCallId ?? uuidv7();
++        if (this._state.pendingToolCalls.has(toolCallId)) {
++            throw new Error(`Tool call id is already active: ${toolCallId}`);
++        }
++        const assistantMessage = this._state.messages.findLast((message) => message.role === "assistant");
++        if (!assistantMessage) {
++            throw new Error("Nested tool invocation requires a preceding assistant message.");
++        }
++        const toolCall = {
++            type: "toolCall",
++            id: toolCallId,
++            name: toolName,
++            arguments: args,
++        };
++        let acceptingEvents = true;
++        let removeAbortListener = () => { };
++        const cancelled = new Promise((resolve) => {
++            const onAbort = () => resolve({ cancelled: true });
++            signal.addEventListener("abort", onAbort, { once: true });
++            removeAbortListener = () => signal.removeEventListener("abort", onAbort);
++        });
++        const execution = executeToolCall(this.createContextSnapshot(), assistantMessage, toolCall, this.createLoopConfig(), signal, (event) => acceptingEvents ? this.processEvents(event) : Promise.resolve()).then((finalized) => ({ cancelled: false, finalized }));
++        const outcome = await Promise.race([execution, cancelled]);
++        removeAbortListener();
++        if (outcome.cancelled) {
++            acceptingEvents = false;
++            const result = {
++                content: [{ type: "text", text: "Operation aborted" }],
++                details: {},
++            };
++            await this.processEvents({
++                type: "tool_execution_end",
++                toolCallId,
++                toolName,
++                result,
++                isError: true,
++            });
++            void execution.catch(() => { });
++            return { toolCallId, toolName, result, isError: true };
++        }
++        acceptingEvents = false;
++        await this.processEvents({
++            type: "tool_execution_end",
++            toolCallId,
++            toolName,
++            result: outcome.finalized.result,
++            isError: outcome.finalized.isError,
++        });
++        return {
++            toolCallId,
++            toolName,
++            result: outcome.finalized.result,
++            isError: outcome.finalized.isError,
++        };
++    }
+diff --git a/node_modules/@earendil-works/pi-agent-core/dist/types.d.ts b/node_modules/@earendil-works/pi-agent-core/dist/types.d.ts
+index 51111fd..7c9ba07 100644
+--- a/node_modules/@earendil-works/pi-agent-core/dist/types.d.ts
++++ b/node_modules/@earendil-works/pi-agent-core/dist/types.d.ts
+@@ -359,0 +360,4 @@ export interface AgentTool<TParameters extends TSchema = TSchema, TDetails = any
++    /** Explicit opt-in for trusted programmatic callers. Routing metadata, not authorization. */
++    programmatic?: "read-only";
++    /** Explicit opt-in for trusted programmatic callers. Routing metadata, not authorization. */
++    programmatic?: "read-only";

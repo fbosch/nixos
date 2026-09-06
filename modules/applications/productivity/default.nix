@@ -2,7 +2,6 @@
   flake.modules.nixos.applications = { pkgs, ... }: {
     environment.systemPackages = with pkgs; [
       vscodium
-      gimp
       local.chatgpt
       local."webapp/notion"
       local."webapp/icloud-notes"
