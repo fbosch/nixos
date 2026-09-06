@@ -6,21 +6,22 @@ let
       llmAgents = inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system};
       pi = llmAgents.pi.overrideAttrs (
         previous:
-        assert pkgs.lib.assertMsg (
-          previous.version == "0.85.1"
-        ) "Review Pi patches before upgrading Pi from 0.85.1";
-        {
-          patches = (previous.patches or [ ]) ++ [ ./pi-selector-overlays.patch ];
-          # These dependency files exist only after configure, before Bun compiles Pi.
-          postConfigure = (previous.postConfigure or "") + ''
-            # WezTerm fullscreen image fix; remove after upstream #8306 is fixed.
-            patch -d node_modules/@earendil-works/pi-tui -p1 \
-              < ${./pi-fullscreen-images.patch}
-            patch --batch --fuzz=0 -p1 < ${./pi-openai-capabilities.patch}
-            patch --batch --fuzz=0 -p1 < ${./pi-auth-profiles-startup.patch}
-            patch --batch --fuzz=0 -p1 < ${./pi-code-mode.patch}
-          '';
-        }
+          assert pkgs.lib.assertMsg
+            (
+              previous.version == "0.85.1"
+            ) "Review Pi patches before upgrading Pi from 0.85.1";
+          {
+            patches = (previous.patches or [ ]) ++ [ ./pi-selector-overlays.patch ];
+            # These dependency files exist only after configure, before Bun compiles Pi.
+            postConfigure = (previous.postConfigure or "") + ''
+              # WezTerm fullscreen image fix; remove after upstream #8306 is fixed.
+              patch -d node_modules/@earendil-works/pi-tui -p1 \
+                < ${./pi-fullscreen-images.patch}
+              patch --batch --fuzz=0 -p1 < ${./pi-openai-capabilities.patch}
+              patch --batch --fuzz=0 -p1 < ${./pi-auth-profiles-startup.patch}
+              patch --batch --fuzz=0 -p1 < ${./pi-code-mode.patch}
+            '';
+          }
       );
     in
     {

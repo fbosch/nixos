@@ -1,7 +1,6 @@
-{
-  config,
-  lib,
-  ...
+{ config
+, lib
+, ...
 }:
 {
   flake.modules.nixos."hosts/rvn-srv/platform" = { hostMeta, ... }: {

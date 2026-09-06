@@ -1,10 +1,9 @@
 {
   flake.modules.homeManager.applications =
-    {
-      config,
-      lib,
-      pkgs,
-      ...
+    { config
+    , lib
+    , pkgs
+    , ...
     }:
     {
       xdg.dataFile."icons/hicolor/scalable/apps/steam_app_worldofwarcraft.svg".source =

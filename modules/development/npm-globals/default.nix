@@ -8,7 +8,8 @@
     let
       npmGlobalsRepoDir = "$HOME/nixos/modules/development/npm-globals";
       pnpmPackage = pkgs.local.pnpm or pkgs.pnpm;
-      pnpmHome = if pkgs.stdenv.hostPlatform.isDarwin then "$HOME/Library/pnpm" else "$HOME/.local/share/pnpm";
+      pnpmHome =
+        if pkgs.stdenv.hostPlatform.isDarwin then "$HOME/Library/pnpm" else "$HOME/.local/share/pnpm";
       pnpmStoreDir = "${pnpmHome}/store";
       stateDir = "$HOME/.local/state/pnpm-globals";
       pnpmGlobalBinDir = "${stateDir}/current/node_modules/.bin";
@@ -139,6 +140,20 @@
         requiredFile = "pnpm-lock.yaml";
         missingHint = "Run 'pnpm-global-update' to generate it from package.json.";
       };
+
+      updateNpmGlobalsAfterLogin = pkgs.writeShellApplication {
+        name = "update-npm-globals-after-login";
+        runtimeInputs = [
+          pkgs.systemd
+          pkgs.glibc.bin
+        ];
+        text = ''
+          ${installEnv "${config.home.homeDirectory}/nixos/modules/development/npm-globals/pnpm-lock.yaml"}
+          export PNPM_GLOBALS_ACTIVATION=1
+          export PNPM_GLOBALS_NON_BLOCKING=1
+          ${installNpmGlobalPackagesScript}/bin/install-npm-global-packages
+        '';
+      };
     in
     {
       home = {
@@ -162,11 +177,31 @@
         ];
 
         activation.installNpmGlobalPackages = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-          ${installEnv "${config.home.homeDirectory}/nixos/modules/development/npm-globals/pnpm-lock.yaml"}
-          export PNPM_GLOBALS_ACTIVATION=1
-          export PNPM_GLOBALS_NON_BLOCKING=1
-          ${installNpmGlobalPackagesScript}/bin/install-npm-global-packages || echo "WARNING: Failed to install/update npm global packages." >&2
+          if [ -n "''${oldGenPath:-}" ] && [ "''${oldGenPath}" = "''${newGenPath:-}" ]; then
+            echo "Home Manager generation unchanged, skipping npm global update"
+          else
+            ${installEnv "${config.home.homeDirectory}/nixos/modules/development/npm-globals/pnpm-lock.yaml"}
+            export PNPM_GLOBALS_ACTIVATION=1
+            export PNPM_GLOBALS_NON_BLOCKING=1
+            ${installNpmGlobalPackagesScript}/bin/install-npm-global-packages || echo "WARNING: Failed to install/update npm global packages." >&2
+          fi
         '';
+      };
+
+      systemd.user = lib.mkIf pkgs.stdenv.hostPlatform.isLinux {
+        services.npm-globals-update = {
+          Unit.Description = "Update managed npm global packages";
+          Service = {
+            Type = "oneshot";
+            ExecStart = lib.getExe updateNpmGlobalsAfterLogin;
+          };
+        };
+
+        timers.npm-globals-update = {
+          Unit.Description = "Update managed npm global packages after login";
+          Timer.OnStartupSec = "5s";
+          Install.WantedBy = [ "timers.target" ];
+        };
       };
     };
 }

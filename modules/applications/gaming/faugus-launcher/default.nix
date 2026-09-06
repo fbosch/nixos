@@ -6,11 +6,10 @@
     };
 
   flake.modules.homeManager.applications =
-    {
-      config,
-      lib,
-      pkgs,
-      ...
+    { config
+    , lib
+    , pkgs
+    , ...
     }:
     let
       faugusPrefixRequirements = [
@@ -21,10 +20,12 @@
         }
       ];
       faugusPrefixRequirementsFile = pkgs.writeText "faugus-prefix-requirements.tsv" (
-        lib.concatMapStringsSep "\n" (
-          requirement:
-          "${requirement.selection}\t${requirement.runner}\t${lib.concatStringsSep " " (lib.sort builtins.lessThan (lib.unique requirement.verbs))}"
-        ) faugusPrefixRequirements
+        lib.concatMapStringsSep "\n"
+          (
+            requirement:
+            "${requirement.selection}\t${requirement.runner}\t${lib.concatStringsSep " " (lib.sort builtins.lessThan (lib.unique requirement.verbs))}"
+          )
+          faugusPrefixRequirements
         + "\n"
       );
       faugusPrefixSetup = pkgs.writeShellApplication {

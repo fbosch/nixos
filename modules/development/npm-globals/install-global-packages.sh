@@ -68,14 +68,6 @@ finish_failed_install() {
   exit 1
 }
 
-# Only skip unchanged Home Manager generations during activation.
-if [ "${PNPM_GLOBALS_ACTIVATION:-0}" = 1 ] &&
-  [ -n "${oldGenPath:-}" ] &&
-  [ "${oldGenPath}" = "${newGenPath:-}" ]; then
-  echo "Home Manager generation unchanged, skipping npm global update"
-  exit 0
-fi
-
 for required_file in package.json pnpm-lock.yaml pnpm-workspace.yaml; do
   if [ ! -f "$project_dir/$required_file" ]; then
     echo "ERROR: $required_file not found in: $project_dir" >&2

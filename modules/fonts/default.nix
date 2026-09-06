@@ -99,7 +99,18 @@ in
 
         home.activation = lib.mkIf installProprietaryFonts {
           refreshFontCache = config.lib.dag.entryAfter [ "linkGeneration" ] ''
-            ${pkgs.fontconfig}/bin/fc-cache -f "''${XDG_DATA_HOME:-$HOME/.local/share}/fonts"
+            cache_marker="''${XDG_CACHE_HOME:-$HOME/.cache}/home-manager/proprietary-fonts-input"
+            cache_input=${lib.escapeShellArg (toString proprietaryFontsPackage)}
+
+            if [ -r "$cache_marker" ] && [ "$(<"$cache_marker")" = "$cache_input" ]; then
+              verboseEcho "Managed font inputs unchanged, skipping cache refresh"
+            elif [ -n "''${DRY_RUN:-}" ]; then
+              echo "Would refresh the managed font cache"
+            else
+              mkdir -p "$(dirname "$cache_marker")"
+              ${pkgs.fontconfig}/bin/fc-cache -f "''${XDG_DATA_HOME:-$HOME/.local/share}/fonts"
+              printf '%s\n' "$cache_input" > "$cache_marker"
+            fi
           '';
         };
       };
