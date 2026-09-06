@@ -14,16 +14,27 @@
           # Required for containers under podman-compose to be able to talk to each other.
           defaultNetwork.settings.dns_enabled = true;
 
-          # Automatically prune old images and containers
+          # Prune stopped containers and dangling images without deleting tagged
+          # images required by temporarily stopped Quadlet services.
           autoPrune = {
             enable = true;
             dates = "weekly";
-            flags = [ "--all" ];
           };
 
           # Enable Podman socket for docker-compatible API
           dockerSocket.enable = true;
         };
+
+        # Keep a failed container start from repeatedly pulling an image until
+        # the root filesystem is full.
+        environment.etc."containers/systemd/container.d/10-restart-limit.conf".text = ''
+          [Unit]
+          StartLimitIntervalSec=1h
+          StartLimitBurst=3
+
+          [Service]
+          RestartSec=60s
+        '';
 
         # Add podman-compose for Docker Compose compatibility
         environment.systemPackages = with pkgs; [

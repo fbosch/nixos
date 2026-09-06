@@ -266,12 +266,12 @@ prune_user_podman_images() {
     return
   fi
 
-  if ! gum confirm "Delete every user Podman image not used by a container?"; then
+  if ! gum confirm "Delete dangling user Podman images?"; then
     return
   fi
 
-  if podman image prune --all --force; then
-    gum style --foreground 10 "Unused user Podman images removed."
+  if podman image prune --force; then
+    gum style --foreground 10 "Dangling user Podman images removed."
   else
     gum style --foreground 1 "Could not prune user Podman images."
   fi
@@ -283,12 +283,12 @@ prune_system_podman_images() {
     return
   fi
 
-  if ! gum confirm "Delete every system Podman image not used by a container?"; then
+  if ! gum confirm "Delete dangling system Podman images?"; then
     return
   fi
 
-  if sudo podman image prune --all --force; then
-    gum style --foreground 10 "Unused system Podman images removed."
+  if sudo podman image prune --force; then
+    gum style --foreground 10 "Dangling system Podman images removed."
   else
     gum style --foreground 1 "Could not prune system Podman images."
   fi
@@ -402,8 +402,8 @@ while true; do
     "Inspect system Podman storage" \
     "Inspect deleted files still held open" \
     "Collect unreachable Nix store paths" \
-    "Prune unused user Podman images" \
-    "Prune unused system Podman images" \
+    "Prune dangling user Podman images" \
+    "Prune dangling system Podman images" \
     "Clean pnpm stores" \
     "Empty XDG Trash" \
     "Exit")"
@@ -427,10 +427,10 @@ while true; do
   "Collect unreachable Nix store paths")
     collect_nix_garbage
     ;;
-  "Prune unused user Podman images")
+  "Prune dangling user Podman images")
     prune_user_podman_images
     ;;
-  "Prune unused system Podman images")
+  "Prune dangling system Podman images")
     prune_system_podman_images
     ;;
   "Clean pnpm stores")

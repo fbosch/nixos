@@ -7,6 +7,7 @@ All containers run as Podman Quadlet units (systemd `.container` files). This do
 **Pre-built registry images are always preferred.** Reference them directly in the Quadlet file with an `imageTag` option pinned to a specific version (never `latest`).
 
 If the upstream does not publish images (source-only project), ship a **build helper command** — not a systemd service:
+
 - Use `pkgs.writeShellScriptBin "build-<name>-images"` for the script
 - Expose it via `environment.systemPackages`
 - Reference locally built images with `Image=localhost/<name>:latest` and `Pull=never`
@@ -94,7 +95,7 @@ environment.etc."containers/systemd/myapp.container".text = ''
 
   [Service]
   Restart=always
-  RestartSec=10
+  RestartSec=60
   CPUQuota=100%
   TimeoutStartSec=120
 
@@ -103,19 +104,27 @@ environment.etc."containers/systemd/myapp.container".text = ''
 '';
 ```
 
+### Restart and image-pruning safety
+
+The `virtualization/podman` aspect installs a type-wide `container.d` Quadlet drop-in. It permits at most three start attempts per hour and enforces a 60-second delay between automatic restarts. Do not weaken those limits in individual container modules. This prevents a failed image pull from restarting until it fills the root filesystem.
+
+After correcting a rate-limited service, run `sudo systemctl reset-failed <name>.service` and then `sudo systemctl start <name>.service`. The service does not restart automatically when the one-hour interval expires.
+
+Automatic and routine image pruning must preserve tagged images. Do not pass `--all` to `podman image prune` or `podman system prune`; a tagged image may still be required by a temporarily stopped Quadlet service.
+
 ### Resource limits — native Quadlet fields
 
 Use native Quadlet/systemd fields. Only use `PodmanArgs=` for things with no native equivalent.
 
-| Limit | Native field | Location |
-|---|---|---|
-| Memory hard limit | `Memory=512m` | `[Container]` |
-| Process/thread cap | `PidsLimit=500` | `[Container]` |
-| File descriptor limits | `Ulimit=nofile=2048:4096` | `[Container]` |
-| Shared memory | `ShmSize=64m` | `[Container]` |
-| CPU quota | `CPUQuota=100%` | `[Service]` |
-| Memory soft limit | `PodmanArgs=--memory-reservation=X` | `[Container]` (no native) |
-| CPU count (--cpus) | `PodmanArgs=--cpus=X` | `[Container]` (no native) |
+| Limit                  | Native field                        | Location                  |
+| ---------------------- | ----------------------------------- | ------------------------- |
+| Memory hard limit      | `Memory=512m`                       | `[Container]`             |
+| Process/thread cap     | `PidsLimit=500`                     | `[Container]`             |
+| File descriptor limits | `Ulimit=nofile=2048:4096`           | `[Container]`             |
+| Shared memory          | `ShmSize=64m`                       | `[Container]`             |
+| CPU quota              | `CPUQuota=100%`                     | `[Service]`               |
+| Memory soft limit      | `PodmanArgs=--memory-reservation=X` | `[Container]` (no native) |
+| CPU count (--cpus)     | `PodmanArgs=--cpus=X`               | `[Container]` (no native) |
 
 `CPUQuota=100%` ≈ 1 core; `CPUQuota=200%` ≈ 2 cores.
 
@@ -231,7 +240,7 @@ Requires=myapp-db.service
 - [ ] `services.exposedPorts` declaration — no direct `networking.firewall.*`
 - [ ] Resource limits use native Quadlet fields
 - [ ] `LogDriver=journald` + `LogOpt=tag=<name>` on every container
-- [ ] `[Service]` has `Restart=always`, `RestartSec=10`, `TimeoutStartSec=`
+- [ ] `[Service]` uses the shared restart policy and sets `TimeoutStartSec=`
 - [ ] `[Install]` resolves `WantedBy` through `startupPolicy.quadlet`
 - [ ] Secrets wired via `sops.templates`, not inline in container env
 - [ ] Named volumes have a `.volume` file with `VolumeName=`
