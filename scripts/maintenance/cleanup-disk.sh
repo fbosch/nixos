@@ -18,25 +18,121 @@ section() {
     "$1"
 }
 
+copy_report() {
+  local report="$1" encoded
+
+  if [[ -n ${SSH_CONNECTION:-} ]]; then
+    if ! encoded="$(printf '%s\n' "$report" | base64 --wrap=0)"; then
+      gum style --foreground 1 "Could not encode the report for the terminal clipboard."
+      return
+    fi
+
+    if printf '\033]52;c;%s\a' "$encoded" >/dev/tty; then
+      gum style --foreground 10 "Report sent to the terminal clipboard."
+    else
+      gum style --foreground 1 "The terminal clipboard did not accept the report."
+    fi
+    return
+  fi
+
+  if [[ -n ${WAYLAND_DISPLAY:-} ]] && command -v wl-copy >/dev/null; then
+    if printf '%s\n' "$report" | wl-copy; then
+      gum style --foreground 10 "Report copied to the clipboard."
+    else
+      gum style --foreground 1 "wl-copy could not copy the report."
+    fi
+    return
+  fi
+
+  if [[ -n ${DISPLAY:-} ]] && command -v xclip >/dev/null; then
+    if printf '%s\n' "$report" | xclip -selection clipboard; then
+      gum style --foreground 10 "Report copied to the clipboard."
+    else
+      gum style --foreground 1 "xclip could not copy the report."
+    fi
+    return
+  fi
+
+  if [[ -n ${DISPLAY:-} ]] && command -v xsel >/dev/null; then
+    if printf '%s\n' "$report" | xsel --clipboard --input; then
+      gum style --foreground 10 "Report copied to the clipboard."
+    else
+      gum style --foreground 1 "xsel could not copy the report."
+    fi
+    return
+  fi
+
+  if command -v pbcopy >/dev/null; then
+    if printf '%s\n' "$report" | pbcopy; then
+      gum style --foreground 10 "Report copied to the clipboard."
+    else
+      gum style --foreground 1 "pbcopy could not copy the report."
+    fi
+    return
+  fi
+
+  gum style --foreground 1 "No supported clipboard command is available."
+}
+
+show_report() {
+  local report="$1" result
+
+  if ! command -v fzf >/dev/null; then
+    printf '%s\n' "$report" | gum pager --show-line-numbers=false --no-soft-wrap
+    if gum confirm "Copy this report to the clipboard?"; then
+      copy_report "$report"
+    fi
+    return
+  fi
+
+  if result="$(
+    printf '%s\n' "$report" |
+      fzf \
+        --ansi \
+        --no-sort \
+        --wrap \
+        --layout=reverse-list \
+        --height=100% \
+        --border=rounded \
+        --header='Type to filter • y copy all • q close' \
+        --header-first \
+        --prompt='Filter: ' \
+        --expect=y \
+        --bind='q:abort,enter:ignore'
+  )"; then
+    if [[ ${result%%$'\n'*} == y ]]; then
+      copy_report "$report"
+    fi
+  fi
+}
+
 show_disk_usage() {
   section "Root filesystem"
   gum style --border rounded --padding "0 1" "$(df -h /)"
 }
 
 inspect_home() {
+  local report
+
   section "Home directory usage"
 
   if command -v dust >/dev/null; then
-    dust \
-      --reverse \
-      --depth 2 \
-      --number-of-lines 40 \
-      --min-size 100M \
-      --only-dir \
-      --no-percent-bars \
-      --no-colors \
-      --no-progress \
-      "$HOME" | gum pager --show-line-numbers=false --no-soft-wrap
+    if report="$(
+      dust \
+        --reverse \
+        --depth 2 \
+        --number-of-lines 40 \
+        --min-size 100M \
+        --only-dir \
+        --no-percent-bars \
+        --no-colors \
+        --no-progress \
+        "$HOME"
+    )"; then
+      show_report "$report"
+    else
+      gum style --foreground 1 "Could not inspect the home directory."
+    fi
     return
   fi
 
@@ -53,7 +149,7 @@ inspect_system_data() {
     return
   fi
 
-  {
+  report="$({
     printf '%s\n' "Root filesystem"
     df -h /
     printf '\n%s\n' "Top-level /var/lib paths"
@@ -66,7 +162,9 @@ inspect_system_data() {
       sort -n |
       tail -80 |
       numfmt --field=1 --to=iec-i --suffix=B
-  } | gum pager --show-line-numbers=false --no-soft-wrap
+  })"
+
+  show_report "$report"
 }
 
 inspect_user_podman_storage() {
@@ -84,7 +182,7 @@ inspect_user_podman_storage() {
     return
   fi
 
-  printf '%s\n' "$report" | gum pager --show-line-numbers=false --no-soft-wrap
+  show_report "$report"
 }
 
 inspect_system_podman_storage() {
@@ -102,7 +200,7 @@ inspect_system_podman_storage() {
     return
   fi
 
-  printf '%s\n' "$report" | gum pager --show-line-numbers=false --no-soft-wrap
+  show_report "$report"
 }
 
 inspect_deleted_open_files() {
@@ -154,10 +252,12 @@ ROOT
       numfmt --field=1 --to=iec-i --suffix=B
   )"
 
-  {
+  report="$(
     printf 'ALLOCATED\tPID\tPROCESS\tDELETED FILE\n'
     printf '%s\n' "$report"
-  } | gum pager --show-line-numbers=false --no-soft-wrap
+  )"
+
+  show_report "$report"
 }
 
 prune_user_podman_images() {
