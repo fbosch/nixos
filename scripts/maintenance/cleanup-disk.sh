@@ -300,11 +300,17 @@ producer_is_running() {
     executable="$(readlink "$process/exe" 2>/dev/null)" || continue
     name="${executable##*/}"
     case "$name" in
-    podman | .podman-wrapped | buildah | skopeo)
-      printf 'Image-copy process is still running: PID %s (%s)\n' "${process##*/}" "$name" >&2
-      return 0
+    podman | .podman-wrapped)
+      if grep -Eq '/podman-pause-[^/]+\.scope$' "$process/cgroup" 2>/dev/null; then
+        continue
+      fi
       ;;
+    buildah | skopeo) ;;
+    *) continue ;;
     esac
+
+    printf 'Image-copy process is still running: PID %s (%s)\n' "${process##*/}" "$name" >&2
+    return 0
   done
 
   return 1
