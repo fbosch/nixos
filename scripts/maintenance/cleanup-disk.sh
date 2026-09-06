@@ -112,17 +112,27 @@ inspect_deleted_open_files() {
 
   if ! raw_report="$(
     sudo bash <<'ROOT'
+declare -A seen=()
+
 for fd in /proc/[0-9]*/fd/*; do
   target="$(readlink "$fd" 2>/dev/null)" || continue
   case "$target" in
   *" (deleted)")
-    size="$(stat -Lc %s "$fd" 2>/dev/null || printf '0')"
+    metadata="$(stat -Lc '%d:%i %b' "$fd" 2>/dev/null)" || continue
+    inode="${metadata% *}"
+    blocks="${metadata##* }"
+    if [[ -v seen[$inode] ]]; then
+      continue
+    fi
+    seen[$inode]=1
+
+    allocated_size="$((blocks * 512))"
     pid="${fd#/proc/}"
     pid="${pid%%/*}"
     process="$(cat "/proc/$pid/comm" 2>/dev/null || printf 'unknown')"
     printf -v process_display '%q' "$process"
     printf -v target_display '%q' "$target"
-    printf '%s\t%s\t%s\t%s\n' "$size" "$pid" "$process_display" "$target_display"
+    printf '%s\t%s\t%s\t%s\n' "$allocated_size" "$pid" "$process_display" "$target_display"
     ;;
   esac
 done
@@ -145,7 +155,7 @@ ROOT
   )"
 
   {
-    printf 'SIZE\tPID\tPROCESS\tDELETED FILE\n'
+    printf 'ALLOCATED\tPID\tPROCESS\tDELETED FILE\n'
     printf '%s\n' "$report"
   } | gum pager --show-line-numbers=false --no-soft-wrap
 }
