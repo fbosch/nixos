@@ -8,7 +8,7 @@ index 9e5811e..61a6edb 100644
 @@ -542,0 +545 @@ export declare class AgentSession {
 +    private _invokeTool;
 diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
-index 327398c..44827a3 100644
+index 327398c..bd90fc4 100644
 --- a/dist/core/agent-session.js
 +++ b/dist/core/agent-session.js
 @@ -17 +17 @@ import { basename, dirname } from "node:path";
@@ -44,11 +44,40 @@ index 327398c..44827a3 100644
 +            registrationId,
 @@ -2140,0 +2161 @@ export class AgentSession {
 +            invokeTool: (toolName, input, options) => this._invokeTool(toolName, input, options),
-@@ -2219,0 +2241 @@ export class AgentSession {
-+                registrationId: uuidv7(),
-@@ -2225,0 +2248 @@ export class AgentSession {
-+                registrationId: uuidv7(),
-@@ -2275,0 +2299,40 @@ export class AgentSession {
+@@ -2210,0 +2232 @@ export class AgentSession {
++                registrationId: undefined,
+@@ -2212,0 +2235,8 @@ export class AgentSession {
++        const registrationIdFor = (name, definition, sourceInfo) => {
++            const previous = this._toolDefinitions.get(name);
++            return previous &&
++                previous.definition === definition &&
++                sourceInfoMatches(previous.sourceInfo, sourceInfo)
++                ? previous.registrationId
++                : uuidv7();
++        };
+@@ -2215,7 +2245,11 @@ export class AgentSession {
+-            .map(([name, definition]) => [
+-            name,
+-            {
+-                definition,
+-                sourceInfo: createSyntheticSourceInfo(`<builtin:${name}>`, { source: "builtin" }),
+-            },
+-        ]));
++            .map(([name, definition]) => {
++            const sourceInfo = createSyntheticSourceInfo(`<builtin:${name}>`, { source: "builtin" });
++            return [
++                name,
++                {
++                    definition,
++                    sourceInfo,
++                    registrationId: registrationIdFor(name, definition, sourceInfo),
++                },
++            ];
++        }));
+@@ -2225,0 +2260,2 @@ export class AgentSession {
++                registrationId: tool.registrationId ??
++                    registrationIdFor(tool.definition.name, tool.definition, tool.sourceInfo),
+@@ -2275,0 +2312,40 @@ export class AgentSession {
 +    async _invokeTool(toolName, input, options) {
 +        const parentToolName = this._runningToolCalls.get(options.parentToolCallId);
 +        if (!parentToolName) {
@@ -98,12 +127,16 @@ index 87ccd6a..db0ac8d 100644
 +  InvokeToolHandler,
 +  InvokeToolOptions,
 diff --git a/dist/core/extensions/loader.js b/dist/core/extensions/loader.js
-index 2e442cd..c6a0063 100644
+index 2e442cd..ad023c7 100644
 --- a/dist/core/extensions/loader.js
 +++ b/dist/core/extensions/loader.js
-@@ -158,0 +159 @@ export function createExtensionRuntime() {
+@@ -9,0 +10 @@ import * as _bundledPiAgentCore from "@earendil-works/pi-agent-core";
++import { uuidv7 } from "@earendil-works/pi-ai";
+@@ -158,0 +160 @@ export function createExtensionRuntime() {
 +        invokeTool: () => Promise.reject(new Error("Extension runtime not initialized")),
-@@ -357,0 +359,7 @@ function createExtensionAPI(extension, runtime, cwd, eventBus) {
+@@ -268,0 +271 @@ function createExtensionAPI(extension, runtime, cwd, eventBus) {
++                registrationId: uuidv7(),
+@@ -357,0 +361,7 @@ function createExtensionAPI(extension, runtime, cwd, eventBus) {
 +        invokeTool(toolName, input, options) {
 +            assertActive();
 +            return runtime.invokeTool(toolName, input, {
@@ -118,7 +151,7 @@ index a1b245a..157ecd0 100644
 @@ -185,0 +186 @@ export class ExtensionRunner {
 +        this.runtime.invokeTool = actions.invokeTool;
 diff --git a/dist/core/extensions/types.d.ts b/dist/core/extensions/types.d.ts
-index 063ada5..c88d75a 100644
+index 063ada5..cbf3e0d 100644
 --- a/dist/core/extensions/types.d.ts
 +++ b/dist/core/extensions/types.d.ts
 @@ -355,0 +356,2 @@ export interface ToolDefinition<TParams extends TSchema = TSchema, TDetails = un
@@ -127,13 +160,15 @@ index 063ada5..c88d75a 100644
 @@ -1026,0 +1029,2 @@ export interface ExtensionAPI {
 +    /** Invoke an active tool from a tool owned by this extension. */
 +    invokeTool(toolName: string, input: unknown, options: InvokeToolOptions): Promise<InvokedToolResult>;
-@@ -1228 +1232 @@ export type GetActiveToolsHandler = () => string[];
+@@ -1199,0 +1204 @@ export interface RegisteredTool {
++    registrationId: string;
+@@ -1228 +1233 @@ export type GetActiveToolsHandler = () => string[];
 -export type ToolInfo = Pick<ToolDefinition, "name" | "description" | "parameters" | "promptGuidelines"> & {
 +export type ToolInfo = Pick<ToolDefinition, "name" | "description" | "parameters" | "promptGuidelines" | "programmatic"> & {
-@@ -1229,0 +1234,2 @@ export type ToolInfo = Pick<ToolDefinition, "name" | "description" | "parameters
+@@ -1229,0 +1235,2 @@ export type ToolInfo = Pick<ToolDefinition, "name" | "description" | "parameters
 +    /** Opaque identity for this registration generation. */
 +    registrationId: string;
-@@ -1231,0 +1238,19 @@ export type GetAllToolsHandler = () => ToolInfo[];
+@@ -1231,0 +1239,19 @@ export type GetAllToolsHandler = () => ToolInfo[];
 +export interface InvokeToolOptions {
 +    /** The currently running tool call that owns this nested invocation. */
 +    parentToolCallId: string;
@@ -153,7 +188,7 @@ index 063ada5..c88d75a 100644
 +export type InvokeToolHandler = (toolName: string, input: unknown, options: InvokeToolOptions & {
 +    callerSourceInfo: SourceInfo;
 +}) => Promise<InvokedToolResult>;
-@@ -1290,0 +1316 @@ export interface ExtensionActions {
+@@ -1290,0 +1317 @@ export interface ExtensionActions {
 +    invokeTool: InvokeToolHandler;
 diff --git a/dist/core/index.d.ts b/dist/core/index.d.ts
 index a1b9d76..98be928 100644
@@ -177,12 +212,20 @@ index e05fec9..fb594dc 100644
 @@ -28,0 +30 @@ export function createToolDefinitionFromAgentTool(tool) {
 +        programmatic: tool.programmatic,
 diff --git a/dist/index.d.ts b/dist/index.d.ts
-index 2271f34..b5391c2 100644
+index 2271f34..787d977 100644
 --- a/dist/index.d.ts
 +++ b/dist/index.d.ts
-@@ -8 +8 @@ export { createEventBus, type EventBus, type EventBusController } from "./core/e
+@@ -0,0 +1 @@
++export { AgentToolError } from "@earendil-works/pi-agent-core";
+@@ -8 +9 @@ export { createEventBus, type EventBus, type EventBusController } from "./core/e
 -export type { AgentEndEvent, AgentSettledEvent, AgentStartEvent, AgentToolResult, AgentToolUpdateCallback, AppKeybinding, AutocompleteProviderFactory, BashToolCallEvent, BeforeAgentStartEvent, BeforeAgentStartEventResult, BeforeProviderHeadersEvent, BeforeProviderRequestEvent, BeforeProviderRequestEventResult, BuildSystemPromptOptions, CompactOptions, ContextEvent, ContextUsage, CustomToolCallEvent, EditToolCallEvent, EntryRenderer, EntryRenderOptions, ExecOptions, ExecResult, Extension, ExtensionActions, ExtensionAPI, ExtensionCommandContext, ExtensionCommandContextActions, ExtensionContext, ExtensionContextActions, ExtensionError, ExtensionEvent, ExtensionFactory, ExtensionFlag, ExtensionHandler, ExtensionRuntime, ExtensionShortcut, ExtensionUIContext, ExtensionUIDialogOptions, ExtensionWidgetOptions, FindToolCallEvent, GrepToolCallEvent, InlineExtension, InputEvent, InputEventResult, InputSource, KeybindingsManager, LoadExtensionsResult, LsToolCallEvent, MarkdownTransformContext, MarkdownTransformer, MessageEndEvent, MessageRenderer, MessageRenderOptions, MessageStartEvent, MessageUpdateEvent, PowerShellToolCallEvent, ProjectTrustContext, ProjectTrustEvent, ProjectTrustEventDecision, ProjectTrustEventResult, ProjectTrustHandler, ProviderConfig, ProviderModelConfig, ReadToolCallEvent, RegisteredCommand, RegisteredTool, ResolvedCommand, SessionBeforeCompactEvent, SessionBeforeForkEvent, SessionBeforeSwitchEvent, SessionBeforeTreeEvent, SessionCompactEvent, SessionInfoChangedEvent, SessionShutdownEvent, SessionStartEvent, SessionTreeEvent, SlashCommandInfo, SlashCommandSource, SourceInfo, TerminalInputHandler, ToolCallEvent, ToolCallEventResult, ToolDefinition, ToolExecutionEndEvent, ToolExecutionMode, ToolExecutionStartEvent, ToolExecutionUpdateEvent, ToolInfo, ToolRenderResultOptions, ToolResultEvent, TurnEndEvent, TurnStartEvent, UIPromptEndEvent, UIPromptKind, UIPromptStartEvent, UserBashEvent, UserBashEventResult, WidgetPlacement, WorkingIndicatorOptions, WriteToolCallEvent, } from "./core/extensions/index.ts";
 +export type { AgentEndEvent, AgentSettledEvent, AgentStartEvent, AgentToolResult, AgentToolUpdateCallback, AppKeybinding, AutocompleteProviderFactory, BashToolCallEvent, BeforeAgentStartEvent, BeforeAgentStartEventResult, BeforeProviderHeadersEvent, BeforeProviderRequestEvent, BeforeProviderRequestEventResult, BuildSystemPromptOptions, CompactOptions, ContextEvent, ContextUsage, CustomToolCallEvent, EditToolCallEvent, EntryRenderer, EntryRenderOptions, ExecOptions, ExecResult, Extension, ExtensionActions, ExtensionAPI, ExtensionCommandContext, ExtensionCommandContextActions, ExtensionContext, ExtensionContextActions, ExtensionError, ExtensionEvent, ExtensionFactory, ExtensionFlag, ExtensionHandler, ExtensionRuntime, ExtensionShortcut, ExtensionUIContext, ExtensionUIDialogOptions, ExtensionWidgetOptions, FindToolCallEvent, GrepToolCallEvent, InlineExtension, InputEvent, InputEventResult, InputSource, InvokedToolResult, InvokeToolHandler, InvokeToolOptions, KeybindingsManager, LoadExtensionsResult, LsToolCallEvent, MarkdownTransformContext, MarkdownTransformer, MessageEndEvent, MessageRenderer, MessageRenderOptions, MessageStartEvent, MessageUpdateEvent, PowerShellToolCallEvent, ProjectTrustContext, ProjectTrustEvent, ProjectTrustEventDecision, ProjectTrustEventResult, ProjectTrustHandler, ProviderConfig, ProviderModelConfig, ReadToolCallEvent, RegisteredCommand, RegisteredTool, ResolvedCommand, SessionBeforeCompactEvent, SessionBeforeForkEvent, SessionBeforeSwitchEvent, SessionBeforeTreeEvent, SessionCompactEvent, SessionInfoChangedEvent, SessionShutdownEvent, SessionStartEvent, SessionTreeEvent, SlashCommandInfo, SlashCommandSource, SourceInfo, TerminalInputHandler, ToolCallEvent, ToolCallEventResult, ToolDefinition, ToolExecutionEndEvent, ToolExecutionMode, ToolExecutionStartEvent, ToolExecutionUpdateEvent, ToolInfo, ToolRenderResultOptions, ToolResultEvent, TurnEndEvent, TurnStartEvent, UIPromptEndEvent, UIPromptKind, UIPromptStartEvent, UserBashEvent, UserBashEventResult, WidgetPlacement, WorkingIndicatorOptions, WriteToolCallEvent, } from "./core/extensions/index.ts";
+diff --git a/dist/index.js b/dist/index.js
+index 01017cd..9e88702 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -1,0 +2 @@
++export { AgentToolError } from "@earendil-works/pi-agent-core";
 diff --git a/docs/extensions.md b/docs/extensions.md
 index ce13db6..fb6cb40 100644
 --- a/docs/extensions.md
@@ -217,14 +260,19 @@ index ce13db6..fb6cb40 100644
 +}
 +```
 diff --git a/node_modules/@earendil-works/pi-agent-core/dist/agent-loop.d.ts b/node_modules/@earendil-works/pi-agent-core/dist/agent-loop.d.ts
-index e2616c0..66c1292 100644
+index e2616c0..c0d88cb 100644
 --- a/node_modules/@earendil-works/pi-agent-core/dist/agent-loop.d.ts
 +++ b/node_modules/@earendil-works/pi-agent-core/dist/agent-loop.d.ts
 @@ -6 +6,2 @@ import { EventStream } from "@earendil-works/pi-ai";
 -import type { AgentContext, AgentEvent, AgentLoopConfig, AgentMessage, StreamFn } from "./types.ts";
 +import type { AgentContext, AgentEvent, AgentLoopConfig, AgentMessage, AgentToolCall, AgentToolResult, StreamFn } from "./types.ts";
 +import type { AssistantMessage } from "@earendil-works/pi-ai";
-@@ -7,0 +9,7 @@ export type AgentEventSink = (event: AgentEvent) => Promise<void> | void;
+@@ -7,0 +9,12 @@ export type AgentEventSink = (event: AgentEvent) => Promise<void> | void;
++/** Tool failure carrying a structured result, including termination metadata. */
++export declare class AgentToolError<TDetails = unknown> extends Error {
++    result: AgentToolResult<TDetails>;
++    constructor(message: string, result?: AgentToolResult<TDetails>);
++}
 +export interface ExecutedToolCall {
 +    toolCall: AgentToolCall;
 +    result: AgentToolResult<any>;
@@ -233,10 +281,34 @@ index e2616c0..66c1292 100644
 +/** Execute one tool call through the normal tool hooks without inserting a transcript message. */
 +export declare function executeToolCall(currentContext: AgentContext, assistantMessage: AssistantMessage, toolCall: AgentToolCall, config: AgentLoopConfig, signal: AbortSignal | undefined, emit: AgentEventSink): Promise<ExecutedToolCall>;
 diff --git a/node_modules/@earendil-works/pi-agent-core/dist/agent-loop.js b/node_modules/@earendil-works/pi-agent-core/dist/agent-loop.js
-index af20f79..f8456b5 100644
+index af20f79..950b51c 100644
 --- a/node_modules/@earendil-works/pi-agent-core/dist/agent-loop.js
 +++ b/node_modules/@earendil-works/pi-agent-core/dist/agent-loop.js
-@@ -299,0 +300,22 @@ async function executeToolCalls(currentContext, assistantMessage, config, signal
+@@ -7,0 +8,23 @@ import { runOpenAIExchangeLoop } from "./openai-exchange-loop.js";
++/** Tool failure carrying a structured result, including termination metadata. */
++export class AgentToolError extends Error {
++    constructor(message, result) {
++        super(message);
++        this.name = "AgentToolError";
++        this.result = result ?? {
++            content: [{ type: "text", text: message }],
++            details: {},
++        };
++    }
++}
++function agentToolErrorResult(error) {
++    if (error instanceof AgentToolError) {
++        return error.result;
++    }
++    if (!error || typeof error !== "object" || error.name !== "AgentToolError") {
++        return undefined;
++    }
++    const result = error.result;
++    return result && typeof result === "object" && Array.isArray(result.content)
++        ? result
++        : undefined;
++}
+@@ -299,0 +323,22 @@ async function executeToolCalls(currentContext, assistantMessage, config, signal
 +/**
 + * Execute one tool call through the agent's normal preparation and finalization hooks.
 + * The caller owns transcript insertion and the final tool_execution_end event.
@@ -259,7 +331,7 @@ index af20f79..f8456b5 100644
 +    const executed = await executePreparedToolCall(preparation, signal, emit);
 +    return finalizeExecutedToolCall(currentContext, assistantMessage, preparation, executed, config, signal);
 +}
-@@ -304,19 +326 @@ async function executeToolCallsSequential(currentContext, assistantMessage, tool
+@@ -304,19 +349 @@ async function executeToolCallsSequential(currentContext, assistantMessage, tool
 -        await emit({
 -            type: "tool_execution_start",
 -            toolCallId: toolCall.id,
@@ -280,6 +352,10 @@ index af20f79..f8456b5 100644
 -            finalized = await finalizeExecutedToolCall(currentContext, assistantMessage, preparation, executed, config, signal);
 -        }
 +        const finalized = await executeToolCall(currentContext, assistantMessage, toolCall, config, signal, emit);
+@@ -490 +517,2 @@ async function executePreparedToolCall(prepared, signal, emit) {
+-            result: createErrorToolResult(error instanceof Error ? error.message : String(error)),
++            result: agentToolErrorResult(error) ??
++                createErrorToolResult(error instanceof Error ? error.message : String(error)),
 diff --git a/node_modules/@earendil-works/pi-agent-core/dist/agent.d.ts b/node_modules/@earendil-works/pi-agent-core/dist/agent.d.ts
 index 762cbd6..f8d8c97 100644
 --- a/node_modules/@earendil-works/pi-agent-core/dist/agent.d.ts
@@ -302,14 +378,14 @@ index 762cbd6..f8d8c97 100644
 +    /** Execute an active tool inside the current run without adding a transcript message. */
 +    invokeTool(toolName: string, args: unknown, options?: AgentInvokeToolOptions): Promise<AgentInvokeToolResult>;
 diff --git a/node_modules/@earendil-works/pi-agent-core/dist/agent.js b/node_modules/@earendil-works/pi-agent-core/dist/agent.js
-index 8b27eec..4df7c48 100644
+index 8b27eec..e28d336 100644
 --- a/node_modules/@earendil-works/pi-agent-core/dist/agent.js
 +++ b/node_modules/@earendil-works/pi-agent-core/dist/agent.js
 @@ -1 +1,2 @@
 -import { runAgentLoop, runAgentLoopContinue } from "./agent-loop.js";
 +import { uuidv7 } from "@earendil-works/pi-ai";
 +import { executeToolCall, runAgentLoop, runAgentLoopContinue } from "./agent-loop.js";
-@@ -262,0 +264,65 @@ export class Agent {
+@@ -262,0 +264,70 @@ export class Agent {
 +    /** Execute an active tool inside the current run without adding a transcript message. */
 +    async invokeTool(toolName, args, options = {}) {
 +        const activeSignal = this.signal;
@@ -342,8 +418,13 @@ index 8b27eec..4df7c48 100644
 +            removeAbortListener = () => signal.removeEventListener("abort", onAbort);
 +        });
 +        const execution = executeToolCall(this.createContextSnapshot(), assistantMessage, toolCall, this.createLoopConfig(), signal, (event) => acceptingEvents ? this.processEvents(event) : Promise.resolve()).then((finalized) => ({ cancelled: false, finalized }));
-+        const outcome = await Promise.race([execution, cancelled]);
-+        removeAbortListener();
++        let outcome;
++        try {
++            outcome = await Promise.race([execution, cancelled]);
++        }
++        finally {
++            removeAbortListener();
++        }
 +        if (outcome.cancelled) {
 +            acceptingEvents = false;
 +            const result = {
@@ -376,11 +457,9 @@ index 8b27eec..4df7c48 100644
 +        };
 +    }
 diff --git a/node_modules/@earendil-works/pi-agent-core/dist/types.d.ts b/node_modules/@earendil-works/pi-agent-core/dist/types.d.ts
-index 51111fd..7c9ba07 100644
+index 51111fd..5335efb 100644
 --- a/node_modules/@earendil-works/pi-agent-core/dist/types.d.ts
 +++ b/node_modules/@earendil-works/pi-agent-core/dist/types.d.ts
-@@ -359,0 +360,4 @@ export interface AgentTool<TParameters extends TSchema = TSchema, TDetails = any
-+    /** Explicit opt-in for trusted programmatic callers. Routing metadata, not authorization. */
-+    programmatic?: "read-only";
+@@ -359,0 +360,2 @@ export interface AgentTool<TParameters extends TSchema = TSchema, TDetails = any
 +    /** Explicit opt-in for trusted programmatic callers. Routing metadata, not authorization. */
 +    programmatic?: "read-only";
