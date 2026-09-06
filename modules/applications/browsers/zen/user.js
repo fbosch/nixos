@@ -121,6 +121,7 @@ user_pref("widget.macos.titlebar-blend", true);
 
 // 12. Zen-Exclusive Features
 user_pref("zen.widget.linux.transparency", true);
+user_pref("zen.view.compact.toolbar-flash-popup", false);
 user_pref("zen.workspaces.open-new-tab-if-last-unpinned-tab-is-closed", true);
 user_pref("reader.parse-on-load.enabled", false);
 

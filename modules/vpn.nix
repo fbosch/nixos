@@ -45,16 +45,6 @@
 
         config = {
           services = {
-            startupPolicy.applications.vpn = {
-              tier = lib.mkDefault "essential";
-              units = [
-                {
-                  name = "tailscaled.service";
-                  provider = "nixos";
-                }
-              ];
-            };
-
             mullvad-vpn = {
               enable = true;
             };

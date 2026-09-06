@@ -1,0 +1,106 @@
+/* Zenwritten Dark userChrome.css */
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --zen-colors-primary: @baseSurface@ !important;
+    --zen-primary-color: @brightSky@ !important;
+    --zen-colors-secondary: @baseSurface@ !important;
+    --zen-colors-tertiary: @baseBackground@ !important;
+    --zen-colors-border: @brightSky@ !important;
+    --toolbarbutton-icon-fill: @brightSky@ !important;
+    --lwt-text-color: @baseStone@ !important;
+    --toolbar-field-color: @baseStone@ !important;
+    --tab-selected-textcolor: @brightSky@ !important;
+    --toolbar-field-focus-color: @baseStone@ !important;
+    --toolbar-color: @baseStone@ !important;
+    --newtab-text-primary-color: @baseStone@ !important;
+    --arrowpanel-color: @baseStone@ !important;
+    --arrowpanel-background: @baseSurface@ !important;
+    --sidebar-text-color: @baseStone@ !important;
+    --lwt-sidebar-text-color: @baseStone@ !important;
+    --lwt-sidebar-background-color: @baseBackground@ !important;
+    --toolbar-bgcolor: transparent !important;
+    --newtab-background-color: @baseBackground@ !important;
+    --zen-themed-toolbar-bg: transparent !important;
+    --zen-main-browser-background: @baseBackground@ !important;
+    --toolbox-bgcolor-inactive: transparent !important;
+  }
+
+  #permissions-granted-icon {
+    color: @baseBackground@ !important;
+  }
+
+  .sidebar-placesTree,
+  #zen-workspaces-button {
+    background-color: @baseSurface@ !important;
+  }
+
+  /* Keep Zen's transparent header while panels and controls retain their colors. */
+  #TabsToolbar,
+  hbox#titlebar,
+  #zen-appcontent-navbar-container {
+    background-color: transparent !important;
+  }
+
+  .urlbar-background {
+    background-color: @baseSurface@ !important;
+  }
+
+  .content-shortcuts {
+    background-color: @baseSurface@ !important;
+    border-color: @brightSky@ !important;
+  }
+
+  .urlbarView-url {
+    color: @brightSky@ !important;
+  }
+
+  #zenEditBookmarkPanelFaviconContainer {
+    background: @baseBackground@ !important;
+  }
+
+  #zen-media-controls-toolbar #zen-media-progress-bar::-moz-range-track {
+    background: @baseSurface@ !important;
+  }
+
+  toolbar .toolbarbutton-1:not([disabled]):is([open], [checked])
+    > :is(
+      .toolbarbutton-icon,
+      .toolbarbutton-text,
+      .toolbarbutton-badge-stack
+    ) {
+    fill: @baseBackground@ !important;
+  }
+
+  .identity-color-blue {
+    --identity-tab-color: @brightSky@ !important;
+    --identity-icon-color: @brightSky@ !important;
+  }
+
+  .identity-color-turquoise {
+    --identity-tab-color: @brightWater@ !important;
+    --identity-icon-color: @brightWater@ !important;
+  }
+
+  .identity-color-green {
+    --identity-tab-color: @brightLeaf@ !important;
+    --identity-icon-color: @brightLeaf@ !important;
+  }
+
+  .identity-color-yellow,
+  .identity-color-orange {
+    --identity-tab-color: @brightWood@ !important;
+    --identity-icon-color: @brightWood@ !important;
+  }
+
+  .identity-color-red {
+    --identity-tab-color: @brightRose@ !important;
+    --identity-icon-color: @brightRose@ !important;
+  }
+
+  .identity-color-pink,
+  .identity-color-purple {
+    --identity-tab-color: @brightBlossom@ !important;
+    --identity-icon-color: @brightBlossom@ !important;
+  }
+}

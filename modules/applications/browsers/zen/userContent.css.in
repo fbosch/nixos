@@ -1,0 +1,143 @@
+/* Zenwritten Dark userContent.css */
+
+/* Leave website colors to the site's own light/dark theme. */
+@-moz-document regexp("^https?://.*") {
+  html {
+    background-color: Canvas;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  @-moz-document url-prefix("about:") {
+    :root {
+      color-scheme: dark !important;
+      --in-content-page-color: @baseStone@ !important;
+      --in-content-page-background: @baseBackground@ !important;
+      --in-content-box-background: @baseSurface@ !important;
+      --in-content-box-background-hover: @brightBlack@ !important;
+      --color-accent-primary: @baseSky@ !important;
+      --color-accent-primary-hover: @brightSky@ !important;
+      --color-accent-primary-active: @baseSky@ !important;
+      --link-color: @brightSky@ !important;
+      --link-color-hover: @brightSky@ !important;
+      --zen-colors-primary: @baseSurface@ !important;
+      --zen-colors-tertiary: @baseBackground@ !important;
+      --zen-primary-color: @brightSky@ !important;
+      background-color: @baseBackground@ !important;
+    }
+  }
+
+  @-moz-document url("about:newtab"), url("about:home") {
+    :root {
+      --newtab-background-color: @baseBackground@ !important;
+      --newtab-background-color-secondary: @baseSurface@ !important;
+      --newtab-element-hover-color: @brightBlack@ !important;
+      --newtab-text-primary-color: @baseStone@ !important;
+      --newtab-wordmark-color: @baseStone@ !important;
+      --newtab-primary-action-background: @baseSky@ !important;
+    }
+
+    .icon {
+      color: @brightSky@ !important;
+    }
+
+    .card-outer:is(:hover, :focus, .active):not(.placeholder) .card-title {
+      color: @brightSky@ !important;
+    }
+
+    .top-site-outer .search-topsite {
+      background-color: @baseSky@ !important;
+    }
+
+    .compact-cards .card-outer .card-context .card-context-icon.icon-download {
+      fill: @brightLeaf@ !important;
+    }
+  }
+
+  @-moz-document url-prefix("about:preferences") {
+    :root {
+      --in-content-text-color: @baseStone@ !important;
+      --in-content-box-background: @baseSurface@ !important;
+      --in-content-button-background: @baseSurface@ !important;
+      --in-content-button-background-hover: @brightBlack@ !important;
+      --in-content-button-text-color: @baseStone@ !important;
+      --zen-colors-primary: @baseSurface@ !important;
+      --zen-colors-tertiary: @baseBackground@ !important;
+      --zen-primary-color: @brightSky@ !important;
+    }
+
+    groupbox,
+    moz-card {
+      background: @baseSurface@ !important;
+      color: @baseStone@ !important;
+    }
+
+    button,
+    groupbox menulist {
+      background: @baseSurface@ !important;
+      color: @baseStone@ !important;
+    }
+
+    .main-content {
+      background-color: @baseBackground@ !important;
+    }
+
+    .identity-color-blue {
+      --identity-tab-color: @brightSky@ !important;
+      --identity-icon-color: @brightSky@ !important;
+    }
+
+    .identity-color-turquoise {
+      --identity-tab-color: @brightWater@ !important;
+      --identity-icon-color: @brightWater@ !important;
+    }
+
+    .identity-color-green {
+      --identity-tab-color: @brightLeaf@ !important;
+      --identity-icon-color: @brightLeaf@ !important;
+    }
+
+    .identity-color-yellow,
+    .identity-color-orange {
+      --identity-tab-color: @brightWood@ !important;
+      --identity-icon-color: @brightWood@ !important;
+    }
+
+    .identity-color-red {
+      --identity-tab-color: @brightRose@ !important;
+      --identity-icon-color: @brightRose@ !important;
+    }
+
+    .identity-color-pink,
+    .identity-color-purple {
+      --identity-tab-color: @brightBlossom@ !important;
+      --identity-icon-color: @brightBlossom@ !important;
+    }
+  }
+
+  @-moz-document url-prefix("about:addons") {
+    :root {
+      --zen-dark-color-mix-base: @baseBackground@ !important;
+      --background-color-box: @baseSurface@ !important;
+    }
+  }
+
+  @-moz-document url-prefix("about:protections") {
+    :root {
+      --zen-primary-color: @baseSurface@ !important;
+      --social-color: @baseBlossom@ !important;
+      --coockie-color: @baseSky@ !important;
+      --fingerprinter-color: @baseWood@ !important;
+      --cryptominer-color: @baseWater@ !important;
+      --tracker-color: @baseLeaf@ !important;
+      --in-content-primary-button-background-hover: @brightBlack@ !important;
+      --in-content-primary-button-text-color-hover: @baseStone@ !important;
+      --in-content-primary-button-background: @baseSurface@ !important;
+      --in-content-primary-button-text-color: @baseStone@ !important;
+    }
+
+    .card {
+      background-color: @baseSurface@ !important;
+    }
+  }
+}

@@ -1,11 +1,49 @@
+{ config, ... }:
+let
+  flakeConfig = config;
+in
 {
   flake.modules.homeManager.applications =
-    { config
-    , lib
-    , pkgs
-    , ...
+    {
+      config,
+      lib,
+      pkgs,
+      ...
     }:
     let
+      zenwritten = flakeConfig.flake.lib.themes.zenwritten;
+      inherit (zenwritten.css) base bright;
+
+      zenUserChrome = pkgs.replaceVars ./userChrome.css.in {
+        baseBackground = base.background;
+        baseSurface = base.surface;
+        baseStone = base.stone;
+        brightBlossom = bright.blossom;
+        brightLeaf = bright.leaf;
+        brightRose = bright.rose;
+        brightSky = bright.sky;
+        brightWater = bright.water;
+        brightWood = bright.wood;
+      };
+
+      zenUserContent = pkgs.replaceVars ./userContent.css.in {
+        baseBackground = base.background;
+        baseBlossom = base.blossom;
+        baseLeaf = base.leaf;
+        baseSky = base.sky;
+        baseStone = base.stone;
+        baseSurface = base.surface;
+        baseWater = base.water;
+        baseWood = base.wood;
+        brightBlack = bright.black;
+        brightBlossom = bright.blossom;
+        brightLeaf = bright.leaf;
+        brightRose = bright.rose;
+        brightSky = bright.sky;
+        brightWater = bright.water;
+        brightWood = bright.wood;
+      };
+
       zenWaylandClient = pkgs.writeShellScript "zen-wayland-client" ''
         set -euo pipefail
 
@@ -51,8 +89,13 @@
               echo "Zen user.js installed at $PROFILE_DIR/user.js"
             fi
 
-            if ! ${pkgs.diffutils}/bin/cmp -s ${./userContent.css} "$PROFILE_DIR/chrome/userContent.css"; then
-              ${pkgs.coreutils}/bin/install -D -m 0644 ${./userContent.css} "$PROFILE_DIR/chrome/userContent.css"
+            if ! ${pkgs.diffutils}/bin/cmp -s ${zenUserChrome} "$PROFILE_DIR/chrome/userChrome.css"; then
+              ${pkgs.coreutils}/bin/install -D -m 0644 ${zenUserChrome} "$PROFILE_DIR/chrome/userChrome.css"
+              echo "Zen userChrome.css installed at $PROFILE_DIR/chrome/userChrome.css"
+            fi
+
+            if ! ${pkgs.diffutils}/bin/cmp -s ${zenUserContent} "$PROFILE_DIR/chrome/userContent.css"; then
+              ${pkgs.coreutils}/bin/install -D -m 0644 ${zenUserContent} "$PROFILE_DIR/chrome/userContent.css"
               echo "Zen userContent.css installed at $PROFILE_DIR/chrome/userContent.css"
             fi
 
