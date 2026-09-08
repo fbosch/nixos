@@ -113,6 +113,27 @@ in
       heliumWidevineSetup = heliumPackage.passthru.widevineSetup;
     in
     {
+      programs.wl-relabel.rules = ''
+        # Undocked DevTools otherwise satisfies the popup conditions.
+        [[rule]]
+        app_id = ["helium"]
+        when.decorations = "server_side"
+        when.title_contains = "DevTools"
+        then.app_id = "helium-devtools"
+
+        # Chromium PiP uses an empty app ID; this proxy wraps only Helium.
+        [[rule]]
+        app_id = [""]
+        when.title_contains = "Picture in picture"
+        then.app_id = "helium-pip"
+
+        [[rule]]
+        app_id = ["helium"]
+        when.decorations = "server_side"
+        when.min_width_below = 400
+        then.app_id = "helium-popup"
+      '';
+
       home.activation.heliumWidevine = config.lib.dag.entryAfter [ "writeBoundary" ] ''
         ${heliumWidevineSetup}/bin/helium-widevine-setup \
           --source ${pkgs.google-chrome}/share/google/chrome/WidevineCdm \

@@ -32,8 +32,26 @@
               installation_mode = "normal_installed";
               install_url = "https://addons.mozilla.org/firefox/downloads/latest/jid1-KdTtiCj6wxVAFA@jetpack/latest.xpi";
             };
+            "surge@surge-downloader.com" = {
+              installation_mode = "normal_installed";
+              install_url = "https://addons.mozilla.org/firefox/downloads/latest/surge@surge-downloader.com/latest.xpi";
+            };
+            "{de22fd49-c9ab-4359-b722-b3febdc3a0b0}" = {
+              installation_mode = "normal_installed";
+              install_url = "https://addons.mozilla.org/firefox/downloads/latest/{de22fd49-c9ab-4359-b722-b3febdc3a0b0}/latest.xpi";
+            };
           };
         };
+      };
+      floorpRelabelLauncher = pkgs.writeShellApplication {
+        name = "floorp-wl-relabel";
+        runtimeInputs = [
+          pkgs.flatpak
+          pkgs.local.wl-relabel
+        ];
+        text = ''
+          exec wl-relabel -- flatpak run one.ablaze.floorp "$@"
+        '';
       };
     in
     {
@@ -51,6 +69,16 @@
         "one.ablaze.floorp"
       ];
 
+      home.packages = [ floorpRelabelLauncher ];
+
+      programs.wl-relabel.rules = ''
+        # PiP must be identifiable before Hyprland predicts its initial size.
+        [[rule]]
+        app_id = ["one.ablaze.floorp"]
+        when.title_contains = "Picture-in-Picture"
+        then.app_id = "{app_id}-pip"
+      '';
+
       xdg = {
         dataFile."flatpak/extension/one.ablaze.floorp.systemconfig/${flatpakArch}/stable/policies/policies.json".source =
           policies;
@@ -58,7 +86,7 @@
         desktopEntries."one.ablaze.floorp" = {
           name = "Floorp";
           genericName = "Web Browser";
-          exec = "flatpak run one.ablaze.floorp %U";
+          exec = "${lib.getExe floorpRelabelLauncher} %U";
           icon = "one.ablaze.floorp";
           type = "Application";
           categories = [

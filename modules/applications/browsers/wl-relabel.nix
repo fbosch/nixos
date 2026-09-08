@@ -1,26 +1,21 @@
 {
-  flake.modules.homeManager.applications = { pkgs, ... }: {
-    home.packages = [ pkgs.local.wl-relabel ];
+  flake.modules.homeManager.applications =
+    { config
+    , lib
+    , pkgs
+    , ...
+    }:
+    {
+      options.programs.wl-relabel.rules = lib.mkOption {
+        type = lib.types.lines;
+        default = "";
+        description = "Browser-owned wl-relabel rules.";
+      };
 
-    xdg.configFile."wl-relabel/rules.toml".text = ''
-      # Undocked Chromium DevTools otherwise satisfies the popup conditions.
-      [[rule]]
-      app_id = ["helium"]
-      when.decorations = "server_side"
-      when.title_contains = "DevTools"
-      then.app_id = "helium-devtools"
+      config = {
+        home.packages = [ pkgs.local.wl-relabel ];
 
-      [[rule]]
-      app_id = ["helium"]
-      when.decorations = "server_side"
-      when.min_width_below = 400
-      then.app_id = "helium-popup"
-
-      [[rule]]
-      app_id = ["app.zen_browser.zen"]
-      when.decorations = "server_side"
-      when.min_width_below = 400
-      then.app_id = "{app_id}-popup"
-    '';
-  };
+        xdg.configFile."wl-relabel/rules.toml".text = config.programs.wl-relabel.rules;
+      };
+    };
 }

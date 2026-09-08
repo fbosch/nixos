@@ -127,6 +127,8 @@ user_pref("reader.parse-on-load.enabled", false);
 
 // 13. AI Tools & Automation
 user_pref("browser.ml.chat.enabled", false);
+user_pref("remote.prefs.recommended", false);
+user_pref("marionette.port", 2828);
 user_pref("browser.search.suggest.enabled", false);
 user_pref("browser.urlbar.suggest.searches", false);
 user_pref("browser.findbar.suggest.enabled", false);

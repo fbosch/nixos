@@ -77,6 +77,17 @@ in
           exec wl-relabel -- ${zenWaylandClient} "$@"
         '';
       };
+      zenAutomationLauncher = pkgs.writeShellApplication {
+        name = "zen-automation";
+        text = ''
+          if ${pkgs.flatpak}/bin/flatpak ps --columns=application | ${pkgs.gnugrep}/bin/grep -Fxq app.zen_browser.zen; then
+            printf 'Zen is already running. Quit Zen before starting automation mode.\n' >&2
+            exit 1
+          fi
+
+          exec ${lib.getExe zenLauncher} --marionette --remote-debugging-port=9222 "$@"
+        '';
+      };
     in
     {
       home.activation.zenProfileSetup = config.lib.dag.entryAfter [ "writeBoundary" ] ''
@@ -107,8 +118,24 @@ in
       ];
 
       home.packages = [
+        pkgs.geckodriver
+        zenAutomationLauncher
         zenLauncher
       ];
+
+      programs.wl-relabel.rules = ''
+        # PiP must be identifiable before Hyprland predicts its initial size.
+        [[rule]]
+        app_id = ["app.zen_browser.zen"]
+        when.title_contains = "Picture-in-Picture"
+        then.app_id = "{app_id}-pip"
+
+        [[rule]]
+        app_id = ["app.zen_browser.zen"]
+        when.decorations = "server_side"
+        when.min_width_below = 400
+        then.app_id = "{app_id}-popup"
+      '';
 
       systemd.user.services.zen-prewarm = {
         Unit = {
@@ -236,6 +263,20 @@ in
           X-Flatpak = "app.zen_browser.zen";
           PrefersNonDefaultGPU = "true";
         };
+      };
+
+      xdg.desktopEntries."zen-automation" = {
+        name = "Zen Browser (Automation)";
+        exec = "${lib.getExe zenAutomationLauncher} %U";
+        icon = "app.zen_browser.zen";
+        type = "Application";
+        categories = [
+          "Network"
+          "WebBrowser"
+        ];
+        startupNotify = false;
+        terminal = false;
+        settings.StartupWMClass = "zen";
       };
     };
 }
