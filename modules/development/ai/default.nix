@@ -12,33 +12,43 @@ let
       llmAgents = inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system};
       agentBrowser =
         if pkgs.stdenv.hostPlatform.isLinux then
-          pkgs.writeShellApplication
+          llmAgents.agent-browser.overrideAttrs (
+            previous:
+            let
+              chromium = builtins.head previous.buildInputs;
+              browserPath = pkgs.lib.makeBinPath [
+                pkgs.local.lightpanda
+                chromium
+              ];
+            in
+            assert pkgs.lib.assertMsg (
+              previous.version == "0.37.0"
+            ) "Review the agent-browser wrapper before upgrading from 0.37.0";
             {
-              name = "agent-browser";
-              # Upstream's Linux wrapper forces Chromium through the environment.
-              # CLI flags override it; keep user arguments last for explicit overrides.
-              text = ''
-                exec ${pkgs.lib.getExe llmAgents.agent-browser} \
-                  --engine lightpanda \
-                  --executable-path ${pkgs.lib.getExe pkgs.local.lightpanda} \
-                  "$@"
+              # Avoid the generic executable path: agent-browser applies it to every engine.
+              postInstall = ''
+                mkdir -p $out/share/agent-browser
+                cp -r ../skills ../skill-data $out/share/agent-browser/
+                wrapProgram $out/bin/agent-browser \
+                  --set AGENT_BROWSER_ENGINE lightpanda \
+                  --prefix PATH : ${browserPath}
               '';
             }
+          )
         else
           llmAgents.agent-browser;
     in
     {
-      environment.systemPackages =
-        [
-          llmAgents.codex
-          llmAgents.openspec
-          agentBrowser
-        ]
-        ++ pkgs.lib.optionals (!(hostMeta.corporate or false)) [ llmAgents.opencode ]
-        ++ [
-          pkgs.tesseract
-          inputs.herdr.packages.${pkgs.stdenv.hostPlatform.system}.default
-        ];
+      environment.systemPackages = [
+        llmAgents.codex
+        llmAgents.openspec
+        agentBrowser
+      ]
+      ++ pkgs.lib.optionals (!(hostMeta.corporate or false)) [ llmAgents.opencode ]
+      ++ [
+        pkgs.tesseract
+        inputs.herdr.packages.${pkgs.stdenv.hostPlatform.system}.default
+      ];
     };
 in
 {
