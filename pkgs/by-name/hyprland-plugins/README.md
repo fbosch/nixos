@@ -1,6 +1,6 @@
 # Hyprland plugins
 
-This directory contains eight local Hyprland plugins used by this NixOS
+This directory contains nine local Hyprland plugins used by this NixOS
 configuration. They add renderer effects and native hooks that are awkward or
 too expensive to implement in Lua.
 
@@ -12,6 +12,7 @@ too expensive to implement in Lua.
 | [`custom-layout-resize`](custom-layout-resize/)         | 0.3.1   | Drive custom tiled-layout resizing from native pointer motion.   |
 | [`focus-animation`](focus-animation/)                   | 0.1.10  | Add a scale-based `windowsFocus` animation leaf.                 |
 | [`inset-border`](inset-border/)                         | 0.3.0   | Draw focus-aware keylines inside window content.                 |
+| [`pip-pre-map`](pip-pre-map/)                               | 0.1.0   | Preserve client-selected initial sizing for browser PiP windows. |
 | [`pointer-edge-hooks`](pointer-edge-hooks/)             | 0.1.0   | Emit pointer zones relative to the bottom monitor edge.          |
 | [`window-interaction-hooks`](window-interaction-hooks/) | 0.2.0   | Emit live and completed native window move and resize events.    |
 
@@ -41,6 +42,7 @@ the packages and publishes their library paths as session variables:
 | `custom-layout-resize`     | `HYPR_CUSTOM_LAYOUT_RESIZE_PLUGIN`     | `libcustom-layout-resize.so`     |
 | `focus-animation`          | `HYPR_FOCUS_ANIMATION_PLUGIN`          | `libfocus-animation.so`          |
 | `inset-border`             | `HYPR_INSET_BORDER_PLUGIN`             | `libinset-border.so`             |
+| `pip-pre-map`              | `HYPR_PIP_PRE_MAP_PLUGIN`              | `libpip-pre-map.so`              |
 | `pointer-edge-hooks`       | `HYPR_POINTER_EDGE_HOOKS_PLUGIN`       | `libpointer-edge-hooks.so`       |
 | `window-interaction-hooks` | `HYPR_WINDOW_INTERACTION_HOOKS_PLUGIN` | `libwindow-interaction-hooks.so` |
 
@@ -206,6 +208,18 @@ process before removing the tag.
 This plugin hooks the private `CANRManager::onTick()` method because Hyprland
 does not expose an ANR interception API. Exact-commit validation prevents it
 from loading against a different Hyprland build.
+
+### `pip-pre-map`
+
+[`pip-pre-map/main.cpp`](pip-pre-map/main.cpp) intercepts the initial XDG
+commit for relabeled Zen, Floorp, and Helium PiP windows. It sends a zero-sized
+configure so the browser chooses its media-derived size instead of accepting
+Hyprland's tiled-layout prediction. Every other window commit delegates to
+Hyprland unchanged.
+
+Hyprland exposes no cancellable event before initial size prediction, so the
+plugin hooks the private `CWindow::commitWindow()` method. Exact-commit
+validation prevents it from loading against a different Hyprland build.
 
 ## Interaction plugins
 
