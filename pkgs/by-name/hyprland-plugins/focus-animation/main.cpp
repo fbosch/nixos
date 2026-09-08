@@ -210,7 +210,6 @@ namespace {
         g_window = window;
         Animation::mgr()->createAnimation(1.F, g_scale, config, window, AVARDAMAGE_ENTIRE);
         g_scale->setUpdateCallback(updateScale);
-        g_scale->setCallbackOnEnd(finishAnimation);
 
         if (!g_scale->enabled()) {
             stopAnimation();
@@ -224,6 +223,7 @@ namespace {
         }
 
         g_scale->setValue(startScale);
+        g_scale->setCallbackOnEnd(finishAnimation);
     }
 
     int prepareAnimationLeafLua(lua_State* state) {
