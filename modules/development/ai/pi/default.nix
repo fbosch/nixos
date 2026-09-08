@@ -20,6 +20,7 @@ let
               patch --batch --fuzz=0 -p1 < ${./pi-openai-capabilities.patch}
               patch --batch --fuzz=0 -p1 < ${./pi-auth-profiles-startup.patch}
               patch --batch --fuzz=0 -p1 < ${./pi-code-mode.patch}
+              patch --batch --fuzz=0 -p1 < ${./pi-startup-session-header.patch}
             '';
           }
       );

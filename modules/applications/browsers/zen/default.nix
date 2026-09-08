@@ -236,35 +236,22 @@ in
         };
       };
 
-      xdg.desktopEntries."app.zen_browser.zen" = {
-        name = "Zen Browser";
-        exec = "${lib.getExe zenLauncher} %U";
-        icon = "app.zen_browser.zen";
-        type = "Application";
-        categories = [
-          "Network"
-          "WebBrowser"
-        ];
-        mimeType = [
-          "text/html"
-          "text/xml"
-          "application/xhtml+xml"
-          "x-scheme-handler/http"
-          "x-scheme-handler/https"
-          "application/x-xpinstall"
-          "application/pdf"
-          "application/json"
-        ];
-        startupNotify = false;
-        terminal = false;
-        settings = {
-          StartupWMClass = "zen";
-          X-MultipleArgs = "false";
-          Keywords = "Internet;WWW;Browser;Web;Explorer;";
-          X-Flatpak = "app.zen_browser.zen";
-          PrefersNonDefaultGPU = "true";
-        };
-      };
+      xdg.dataFile."applications/app.zen_browser.zen.desktop".text = ''
+        [Desktop Entry]
+        Name=Zen Browser
+        Exec=${lib.getExe zenLauncher} %U
+        Icon=app.zen_browser.zen
+        Type=Application
+        Categories=Network;WebBrowser;
+        MimeType=text/html;text/xml;application/xhtml+xml;x-scheme-handler/http;x-scheme-handler/https;application/x-xpinstall;application/pdf;application/json;
+        StartupNotify=false
+        Terminal=false
+        StartupWMClass=zen
+        X-MultipleArgs=false
+        Keywords=Internet;WWW;Browser;Web;Explorer;
+        X-Flatpak=app.zen_browser.zen
+        PrefersNonDefaultGPU=true
+      '';
 
       xdg.desktopEntries."zen-automation" = {
         name = "Zen Browser (Automation)";
