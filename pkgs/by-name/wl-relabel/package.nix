@@ -15,7 +15,10 @@ rustPlatform.buildRustPackage rec {
 
   cargoHash = "sha256-XKiNzsLJBEbW+WJeMHOxc29ND9gSV3IY2d4mbCknwp8=";
 
-  patches = [ ./retry-interrupted-test-reads.patch ];
+  patches = [
+    ./retry-interrupted-test-reads.patch
+    ./finalize-identity-before-initial-commit.patch
+  ];
 
   meta = {
     description = "Wayland proxy that conditionally rewrites window app IDs";

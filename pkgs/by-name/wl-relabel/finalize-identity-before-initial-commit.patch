@@ -1,0 +1,583 @@
+diff --git a/README.md b/README.md
+index 9ce1608..90d8944 100644
+--- a/README.md
++++ b/README.md
+@@ -71,6 +71,18 @@ then.app_id = "{app_id}-popup"
+ 
+ Rules are checked top to bottom and the first match wins. Every condition has to match.
+ `{app_id}` expands to the original name, which is how one rule covers both browsers.
++
++Rules normally finalize at the first buffered mapping commit. A window that must be identified
++before an earlier empty commit can opt in with `finalize = "identity"`. These rules may only
++use `app_id` and `when.title_contains`, and must precede mapping-time rules for the same app:
++
++```toml
++[[rule]]
++app_id = ["firefox"]
++finalize = "identity"
++when.title_contains = "Picture-in-Picture"
++then.app_id = "{app_id}-pip"
++```
+ [rules.example.toml](rules.example.toml) documents every condition.
+ 
+ ### Seeing what an app sends
+diff --git a/rules.example.toml b/rules.example.toml
+index 15a020c..363d46b 100644
+--- a/rules.example.toml
++++ b/rules.example.toml
+@@ -9,6 +9,7 @@
+ # Options:
+ #
+ #   app_id = ["...", ...]   required, which apps the rule applies to
++#   finalize = "identity"   optional, decide as soon as app_id/title match
+ #
+ #   when.decorations      "unspecified" | "none" | "client_side" | "server_side"
+ #   when.min_width_below  strict <, against set_min_size
+@@ -21,7 +22,10 @@
+ #   then.app_id           at least one of these two is required
+ #   then.title            both accept {app_id} and {title}, {{ }} for a literal brace
+ #
+-# Every condition listed has to match. The size conditions and title_contains fail if the
++# `finalize = "identity"` is for windows that must be identified before their initial empty
++# commit. Such rules may only use app_id and title_contains, and must precede mapping-time
++# rules for the same app_id. Every condition listed has to match. The size conditions and
++# title_contains fail if the
+ # app never sent the request they read: a window with no set_min_size fails
+ # min_width_below rather than passing it by default. decorations and has_parent are
+ # matched exactly instead, so "unspecified" and false are ordinary values to match on.
+diff --git a/src/classify.rs b/src/classify.rs
+index 37c6239..57cde61 100644
+--- a/src/classify.rs
++++ b/src/classify.rs
+@@ -102,6 +102,18 @@ impl Action {
+ /// verifies *when* the proxy decides without any rule deciding *what*.
+ pub(crate) trait Classifier: Send + Sync {
+     fn classify(&self, props: &ToplevelProps) -> Option<Action>;
++
++    fn classify_identity(&self, _props: &ToplevelProps) -> Option<Action> {
++        None
++    }
++}
++
++#[derive(Copy, Clone, Debug, Default, Deserialize, PartialEq, Eq)]
++#[serde(rename_all = "snake_case")]
++pub(crate) enum Finalize {
++    #[default]
++    Mapping,
++    Identity,
+ }
+ 
+ /// A string with `{app_id}` / `{title}` placeholders, resolved at rule-compile time so
+@@ -220,6 +232,15 @@ fn below(limit: Option<i32>, actual: Option<i32>) -> bool {
+ }
+ 
+ impl Conditions {
++    pub(crate) fn uses_mapping_evidence(&self) -> bool {
++        self.decorations.is_some()
++            || self.min_width_below.is_some()
++            || self.min_height_below.is_some()
++            || self.max_width_below.is_some()
++            || self.max_height_below.is_some()
++            || self.has_parent.is_some()
++    }
++
+     fn matches(&self, props: &ToplevelProps) -> bool {
+         if let Some(want) = self.decorations
+             && props.decorations != want
+@@ -260,6 +281,7 @@ pub(crate) struct Outcome {
+ pub(crate) struct Rule {
+     /// Which apps this rule is valid for. Never empty — see [`Ruleset::classify`].
+     pub app_ids: Vec<String>,
++    pub finalize: Finalize,
+     pub when: Conditions,
+     pub then: Outcome,
+ }
+@@ -283,6 +305,14 @@ impl Ruleset {
+     }
+ }
+ 
++fn render_action(rule: &Rule, props: &ToplevelProps) -> Option<Action> {
++    let action = Action {
++        app_id: rule.then.app_id.as_ref().and_then(|t| t.render(props)),
++        title: rule.then.title.as_ref().and_then(|t| t.render(props)),
++    };
++    (!action.is_empty()).then_some(action)
++}
++
+ impl Classifier for Ruleset {
+     /// First matching rule wins; a window with no `app_id` matches nothing.
+     ///
+@@ -304,13 +334,28 @@ impl Classifier for Ruleset {
+             if !rule.when.matches(props) {
+                 continue;
+             }
+-            let action = Action {
+-                app_id: rule.then.app_id.as_ref().and_then(|t| t.render(props)),
+-                title: rule.then.title.as_ref().and_then(|t| t.render(props)),
+-            };
+             // The rule matched, so it is *the* rule: if its templates could not render, do
+             // nothing rather than fall through to a rule the user did not intend.
+-            return (!action.is_empty()).then_some(action);
++            return render_action(rule, props);
++        }
++        None
++    }
++
++    fn classify_identity(&self, props: &ToplevelProps) -> Option<Action> {
++        let app_id = props.app_id.as_deref()?;
++
++        for rule in &self.rules {
++            if !rule.app_ids.iter().any(|a| a == app_id) {
++                continue;
++            }
++            // A mapping-time rule earlier in the same app scope might match evidence that
++            // has not arrived yet, so it must retain first-match priority.
++            if rule.finalize != Finalize::Identity {
++                return None;
++            }
++            if rule.when.matches(props) {
++                return render_action(rule, props);
++            }
+         }
+         None
+     }
+@@ -345,6 +390,7 @@ mod tests {
+     fn ruleset_when(when: Conditions) -> Ruleset {
+         Ruleset::new(vec![Rule {
+             app_ids: vec!["chromium".into()],
++            finalize: Finalize::Mapping,
+             when,
+             then: Outcome {
+                 app_id: Some(Template::parse("matched").unwrap()),
+@@ -356,6 +402,7 @@ mod tests {
+     fn browser_ruleset() -> Ruleset {
+         Ruleset::new(vec![Rule {
+             app_ids: vec!["chromium".into(), "firefox".into()],
++            finalize: Finalize::Mapping,
+             when: Conditions {
+                 decorations: Some(Decorations::ServerSide),
+                 min_width_below: Some(400),
+@@ -506,6 +553,7 @@ mod tests {
+         let rules = Ruleset::new(vec![
+             Rule {
+                 app_ids: vec!["chromium".into()],
++                finalize: Finalize::Mapping,
+                 when: Conditions {
+                     decorations: Some(Decorations::ServerSide),
+                     ..Default::default()
+@@ -517,6 +565,7 @@ mod tests {
+             },
+             Rule {
+                 app_ids: vec!["chromium".into()],
++                finalize: Finalize::Mapping,
+                 when: Conditions::default(),
+                 then: Outcome {
+                     app_id: Some(Template::parse("second").unwrap()),
+@@ -532,6 +581,7 @@ mod tests {
+     fn title_only_rule_leaves_app_id_alone() {
+         let rules = Ruleset::new(vec![Rule {
+             app_ids: vec!["chromium".into()],
++            finalize: Finalize::Mapping,
+             when: Conditions {
+                 decorations: Some(Decorations::ServerSide),
+                 ..Default::default()
+@@ -549,6 +599,43 @@ mod tests {
+         );
+     }
+ 
++    #[test]
++    fn earlier_mapping_rule_blocks_identity_finalization_for_the_same_app() {
++        let rules = Ruleset::new(vec![
++            Rule {
++                app_ids: vec!["firefox".into()],
++                finalize: Finalize::Mapping,
++                when: Conditions {
++                    decorations: Some(Decorations::ServerSide),
++                    ..Default::default()
++                },
++                then: Outcome {
++                    app_id: Some(Template::parse("firefox-popup").unwrap()),
++                    ..Default::default()
++                },
++            },
++            Rule {
++                app_ids: vec!["firefox".into()],
++                finalize: Finalize::Identity,
++                when: Conditions {
++                    title_contains: Some("Picture-in-Picture".into()),
++                    ..Default::default()
++                },
++                then: Outcome {
++                    app_id: Some(Template::parse("firefox-pip").unwrap()),
++                    ..Default::default()
++                },
++            },
++        ]);
++        let props = ToplevelProps {
++            app_id: Some("firefox".into()),
++            title: Some("Picture-in-Picture".into()),
++            ..Default::default()
++        };
++
++        assert_eq!(rules.classify_identity(&props), None);
++    }
++
+     #[test]
+     fn title_contains_condition_matches() {
+         let rules = ruleset_when(Conditions {
+@@ -697,6 +784,7 @@ mod tests {
+         // the task manager and the Picture-in-Picture window both do.
+         let rules = Ruleset::new(vec![Rule {
+             app_ids: vec![String::new()],
++            finalize: Finalize::Mapping,
+             when: Conditions {
+                 title_contains: Some("Task Manager".into()),
+                 ..Default::default()
+@@ -762,6 +850,7 @@ mod tests {
+     fn matching_rule_whose_template_cannot_render_does_nothing() {
+         let rules = Ruleset::new(vec![Rule {
+             app_ids: vec!["chromium".into()],
++            finalize: Finalize::Mapping,
+             when: Conditions {
+                 decorations: Some(Decorations::ServerSide),
+                 ..Default::default()
+@@ -782,6 +871,7 @@ mod tests {
+     fn height_condition_is_checked_independently() {
+         let rules = Ruleset::new(vec![Rule {
+             app_ids: vec!["firefox".into()],
++            finalize: Finalize::Mapping,
+             when: Conditions {
+                 min_height_below: Some(100),
+                 ..Default::default()
+diff --git a/src/config.rs b/src/config.rs
+index f0f183c..edcb171 100644
+--- a/src/config.rs
++++ b/src/config.rs
+@@ -14,7 +14,7 @@ use serde::Deserialize;
+ use thiserror::Error;
+ use toml::Spanned;
+ 
+-use crate::classify::{Conditions, Outcome, Rule, Ruleset, Template, TemplateError};
++use crate::classify::{Conditions, Finalize, Outcome, Rule, Ruleset, Template, TemplateError};
+ 
+ /// The file as written. [`Spanned`] is what lets a rejected rule be reported as
+ /// `path:line` rather than an ordinal the reader has to count `[[rule]]` blocks to resolve.
+@@ -29,6 +29,8 @@ struct File {
+ #[serde(deny_unknown_fields)]
+ struct RawRule {
+     app_id: Vec<String>,
++    #[serde(default)]
++    finalize: Finalize,
+     /// [`Conditions`] deserializes itself: the TOML spelling of a condition and the field
+     /// the matcher reads are the same declaration, so neither can be added without the
+     /// other.
+@@ -80,6 +82,8 @@ pub(crate) enum RuleError {
+     NoAppIds,
+     #[error("`then` sets nothing; expected at least one of `app_id` or `title`")]
+     NoActions,
++    #[error("`finalize = \"identity\"` may only use app ID and title conditions")]
++    IdentityUsesMappingEvidence,
+     /// `reason` rather than `source`: it is inlined above, and a field named `source`
+     /// would make thiserror expose it through the chain as well, printing it twice.
+     #[error("`then.{field}`: {reason}")]
+@@ -154,6 +158,9 @@ fn compile_rule(raw: RawRule) -> Result<Rule, RuleError> {
+     if raw.then.app_id.is_none() && raw.then.title.is_none() {
+         return Err(RuleError::NoActions);
+     }
++    if raw.finalize == Finalize::Identity && raw.when.uses_mapping_evidence() {
++        return Err(RuleError::IdentityUsesMappingEvidence);
++    }
+ 
+     let template =
+         |field: &'static str, s: Option<String>| -> Result<Option<Template>, RuleError> {
+@@ -164,6 +171,7 @@ fn compile_rule(raw: RawRule) -> Result<Rule, RuleError> {
+ 
+     Ok(Rule {
+         app_ids: raw.app_id,
++        finalize: raw.finalize,
+         when: raw.when,
+         then: Outcome {
+             app_id: template("app_id", raw.then.app_id)?,
+@@ -223,6 +231,47 @@ mod tests {
+         assert_eq!(rules.classify(&main), None);
+     }
+ 
++    #[test]
++    fn identity_finalization_is_opt_in() {
++        let rules = compile_str(
++            r#"
++            [[rule]]
++            app_id = ["firefox"]
++            finalize = "identity"
++            when.title_contains = "Picture-in-Picture"
++            then.app_id = "{app_id}-pip"
++            "#,
++        )
++        .unwrap();
++        let props = ToplevelProps {
++            app_id: Some("firefox".into()),
++            title: Some("Picture-in-Picture".into()),
++            ..Default::default()
++        };
++
++        assert_eq!(
++            rules.classify_identity(&props).unwrap().app_id.as_deref(),
++            Some("firefox-pip")
++        );
++    }
++
++    #[test]
++    fn mapping_evidence_is_rejected_for_identity_finalization() {
++        assert_eq!(
++            rule_error(
++                r#"
++                [[rule]]
++                app_id = ["firefox"]
++                finalize = "identity"
++                when.title_contains = "Picture-in-Picture"
++                when.min_width_below = 400
++                then.app_id = "{app_id}-pip"
++                "#,
++            ),
++            RuleError::IdentityUsesMappingEvidence,
++        );
++    }
++
+     #[test]
+     fn an_empty_file_is_a_valid_pass_through_configuration() {
+         let rules = compile_str("").unwrap();
+diff --git a/src/proxy.rs b/src/proxy.rs
+index d69db51..6d650f9 100644
+--- a/src/proxy.rs
++++ b/src/proxy.rs
+@@ -251,12 +251,38 @@ struct ToplevelH {
+ 
+ impl XdgToplevelHandler for ToplevelH {
+     fn handle_set_app_id(&mut self, _slf: &Rc<XdgToplevel>, app_id: &str) {
+-        let emit = self.entry.tracker.borrow_mut().set_app_id(app_id);
++        let emit = {
++            let mut tracker = self.entry.tracker.borrow_mut();
++            let emit = tracker.set_app_id(app_id);
++            if emit.is_empty() {
++                if let Some(emit) = tracker.finalize_identity(&*self.client.shared.rules) {
++                    log::info!("finalized identity {} -> {emit}", tracker.props());
++                    emit
++                } else {
++                    Emit::default()
++                }
++            } else {
++                emit
++            }
++        };
+         self.entry.flush(&emit);
+     }
+ 
+     fn handle_set_title(&mut self, _slf: &Rc<XdgToplevel>, title: &str) {
+-        let emit = self.entry.tracker.borrow_mut().set_title(title);
++        let emit = {
++            let mut tracker = self.entry.tracker.borrow_mut();
++            let emit = tracker.set_title(title);
++            if emit.is_empty() {
++                if let Some(emit) = tracker.finalize_identity(&*self.client.shared.rules) {
++                    log::info!("finalized identity {} -> {emit}", tracker.props());
++                    emit
++                } else {
++                    Emit::default()
++                }
++            } else {
++                emit
++            }
++        };
+         self.entry.flush(&emit);
+     }
+ 
+diff --git a/src/track.rs b/src/track.rs
+index 5a6baa1..6835812 100644
+--- a/src/track.rs
++++ b/src/track.rs
+@@ -127,6 +127,23 @@ impl Tracker {
+ 
+     /// `xdg_toplevel.set_min_size`. Observed, never withheld — it is real state the
+     /// compositor needs, and only corroborating evidence here.
++
++    /// Finalize a rule that depends only on identity while the initial empty commit is
++    /// still pending. Mapping-time rules keep the existing buffered path.
++    pub(crate) fn finalize_identity(&mut self, rules: &dyn Classifier) -> Option<Emit> {
++        if self.phase != Phase::Pending {
++            return None;
++        }
++
++        let action = rules.classify_identity(&self.props)?;
++        let emit = Emit {
++            app_id: action.app_id.clone().or_else(|| self.props.app_id.clone()),
++            title: action.title.clone().or_else(|| self.props.title.clone()),
++        };
++        self.phase = Phase::Mapped(Some(action));
++        Some(emit)
++    }
++
+     pub(crate) fn set_min_size(&mut self, width: i32, height: i32) {
+         self.props.min_size = Some((width, height));
+     }
+@@ -188,6 +205,7 @@ mod tests {
+     fn rules() -> Ruleset {
+         Ruleset::new(vec![Rule {
+             app_ids: vec!["chromium".into(), "firefox".into()],
++            finalize: crate::classify::Finalize::Mapping,
+             when: Conditions {
+                 decorations: Some(Decorations::ServerSide),
+                 min_width_below: Some(400),
+@@ -200,6 +218,21 @@ mod tests {
+         }])
+     }
+ 
++    fn identity_rules() -> Ruleset {
++        Ruleset::new(vec![Rule {
++            app_ids: vec!["firefox".into()],
++            finalize: crate::classify::Finalize::Identity,
++            when: Conditions {
++                title_contains: Some("Picture-in-Picture".into()),
++                ..Default::default()
++            },
++            then: Outcome {
++                app_id: Some(Template::parse("{app_id}-pip").unwrap()),
++                ..Default::default()
++            },
++        }])
++    }
++
+     struct Never;
+     impl Classifier for Never {
+         fn classify(&self, _: &ToplevelProps) -> Option<Action> {
+@@ -227,6 +260,37 @@ mod tests {
+         assert_eq!(Emit::default().to_string(), "nothing");
+     }
+ 
++    #[test]
++    fn identity_rule_finalizes_before_the_initial_empty_commit() {
++        let mut t = Tracker::new();
++        assert!(t.set_app_id("firefox").is_empty());
++        assert!(t.finalize_identity(&identity_rules()).is_none());
++        assert!(t.set_title("Picture-in-Picture").is_empty());
++
++        let emit = t
++            .finalize_identity(&identity_rules())
++            .expect("complete identity must finalize");
++        assert_eq!(emit.app_id.as_deref(), Some("firefox-pip"));
++        assert_eq!(emit.title.as_deref(), Some("Picture-in-Picture"));
++        assert!(t.commit(&identity_rules()).is_none());
++    }
++
++    #[test]
++    fn identity_rule_accepts_title_before_app_id() {
++        let mut t = Tracker::new();
++        t.set_title("Picture-in-Picture");
++        assert!(t.finalize_identity(&identity_rules()).is_none());
++        t.set_app_id("firefox");
++
++        assert_eq!(
++            t.finalize_identity(&identity_rules())
++                .unwrap()
++                .app_id
++                .as_deref(),
++            Some("firefox-pip")
++        );
++    }
++
+     #[test]
+     fn chromium_popup_sequence_relabels_at_the_mapping_commit() {
+         let mut t = Tracker::new();
+@@ -246,6 +310,7 @@ mod tests {
+     fn a_rule_may_title_a_window_that_never_set_one() {
+         let rules = Ruleset::new(vec![Rule {
+             app_ids: vec!["chromium".into()],
++            finalize: crate::classify::Finalize::Mapping,
+             when: Conditions {
+                 decorations: Some(Decorations::ServerSide),
+                 ..Default::default()
+diff --git a/tests/end_to_end.rs b/tests/end_to_end.rs
+index f8df8aa..2fa14ca 100644
+--- a/tests/end_to_end.rs
++++ b/tests/end_to_end.rs
+@@ -698,6 +698,20 @@ impl TestClient {
+     }
+ }
+ 
++const PIP_AND_BROWSER_RULES: &str = r#"
++[[rule]]
++app_id = ["firefox"]
++finalize = "identity"
++when.title_contains = "Picture-in-Picture"
++then.app_id = "{app_id}-pip"
++
++[[rule]]
++app_id = ["chromium", "firefox"]
++when.decorations = "server_side"
++when.min_width_below = 400
++then.app_id = "{app_id}-popup"
++"#;
++
+ const BROWSER_RULES: &str = r#"
+ [[rule]]
+ app_id = ["chromium", "firefox"]
+@@ -728,6 +742,60 @@ fn assert_relabelled_before_mapping(transcript: &[String], expected: &str) {
+     );
+ }
+ 
++#[test]
++fn identity_rule_is_relabelled_before_the_initial_empty_commit() {
++    let h = Harness::start("firefox-pip", PIP_AND_BROWSER_RULES);
++    let mut c = h.connect();
++    c.bind_globals();
++    c.create_toplevel();
++    c.set_app_id("firefox");
++    c.set_title("Picture-in-Picture");
++    c.attach_nothing();
++    c.commit();
++    c.roundtrip();
++
++    let transcript = h.compositor.settle();
++    let app_id = transcript
++        .iter()
++        .position(|line| line == "set_app_id(firefox-pip)")
++        .unwrap_or_else(|| panic!("no early PiP identity in transcript: {transcript:?}"));
++    let initial_commit = transcript
++        .iter()
++        .position(|line| line == "commit")
++        .unwrap_or_else(|| panic!("no initial commit in transcript: {transcript:?}"));
++    assert!(
++        app_id < initial_commit,
++        "PiP identity must arrive before the initial empty commit: {transcript:?}"
++    );
++}
++
++#[test]
++fn mapping_rule_still_waits_with_identity_rule_present() {
++    let h = Harness::start("firefox-popup-with-pip-rule", PIP_AND_BROWSER_RULES);
++    let mut c = h.connect();
++    c.bind_globals();
++    c.create_toplevel();
++    c.set_app_id("firefox");
++    c.attach_nothing();
++    c.commit();
++    c.roundtrip();
++
++    let initial = h.compositor.settle();
++    assert!(
++        !initial.iter().any(|line| line.starts_with("set_app_id(")),
++        "popup identity must remain withheld after the empty commit: {initial:?}"
++    );
++
++    c.kde_decoration_mode(MODE_SERVER_SIDE);
++    c.set_min_size(95, 95);
++    c.attach_buffer();
++    c.commit();
++    c.roundtrip();
++
++    let mapping = h.compositor.settle();
++    assert_relabelled_before_mapping(&mapping, "firefox-popup");
++}
++
+ #[test]
+ fn chromium_popup_is_relabelled_before_it_maps() {
+     let h = Harness::start("chromium-popup", BROWSER_RULES);

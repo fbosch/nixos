@@ -127,6 +127,7 @@ in
         # PiP must be identifiable before Hyprland predicts its initial size.
         [[rule]]
         app_id = ["app.zen_browser.zen"]
+        finalize = "identity"
         when.title_contains = "Picture-in-Picture"
         then.app_id = "{app_id}-pip"
 

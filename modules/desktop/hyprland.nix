@@ -49,7 +49,6 @@
           customLayoutResizePlugin = pkgs.local."hyprland-plugins/custom-layout-resize";
           focusAnimationPlugin = pkgs.local."hyprland-plugins/focus-animation";
           insetBorderPlugin = pkgs.local."hyprland-plugins/inset-border";
-          pipPreMapPlugin = pkgs.local."hyprland-plugins/pip-pre-map";
           pointerEdgeHooksPlugin = pkgs.local."hyprland-plugins/pointer-edge-hooks";
           windowInteractionHooksPlugin = pkgs.local."hyprland-plugins/window-interaction-hooks";
           xdgDesktopPortalHyprlandPackage =
@@ -117,7 +116,6 @@
               HYPR_CUSTOM_LAYOUT_RESIZE_PLUGIN = "${customLayoutResizePlugin}/lib/libcustom-layout-resize.so";
               HYPR_FOCUS_ANIMATION_PLUGIN = "${focusAnimationPlugin}/lib/libfocus-animation.so";
               HYPR_INSET_BORDER_PLUGIN = "${insetBorderPlugin}/lib/libinset-border.so";
-              HYPR_PIP_PRE_MAP_PLUGIN = "${pipPreMapPlugin}/lib/libpip-pre-map.so";
               HYPR_POINTER_EDGE_HOOKS_PLUGIN = "${pointerEdgeHooksPlugin}/lib/libpointer-edge-hooks.so";
               HYPR_WINDOW_INTERACTION_HOOKS_PLUGIN = "${windowInteractionHooksPlugin}/lib/libwindow-interaction-hooks.so";
               __GL_GSYNC_ALLOWED = "1";
@@ -136,7 +134,6 @@
               customLayoutResizePlugin
               focusAnimationPlugin
               insetBorderPlugin
-              pipPreMapPlugin
               pointerEdgeHooksPlugin
               windowInteractionHooksPlugin
               inputs.hyprpaper.packages.${system}.hyprpaper
