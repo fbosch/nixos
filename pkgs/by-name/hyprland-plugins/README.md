@@ -20,10 +20,12 @@ All plugins are MIT-licensed and currently packaged for `x86_64-linux`.
 ## Compatibility
 
 Hyprland does not provide a stable plugin ABI. Each plugin is built against the
-Hyprland flake input and refuses to load unless the running compositor has the
-same commit hash. Rebuild these packages whenever the Hyprland input changes.
-Mixing a plugin from one system generation with Hyprland from another is not
-supported.
+Hyprland flake input and declares the public plugin API version expected by the
+loader. Plugins that use private compositor APIs probe required runtime
+capabilities where possible and fail or degrade when those capabilities are
+unavailable. Rebuild these packages whenever the Hyprland input changes. Mixing
+a plugin from one system generation with Hyprland from another is not
+guaranteed to work.
 
 The packages use Hyprland's Nixpkgs input and compiler environment, CMake,
 and C++26. The shared builder lives in
@@ -92,6 +94,8 @@ Configuration uses the `plugin:adaptive_soft_shadow` namespace:
 
 
 `active_strength` and `inactive_strength` are selected from the focused window state. For example, `active_strength = 1` and `inactive_strength = 0.3` makes unfocused-window shadows less pronounced.
+Strength changes follow Hyprland's `windows` animation settings. When
+animations are disabled, the strength switches immediately.
 `blend_mode` accepts `multiply`, `screen`, `overlay`, `darken`, `lighten`,
 `color-dodge`, `color-burn`, `hard-light`, `soft-light`, `difference`,
 `exclusion`, `hsl-hue`, `hsl-saturation`, `hsl-color`, or `hsl-luminosity`.
@@ -144,8 +148,8 @@ Lua API under `hl.plugin.focus_animation`:
 | ----------- | -------------------------------------------------------------- |
 | `prepare()` | Recreate the `windowsFocus` leaf after a configuration reload. |
 
-`prepare()` returns no values. It raises an error when the parent `windows`
-animation is unavailable.
+`prepare()` returns no values. It raises an error when the required animation
+tree APIs or parent `windows` animation are unavailable.
 
 The leaf starts with style `popin 96%`, speed `1`, and disabled state. A
 configured `popin N%` start scale is clamped to 50 through 100 percent;
@@ -156,8 +160,9 @@ the plugin stops scaling and restores geometry components that are not being
 animated by Hyprland.
 
 The implementation modifies Hyprland's internal animation tree because the
-plugin API cannot add animation leaves. This makes the exact-commit requirement
-especially important.
+plugin API cannot add animation leaves. It initializes only when the animation
+tree, its `windows` parent, and the animation manager are available; Hyprland's
+plugin loader still validates the public plugin API version.
 
 ### `inset-border`
 
@@ -208,8 +213,8 @@ watchdog adds that tag before `wl-freeze` stops a process, then resumes the
 process before removing the tag.
 
 This plugin hooks the private `CANRManager::onTick()` method because Hyprland
-does not expose an ANR interception API. Exact-commit validation prevents it
-from loading against a different Hyprland build.
+does not expose an ANR interception API. The plugin locates the function at
+runtime and only installs the hook when the expected signature is present.
 
 ## Interaction plugins
 

@@ -42,7 +42,6 @@ using namespace Render::GL;
 
 namespace {
 
-    constexpr auto     EXPECTED_HYPRLAND_COMMIT = GIT_COMMIT_HASH;
     constexpr int      DEFAULT_THICKNESS         = 1;
     constexpr int      MAXIMUM_THICKNESS         = 4;
     constexpr int      DEFAULT_INSET             = 0;
@@ -802,10 +801,6 @@ extern "C" __attribute__((visibility("default"))) std::string PLUGIN_API_VERSION
 }
 
 extern "C" __attribute__((visibility("default"))) PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
-    const auto version = HyprlandAPI::getHyprlandVersion(handle);
-    if (version.hash != EXPECTED_HYPRLAND_COMMIT)
-        throw std::runtime_error("inset-border: unsupported Hyprland commit");
-
     g_handle = handle;
 
     g_enabled = makeShared<Config::Values::CBoolValue>("plugin:inset_border:enabled", "Draw the inset window keyline", true);

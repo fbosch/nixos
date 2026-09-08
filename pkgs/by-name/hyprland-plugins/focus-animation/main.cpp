@@ -23,7 +23,6 @@ extern "C" {
 
 namespace {
 
-    constexpr auto        EXPECTED_HYPRLAND_COMMIT = GIT_COMMIT_HASH;
     constexpr const char* FOCUS_ANIMATION_LEAF     = "windowsFocus";
     constexpr float       DEFAULT_START_SCALE      = 0.96F;
     constexpr float       MINIMUM_SCALE            = 0.5F;
@@ -39,9 +38,13 @@ namespace {
     bool                g_focusEffectRelinquished = false;
 
     SP<SAnimationPropertyConfig> prepareAnimationLeaf() {
-        // Hyprland has no plugin API for adding animation leaves. Plugins are
-        // commit-bound already, so add this single node to the internal tree.
-        auto&      animations = const_cast<AnimationConfigMap&>(Config::animationTree()->getAnimationConfig());
+        // Hyprland has no plugin API for adding animation leaves. The animation
+        // tree is the capability this plugin requires at runtime.
+        auto& animationTree = Config::animationTree();
+        if (!animationTree || !Animation::mgr())
+            return nullptr;
+
+        auto& animations = const_cast<AnimationConfigMap&>(animationTree->getAnimationConfig());
         const auto parent     = animations.find("windows");
         if (parent == animations.end() || !parent->second)
             return nullptr;
@@ -62,7 +65,11 @@ namespace {
     }
 
     void disableAnimationLeaf() {
-        const auto focus = Config::animationTree()->getAnimationPropertyConfig(FOCUS_ANIMATION_LEAF);
+        auto& animationTree = Config::animationTree();
+        if (!animationTree)
+            return;
+
+        const auto focus = animationTree->getAnimationPropertyConfig(FOCUS_ANIMATION_LEAF);
         if (focus)
             focus->internalEnabled = 0;
     }
@@ -192,7 +199,11 @@ namespace {
         if (!position || !size || position->isBeingAnimated() || size->isBeingAnimated())
             return;
 
-        const auto config = Config::animationTree()->getAnimationPropertyConfig(FOCUS_ANIMATION_LEAF);
+        auto& animationTree = Config::animationTree();
+        if (!animationTree || !Animation::mgr())
+            return;
+
+        const auto config = animationTree->getAnimationPropertyConfig(FOCUS_ANIMATION_LEAF);
         if (!config)
             return;
 
@@ -252,14 +263,10 @@ extern "C" __attribute__((visibility("default"))) std::string PLUGIN_API_VERSION
 }
 
 extern "C" __attribute__((visibility("default"))) PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
-    const auto version = HyprlandAPI::getHyprlandVersion(handle);
-    if (version.hash != EXPECTED_HYPRLAND_COMMIT)
-        throw std::runtime_error("focus-animation: unsupported Hyprland commit");
-
     CPluginInitializationGuard cleanup;
 
     if (!prepareAnimationLeaf())
-        throw std::runtime_error("focus-animation: failed to register windowsFocus animation leaf");
+        throw std::runtime_error("focus-animation: required animation APIs are unavailable");
 
     if (!HyprlandAPI::addLuaFunction(handle, "focus_animation", "prepare", prepareAnimationLeafLua))
         throw std::runtime_error("focus-animation: failed to register Lua function");

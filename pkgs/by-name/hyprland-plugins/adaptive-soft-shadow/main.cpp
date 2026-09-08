@@ -1,3 +1,5 @@
+#include <hyprland/src/animation/AnimationManager.hpp>
+#include <hyprland/src/config/shared/animation/AnimationTree.hpp>
 #include <hyprland/src/Compositor.hpp>
 #include <hyprland/src/config/shared/complex/ComplexDataTypes.hpp>
 #include <hyprland/src/config/values/types/BoolValue.hpp>
@@ -39,7 +41,6 @@ using namespace Render::GL;
 
 namespace {
 
-    constexpr auto  EXPECTED_HYPRLAND_COMMIT = GIT_COMMIT_HASH;
     constexpr int   DEFAULT_RANGE             = 20;
     constexpr int   DEFAULT_RENDER_POWER      = 3;
     constexpr float DEFAULT_STRENGTH          = 0.30F;
@@ -302,7 +303,7 @@ void main() {
         return std::clamp(static_cast<int>(g_renderPower->value()), 1, 4);
     }
 
-    float strength(PHLWINDOW window) {
+    float configuredStrength(PHLWINDOW window) {
         const auto stateStrength = window == Desktop::focusState()->window() ? g_activeStrength->value() : g_inactiveStrength->value();
         const auto configuredStrength = stateStrength == STATE_STRENGTH_FALLBACK ? g_strength->value() : stateStrength;
         return std::clamp(static_cast<float>(configuredStrength), 0.F, 1.F);
@@ -391,6 +392,7 @@ void main() {
       public:
         explicit CAdaptiveSoftShadowDecoration(PHLWINDOW window) : IHyprWindowDecoration(window), m_window(window) {
             updateWindow(window);
+            updateStrength(window);
         }
 
         ~CAdaptiveSoftShadowDecoration() override {
@@ -438,12 +440,21 @@ void main() {
             };
         }
 
+        void damageLastShadow() {
+            if (!m_lastShadowRegion.empty())
+                g_pHyprRenderer->damageRegion(m_lastShadowRegion);
+        }
+
         void damageEntire() override {
-            if (!g_enabled || !g_enabled->value())
+            if (!g_pHyprRenderer)
                 return;
+
+            damageLastShadow();
 
             const auto window = m_window.lock();
             if (!validMapped(window))
+                return;
+            if (!g_enabled || !g_enabled->value())
                 return;
 
             const auto workspace = window->m_workspace;
@@ -461,6 +472,7 @@ void main() {
                 if (!g_pHyprRenderer->shouldRenderWindow(window, monitor))
                     shadowRegion.subtract(CRegion({monitor->m_position, monitor->m_size}));
             }
+            m_lastShadowRegion = shadowRegion;
             g_pHyprRenderer->damageRegion(shadowRegion);
         }
 
@@ -479,6 +491,7 @@ void main() {
         void updateState() override {
             damageEntire();
             updateWindow(m_window.lock());
+            updateStrength(m_window.lock());
             damageEntire();
         }
 
@@ -487,6 +500,8 @@ void main() {
         }
 
         void onWindowFocus() override {
+            const auto window = m_window.lock();
+            updateStrength(window);
             damageEntire();
         }
 
@@ -496,7 +511,7 @@ void main() {
                 return;
 
             const auto window = m_window.lock();
-            const auto shadowStrength = strength(window);
+            const auto shadowStrength = strength();
             const auto previousWindow = g_pHyprRenderer->m_renderData.currentWindow;
             const Hyprutils::Utils::CScopeGuard restoreWindow{[previousWindow] { g_pHyprRenderer->m_renderData.currentWindow = previousWindow; }};
             g_pHyprRenderer->m_renderData.currentWindow = m_window;
@@ -512,6 +527,32 @@ void main() {
         }
 
       private:
+        void updateStrength(PHLWINDOW window) {
+            if (!window)
+                return;
+
+            const auto target = configuredStrength(window);
+            if (!m_strengthAnimation) {
+                auto& animationTree = Config::animationTree();
+                if (!animationTree || !Animation::mgr())
+                    return;
+                const auto config = animationTree->getAnimationPropertyConfig("windows");
+                if (!config)
+                    return;
+                Animation::mgr()->createAnimation(target, m_strengthAnimation, config, window, AVARDAMAGE_ENTIRE);
+                return;
+            }
+            *m_strengthAnimation = target;
+        }
+
+        float strength() const {
+            if (m_strengthAnimation)
+                return std::clamp(m_strengthAnimation->value(), 0.F, 1.F);
+
+            const auto window = m_window.lock();
+            return window ? configuredStrength(window) : 0.F;
+        }
+
         bool canRender() const {
             if (!g_enabled || !g_enabled->value())
                 return false;
@@ -519,7 +560,7 @@ void main() {
             const auto window = m_window.lock();
             if (!validMapped(window))
                 return false;
-            if (strength(window) <= 0.F)
+            if (strength() <= 0.F)
                 return false;
 
             const auto traits = window->backend().traits();
@@ -586,6 +627,10 @@ void main() {
             fullBox.translate(window->presentation().floatingOffset());
             if (fullBox.width < 1 || fullBox.height < 1)
                 return {};
+            CBox shadowBox = fullBox;
+            shadowBox.translate(monitor->m_position);
+            shadowBox.expand(2);
+            m_lastShadowRegion = CRegion(shadowBox);
 
             fullBox.scale(monitor->m_scale).round();
             return {
@@ -674,12 +719,14 @@ void main() {
             });
         }
 
-        PHLWINDOWREF m_window;
-        SBoxExtents  m_extents;
-        SBoxExtents  m_reportedExtents;
-        Vector2D     m_lastWindowPos;
-        Vector2D     m_lastWindowSize;
-        CBox         m_lastWindowBoxWithDecos;
+        PHLWINDOWREF      m_window;
+        PHLANIMVAR<float> m_strengthAnimation;
+        SBoxExtents       m_extents;
+        SBoxExtents       m_reportedExtents;
+        Vector2D          m_lastWindowPos;
+        Vector2D          m_lastWindowSize;
+        CBox              m_lastWindowBoxWithDecos;
+        CRegion           m_lastShadowRegion;
     };
 
     std::vector<UP<IPassElement>> CAdaptiveSoftShadowPassElement::draw() {
@@ -707,10 +754,6 @@ extern "C" __attribute__((visibility("default"))) std::string PLUGIN_API_VERSION
 }
 
 extern "C" __attribute__((visibility("default"))) PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
-    const auto version = HyprlandAPI::getHyprlandVersion(handle);
-    if (version.hash != EXPECTED_HYPRLAND_COMMIT)
-        throw std::runtime_error("adaptive-soft-shadow: unsupported Hyprland commit");
-
     g_handle = handle;
     g_enabled = makeShared<Config::Values::CBoolValue>("plugin:adaptive_soft_shadow:enabled", "Draw backdrop-adaptive window shadows", true,
                                                        Config::Values::SBoolValueOptions{.refresh = Config::Supplementary::REFRESH_WINDOW_STATES});

@@ -24,8 +24,6 @@ extern "C" {
 
 namespace {
 
-    constexpr auto EXPECTED_HYPRLAND_COMMIT = GIT_COMMIT_HASH;
-
     // Hyprland clears the controller latch after invoking a bind, but zero disables the threshold entirely.
     constexpr bool interactionThresholdReached(Config::INTEGER configuredThreshold, bool controllerReached) {
         return configuredThreshold <= 0 || controllerReached;
@@ -340,10 +338,6 @@ APICALL EXPORT std::string PLUGIN_API_VERSION() {
 }
 
 APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
-    const auto version = HyprlandAPI::getHyprlandVersion(handle);
-    if (version.hash != EXPECTED_HYPRLAND_COMMIT)
-        throw std::runtime_error("window-interaction-hooks: unsupported Hyprland commit");
-
     g_handle        = handle;
     g_finishedEvent = makeShared<Event::CEventBus::CCustomEvent>(
         "window_interaction_hooks.finished",

@@ -29,7 +29,6 @@ using namespace Desktop::View;
 
 namespace {
 
-    constexpr auto EXPECTED_HYPRLAND_COMMIT = GIT_COMMIT_HASH;
     constexpr int  DEFAULT_INTERVAL_MS       = 8;
     constexpr int  MINIMUM_INTERVAL_MS       = 6;
     constexpr int  MAXIMUM_INTERVAL_MS       = 17;
@@ -305,10 +304,6 @@ APICALL EXPORT std::string PLUGIN_API_VERSION() {
 }
 
 APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
-    const auto version = HyprlandAPI::getHyprlandVersion(handle);
-    if (version.hash != EXPECTED_HYPRLAND_COMMIT)
-        throw std::runtime_error("custom-layout-resize: unsupported Hyprland commit");
-
     g_handle = handle;
     g_commandEvent = makeShared<Event::CEventBus::CCustomEvent>(
         "custom_layout_resize.command",

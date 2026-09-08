@@ -20,15 +20,14 @@
 #include <string_view>
 #include <vector>
 
-// Hyprland has no public ANR interception API. Exact-commit validation below
-// confines this private access to the compositor version used for the build.
+// Hyprland has no public ANR interception API. The required private function
+// is located and validated by a runtime symbol/signature probe below.
 #define private public
 #include <hyprland/src/managers/ANRManager.hpp>
 #undef private
 
 namespace {
 
-    constexpr auto EXPECTED_HYPRLAND_COMMIT = GIT_COMMIT_HASH;
     constexpr auto ON_TICK_SIGNATURE        = "CANRManager::onTick()";
 
     HANDLE                           g_handle = nullptr;
@@ -188,10 +187,6 @@ APICALL EXPORT std::string PLUGIN_API_VERSION() {
 }
 
 APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
-    const auto version = HyprlandAPI::getHyprlandVersion(handle);
-    if (version.hash != EXPECTED_HYPRLAND_COMMIT)
-        throw std::runtime_error("anr-tag-ignore: unsupported Hyprland commit");
-
     g_handle      = handle;
     g_ignoredTags = makeShared<Config::Values::CStringValue>(
         "plugin:anr_tag_ignore:ignored_tags",
