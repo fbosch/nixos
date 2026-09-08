@@ -32,7 +32,7 @@ index bd90fc4..b4a68f1 100644
  import { readFileSync } from "node:fs";
  import { basename, dirname } from "node:path";
  import { contentText, uuidv7 } from "@earendil-works/pi-ai";
-@@ -70,6 +71,64 @@ function estimateMessagesTokens(messages) {
+@@ -70,6 +71,68 @@ function estimateMessagesTokens(messages) {
      }
      return tokens;
  }
@@ -60,8 +60,12 @@ index bd90fc4..b4a68f1 100644
 +    };
 +    const notify = () => {
 +        const snapshot = current();
-+        for (const listener of listeners)
-+            listener(snapshot);
++        for (const listener of listeners) {
++            try {
++                listener(snapshot);
++            }
++            catch { }
++        }
 +    };
 +    const api = freezeSnapshot({
 +        capability: "pi.startupSnapshot",
@@ -91,8 +95,8 @@ index bd90fc4..b4a68f1 100644
 +        },
 +    };
 +}
-+function estimateTextTokens(text) {
-+    return Math.ceil(text.length / 4);
++function estimateCharsTokens(chars) {
++    return Math.ceil(chars / 4);
 +}
  function sourceInfoMatches(left, right) {
      return left.path === right.path &&
@@ -178,7 +182,7 @@ index bd90fc4..b4a68f1 100644
 +                promptWithoutTools = nextPrompt;
 +            }
 +            addChars("system-prompt", withoutContextFilesSkillsOrTools.length);
-+            const valueCategories = Array.from(categoryChars, ([id, chars]) => ({ id, tokens: estimateTextTokens(" ".repeat(chars)) }));
++            const valueCategories = Array.from(categoryChars, ([id, chars]) => ({ id, tokens: estimateCharsTokens(chars) }));
 +            context = {
 +                status: "ready",
 +                value: {
