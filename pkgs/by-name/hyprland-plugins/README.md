@@ -6,7 +6,7 @@ too expensive to implement in Lua.
 
 | Plugin                                                  | Version | Purpose                                                          |
 | ------------------------------------------------------- | ------- | ---------------------------------------------------------------- |
-| [`adaptive-soft-shadow`](adaptive-soft-shadow/)         | 0.2.2   | Draw backdrop-adaptive window shadows.                           |
+| [`adaptive-soft-shadow`](adaptive-soft-shadow/)         | 0.3.0   | Draw backdrop-adaptive window shadows.                           |
 | [`anr-tag-ignore`](anr-tag-ignore/)                     | 0.1.0   | Reset ANR state for clients whose windows carry configured tags. |
 | [`cursor-outline`](cursor-outline/)                     | 0.1.0   | Draw a configurable outline around the cursor silhouette.        |
 | [`custom-layout-resize`](custom-layout-resize/)         | 0.3.1   | Drive custom tiled-layout resizing from native pointer motion.   |
@@ -85,9 +85,13 @@ Configuration uses the `plugin:adaptive_soft_shadow` namespace:
 | `render_power` | integer  | `3`          | Falloff exponent, from 1 to 4.                              |
 | `offset`       | vector   | `1 1`        | Finite logical-pixel offsets from -250 to 250 on each axis. |
 | `strength`     | float    | `0.30`       | Shadow strength, from 0 to 1.                               |
+| `active_strength`   | float    | `-1`         | Focused-window strength from 0 to 1; `-1` uses `strength`. |
+| `inactive_strength` | float    | `-1`         | Unfocused-window strength from 0 to 1; `-1` uses `strength`. |
 | `color`        | gradient | opaque black | Solid color or gradient with at most 10 colors.             |
 | `blend_mode`   | string   | `soft-light` | Advanced blend equation.                                    |
 
+
+`active_strength` and `inactive_strength` are selected from the focused window state. For example, `active_strength = 1` and `inactive_strength = 0.3` makes unfocused-window shadows less pronounced.
 `blend_mode` accepts `multiply`, `screen`, `overlay`, `darken`, `lighten`,
 `color-dodge`, `color-burn`, `hard-light`, `soft-light`, `difference`,
 `exclusion`, `hsl-hue`, `hsl-saturation`, `hsl-color`, or `hsl-luminosity`.

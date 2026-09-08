@@ -6,6 +6,7 @@
 #include <hyprland/src/config/values/types/IntValue.hpp>
 #include <hyprland/src/config/values/types/StringValue.hpp>
 #include <hyprland/src/config/values/types/Vec2Value.hpp>
+#include <hyprland/src/desktop/state/FocusState.hpp>
 #include <hyprland/src/desktop/state/WindowState.hpp>
 #include <hyprland/src/desktop/view/window/Window.hpp>
 #include <hyprland/src/desktop/view/window/WindowPresentation.hpp>
@@ -42,6 +43,7 @@ namespace {
     constexpr int   DEFAULT_RANGE             = 20;
     constexpr int   DEFAULT_RENDER_POWER      = 3;
     constexpr float DEFAULT_STRENGTH          = 0.30F;
+    constexpr float STATE_STRENGTH_FALLBACK   = -1.F;
     constexpr int   MAXIMUM_RANGE             = 80;
     constexpr float MAXIMUM_OFFSET            = 250.F;
     constexpr size_t MAXIMUM_GRADIENT_COLORS  = 10;
@@ -224,6 +226,8 @@ void main() {
     SP<Config::Values::CIntValue>      g_renderPower;
     SP<Config::Values::CVec2Value>     g_offset;
     SP<Config::Values::CFloatValue>    g_strength;
+    SP<Config::Values::CFloatValue>    g_activeStrength;
+    SP<Config::Values::CFloatValue>    g_inactiveStrength;
     SP<Config::Values::CGradientValue> g_color;
     SP<Config::Values::CStringValue>   g_blendMode;
     SP<CShader>                        g_advancedBlendShader;
@@ -298,8 +302,10 @@ void main() {
         return std::clamp(static_cast<int>(g_renderPower->value()), 1, 4);
     }
 
-    float strength() {
-        return std::clamp(static_cast<float>(g_strength->value()), 0.F, 1.F);
+    float strength(PHLWINDOW window) {
+        const auto stateStrength = window == Desktop::focusState()->window() ? g_activeStrength->value() : g_inactiveStrength->value();
+        const auto configuredStrength = stateStrength == STATE_STRENGTH_FALLBACK ? g_strength->value() : stateStrength;
+        return std::clamp(static_cast<float>(configuredStrength), 0.F, 1.F);
     }
 
     Vector2D shadowOffset() {
@@ -490,15 +496,16 @@ void main() {
                 return;
 
             const auto window = m_window.lock();
+            const auto shadowStrength = strength(window);
             const auto previousWindow = g_pHyprRenderer->m_renderData.currentWindow;
             const Hyprutils::Utils::CScopeGuard restoreWindow{[previousWindow] { g_pHyprRenderer->m_renderData.currentWindow = previousWindow; }};
             g_pHyprRenderer->m_renderData.currentWindow = m_window;
             g_pHyprRenderer->disableScissor();
 
             if (canUseAdvancedBlend())
-                renderAdvancedBlend(data, window, alpha);
+                renderAdvancedBlend(data, window, shadowStrength, alpha);
             else
-                renderFallback(data, alpha);
+                renderFallback(data, shadowStrength, alpha);
 
             if (m_extents != m_reportedExtents)
                 g_pDecorationPositioner->repositionDeco(this);
@@ -506,11 +513,13 @@ void main() {
 
       private:
         bool canRender() const {
-            if (!g_enabled || !g_enabled->value() || strength() <= 0.F)
+            if (!g_enabled || !g_enabled->value())
                 return false;
 
             const auto window = m_window.lock();
             if (!validMapped(window))
+                return false;
+            if (strength(window) <= 0.F)
                 return false;
 
             const auto traits = window->backend().traits();
@@ -588,16 +597,16 @@ void main() {
             };
         }
 
-        void renderFallback(const SAdaptiveShadowRenderData& data, float alpha) {
+        void renderFallback(const SAdaptiveShadowRenderData& data, float shadowStrength, float alpha) {
             const auto& color = g_color->value();
             warnAboutTruncatedGradient(color);
             const auto colorCount = std::min(color.m_colors.size(), MAXIMUM_GRADIENT_COLORS);
             std::vector<CHyprColor> colors{color.m_colors.begin(), color.m_colors.begin() + colorCount};
             const Config::CGradientValueData boundedColor{std::move(colors), normalizedGradientAngle(color.m_angle)};
-            g_pHyprRenderer->drawShadow(data.fullBox, data.rounding, data.roundingPower, data.range, boundedColor, strength() * alpha);
+            g_pHyprRenderer->drawShadow(data.fullBox, data.rounding, data.roundingPower, data.range, boundedColor, shadowStrength * alpha);
         }
 
-        void renderAdvancedBlend(const SAdaptiveShadowRenderData& data, PHLWINDOW window, float alpha) {
+        void renderAdvancedBlend(const SAdaptiveShadowRenderData& data, PHLWINDOW window, float shadowStrength, float alpha) {
             CBox box = data.fullBox;
             g_pHyprRenderer->m_renderData.renderModif.applyToBox(box);
 
@@ -612,7 +621,7 @@ void main() {
             shader->setUniformFloat(SHADER_ROUNDING_POWER, data.roundingPower);
             shader->setUniformFloat(SHADER_RANGE, data.range);
             shader->setUniformFloat(SHADER_SHADOW_POWER, renderPower());
-            shader->setUniformFloat(SHADER_ALPHA, strength() * alpha);
+            shader->setUniformFloat(SHADER_ALPHA, shadowStrength * alpha);
             const auto& color = g_color->value();
             warnAboutTruncatedGradient(color);
             const auto colorCount = gradientColorCount(color);
@@ -720,6 +729,16 @@ extern "C" __attribute__((visibility("default"))) PLUGIN_DESCRIPTION_INFO PLUGIN
                                                           Config::Values::SFloatValueOptions{.min = 0.F,
                                                                                             .max = 1.F,
                                                                                             .refresh = Config::Supplementary::REFRESH_WINDOW_STATES});
+    g_activeStrength = makeShared<Config::Values::CFloatValue>(
+        "plugin:adaptive_soft_shadow:active_strength", "Shadow strength for the focused window, or -1 to use strength", STATE_STRENGTH_FALLBACK,
+        Config::Values::SFloatValueOptions{.min = STATE_STRENGTH_FALLBACK,
+                                            .max = 1.F,
+                                            .refresh = Config::Supplementary::REFRESH_WINDOW_STATES});
+    g_inactiveStrength = makeShared<Config::Values::CFloatValue>(
+        "plugin:adaptive_soft_shadow:inactive_strength", "Shadow strength for unfocused windows, or -1 to use strength", STATE_STRENGTH_FALLBACK,
+        Config::Values::SFloatValueOptions{.min = STATE_STRENGTH_FALLBACK,
+                                            .max = 1.F,
+                                            .refresh = Config::Supplementary::REFRESH_WINDOW_STATES});
     g_color = makeShared<Config::Values::CGradientValue>("plugin:adaptive_soft_shadow:color", "Shadow color or gradient", CHyprColor{0.F, 0.F, 0.F, 1.F},
                                                           Config::Values::SGradientValueOptions{.refresh = Config::Supplementary::REFRESH_WINDOW_STATES});
     g_blendMode = makeShared<Config::Values::CStringValue>("plugin:adaptive_soft_shadow:blend_mode", "Advanced shadow blend equation",
@@ -728,7 +747,9 @@ extern "C" __attribute__((visibility("default"))) PLUGIN_DESCRIPTION_INFO PLUGIN
                                                                                                .refresh = Config::Supplementary::REFRESH_WINDOW_STATES});
 
     if (!HyprlandAPI::addConfigValueV2(handle, g_enabled) || !HyprlandAPI::addConfigValueV2(handle, g_range) || !HyprlandAPI::addConfigValueV2(handle, g_renderPower) ||
-        !HyprlandAPI::addConfigValueV2(handle, g_offset) || !HyprlandAPI::addConfigValueV2(handle, g_strength) || !HyprlandAPI::addConfigValueV2(handle, g_color) ||
+        !HyprlandAPI::addConfigValueV2(handle, g_offset) || !HyprlandAPI::addConfigValueV2(handle, g_strength) ||
+        !HyprlandAPI::addConfigValueV2(handle, g_activeStrength) || !HyprlandAPI::addConfigValueV2(handle, g_inactiveStrength) ||
+        !HyprlandAPI::addConfigValueV2(handle, g_color) ||
         !HyprlandAPI::addConfigValueV2(handle, g_blendMode))
         throw std::runtime_error("adaptive-soft-shadow: failed to register configuration");
 
@@ -740,7 +761,7 @@ extern "C" __attribute__((visibility("default"))) PLUGIN_DESCRIPTION_INFO PLUGIN
         "adaptive-soft-shadow",
         "Draw backdrop-adaptive soft-light window shadows",
         "local",
-        "0.2.2",
+        "0.3.0",
     };
 }
 
