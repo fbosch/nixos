@@ -4,11 +4,10 @@ let
 in
 {
   flake.modules.homeManager.applications =
-    {
-      config,
-      lib,
-      pkgs,
-      ...
+    { config
+    , lib
+    , pkgs
+    , ...
     }:
     let
       zenwritten = flakeConfig.flake.lib.themes.zenwritten;

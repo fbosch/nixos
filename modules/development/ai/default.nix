@@ -12,17 +12,18 @@ let
       llmAgents = inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system};
       agentBrowser =
         if pkgs.stdenv.hostPlatform.isLinux then
-          pkgs.writeShellApplication {
-            name = "agent-browser";
-            # Upstream's Linux wrapper forces Chromium through the environment.
-            # CLI flags override it; keep user arguments last for explicit overrides.
-            text = ''
-              exec ${pkgs.lib.getExe llmAgents.agent-browser} \
-                --engine lightpanda \
-                --executable-path ${pkgs.lib.getExe pkgs.local.lightpanda} \
-                "$@"
-            '';
-          }
+          pkgs.writeShellApplication
+            {
+              name = "agent-browser";
+              # Upstream's Linux wrapper forces Chromium through the environment.
+              # CLI flags override it; keep user arguments last for explicit overrides.
+              text = ''
+                exec ${pkgs.lib.getExe llmAgents.agent-browser} \
+                  --engine lightpanda \
+                  --executable-path ${pkgs.lib.getExe pkgs.local.lightpanda} \
+                  "$@"
+              '';
+            }
         else
           llmAgents.agent-browser;
     in
