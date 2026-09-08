@@ -21,28 +21,72 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
-function renderHostContext(hostName: string, metadata?: unknown): string {
-  const context = [`- Runtime hostname: \`${hostName}\``];
+function escapeXml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&apos;");
+}
 
-  if (!isRecord(metadata)) {
-    context.push(
-      `- No matching \`flake.meta.hosts.${hostName}\` metadata was found.`,
-    );
-    return context.join("\n");
+function renderXmlElement(name: string, value: unknown, indent = "  "): string {
+  if (value === null || value === undefined) {
+    return `${indent}<${name} />`;
   }
 
-  const exposedMetadata = Object.fromEntries(
-    Object.entries(metadata).filter(([key]) => exposedMetadataFields.has(key)),
-  );
+  if (Array.isArray(value)) {
+    return value.map((item) => renderXmlElement(name, item, indent)).join("\n");
+  }
 
-  context.push(
-    `- \`flake.meta.hosts.${hostName}\`:\n\n\`\`\`json\n${JSON.stringify(
-      exposedMetadata,
-      null,
-      2,
-    )}\n\`\`\``,
-  );
+  if (isRecord(value)) {
+    const children = Object.entries(value)
+      .map(([key, child]) => renderXmlElement(key, child, `${indent}  `))
+      .join("\n");
 
+    return `${indent}<${name}>\n${children}\n${indent}</${name}>`;
+  }
+
+  return `${indent}<${name}>${escapeXml(String(value))}</${name}>`;
+}
+
+function renderHostContext(
+  hostName: string,
+  metadata?: unknown,
+  error?: string,
+): string {
+  const hostMetadataPath = `flake.meta.hosts.${hostName}`;
+  const context = [
+    "<host_context>",
+    renderXmlElement("runtime_hostname", hostName),
+  ];
+
+  if (isRecord(metadata)) {
+    const exposedMetadata = Object.fromEntries(
+      Object.entries(metadata).filter(([key]) =>
+        exposedMetadataFields.has(key),
+      ),
+    );
+
+    context.push(
+      `  <host_metadata path="${escapeXml(hostMetadataPath)}">`,
+      ...Object.entries(exposedMetadata).map(([key, value]) =>
+        renderXmlElement(key, value),
+      ),
+      "  </host_metadata>",
+    );
+  } else {
+    context.push(
+      `  <host_metadata path="${escapeXml(hostMetadataPath)}" />`,
+      `  <error>No matching ${escapeXml(hostMetadataPath)} metadata was found.</error>`,
+    );
+  }
+
+  if (error) {
+    context.push(`  <error>${escapeXml(error)}</error>`);
+  }
+
+  context.push("</host_context>");
   return context.join("\n");
 }
 
@@ -59,7 +103,11 @@ export default function hostContext(pi: ExtensionAPI) {
       );
 
       if (result.code !== 0) {
-        currentHostContext = `${renderHostContext(hostName)}\n- Flake metadata lookup failed with exit code ${result.code}.`;
+        currentHostContext = renderHostContext(
+          hostName,
+          undefined,
+          `Flake metadata lookup failed with exit code ${result.code}.`,
+        );
         if (ctx.hasUI) {
           ctx.ui.notify(
             "Flake host metadata lookup failed; only the hostname was injected.",
@@ -80,7 +128,11 @@ export default function hostContext(pi: ExtensionAPI) {
         );
       }
     } catch {
-      currentHostContext = `${renderHostContext(hostName)}\n- Flake metadata lookup could not be run.`;
+      currentHostContext = renderHostContext(
+        hostName,
+        undefined,
+        "Flake metadata lookup could not be run.",
+      );
       if (ctx.hasUI) {
         ctx.ui.notify(
           "Flake host metadata lookup could not be run; only the hostname was injected.",
@@ -91,6 +143,6 @@ export default function hostContext(pi: ExtensionAPI) {
   });
 
   pi.on("before_agent_start", (event) => ({
-    systemPrompt: `${event.systemPrompt}\n\n## Current host context\n${currentHostContext}`,
+    systemPrompt: `${event.systemPrompt}\n${currentHostContext}`,
   }));
 }
