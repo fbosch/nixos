@@ -23,6 +23,7 @@ extern "C" {
 
 namespace {
 
+    constexpr auto        EXPECTED_HYPRLAND_COMMIT = GIT_COMMIT_HASH;
     constexpr const char* FOCUS_ANIMATION_LEAF     = "windowsFocus";
     constexpr float       DEFAULT_START_SCALE      = 0.96F;
     constexpr float       MINIMUM_SCALE            = 0.5F;
@@ -263,6 +264,10 @@ extern "C" __attribute__((visibility("default"))) std::string PLUGIN_API_VERSION
 }
 
 extern "C" __attribute__((visibility("default"))) PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
+    const auto version = HyprlandAPI::getHyprlandVersion(handle);
+    if (version.hash != EXPECTED_HYPRLAND_COMMIT)
+        throw std::runtime_error("focus-animation: unsupported Hyprland commit");
+
     CPluginInitializationGuard cleanup;
 
     if (!prepareAnimationLeaf())

@@ -17,6 +17,8 @@ extern "C" {
 
 namespace {
 
+    constexpr auto EXPECTED_HYPRLAND_COMMIT = GIT_COMMIT_HASH;
+
     struct SPointerState {
         bool        active = false;
         int         showThreshold = 20;
@@ -157,6 +159,10 @@ APICALL EXPORT std::string PLUGIN_API_VERSION() {
 }
 
 APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
+    const auto version = HyprlandAPI::getHyprlandVersion(handle);
+    if (version.hash != EXPECTED_HYPRLAND_COMMIT)
+        throw std::runtime_error("pointer-edge-hooks: unsupported Hyprland commit");
+
     g_handle = handle;
     g_zoneEvent = makeShared<Event::CEventBus::CCustomEvent>(
         "pointer_edge_hooks.zone",

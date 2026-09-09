@@ -41,6 +41,7 @@ using namespace Render::GL;
 
 namespace {
 
+    constexpr auto  EXPECTED_HYPRLAND_COMMIT = GIT_COMMIT_HASH;
     constexpr int   DEFAULT_RANGE             = 20;
     constexpr int   DEFAULT_RENDER_POWER      = 3;
     constexpr float DEFAULT_STRENGTH          = 0.30F;
@@ -754,6 +755,10 @@ extern "C" __attribute__((visibility("default"))) std::string PLUGIN_API_VERSION
 }
 
 extern "C" __attribute__((visibility("default"))) PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
+    const auto version = HyprlandAPI::getHyprlandVersion(handle);
+    if (version.hash != EXPECTED_HYPRLAND_COMMIT)
+        throw std::runtime_error("adaptive-soft-shadow: unsupported Hyprland commit");
+
     g_handle = handle;
     g_enabled = makeShared<Config::Values::CBoolValue>("plugin:adaptive_soft_shadow:enabled", "Draw backdrop-adaptive window shadows", true,
                                                        Config::Values::SBoolValueOptions{.refresh = Config::Supplementary::REFRESH_WINDOW_STATES});

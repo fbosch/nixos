@@ -22,6 +22,7 @@ using namespace Render::GL;
 
 namespace {
 
+    constexpr auto                  EXPECTED_HYPRLAND_COMMIT       = GIT_COMMIT_HASH;
     constexpr int                   DEFAULT_OUTLINE_LOGICAL_PIXELS = 3;
     constexpr int                   MAXIMUM_OUTLINE_LOGICAL_PIXELS = 4;
     constexpr int                   MAXIMUM_OUTLINE_PIXELS         = 8;
@@ -300,6 +301,9 @@ APICALL EXPORT std::string PLUGIN_API_VERSION() {
 }
 
 APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
+    const auto version = HyprlandAPI::getHyprlandVersion(handle);
+    if (version.hash != EXPECTED_HYPRLAND_COMMIT)
+        throw std::runtime_error("cursor-outline: unsupported Hyprland commit");
     if (!g_pHyprRenderer || g_pHyprRenderer->type() != IHyprRenderer::RT_GL)
         throw std::runtime_error("cursor-outline: OpenGL renderer required");
 
