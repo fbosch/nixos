@@ -121,10 +121,14 @@ namespace {
     }
 
     std::optional<std::string> tiledLayoutName(PHLWINDOW window) {
-        if (!window || window->isFloating() || !window->m_workspace || !window->m_workspace->m_space)
+        if (!window || window->isFloating() || !window->m_workspace)
             return std::nullopt;
 
-        const auto& algorithm = window->m_workspace->m_space->algorithm();
+        const auto space = window->m_workspace->space();
+        if (!space)
+            return std::nullopt;
+
+        const auto& algorithm = space->algorithm();
         if (!algorithm || !algorithm->tiledAlgo())
             return std::nullopt;
 

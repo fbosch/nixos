@@ -6,7 +6,7 @@ let
         bun
         nodejs_24
         yarn
-        typescript-go
+        typescript
         prettier
         eslint
         npm-check-updates
