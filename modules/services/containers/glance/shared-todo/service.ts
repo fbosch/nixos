@@ -8,6 +8,7 @@ type TaskRow = {
   id: string;
   text: string;
   checked: number;
+  created_at: string;
   position: number;
 };
 
@@ -15,7 +16,22 @@ export type Task = {
   id: string;
   text: string;
   checked: boolean;
+  createdAt: string;
+  ageDays: number;
 };
+
+type TaskInput = Pick<Task, "id" | "text" | "checked">;
+
+const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
+
+function ageInDays(createdAt: string, now: number): number {
+  const createdAtMilliseconds = Date.parse(createdAt);
+  if (!Number.isFinite(createdAtMilliseconds)) {
+    throw new Error(`Invalid task creation timestamp: ${createdAt}`);
+  }
+
+  return Math.max(0, Math.ceil((now - createdAtMilliseconds) / MILLISECONDS_PER_DAY));
+}
 
 export type TodoState = {
   revision: number;
@@ -125,8 +141,10 @@ async function parseBody(request: Request): Promise<Record<string, unknown>> {
 export function createTodoService(options: {
   databasePath: string;
   allowedOrigin: string;
+  now?: () => number;
 }) {
   const database = new Database(options.databasePath, { create: true });
+  const currentTime = options.now ?? (() => Date.now());
   const subscribers = new Set<ReadableStreamDefaultController<Uint8Array>>();
   const encoder = new TextEncoder();
 
@@ -143,16 +161,30 @@ export function createTodoService(options: {
       id TEXT PRIMARY KEY,
       text TEXT NOT NULL CHECK (length(text) BETWEEN 1 AND ${MAX_TASK_TEXT_LENGTH}),
       checked INTEGER NOT NULL CHECK (checked IN (0, 1)),
+      created_at TEXT NOT NULL,
       position INTEGER NOT NULL UNIQUE
     );
     CREATE INDEX IF NOT EXISTS todo_tasks_position ON todo_tasks(position);
+  `);
+
+  const taskColumns = database
+    .query<{ name: string }, []>("PRAGMA table_info(todo_tasks)")
+    .all();
+  if (taskColumns.some(({ name }) => name === "created_at") === false) {
+    // Existing databases predate timestamps; migration-time dates preserve their tasks.
+    database.exec("ALTER TABLE todo_tasks ADD COLUMN created_at TEXT");
+  }
+  database.exec(`
+    UPDATE todo_tasks
+    SET created_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+    WHERE created_at IS NULL;
   `);
 
   const revisionQuery = database.query<{ revision: number }, []>(
     "SELECT revision FROM todo_metadata WHERE singleton = 1",
   );
   const taskListQuery = database.query<TaskRow, []>(
-    "SELECT id, text, checked, position FROM todo_tasks ORDER BY position ASC",
+    "SELECT id, text, checked, created_at, position FROM todo_tasks ORDER BY position ASC",
   );
 
   function getRevision(): number {
@@ -160,12 +192,15 @@ export function createTodoService(options: {
   }
 
   function getState(): TodoState {
+    const now = currentTime();
     return {
       revision: getRevision(),
-      tasks: taskListQuery.all().map(({ id, text, checked }) => ({
+      tasks: taskListQuery.all().map(({ id, text, checked, created_at }) => ({
         id,
         text,
         checked: checked === 1,
+        createdAt: created_at,
+        ageDays: ageInDays(created_at, now),
       })),
     };
   }
@@ -201,9 +236,10 @@ export function createTodoService(options: {
         "SELECT COALESCE(MAX(position), -1) + 1 AS position FROM todo_tasks",
       )
       .get()!.position;
+    const createdAt = new Date(currentTime()).toISOString();
     database.run(
-      "INSERT INTO todo_tasks (id, text, checked, position) VALUES (?, ?, 0, ?)",
-      [crypto.randomUUID(), text, nextPosition],
+      "INSERT INTO todo_tasks (id, text, checked, created_at, position) VALUES (?, ?, 0, ?, ?)",
+      [crypto.randomUUID(), text, createdAt, nextPosition],
     );
     return advanceRevision();
   });
@@ -213,7 +249,7 @@ export function createTodoService(options: {
       assertRevision(expectedRevision);
       const current = database
         .query<TaskRow, [string]>(
-          "SELECT id, text, checked, position FROM todo_tasks WHERE id = ?",
+          "SELECT id, text, checked, created_at, position FROM todo_tasks WHERE id = ?",
         )
         .get(id);
       if (!current) {
@@ -276,18 +312,22 @@ export function createTodoService(options: {
   );
 
   const replaceTasks = database.transaction(
-    (tasks: Task[], expectedRevision: number) => {
+    (tasks: TaskInput[], expectedRevision: number) => {
       assertRevision(expectedRevision);
       if (new Set(tasks.map(({ id }) => id)).size !== tasks.length) {
         throw new ApiError(400, "invalid_request", "Task IDs must be unique");
       }
 
+      const createdAtById = new Map(
+        taskListQuery.all().map(({ id, created_at }) => [id, created_at] as const),
+      );
       database.run("DELETE FROM todo_tasks");
       const insertTask = database.query(
-        "INSERT INTO todo_tasks (id, text, checked, position) VALUES (?, ?, ?, ?)",
+        "INSERT INTO todo_tasks (id, text, checked, created_at, position) VALUES (?, ?, ?, ?, ?)",
       );
       tasks.forEach((task, position) => {
-        insertTask.run(task.id, task.text, task.checked ? 1 : 0, position);
+        const createdAt = createdAtById.get(task.id) ?? new Date(currentTime()).toISOString();
+        insertTask.run(task.id, task.text, task.checked ? 1 : 0, createdAt, position);
       });
       return advanceRevision();
     },
