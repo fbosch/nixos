@@ -35,6 +35,20 @@ let
 in
 {
   flake.modules.darwin.aerospace = {
+    imports = [
+      (
+        { pkgs, ... }:
+        {
+          services.skhd = {
+            enable = true;
+            skhdConfig = ''
+              # Keep this outside AeroSpace because `enable off` disables AeroSpace keybindings.
+              ctrl + alt - e : if ${aerospace} enable off --fail-if-noop; then ${pkgs.terminal-notifier}/bin/terminal-notifier -title 'AeroSpace' -message 'Automatic layout off'; elif ${aerospace} enable on --fail-if-noop; then ${pkgs.terminal-notifier}/bin/terminal-notifier -title 'AeroSpace' -message 'Automatic layout on'; else exit 1; fi
+            '';
+          };
+        }
+      )
+    ];
     services.aerospace = {
       enable = true;
       settings = {
@@ -114,7 +128,6 @@ in
         ];
 
         mode.main.binding = {
-          ctrl-alt-space = exec "open -a Raycast";
           alt-backtick = exec "open 'cleanshot://record-screen'";
           ctrl-alt-v = "layout floating tiling";
           ctrl-alt-f = "layout accordion tiles";
