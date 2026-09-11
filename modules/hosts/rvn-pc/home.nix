@@ -1,6 +1,8 @@
 { config, ... }:
 let
   flakeConfig = config;
+  obsidianVault = "/mnt/nas/FrederikDocs/Obsidian/Vault";
+  obsidianVaultId = builtins.substring 0 16 (builtins.hashString "sha256" obsidianVault);
 in
 {
   flake.modules.nixos."hosts/rvn-pc/home" =
@@ -23,6 +25,23 @@ in
                 setSessionVariables = true;
                 download = surgeSystem.outputDir;
               };
+
+              # Flatpak keeps Obsidian's global vault registry in its sandbox config.
+              home.file.".var/app/md.obsidian.Obsidian/config/obsidian/obsidian.json" = {
+                force = true;
+                text = builtins.toJSON {
+                  vaults = {
+                    ${obsidianVaultId} = {
+                      path = obsidianVault;
+                      open = true;
+                      ts = 0;
+                    };
+                  };
+                };
+              };
+              services.flatpak.overrides."md.obsidian.Obsidian".Context.filesystems = [
+                "${obsidianVault}:rw"
+              ];
 
               home.file."Downloads".source = config.lib.file.mkOutOfStoreSymlink config.xdg.userDirs.download;
 

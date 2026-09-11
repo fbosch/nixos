@@ -19,6 +19,7 @@
       autocutsel
       cliphist
       wl-clip-persist
+      wl-clipboard
       wtype
       xdotool
       (swaynotificationcenter.overrideAttrs (old: {
