@@ -11,7 +11,25 @@ in
     , ...
     }:
     let
-      comfyuiPackage = pkgs.comfyui.override { withManager = true; };
+      comfyuiPackage = (pkgs.comfyui.override { withManager = true; }).overrideAttrs (
+        old:
+        let
+          pythonEnv = old.passthru.pythonEnv.override (pythonEnvArgs: {
+            extraLibs = pythonEnvArgs.extraLibs ++ [ pkgs.python3Packages.color-matcher ];
+          });
+        in
+        {
+          # ComfyUI's launcher hard-codes its Python environment at build time.
+          postInstall = (old.postInstall or "") + ''
+            rm "$out/bin/comfyui"
+            makeBinaryWrapper ${lib.getExe pythonEnv} "$out/bin/comfyui" \
+              --add-flag "$out/share/comfyui/main.py" \
+              --unset NIX_PYTHONPATH \
+              --unset PYTHONPATH
+          '';
+          passthru = old.passthru // { inherit pythonEnv; };
+        }
+      );
       scriptRuntimeInputs = with pkgs; [
         coreutils
         curl
