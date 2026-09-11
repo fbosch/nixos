@@ -38,12 +38,23 @@ in
     imports = [
       (
         { pkgs, ... }:
+        let
+          toggleAerospaceLayout = pkgs.writeShellScript "toggle-aerospace-layout" ''
+            if ${aerospace} enable off --fail-if-noop; then
+              ${pkgs.terminal-notifier}/bin/terminal-notifier -title 'AeroSpace' -message 'Automatic layout off'
+            elif ${aerospace} enable on --fail-if-noop; then
+              ${pkgs.terminal-notifier}/bin/terminal-notifier -title 'AeroSpace' -message 'Automatic layout on'
+            else
+              exit 1
+            fi
+          '';
+        in
         {
           services.skhd = {
             enable = true;
             skhdConfig = ''
               # Keep this outside AeroSpace because `enable off` disables AeroSpace keybindings.
-              ctrl + alt - e : if ${aerospace} enable off --fail-if-noop; then ${pkgs.terminal-notifier}/bin/terminal-notifier -title 'AeroSpace' -message 'Automatic layout off'; elif ${aerospace} enable on --fail-if-noop; then ${pkgs.terminal-notifier}/bin/terminal-notifier -title 'AeroSpace' -message 'Automatic layout on'; else exit 1; fi
+              ctrl + alt - e : ${toggleAerospaceLayout}
             '';
           };
         }
