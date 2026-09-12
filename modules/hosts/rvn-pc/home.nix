@@ -67,6 +67,10 @@ in
                 };
                 Service = {
                   Type = "oneshot";
+                  Nice = 19;
+                  CPUWeight = 10;
+                  IOSchedulingClass = "idle";
+                  IOWeight = 10;
                   ExecStart = "${pkgs.writeShellScript "screenshot-cleanup" ''
                     set -euo pipefail
                     screenshot_dir="${config.home.homeDirectory}/Pictures/screenshots"
