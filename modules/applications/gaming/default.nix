@@ -4,6 +4,16 @@
   flake.modules.nixos.gaming =
     { pkgs, ... }:
     let
+      gamemodeResourcePolicy = pkgs.writeShellApplication {
+        name = "gamemode-resource-policy";
+        runtimeInputs = [
+          pkgs.coreutils
+          pkgs.jq
+          pkgs.systemd
+        ];
+        text = builtins.readFile ./gamemode-resource-policy.sh;
+      };
+
       wowup-cf-wayland = pkgs.symlinkJoin {
         name = "wowup-cf-wayland";
         paths = [ pkgs.wowup-cf ];
@@ -44,7 +54,23 @@
         };
 
         # Required for gaming performance
-        gamemode.enable = true;
+        gamemode = {
+          enable = true;
+          enableRenice = true;
+          settings.general.renice = 10;
+        };
+      };
+
+      systemd.user.services.gamemode-resource-policy = {
+        description = "Apply resource protection to GameMode client scopes";
+        wantedBy = [ "graphical-session.target" ];
+        after = [ "gamemoded.service" ];
+        requires = [ "gamemoded.service" ];
+        serviceConfig = {
+          ExecStart = "${gamemodeResourcePolicy}/bin/gamemode-resource-policy";
+          Restart = "on-failure";
+          RestartSec = 1;
+        };
       };
     };
 
