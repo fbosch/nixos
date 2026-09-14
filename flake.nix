@@ -30,6 +30,11 @@
   inputs = {
     # Core infrastructure
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    nixpkgs-comfyui = {
+      # Keep ComfyUI on the cached dependency closure until the newer one is available.
+      url = "github:NixOS/nixpkgs/8ce4ef6cb6f871616146b9fe26d2a5ae594e94fe";
+      flake = false;
+    };
     flake-parts = {
       url = "github:hercules-ci/flake-parts";
       inputs.nixpkgs-lib.follows = "nixpkgs";
