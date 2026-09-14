@@ -15,7 +15,14 @@ in
         old:
         let
           pythonEnv = old.passthru.pythonEnv.override (pythonEnvArgs: {
-            extraLibs = pythonEnvArgs.extraLibs ++ [ pkgs.python3Packages.color-matcher ];
+            extraLibs = pythonEnvArgs.extraLibs ++ [
+              pkgs.python3Packages.color-matcher
+              pkgs.python3Packages.opencv-python
+              pkgs.python3Packages.soundfile
+              pkgs.python3Packages.scikit-image
+              pkgs.python3Packages.ollama
+              pkgs.python3Packages.numba
+            ];
           });
         in
         {
