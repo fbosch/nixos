@@ -8,6 +8,8 @@
         name = "gamemode-resource-policy";
         runtimeInputs = [
           pkgs.coreutils
+          pkgs.gnugrep
+          pkgs.gnused
           pkgs.jq
           pkgs.systemd
         ];
@@ -56,8 +58,8 @@
         # Required for gaming performance
         gamemode = {
           enable = true;
-          enableRenice = true;
-          settings.general.renice = 10;
+          enableRenice = false;
+          settings.general.renice = 0;
         };
       };
 
@@ -91,8 +93,7 @@
         "io.mgba.mGBA" # GBA emulator
       ];
 
-      xdg.dataFile."icons/hicolor/512x512/apps/hytale-launcher.png".source =
-        hytaleLauncherIcon;
+      xdg.dataFile."icons/hicolor/512x512/apps/hytale-launcher.png".source = hytaleLauncherIcon;
 
       xdg.desktopEntries.wowup-cf = {
         name = "WowUp-CF";
