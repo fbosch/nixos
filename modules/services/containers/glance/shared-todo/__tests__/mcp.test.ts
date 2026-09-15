@@ -9,8 +9,8 @@ afterEach(() => {
   for (const service of services.splice(0)) service.close();
 });
 
-function handler() {
-  const todo = createTodoService({ databasePath: ":memory:", allowedOrigin: ORIGIN });
+function handler(now: () => number = Date.now) {
+  const todo = createTodoService({ databasePath: ":memory:", allowedOrigin: ORIGIN, now });
   services.push(todo);
   return createTodoMcpHandler({ todo, mutationOrigin: ORIGIN });
 }
@@ -50,7 +50,7 @@ describe("shared todo MCP", () => {
     });
     expect(initialized.result).toMatchObject({
       protocolVersion: "2025-06-18",
-      serverInfo: { name: "glance-shared-todo" },
+      serverInfo: { name: "glance-shared-todo", version: "1.2.0" },
     });
 
     const notification = await mcp.handle(
@@ -68,9 +68,13 @@ describe("shared todo MCP", () => {
     const listed = await rpc(mcp, 2, "tools/list", undefined, "2025-06-18");
     expect(listed.result.tools.map((tool: { name: string }) => tool.name)).toEqual([
       "list_tasks",
+      "find_tasks",
       "create_task",
       "update_task",
       "delete_task",
+      "delete_tasks",
+      "clear_checked_tasks",
+      "set_tasks_checked",
       "reorder_tasks",
     ]);
 
@@ -139,6 +143,105 @@ describe("shared todo MCP", () => {
     expect(state(response)).toMatchObject({ revision: 5, tasks: [{ id: second.id }] });
   });
 
+  test("finds tasks by checked state, age, sort, and limit", async () => {
+    const day = 24 * 60 * 60 * 1000;
+    let now = Date.parse("2026-09-01T00:00:00.000Z");
+    const mcp = handler(() => now);
+    let response = await rpc(mcp, 1, "tools/call", {
+      name: "create_task",
+      arguments: { text: "First", revision: 0 },
+    });
+    const first = state(response).tasks[0];
+
+    now += day;
+    response = await rpc(mcp, 2, "tools/call", {
+      name: "create_task",
+      arguments: { text: "Second", revision: 1 },
+    });
+
+    now += day;
+    response = await rpc(mcp, 3, "tools/call", {
+      name: "create_task",
+      arguments: { text: "Third", revision: 2 },
+    });
+    const third = state(response).tasks[2];
+
+    response = await rpc(mcp, 4, "tools/call", {
+      name: "find_tasks",
+      arguments: { olderThanDays: 1, sort: "oldest", limit: 2 },
+    });
+    expect(response.result.structuredContent).toMatchObject({
+      revision: 3,
+      totalMatches: 1,
+      tasks: [{ id: first.id, checked: false }],
+    });
+
+    response = await rpc(mcp, 5, "tools/call", {
+      name: "set_tasks_checked",
+      arguments: { taskIds: [first.id, third.id], checked: true, revision: 3 },
+    });
+    expect(state(response).revision).toBe(4);
+
+    response = await rpc(mcp, 6, "tools/call", {
+      name: "find_tasks",
+      arguments: { checked: true, sort: "newest", limit: 1 },
+    });
+    expect(response.result.structuredContent).toMatchObject({
+      revision: 4,
+      totalMatches: 2,
+      tasks: [{ id: third.id, checked: true }],
+    });
+  });
+
+  test("bulk checks, deletes, and clears tasks", async () => {
+    const mcp = handler();
+    let response = await rpc(mcp, 1, "tools/call", {
+      name: "create_task",
+      arguments: { text: "First", revision: 0 },
+    });
+    const first = state(response).tasks[0];
+
+    response = await rpc(mcp, 2, "tools/call", {
+      name: "create_task",
+      arguments: { text: "Second", revision: 1 },
+    });
+    const second = state(response).tasks[1];
+
+    response = await rpc(mcp, 3, "tools/call", {
+      name: "create_task",
+      arguments: { text: "Third", revision: 2 },
+    });
+    const third = state(response).tasks[2];
+
+    response = await rpc(mcp, 4, "tools/call", {
+      name: "set_tasks_checked",
+      arguments: { taskIds: [first.id, second.id], checked: true, revision: 3 },
+    });
+    expect(state(response)).toMatchObject({
+      revision: 4,
+      tasks: [
+        { id: first.id, checked: true },
+        { id: second.id, checked: true },
+        { id: third.id, checked: false },
+      ],
+    });
+
+    response = await rpc(mcp, 5, "tools/call", {
+      name: "delete_tasks",
+      arguments: { taskIds: [first.id, third.id], revision: 4 },
+    });
+    expect(state(response)).toMatchObject({
+      revision: 5,
+      tasks: [{ id: second.id, checked: true }],
+    });
+
+    response = await rpc(mcp, 6, "tools/call", {
+      name: "clear_checked_tasks",
+      arguments: { revision: 5 },
+    });
+    expect(state(response)).toMatchObject({ revision: 6, tasks: [] });
+  });
+
   test("returns tool errors for stale revisions and invalid arguments", async () => {
     const mcp = handler();
     await rpc(mcp, 1, "tools/call", {
@@ -160,6 +263,15 @@ describe("shared todo MCP", () => {
       arguments: { id: "missing", revision: 1 },
     });
     expect(invalid.result).toMatchObject({
+      isError: true,
+      structuredContent: { error: { code: "invalid_request" } },
+    });
+
+    const duplicateIds = await rpc(mcp, 4, "tools/call", {
+      name: "delete_tasks",
+      arguments: { taskIds: ["same", "same"], revision: 1 },
+    });
+    expect(duplicateIds.result).toMatchObject({
       isError: true,
       structuredContent: { error: { code: "invalid_request" } },
     });

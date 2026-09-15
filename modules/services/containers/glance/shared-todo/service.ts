@@ -108,6 +108,24 @@ function parseText(value: unknown): string {
   return text;
 }
 
+function parseTaskIds(value: unknown): string[] {
+  if (
+    !Array.isArray(value) ||
+    value.length === 0 ||
+    value.some((id) => typeof id !== "string" || id.length === 0)
+  ) {
+    throw new ApiError(
+      400,
+      "invalid_request",
+      "taskIds must be a non-empty array of non-empty strings",
+    );
+  }
+  if (new Set(value).size !== value.length) {
+    throw new ApiError(400, "invalid_request", "taskIds must contain unique IDs");
+  }
+  return value;
+}
+
 async function parseBody(request: Request): Promise<Record<string, unknown>> {
   const contentType = request.headers.get("Content-Type")?.split(";", 1)[0];
   if (contentType !== "application/json") {
@@ -285,6 +303,36 @@ export function createTodoService(options: {
     return advanceRevision();
   });
 
+  function assertTasksExist(taskIds: string[]): void {
+    const existingIds = new Set(taskListQuery.all().map(({ id }) => id));
+    if (taskIds.some((id) => existingIds.has(id) === false)) {
+      throw new ApiError(404, "not_found", "One or more tasks were not found");
+    }
+  }
+
+  const deleteTasks = database.transaction((taskIds: string[], expectedRevision: number) => {
+    assertRevision(expectedRevision);
+    assertTasksExist(taskIds);
+    taskIds.forEach((id) => database.run("DELETE FROM todo_tasks WHERE id = ?", [id]));
+    return advanceRevision();
+  });
+
+  const clearCheckedTasks = database.transaction((expectedRevision: number) => {
+    assertRevision(expectedRevision);
+    database.run("DELETE FROM todo_tasks WHERE checked = 1");
+    return advanceRevision();
+  });
+
+  const setTasksChecked = database.transaction(
+    (taskIds: string[], checked: boolean, expectedRevision: number) => {
+      assertRevision(expectedRevision);
+      assertTasksExist(taskIds);
+      taskIds.forEach((id) =>
+        database.run("UPDATE todo_tasks SET checked = ? WHERE id = ?", [checked ? 1 : 0, id]),
+      );
+      return advanceRevision();
+    },
+  );
   const reorderTasks = database.transaction(
     (taskIds: string[], expectedRevision: number) => {
       assertRevision(expectedRevision);
@@ -395,6 +443,16 @@ export function createTodoService(options: {
       let revision: number;
       if (request.method === "POST" && path === `${API_PREFIX}/tasks`) {
         revision = createTask(parseText(body.text), parseRevision(body.revision));
+      } else if (request.method === "PATCH" && path === `${API_PREFIX}/tasks`) {
+        const taskIds = parseTaskIds(body.taskIds);
+        if (typeof body.checked !== "boolean") {
+          throw new ApiError(400, "invalid_request", "checked must be a boolean");
+        }
+        revision = setTasksChecked(taskIds, body.checked, parseRevision(body.revision));
+      } else if (request.method === "DELETE" && path === `${API_PREFIX}/tasks`) {
+        revision = deleteTasks(parseTaskIds(body.taskIds), parseRevision(body.revision));
+      } else if (request.method === "DELETE" && path === `${API_PREFIX}/tasks/checked`) {
+        revision = clearCheckedTasks(parseRevision(body.revision));
       } else if (request.method === "PUT" && path === `${API_PREFIX}/tasks`) {
         if (!Array.isArray(body.tasks)) {
           throw new ApiError(400, "invalid_request", "tasks must be an array");

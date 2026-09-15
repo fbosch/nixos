@@ -4,6 +4,7 @@ const MCP_PATH = "/mcp";
 const MCP_PROTOCOL_VERSION = "2025-06-18";
 const MAX_REQUEST_BYTES = 64 * 1024;
 
+const MAX_FIND_TASK_LIMIT = 100;
 type JsonObject = Record<string, unknown>;
 
 type TodoService = {
@@ -85,6 +86,24 @@ function revisionFrom(arguments_: JsonObject): number {
   return arguments_.revision as number;
 }
 
+function optionalIntegerFrom(
+  arguments_: JsonObject,
+  name: string,
+  minimum: number,
+  maximum = Number.MAX_SAFE_INTEGER,
+): number | undefined {
+  const value = arguments_[name];
+  if (value === undefined) return undefined;
+  if (
+    !Number.isSafeInteger(value) ||
+    (value as number) < minimum ||
+    (value as number) > maximum
+  ) {
+    throw new ToolInputError(`${name} must be an integer between ${minimum} and ${maximum}`);
+  }
+  return value as number;
+}
+
 function stringFrom(arguments_: JsonObject, name: string): string {
   const value = arguments_[name];
   if (typeof value !== "string" || value.length === 0) {
@@ -94,11 +113,74 @@ function stringFrom(arguments_: JsonObject, name: string): string {
   return value;
 }
 
+function taskIdsFrom(arguments_: JsonObject): string[] {
+  const value = arguments_.taskIds;
+  if (
+    !Array.isArray(value) ||
+    value.length === 0 ||
+    value.some((id) => typeof id !== "string" || id.length === 0)
+  ) {
+    throw new ToolInputError("taskIds must be a non-empty array of non-empty strings");
+  }
+  if (new Set(value).size !== value.length) {
+    throw new ToolInputError("taskIds must contain unique IDs");
+  }
+  return value.filter((id): id is string => typeof id === "string");
+}
+
+function findTasks(todo: TodoService, arguments_: JsonObject): JsonObject {
+  assertKeys(arguments_, ["checked", "olderThanDays", "sort", "limit"]);
+  const checked = arguments_.checked;
+  if (checked !== undefined && typeof checked !== "boolean") {
+    throw new ToolInputError("checked must be a boolean");
+  }
+  const olderThanDays = optionalIntegerFrom(arguments_, "olderThanDays", 0);
+  const sort = arguments_.sort;
+  if (sort !== undefined && sort !== "position" && sort !== "oldest" && sort !== "newest") {
+    throw new ToolInputError("sort must be one of: position, oldest, newest");
+  }
+  const limit = optionalIntegerFrom(arguments_, "limit", 1, MAX_FIND_TASK_LIMIT);
+
+  const state = todo.getState();
+  let tasks = state.tasks.filter(
+    (task) =>
+      (checked === undefined || task.checked === checked) &&
+      (olderThanDays === undefined || task.ageDays > olderThanDays),
+  );
+  if (sort === "oldest") {
+    tasks.sort((left, right) => left.createdAt.localeCompare(right.createdAt));
+  } else if (sort === "newest") {
+    tasks.sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+  }
+  const totalMatches = tasks.length;
+  if (limit !== undefined) tasks = tasks.slice(0, limit);
+  return textResult({ ...state, tasks, totalMatches });
+}
+
 const tools = [
   {
     name: "list_tasks",
     description: "Return the current revision and ordered shared todo list.",
     inputSchema: { type: "object", additionalProperties: false },
+    annotations: { readOnlyHint: true, openWorldHint: false },
+  },
+  {
+    name: "find_tasks",
+    description: "Find tasks by completion state or age, optionally sorted and limited. Returns the current revision, matching tasks, and totalMatches before any limit.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        checked: { type: "boolean" },
+        olderThanDays: {
+          type: "integer",
+          minimum: 0,
+          description: "Only tasks strictly older than this many days.",
+        },
+        sort: { type: "string", enum: ["position", "oldest", "newest"] },
+        limit: { type: "integer", minimum: 1, maximum: MAX_FIND_TASK_LIMIT },
+      },
+      additionalProperties: false,
+    },
     annotations: { readOnlyHint: true, openWorldHint: false },
   },
   {
@@ -145,6 +227,58 @@ const tools = [
       additionalProperties: false,
     },
     annotations: { destructiveHint: true, openWorldHint: false },
+  },
+  {
+    name: "delete_tasks",
+    description: "Delete multiple tasks atomically. Call list_tasks first and pass its revision.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        taskIds: {
+          type: "array",
+          items: { type: "string", minLength: 1 },
+          minItems: 1,
+          uniqueItems: true,
+        },
+        revision: { type: "integer", minimum: 0 },
+      },
+      required: ["taskIds", "revision"],
+      additionalProperties: false,
+    },
+    annotations: { destructiveHint: true, openWorldHint: false },
+  },
+  {
+    name: "clear_checked_tasks",
+    description: "Delete all checked tasks atomically. Call list_tasks first and pass its revision.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        revision: { type: "integer", minimum: 0 },
+      },
+      required: ["revision"],
+      additionalProperties: false,
+    },
+    annotations: { destructiveHint: true, openWorldHint: false },
+  },
+  {
+    name: "set_tasks_checked",
+    description: "Set the checked state of multiple tasks atomically. Call list_tasks first and pass its revision.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        taskIds: {
+          type: "array",
+          items: { type: "string", minLength: 1 },
+          minItems: 1,
+          uniqueItems: true,
+        },
+        checked: { type: "boolean" },
+        revision: { type: "integer", minimum: 0 },
+      },
+      required: ["taskIds", "checked", "revision"],
+      additionalProperties: false,
+    },
+    annotations: { destructiveHint: false, idempotentHint: true, openWorldHint: false },
   },
   {
     name: "reorder_tasks",
@@ -195,6 +329,10 @@ export function createTodoMcpHandler(options: {
       return textResult(options.todo.getState());
     }
 
+    if (params.name === "find_tasks") {
+      return findTasks(options.todo, argumentsFrom(params));
+    }
+
     if (params.name === "create_task") {
       const arguments_ = argumentsFrom(params);
       assertKeys(arguments_, ["text", "revision"]);
@@ -238,6 +376,36 @@ export function createTodoMcpHandler(options: {
       );
     }
 
+    if (params.name === "delete_tasks") {
+      const arguments_ = argumentsFrom(params);
+      assertKeys(arguments_, ["taskIds", "revision"]);
+      return mutate("DELETE", "/api/shared-todo/tasks", {
+        taskIds: taskIdsFrom(arguments_),
+        revision: revisionFrom(arguments_),
+      });
+    }
+
+    if (params.name === "clear_checked_tasks") {
+      const arguments_ = argumentsFrom(params);
+      assertKeys(arguments_, ["revision"]);
+      return mutate("DELETE", "/api/shared-todo/tasks/checked", {
+        revision: revisionFrom(arguments_),
+      });
+    }
+
+    if (params.name === "set_tasks_checked") {
+      const arguments_ = argumentsFrom(params);
+      assertKeys(arguments_, ["taskIds", "checked", "revision"]);
+      if (typeof arguments_.checked !== "boolean") {
+        throw new ToolInputError("checked must be a boolean");
+      }
+      return mutate("PATCH", "/api/shared-todo/tasks", {
+        taskIds: taskIdsFrom(arguments_),
+        checked: arguments_.checked,
+        revision: revisionFrom(arguments_),
+      });
+    }
+
     if (params.name === "reorder_tasks") {
       const arguments_ = argumentsFrom(params);
       assertKeys(arguments_, ["taskIds", "revision"]);
@@ -269,7 +437,7 @@ export function createTodoMcpHandler(options: {
       return jsonRpcResult(message.id, {
         protocolVersion: MCP_PROTOCOL_VERSION,
         capabilities: { tools: {} },
-        serverInfo: { name: "glance-shared-todo", version: "1.0.0" },
+        serverInfo: { name: "glance-shared-todo", version: "1.2.0" },
         instructions: "List tasks before mutating them and pass the returned revision. On a conflict, list tasks again before retrying.",
       });
     }

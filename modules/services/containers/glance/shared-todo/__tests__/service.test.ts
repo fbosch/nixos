@@ -82,6 +82,64 @@ describe("shared todo service", () => {
     });
   });
 
+  test("bulk updates, deletes, and clears checked tasks atomically", async () => {
+    const service = await serviceAt();
+    const create = async (text: string, revision: number) => {
+      const response = await service.handle(
+        mutation("POST", "/api/shared-todo/tasks", { text, revision }),
+      );
+      return (await response.json()).tasks.at(-1);
+    };
+
+    const first = await create("First", 0);
+    const second = await create("Second", 1);
+    const third = await create("Third", 2);
+
+    const checked = await service.handle(
+      mutation("PATCH", "/api/shared-todo/tasks", {
+        taskIds: [first.id, second.id],
+        checked: true,
+        revision: 3,
+      }),
+    );
+    expect(await checked.json()).toMatchObject({
+      revision: 4,
+      tasks: [
+        { id: first.id, checked: true },
+        { id: second.id, checked: true },
+        { id: third.id, checked: false },
+      ],
+    });
+
+    const partiallyMissing = await service.handle(
+      mutation("DELETE", "/api/shared-todo/tasks", {
+        taskIds: [first.id, "missing"],
+        revision: 4,
+      }),
+    );
+    expect(partiallyMissing.status).toBe(404);
+    expect(service.getState()).toMatchObject({
+      revision: 4,
+      tasks: [{ id: first.id }, { id: second.id }, { id: third.id }],
+    });
+
+    const deleted = await service.handle(
+      mutation("DELETE", "/api/shared-todo/tasks", {
+        taskIds: [first.id, third.id],
+        revision: 4,
+      }),
+    );
+    expect(await deleted.json()).toMatchObject({
+      revision: 5,
+      tasks: [{ id: second.id, checked: true }],
+    });
+
+    const cleared = await service.handle(
+      mutation("DELETE", "/api/shared-todo/tasks/checked", { revision: 5 }),
+    );
+    expect(await cleared.json()).toMatchObject({ revision: 6, tasks: [] });
+  });
+
   test("rejects stale revisions without changing state", async () => {
     const service = await serviceAt();
     await service.handle(
