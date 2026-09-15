@@ -37,7 +37,7 @@ apply_policy() {
   [[ -z "${protected_scopes[$unit]:-}" ]] || return 0
 
   if systemctl --user set-property --runtime -- "$unit" \
-    MemoryLow=8G \
+    MemoryLow=12G \
     CPUWeight=900 \
     IOWeight=900
   then

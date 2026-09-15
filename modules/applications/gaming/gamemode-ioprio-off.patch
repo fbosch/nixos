@@ -1,0 +1,13 @@
+diff --git a/daemon/gamemode-config.c b/daemon/gamemode-config.c
+index 93b65f8..440ad68 100644
+--- a/daemon/gamemode-config.c
++++ b/daemon/gamemode-config.c
+@@ -772,6 +772,8 @@ long config_get_ioprio_value(GameModeConfig *self)
+ 		value = atoi(ioprio_value);
+ 
+ 	/* Validate values */
++	if (IOPRIO_DONT_SET == value)
++		return value;
+ 	if (IOPRIO_RESET_DEFAULT == value) {
+ 		LOG_ONCE(MSG, "IO priority will be reset to default behavior (based on CPU priority).\n");
+ 		value = 0;

@@ -64,6 +64,7 @@
                 url = "https://github.com/FeralInteractive/gamemode/commit/92730d09dc20f654e7c96903c011cdade7a93e2f.patch";
                 hash = "sha256-R/zcfLDCCnIeO05cYwK4GpY9QnHZeE+H5BX78LavuaE=";
               })
+              ./gamemode-ioprio-off.patch
             ];
           });
           enableRenice = false;
