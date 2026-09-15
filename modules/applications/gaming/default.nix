@@ -67,7 +67,10 @@
             ];
           });
           enableRenice = false;
-          settings.general.renice = 0;
+          settings.general = {
+            renice = 0;
+            ioprio = "off";
+          };
         };
       };
 
