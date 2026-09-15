@@ -58,6 +58,14 @@
         # Required for gaming performance
         gamemode = {
           enable = true;
+          package = pkgs.gamemode.overrideAttrs (old: {
+            patches = (old.patches or [ ]) ++ [
+              (pkgs.fetchpatch {
+                url = "https://github.com/FeralInteractive/gamemode/commit/92730d09dc20f654e7c96903c011cdade7a93e2f.patch";
+                hash = "sha256-R/zcfLDCCnIeO05cYwK4GpY9QnHZeE+H5BX78LavuaE=";
+              })
+            ];
+          });
           enableRenice = false;
           settings.general.renice = 0;
         };
@@ -67,7 +75,6 @@
         description = "Apply resource protection to GameMode client scopes";
         wantedBy = [ "graphical-session.target" ];
         after = [ "gamemoded.service" ];
-        requires = [ "gamemoded.service" ];
         serviceConfig = {
           ExecStart = "${gamemodeResourcePolicy}/bin/gamemode-resource-policy";
           Restart = "on-failure";
