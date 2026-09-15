@@ -8,34 +8,16 @@ pkgs.stdenvNoCC.mkDerivation {
 
   installPhase =
     let
+      sfPro = pkgs.fetchFromGitHub {
+        owner = "sahibjotsaggu";
+        repo = "San-Francisco-Pro-Fonts";
+        rev = "8bfea09aa6f1139479f80358b2e1e5c6dc991a58";
+        hash = "sha256-mAXExj8n8gFHq19HfGy4UOJYKVGPYgarGd/04kUIqX4=";
+      };
       fonts = {
         "AppleColorEmoji.ttf" = {
           url = "https://github.com/samuelngs/apple-emoji-linux/releases/download/v18.4/AppleColorEmoji.ttf";
           hash = "sha256-pP0He9EUN7SUDYzwj0CE4e39SuNZ+SVz7FdmUviF6r0=";
-        };
-        "SF-Pro-Display-Regular.otf" = {
-          url = "https://raw.githubusercontent.com/sahibjotsaggu/San-Francisco-Pro-Fonts/master/SF-Pro-Display-Regular.otf";
-          hash = "sha256-fcBKwRAA91nJc6RcYQniwWQ3LbDbI91HlsiH33MEjNA=";
-        };
-        "SF-Pro-Text-Regular.otf" = {
-          url = "https://raw.githubusercontent.com/sahibjotsaggu/San-Francisco-Pro-Fonts/master/SF-Pro-Text-Regular.otf";
-          hash = "sha256-Ov0qyVxb/487oy8NZYZACUdnRznYV+c/TXtjlLCui3c=";
-        };
-        "SF-Pro-Rounded-Regular.otf" = {
-          url = "https://raw.githubusercontent.com/sahibjotsaggu/San-Francisco-Pro-Fonts/master/SF-Pro-Rounded-Regular.otf";
-          hash = "sha256-law3sWLJMN9jjLnLFJw2+HHL8fQpZsyYuA63/uGtyW4=";
-        };
-        "SF-Pro-Rounded-Medium.otf" = {
-          url = "https://raw.githubusercontent.com/sahibjotsaggu/San-Francisco-Pro-Fonts/master/SF-Pro-Rounded-Medium.otf";
-          hash = "sha256-pTyu3elDUk/6ImW24eJNJ3t2kSMPfYB1XLQZ167yj70=";
-        };
-        "SF-Pro-Rounded-Semibold.otf" = {
-          url = "https://raw.githubusercontent.com/sahibjotsaggu/San-Francisco-Pro-Fonts/master/SF-Pro-Rounded-Semibold.otf";
-          hash = "sha256-iqm39XBGVQ78JzkPNOnYjn+SUz6jpC0v9pv4UuHl1Oc=";
-        };
-        "SF-Pro-Rounded-Bold.otf" = {
-          url = "https://raw.githubusercontent.com/sahibjotsaggu/San-Francisco-Pro-Fonts/master/SF-Pro-Rounded-Bold.otf";
-          hash = "sha256-eLDNVmeashZbIpUiPWUZq84TnbB5VJO/Y3b23ZtQBBs=";
         };
         "SF-Mono-Regular.otf" = {
           url = "https://raw.githubusercontent.com/supercomputra/SF-Mono-Font/master/SFMono-Regular.otf";
@@ -44,16 +26,22 @@ pkgs.stdenvNoCC.mkDerivation {
       };
       sources = pkgs.lib.mapAttrs (_: source: pkgs.fetchurl source) fonts;
     in
-    pkgs.lib.concatLines (
-      pkgs.lib.mapAttrsToList
-        (
+    ''
+      install -dm755 "$out/share/fonts/truetype"
+
+      for font in "${sfPro}"/*.otf "${sfPro}"/*.ttf; do
+        install -Dm644 "$font" "$out/share/fonts/truetype/$(basename "$font")"
+      done
+
+      ${pkgs.lib.concatLines (
+        pkgs.lib.mapAttrsToList (
           name: source: ''install -Dm644 ${source} "$out/share/fonts/truetype/${name}"''
-        )
-        sources
-    );
+        ) sources
+      )}
+    '';
 
   meta = with pkgs.lib; {
-    description = "Apple Color Emoji and San Francisco fonts";
+    description = "Apple Color Emoji, San Francisco Pro, and San Francisco Mono fonts";
     homepage = "https://developer.apple.com/fonts/";
     license = licenses.unfree;
     platforms = platforms.linux;

@@ -1,21 +1,34 @@
-{ config, ... }:
+{ config, inputs, ... }:
 let
   flakeConfig = config;
+  comfyuiPkgsFor = system:
+    import inputs.nixpkgs-comfyui {
+      inherit system;
+      config = {
+        allowUnfree = true;
+        cudaSupport = true;
+      };
+    };
   dataDir = "/mnt/storage/ComfyUI";
   port = 8188;
 in
 {
   flake.modules.nixos."services/comfyui" =
-    { lib
-    , pkgs
-    , ...
-    }:
+    { lib, pkgs, ... }:
     let
-      comfyuiPackage = (pkgs.comfyui.override { withManager = true; }).overrideAttrs (
+      comfyuiPkgs = comfyuiPkgsFor pkgs.stdenv.hostPlatform.system;
+      comfyuiPackage = (comfyuiPkgs.comfyui.override { withManager = true; }).overrideAttrs (
         old:
         let
           pythonEnv = old.passthru.pythonEnv.override (pythonEnvArgs: {
-            extraLibs = pythonEnvArgs.extraLibs ++ [ pkgs.python3Packages.color-matcher ];
+            extraLibs = pythonEnvArgs.extraLibs ++ [
+              comfyuiPkgs.python3Packages.color-matcher
+              comfyuiPkgs.python3Packages.opencv-python
+              comfyuiPkgs.python3Packages.soundfile
+              comfyuiPkgs.python3Packages.scikit-image
+              comfyuiPkgs.python3Packages.ollama
+              comfyuiPkgs.python3Packages.numba
+            ];
           });
         in
         {

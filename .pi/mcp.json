@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "nixos": {
+      "command": "podman",
+      "args": ["run", "--rm", "-i", "ghcr.io/utensils/mcp-nixos"]
+    },
+    "shared-todo": {
+      "url": "http://192.168.1.46:8092/mcp",
+      "protocolVersion": "auto"
+    }
+  }
+}

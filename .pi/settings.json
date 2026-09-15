@@ -4,5 +4,9 @@
       "path": "~/dotfiles",
       "description": "Personal dotfiles configuration"
     }
+  },
+  "footer": {
+    "icon": "",
+    "color": "blue"
   }
 }

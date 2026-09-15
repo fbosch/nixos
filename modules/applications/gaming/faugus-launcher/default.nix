@@ -6,10 +6,11 @@
     };
 
   flake.modules.homeManager.applications =
-    { config
-    , lib
-    , pkgs
-    , ...
+    {
+      config,
+      lib,
+      pkgs,
+      ...
     }:
     let
       faugusPrefixRequirements = [
@@ -20,12 +21,10 @@
         }
       ];
       faugusPrefixRequirementsFile = pkgs.writeText "faugus-prefix-requirements.tsv" (
-        lib.concatMapStringsSep "\n"
-          (
-            requirement:
-            "${requirement.selection}\t${requirement.runner}\t${lib.concatStringsSep " " (lib.sort builtins.lessThan (lib.unique requirement.verbs))}"
-          )
-          faugusPrefixRequirements
+        lib.concatMapStringsSep "\n" (
+          requirement:
+          "${requirement.selection}\t${requirement.runner}\t${lib.concatStringsSep " " (lib.sort builtins.lessThan (lib.unique requirement.verbs))}"
+        ) faugusPrefixRequirements
         + "\n"
       );
       faugusPrefixSetup = pkgs.writeShellApplication {
@@ -49,6 +48,7 @@
       faugusLaunchArguments = [
         # Battle.net / World of Warcraft
         "GAMEID=umu-worldofwarcraft mullvad-exclude"
+        "PROTON_ENABLE_WAYLAND=0 GAMEID=umu-warcraftiii"
         "GAMEID=umu-infinitefusion mullvad-exclude"
         "GAMEID=umu-infinitefusionkanto"
         "GAMEID=umu-pokemonnova"

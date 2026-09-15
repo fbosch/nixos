@@ -45,7 +45,7 @@ in
       # Keep media services limited to shares they manage.
       cifsOptionsFor =
         share:
-        "credentials=${nixosConfig.sops.templates.smbcredentials.path},uid=${flakeConfig.flake.meta.user.username},gid=${shareGroup share},forceuid,forcegid,iocharset=utf8,file_mode=0660,dir_mode=0770,vers=3.0";
+        "credentials=${nixosConfig.sops.templates.smbcredentials.path},uid=${flakeConfig.flake.meta.user.username},gid=${shareGroup share},forceuid,forcegid,iocharset=utf8,file_mode=0660,dir_mode=0770,vers=3.1.1";
 
       # Generate tmpfile rule for a share
       mkTmpfileRule =
