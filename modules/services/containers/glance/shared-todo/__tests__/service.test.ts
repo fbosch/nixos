@@ -1,3 +1,4 @@
+import { Database } from "bun:sqlite";
 import { afterEach, describe, expect, test } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -15,8 +16,8 @@ afterEach(async () => {
   }
 });
 
-async function serviceAt(databasePath = ":memory:") {
-  const service = createTodoService({ databasePath, allowedOrigin: ORIGIN });
+async function serviceAt(databasePath = ":memory:", now = Date.now) {
+  const service = createTodoService({ databasePath, allowedOrigin: ORIGIN, now });
   services.push(service);
   return service;
 }
@@ -108,15 +109,19 @@ describe("shared todo service", () => {
       }),
     );
 
+    const replaced = await response.json();
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({
+    expect(replaced).toMatchObject({
       revision: 1,
       tasks: [
         { id: "second", text: "Second", checked: true },
         { id: "first", text: "First", checked: false },
       ],
     });
-
+    expect(replaced.tasks[0].createdAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    expect(replaced.tasks[0].ageDays).toBeGreaterThanOrEqual(0);
+    expect(replaced.tasks[1].createdAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    expect(replaced.tasks[1].ageDays).toBeGreaterThanOrEqual(0);
     const invalid = await service.handle(
       mutation("PUT", "/api/shared-todo/tasks", {
         revision: 1,
@@ -128,6 +133,107 @@ describe("shared todo service", () => {
     );
     expect(invalid.status).toBe(400);
     expect(service.getState().revision).toBe(1);
+  });
+
+  test("reports task age from its creation timestamp", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "glance-shared-todo-age-"));
+    directories.push(directory);
+    const databasePath = join(directory, "todo.sqlite");
+    const database = new Database(databasePath);
+    database.exec(`
+      CREATE TABLE todo_metadata (
+        singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+        revision INTEGER NOT NULL
+      );
+      INSERT INTO todo_metadata (singleton, revision) VALUES (1, 0);
+      CREATE TABLE todo_tasks (
+        id TEXT PRIMARY KEY,
+        text TEXT NOT NULL,
+        checked INTEGER NOT NULL,
+        created_at TEXT NOT NULL,
+        position INTEGER NOT NULL UNIQUE
+      );
+    `);
+    database.run(
+      "INSERT INTO todo_tasks (id, text, checked, created_at, position) VALUES (?, ?, ?, ?, ?)",
+      ["warning", "Warning", 0, "2026-09-14T00:00:00.000Z", 0],
+    );
+    database.run(
+      "INSERT INTO todo_tasks (id, text, checked, created_at, position) VALUES (?, ?, ?, ?, ?)",
+      ["critical", "Critical", 0, "2026-09-05T00:00:00.000Z", 1],
+    );
+    database.close();
+
+    const now = Date.parse("2026-09-20T00:00:00.000Z");
+    const service = await serviceAt(databasePath, () => now);
+    expect(service.getState().tasks).toEqual([
+      {
+        id: "warning",
+        text: "Warning",
+        checked: false,
+        createdAt: "2026-09-14T00:00:00.000Z",
+        ageDays: 6,
+      },
+      {
+        id: "critical",
+        text: "Critical",
+        checked: false,
+        createdAt: "2026-09-05T00:00:00.000Z",
+        ageDays: 15,
+      },
+    ]);
+  });
+
+  test("migrates existing tasks to creation timestamps", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "glance-shared-todo-migration-"));
+    directories.push(directory);
+    const databasePath = join(directory, "todo.sqlite");
+    const database = new Database(databasePath);
+    database.exec(`
+      CREATE TABLE todo_metadata (
+        singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+        revision INTEGER NOT NULL
+      );
+      INSERT INTO todo_metadata (singleton, revision) VALUES (1, 0);
+      CREATE TABLE todo_tasks (
+        id TEXT PRIMARY KEY,
+        text TEXT NOT NULL,
+        checked INTEGER NOT NULL,
+        position INTEGER NOT NULL UNIQUE
+      );
+      INSERT INTO todo_tasks (id, text, checked, position) VALUES ('legacy', 'Legacy', 0, 0);
+    `);
+    database.close();
+
+    const service = await serviceAt(databasePath);
+    expect(service.getState().tasks[0]).toMatchObject({
+      id: "legacy",
+      text: "Legacy",
+      checked: false,
+    });
+    expect(service.getState().tasks[0].createdAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+  });
+
+  test("preserves creation timestamps when replacing tasks", async () => {
+    const now = Date.parse("2026-09-20T00:00:00.000Z");
+    const service = await serviceAt(":memory:", () => now);
+    const created = await service.handle(
+      mutation("POST", "/api/shared-todo/tasks", { text: "Original", revision: 0 }),
+    );
+    const original = (await created.json()).tasks[0];
+
+    const replaced = await service.handle(
+      mutation("PUT", "/api/shared-todo/tasks", {
+        revision: 1,
+        tasks: [{ id: original.id, text: "Updated", checked: false }],
+      }),
+    );
+    expect((await replaced.json()).tasks[0]).toMatchObject({
+      id: original.id,
+      text: "Updated",
+      createdAt: original.createdAt,
+      ageDays: 0,
+    });
   });
 
   test("validates mutation origin, content, and complete ordering", async () => {
@@ -173,13 +279,14 @@ describe("shared todo service", () => {
     await first.handle(
       mutation("POST", "/api/shared-todo/tasks", { text: "Persistent", revision: 0 }),
     );
+    const createdAt = first.getState().tasks[0].createdAt;
     first.close();
     services.splice(services.indexOf(first), 1);
 
     const reopened = await serviceAt(databasePath);
     expect(reopened.getState()).toMatchObject({
       revision: 1,
-      tasks: [{ text: "Persistent", checked: false }],
+      tasks: [{ text: "Persistent", checked: false, createdAt }],
     });
   });
 
