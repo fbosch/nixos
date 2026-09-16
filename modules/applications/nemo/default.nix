@@ -15,6 +15,15 @@
           sed -i '0,/g_string_append (sparql, ")");/s//g_string_append (sparql, "))");/' libnemo-private/nemo-search-engine-tracker.c
         '';
       });
+      nemoPreview = pkgs.nemo-preview.overrideAttrs (old: {
+        patches = (old.patches or [ ]) ++ [ ./patches/nemo-preview-blp.patch ];
+        postPatch = (old.postPatch or "") + ''
+          substituteInPlace src/js/viewers/image.js \
+            --replace-fail \
+            '@BLP_CONV@' \
+            '${pkgs.local."blp-conv"}/bin/blp-conv'
+        '';
+      });
     in
     {
       services.gnome.localsearch.enable = true;
@@ -25,7 +34,7 @@
           extensions = [
             local.nemo-image-converter
             pkgs.nemo-fileroller
-            pkgs.nemo-preview
+            nemoPreview
           ];
         })
 

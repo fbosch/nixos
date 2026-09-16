@@ -16,6 +16,7 @@
       defaultFileExplorer = "nemo.desktop";
       defaultImageViewer = "org.gnome.Loupe.desktop";
       defaultMediaPlayer = "mpv.desktop";
+      defaultBlpViewer = "xnviewmp.desktop";
       defaultExeLauncher = "faugus-launcher.desktop";
       defaultWebBrowser = "app.zen_browser.zen.desktop";
     in
@@ -30,13 +31,14 @@
       xdg.mimeApps = {
         enable = true;
 
-        # Explicitly add Loupe to associations so it wins over flatpak
-        # mimeinfo.cache entries (e.g. Gradia) which appear earlier in
-        # XDG_DATA_DIRS than the nix per-user profile.
+        # Explicitly add the configured image viewers to associations so they
+        # win over flatpak mimeinfo.cache entries (e.g. Gradia) which appear
+        # earlier in XDG_DATA_DIRS than the nix per-user profile.
         associations.added = {
           "image/png" = [ defaultImageViewer ];
           "image/jpeg" = [ defaultImageViewer ];
           "image/webp" = [ defaultImageViewer ];
+          "image/x-blp" = [ defaultBlpViewer ];
 
           "video/3gpp" = [ defaultMediaPlayer ];
           "video/mp2t" = [ defaultMediaPlayer ];
@@ -80,6 +82,7 @@
           "image/avif" = [ defaultImageViewer ];
           "image/heic" = [ defaultImageViewer ];
           "image/heif" = [ defaultImageViewer ];
+          "image/x-blp" = [ defaultBlpViewer ];
 
           # Video formats
           "video/3gpp" = [ defaultMediaPlayer ];
@@ -106,6 +109,15 @@
           "application/x-tar" = [ "org.gnome.FileRoller.desktop" ];
           "application/gzip" = [ "org.gnome.FileRoller.desktop" ];
         };
+      };
+      xdg.desktopEntries.xnviewmp = {
+        name = "XnView MP";
+        comment = "Image viewer for Blizzard Picture textures";
+        exec = "xnviewmp %F";
+        icon = "xnviewmp";
+        categories = [ "Graphics" ];
+        terminal = false;
+        type = "Application";
       };
     };
 }

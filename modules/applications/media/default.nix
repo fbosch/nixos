@@ -6,6 +6,7 @@
         sushi
         loupe
         plezy
+        xnviewmp
         local."webapp/youtubemusic"
         local."webapp/synologyphotos"
       ];

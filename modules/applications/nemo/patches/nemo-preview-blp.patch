@@ -1,0 +1,74 @@
+--- a/src/js/viewers/image.js
++++ b/src/js/viewers/image.js
+@@ -30,6 +30,7 @@
+ const GdkPixbuf = imports.gi.GdkPixbuf;
+ const GtkClutter = imports.gi.GtkClutter;
+ const GLib = imports.gi.GLib;
++const Gio = imports.gi.Gio;
+ 
+ const Gettext = imports.gettext.domain('nemo-extensions');
+ const _ = Gettext.gettext;
+@@ -87,6 +88,11 @@
+              this._texture = new GtkClutter.Texture({ keep_aspect_ratio: true });
+              this._texture.set_from_pixbuf(pix);
+ 
++            if (this._cleanupPath) {
++                GLib.unlink(this._cleanupPath);
++                this._cleanupPath = null;
++            }
++
+              if (!anim.is_static_image())
+                  this._startTimeout();
+ 
+@@ -155,3 +161,48 @@
+     let mimeTypes = formats[idx].get_mime_types();
+     handler.registerMimeTypes(mimeTypes, renderer);
+ }
++
++
++function BlpImageRenderer(args) {
++    this._init(args);
++}
++
++BlpImageRenderer.prototype = Object.create(ImageRenderer.prototype);
++
++BlpImageRenderer.prototype._createImageTexture = function(file) {
++    let inputPath = file.get_path();
++    let outputPath = GLib.build_filenamev([
++        GLib.get_tmp_dir(),
++        'nemo-preview-blp-' + GLib.uuid_string_random() + '.png'
++    ]);
++
++    let [success, stdout, stderr, status] = GLib.spawn_sync(
++        null,
++        ['@BLP_CONV@', inputPath, outputPath],
++        null,
++        GLib.SpawnFlags.SEARCH_PATH,
++        null);
++
++    if (!success || status !== 0) {
++        log('Unable to convert BLP file ' + inputPath);
++        GLib.unlink(outputPath);
++        this._callback();
++        return;
++    }
++
++    this._cleanupPath = outputPath;
++    let convertedFile = Gio.File.new_for_path(outputPath);
++    convertedFile.read_async
++        (GLib.PRIORITY_DEFAULT, null,
++         Lang.bind(this,
++                   function(obj, res) {
++                       try {
++                           let stream = obj.read_finish(res);
++                           this._textureFromStream(stream);
++                       } catch (e) {
++                           GLib.unlink(outputPath);
++                           this._cleanupPath = null;
++                           this._callback();
++                       }
++                   }));
++};
++
++let blpRenderer = new BlpImageRenderer();
++handler.registerMimeTypes(['image/x-blp'], blpRenderer);

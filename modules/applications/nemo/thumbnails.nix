@@ -2,6 +2,41 @@
   flake.modules.nixos.applications =
     { pkgs, lib, ... }:
     let
+      blpMimeType = pkgs.writeTextFile {
+        name = "blp-mime-type";
+        destination = "/share/mime/packages/blp.xml";
+        text = ''
+          <?xml version="1.0" encoding="UTF-8"?>
+          <mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+            <mime-type type="image/x-blp">
+              <comment>Blizzard Picture</comment>
+              <glob pattern="*.blp" weight="80"/>
+              <magic priority="50">
+                <match type="string" offset="0" value="BLP1"/>
+                <match type="string" offset="0" value="BLP2"/>
+              </magic>
+            </mime-type>
+          </mime-info>
+        '';
+      };
+      blpThumbnailer = pkgs.writeShellApplication {
+        name = "blp-thumbnailer";
+        runtimeInputs = [
+          pkgs.coreutils
+          pkgs.imagemagick
+          pkgs.local."blp-conv"
+        ];
+        text = ''
+          size="$1"
+          input="$2"
+          output="$3"
+          tmp="$(mktemp --suffix=.png)"
+          trap 'rm -f "$tmp"' EXIT
+
+          blp-conv "$input" "$tmp"
+          magick "$tmp" -thumbnail "''${size}x''${size}" "PNG:$output"
+        '';
+      };
       avifThumbnailer = pkgs.writeShellApplication {
         name = "avif-thumbnailer";
         runtimeInputs = [
@@ -27,6 +62,7 @@
         libjpeg
         libavif
         libheif
+        blpMimeType
         webp-pixbuf-loader
 
         gnome-desktop
@@ -56,6 +92,17 @@
             TryExec=${avifThumbnailer}/bin/avif-thumbnailer
             Exec=${avifThumbnailer}/bin/avif-thumbnailer %s %i %o
             MimeType=image/avif;image/avif-sequence;
+          '';
+        })
+
+        (writeTextFile {
+          name = "blp-thumbnailer-entry";
+          destination = "/share/thumbnailers/blp.thumbnailer";
+          text = ''
+            [Thumbnailer Entry]
+            TryExec=${blpThumbnailer}/bin/blp-thumbnailer
+            Exec=${blpThumbnailer}/bin/blp-thumbnailer %s %i %o
+            MimeType=image/x-blp;
           '';
         })
       ];
