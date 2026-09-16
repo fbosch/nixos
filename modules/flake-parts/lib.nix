@@ -4,6 +4,8 @@
 }:
 {
   config.flake.lib = {
+    iconOverrides = import ../../lib/icon-overrides.nix { inherit lib; };
+
     sopsFiles = {
       apis = ../../secrets/apis.yaml;
       common = ../../secrets/common.yaml;

@@ -2,7 +2,7 @@
 {
   imports = [ inputs.nix-unit.modules.flake.default ];
 
-  perSystem = { lib, ... }: {
+  perSystem = { lib, pkgs, ... }: {
     nix-unit = {
       inputs =
         (builtins.mapAttrs (_name: input: input.outPath) (builtins.removeAttrs inputs [ "self" ]))
@@ -12,6 +12,11 @@
         };
 
       tests = {
+        iconOverrides = import ../../tests/nix-unit/icon-overrides.nix {
+          inherit lib;
+          composeIconTheme = config.flake.lib.iconOverrides.composeIconTheme pkgs;
+        };
+
         sopsHelpers = import ../../tests/nix-unit/sops-helpers.nix {
           inherit (config.flake.lib) sopsHelpers;
         };
@@ -55,6 +60,11 @@
         };
 
       };
+    };
+
+    checks.iconOverrides = import ../../tests/icon-overrides-check.nix {
+      inherit lib pkgs;
+      composeIconTheme = config.flake.lib.iconOverrides.composeIconTheme pkgs;
     };
   };
 }
