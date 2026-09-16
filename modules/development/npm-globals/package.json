@@ -1,7 +1,7 @@
 {
   "name": "nixos-npm-globals",
   "private": true,
-  "packageManager": "pnpm@11.5.1",
+  "packageManager": "pnpm@11.11.0",
   "dependencies": {
     "@fbb.sh/pkdx": "0.7.1",
     "docs-cache": "0.7.0",
