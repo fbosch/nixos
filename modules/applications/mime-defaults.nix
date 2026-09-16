@@ -8,10 +8,7 @@
     };
 
   flake.modules.homeManager.applications =
-    { pkgs
-    , lib
-    , ...
-    }:
+    { pkgs, ... }:
     let
       defaultFileExplorer = "nemo.desktop";
       defaultImageViewer = "org.gnome.Loupe.desktop";
@@ -113,9 +110,10 @@
       xdg.desktopEntries.xnviewmp = {
         name = "XnView MP";
         comment = "Image viewer for Blizzard Picture textures";
-        exec = "xnviewmp %F";
+        exec = "${pkgs.xnviewmp}/bin/xnviewmp %F";
         icon = "xnviewmp";
         categories = [ "Graphics" ];
+        mimeType = [ "image/x-blp" ];
         terminal = false;
         type = "Application";
       };
