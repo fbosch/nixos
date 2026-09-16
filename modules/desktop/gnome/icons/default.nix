@@ -114,7 +114,7 @@
         src = pkgs.fetchFromGitHub {
           owner = "yeyushengfan258";
           repo = "Win11-icon-theme";
-          rev = "main";
+          rev = "a5b460a407da143b32f19a503d7fcebb3edf2371";
           sha256 = "sha256-+GtOkOVSWlNTdKSs0R86LhnpbBZ21Y0ML3V8pwDUUSc=";
         };
         nativeBuildInputs = [ pkgs.gtk3 ];
@@ -122,20 +122,38 @@
         dontFixup = true;
         installPhase = ''
           runHook preInstall
-
           patchShebangs install.sh
           mkdir -p $out/share/icons
-
           DESTDIR="$out" ./install.sh -d $out/share/icons -n Win11
-
           find $out/share/icons -xtype l -delete
-
           for dir in $out/share/icons/*/; do
             if [ -f "$dir/index.theme" ]; then
               ${pkgs.gtk3}/bin/gtk-update-icon-cache -f -t "$dir" || true
             fi
           done
+          runHook postInstall
+        '';
+      };
 
+      confluxIconsBase = pkgs.stdenv.mkDerivation {
+        name = "Conflux";
+        src = pkgs.fetchFromGitHub {
+          owner = "MoshiurRahmanAdib";
+          repo = "Conflux-Icon-Theme";
+          rev = "d64da34e6e81dd9a08ca068d55038b0578b1ba98";
+          sha256 = "sha256-jmm+k7S1w02iEbUhviyKViBxbdJFnusvSKVA6hA1l0A=";
+        };
+        nativeBuildInputs = [ pkgs.gtk3 ];
+        dontBuild = true;
+        dontFixup = true;
+        installPhase = ''
+          runHook preInstall
+          mkdir -p $out/share/icons/Conflux
+          cp -ar apps apps@2x devices devices@2x emblems emblems@2x index.theme mimes mimes@2x places places@2x preferences preferences@2x status status@2x $out/share/icons/Conflux/
+          rm -rf "$out/share/icons/Conflux/status"
+          cp -ar "${win11IconsBase}/share/icons/Win11-dark/status" "$out/share/icons/Conflux/status"
+          sed -i 's/^Inherits=.*/Inherits=Win11-dark,Win11,Adwaita,breeze,hicolor/' $out/share/icons/Conflux/index.theme
+          ${pkgs.gtk3}/bin/gtk-update-icon-cache -f -t $out/share/icons/Conflux || true
           runHook postInstall
         '';
       };
@@ -168,7 +186,7 @@
         tar -xf ${pkgs.gnome-calendar.src} --strip-components=1 -C $out
       '';
 
-      win11IconOverrides = [
+      confluxIconOverrides = [
         {
           name = "go-down-symbolic";
           source = "${pkgs.adwaita-icon-theme}/share/icons/Adwaita/symbolic/actions/go-down-symbolic.svg";
@@ -384,12 +402,17 @@
         }
       ];
 
-      win11Icons = applyIconOverrides {
-        basePackage = win11IconsBase;
-        overrides = win11IconOverrides;
-        themeName = "Win11";
+      confluxIcons = applyIconOverrides {
+        basePackage = confluxIconsBase;
+        overrides = confluxIconOverrides;
+        themeName = "Conflux";
       };
 
+      win11Icons = applyIconOverrides {
+        basePackage = win11IconsBase;
+        overrides = confluxIconOverrides;
+        themeName = "Win11";
+      };
       we10xIcons = pkgs.stdenv.mkDerivation {
         name = "We10X";
         src = pkgs.fetchFromGitHub {
@@ -423,6 +446,7 @@
     in
     {
       environment.systemPackages = [
+        confluxIcons
         win11Icons
         pkgs.simp1e-cursors
         we10xIcons
