@@ -4,12 +4,12 @@
   "packageManager": "pnpm@11.5.1",
   "dependencies": {
     "@fbb.sh/pkdx": "0.7.1",
-    "docs-cache": "0.7.0",
-    "fallow": "3.17.0",
+    "docs-cache": "0.7.1",
+    "fallow": "3.25.0",
     "jiti": "2.7.0",
-    "neovim": "5.4.0",
+    "neovim": "5.5.0",
     "pokemonshow": "4.0.0",
     "typescript": "7.0.2",
-    "vercel": "59.3.0"
+    "vercel": "59.17.0"
   }
 }
