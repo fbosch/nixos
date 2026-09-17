@@ -15,13 +15,20 @@
           sed -i '0,/g_string_append (sparql, ")");/s//g_string_append (sparql, "))");/' libnemo-private/nemo-search-engine-tracker.c
         '';
       });
+      rpgMakerImageDecrypter = pkgs.writeShellApplication {
+        name = "rpg-maker-image-decrypter";
+        runtimeInputs = [
+          pkgs.coreutils
+          pkgs.local.rpgmasd
+        ];
+        text = builtins.readFile ./scripts/decrypt-rpg-maker-image.sh;
+      };
       nemoPreview = pkgs.nemo-preview.overrideAttrs (old: {
-        patches = (old.patches or [ ]) ++ [ ./patches/nemo-preview-blp.patch ];
+        patches = (old.patches or [ ]) ++ [ ./patches/nemo-preview-image-converters.patch ];
         postPatch = (old.postPatch or "") + ''
           substituteInPlace src/js/viewers/image.js \
-            --replace-fail \
-            '@BLP_CONV@' \
-            '${pkgs.local."blp-conv"}/bin/blp-conv'
+            --replace-fail '@BLP_CONV@' '${pkgs.local."blp-conv"}/bin/blp-conv' \
+            --replace-fail '@RPG_MAKER_IMAGE_DECRYPTER@' '${rpgMakerImageDecrypter}/bin/rpg-maker-image-decrypter'
         '';
       });
     in

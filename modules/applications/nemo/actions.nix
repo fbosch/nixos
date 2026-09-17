@@ -48,6 +48,15 @@
         ];
         text = builtins.readFile ./scripts/launch-with-faugus.sh;
       };
+      decryptRpgMakerScript = pkgs.writeShellApplication {
+        name = "nemo-decrypt-rpg-maker";
+        runtimeInputs = [
+          pkgs.coreutils
+          pkgs.local.rpgm-decrypt
+          pkgs.zenity
+        ];
+        text = builtins.readFile ./scripts/decrypt-rpg-maker.sh;
+      };
 
       mkConvertAction = ext: label: mimes: ''
         [Nemo Action]
@@ -127,6 +136,18 @@
           Selection=single
           Quote=double
           Extensions=exe;sh;bash;
+          Terminal=false
+        '';
+        "nemo/actions/decrypt-rpg-maker.nemo_action".text = ''
+          [Nemo Action]
+          Active=true
+          Name=Decrypt RPG Maker Game
+          Comment=Create a decrypted copy beside the selected game
+          Exec=${decryptRpgMakerScript}/bin/nemo-decrypt-rpg-maker %F
+          Icon-Name=changes-prevent
+          Selection=single
+          Quote=double
+          Extensions=dir;rgssad;rgss2a;rgss3a;
           Terminal=false
         '';
 

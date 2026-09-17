@@ -16,6 +16,67 @@
       defaultBlpViewer = "xnviewmp.desktop";
       defaultExeLauncher = "faugus-launcher.desktop";
       defaultWebBrowser = "app.zen_browser.zen.desktop";
+      defaultRpgMakerImageViewer = "rpg-maker-image-viewer.desktop";
+      rpgMakerImageViewer = pkgs.writeShellApplication {
+        name = "rpg-maker-image-viewer";
+        runtimeInputs = [
+          pkgs.coreutils
+          pkgs.loupe
+          pkgs.local.rpgmasd
+          pkgs.systemd
+        ];
+        text = ''
+          if [[ $# -eq 0 ]]; then
+            exit 1
+          fi
+
+          tmp_dir="$(mktemp -d --tmpdir="''${XDG_RUNTIME_DIR:?}" rpg-maker-loupe.XXXXXX)"
+          keep_temp=false
+          cleanup() {
+            if [[ $keep_temp == false ]]; then
+              rm -rf -- "$tmp_dir"
+            fi
+          }
+          trap cleanup EXIT
+
+          declare -A decrypted_dirs=()
+          selected_outputs=()
+          index=0
+          for input in "$@"; do
+            if [[ ! -f $input ]]; then
+              printf 'File not found: %s\n' "$input" >&2
+              exit 1
+            fi
+
+            source_dir="$(realpath -e -- "$(dirname -- "$input")")"
+            if [[ -z ''${decrypted_dirs["$source_dir"]+x} ]]; then
+              ((index += 1))
+              item_dir="$tmp_dir/$index"
+              mkdir -p -- "$item_dir"
+              rpgmasd decrypt \
+                --input-dir "$source_dir" \
+                --output-dir "$item_dir" \
+                >/dev/null
+              decrypted_dirs["$source_dir"]="$item_dir"
+            fi
+
+            item_dir="''${decrypted_dirs["$source_dir"]}"
+            selected_output="$item_dir/$(basename -- "''${input%.*}").png"
+            if [[ ! -f $selected_output ]]; then
+              printf 'Unable to decrypt: %s\n' "$input" >&2
+              exit 1
+            fi
+            selected_outputs+=("$selected_output")
+          done
+
+          loupe "''${selected_outputs[@]}"
+          systemd-run --user --quiet --collect \
+            --unit="rpg-maker-loupe-cleanup-''${tmp_dir##*.}" \
+            --on-active=10m \
+            ${pkgs.coreutils}/bin/rm -rf -- "$tmp_dir"
+          keep_temp=true
+        '';
+      };
     in
     {
       # Flatpak file management applications
@@ -36,6 +97,7 @@
           "image/jpeg" = [ defaultImageViewer ];
           "image/webp" = [ defaultImageViewer ];
           "image/x-blp" = [ defaultBlpViewer ];
+          "image/x-rpg-maker-encrypted" = [ defaultRpgMakerImageViewer ];
 
           "video/3gpp" = [ defaultMediaPlayer ];
           "video/mp2t" = [ defaultMediaPlayer ];
@@ -80,6 +142,7 @@
           "image/heic" = [ defaultImageViewer ];
           "image/heif" = [ defaultImageViewer ];
           "image/x-blp" = [ defaultBlpViewer ];
+          "image/x-rpg-maker-encrypted" = [ defaultRpgMakerImageViewer ];
 
           # Video formats
           "video/3gpp" = [ defaultMediaPlayer ];
@@ -107,15 +170,28 @@
           "application/gzip" = [ "org.gnome.FileRoller.desktop" ];
         };
       };
-      xdg.desktopEntries.xnviewmp = {
-        name = "XnView MP";
-        comment = "Image viewer for Blizzard Picture textures";
-        exec = "${pkgs.xnviewmp}/bin/xnviewmp %F";
-        icon = "xnviewmp";
-        categories = [ "Graphics" ];
-        mimeType = [ "image/x-blp" ];
-        terminal = false;
-        type = "Application";
+      xdg.desktopEntries = {
+        xnviewmp = {
+          name = "XnView MP";
+          comment = "Image viewer for Blizzard Picture textures";
+          exec = "${pkgs.xnviewmp}/bin/xnviewmp %F";
+          icon = "xnviewmp";
+          categories = [ "Graphics" ];
+          mimeType = [ "image/x-blp" ];
+          terminal = false;
+          type = "Application";
+        };
+        rpg-maker-image-viewer = {
+          name = "RPG Maker Image Viewer";
+          comment = "Decrypt and open RPG Maker images in Loupe";
+          exec = "${rpgMakerImageViewer}/bin/rpg-maker-image-viewer %F";
+          icon = "org.gnome.Loupe";
+          categories = [ "Graphics" ];
+          mimeType = [ "image/x-rpg-maker-encrypted" ];
+          noDisplay = true;
+          terminal = false;
+          type = "Application";
+        };
       };
     };
 }

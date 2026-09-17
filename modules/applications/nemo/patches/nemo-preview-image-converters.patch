@@ -8,46 +8,37 @@
  
  const Gettext = imports.gettext.domain('nemo-extensions');
  const _ = Gettext.gettext;
-@@ -87,6 +88,11 @@
-              this._texture = new GtkClutter.Texture({ keep_aspect_ratio: true });
-              this._texture.set_from_pixbuf(pix);
- 
-+            if (this._cleanupPath) {
-+                GLib.unlink(this._cleanupPath);
-+                this._cleanupPath = null;
-+            }
-+
-              if (!anim.is_static_image())
-                  this._startTimeout();
- 
-@@ -155,3 +161,48 @@
+@@ -155,3 +156,67 @@
      let mimeTypes = formats[idx].get_mime_types();
      handler.registerMimeTypes(mimeTypes, renderer);
  }
 +
 +
-+function BlpImageRenderer(args) {
++function ConvertedImageRenderer(args) {
 +    this._init(args);
++    this._converter = args.converter;
++    this._formatName = args.formatName;
++    this._outputSuffix = args.outputSuffix;
 +}
 +
-+BlpImageRenderer.prototype = Object.create(ImageRenderer.prototype);
++ConvertedImageRenderer.prototype = Object.create(ImageRenderer.prototype);
 +
-+BlpImageRenderer.prototype._createImageTexture = function(file) {
++ConvertedImageRenderer.prototype._createImageTexture = function(file) {
 +    let inputPath = file.get_path();
 +    let outputPath = GLib.build_filenamev([
 +        GLib.get_tmp_dir(),
-+        'nemo-preview-blp-' + GLib.uuid_string_random() + '.png'
++        'nemo-preview-' + GLib.uuid_string_random() + this._outputSuffix
 +    ]);
 +
 +    let [success, stdout, stderr, status] = GLib.spawn_sync(
 +        null,
-+        ['@BLP_CONV@', inputPath, outputPath],
++        [this._converter, inputPath, outputPath],
 +        null,
 +        GLib.SpawnFlags.SEARCH_PATH,
 +        null);
 +
 +    if (!success || status !== 0) {
-+        log('Unable to convert BLP file ' + inputPath);
++        log('Unable to convert ' + this._formatName + ' file ' + inputPath);
 +        GLib.unlink(outputPath);
 +        this._callback();
 +        return;
@@ -61,6 +52,8 @@
 +                   function(obj, res) {
 +                       try {
 +                           let stream = obj.read_finish(res);
++                           GLib.unlink(outputPath);
++                           this._cleanupPath = null;
 +                           this._textureFromStream(stream);
 +                       } catch (e) {
 +                           GLib.unlink(outputPath);
@@ -70,5 +63,16 @@
 +                   }));
 +};
 +
-+let blpRenderer = new BlpImageRenderer();
++let blpRenderer = new ConvertedImageRenderer({
++    converter: '@BLP_CONV@',
++    formatName: 'BLP',
++    outputSuffix: '.png'
++});
 +handler.registerMimeTypes(['image/x-blp'], blpRenderer);
++
++let rpgMakerRenderer = new ConvertedImageRenderer({
++    converter: '@RPG_MAKER_IMAGE_DECRYPTER@',
++    formatName: 'RPG Maker image',
++    outputSuffix: '.png'
++});
++handler.registerMimeTypes(['image/x-rpg-maker-encrypted'], rpgMakerRenderer);

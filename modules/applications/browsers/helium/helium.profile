@@ -11,6 +11,7 @@ noblacklist ${DOWNLOADS}
 noblacklist ${MUSIC}
 noblacklist ${PICTURES}
 noblacklist ${VIDEOS}
+noblacklist ${HOME}/Projects
 
 include @chromiumProfile@
 
@@ -49,6 +50,8 @@ whitelist ${DOWNLOADS}
 whitelist ${MUSIC}
 whitelist ${PICTURES}
 whitelist ${VIDEOS}
+whitelist ${HOME}/Projects
+read-only ${HOME}/Projects
 
 noblacklist /etc/chromium
 noblacklist /etc/chromium/native-messaging-hosts

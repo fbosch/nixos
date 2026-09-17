@@ -19,6 +19,45 @@
           </mime-info>
         '';
       };
+      rpgMakerMimeType = pkgs.writeTextFile {
+        name = "rpg-maker-encrypted-image-mime-type";
+        destination = "/share/mime/packages/rpg-maker-encrypted-image.xml";
+        text = ''
+          <?xml version="1.0" encoding="UTF-8"?>
+          <mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+            <mime-type type="image/x-rpg-maker-encrypted">
+              <comment>Encrypted RPG Maker image</comment>
+              <glob pattern="*.rpgmvp" weight="80"/>
+              <glob pattern="*.png_" weight="80"/>
+            </mime-type>
+          </mime-info>
+        '';
+      };
+      rpgMakerImageDecrypter = pkgs.writeShellApplication {
+        name = "rpg-maker-image-decrypter";
+        runtimeInputs = [
+          pkgs.coreutils
+          pkgs.local.rpgmasd
+        ];
+        text = builtins.readFile ./scripts/decrypt-rpg-maker-image.sh;
+      };
+      rpgMakerThumbnailer = pkgs.writeShellApplication {
+        name = "rpg-maker-thumbnailer";
+        runtimeInputs = [
+          pkgs.coreutils
+          pkgs.imagemagick
+        ];
+        text = ''
+          size="$1"
+          input="$2"
+          output="$3"
+          tmp="$(mktemp --suffix=.png)"
+          trap 'rm -f "$tmp"' EXIT
+
+          ${rpgMakerImageDecrypter}/bin/rpg-maker-image-decrypter "$input" "$tmp"
+          magick "$tmp" -thumbnail "''${size}x''${size}" "PNG:$output"
+        '';
+      };
       blpThumbnailer = pkgs.writeShellApplication {
         name = "blp-thumbnailer";
         runtimeInputs = [
@@ -63,6 +102,7 @@
         libavif
         libheif
         blpMimeType
+        rpgMakerMimeType
         webp-pixbuf-loader
 
         gnome-desktop
@@ -103,6 +143,17 @@
             TryExec=${blpThumbnailer}/bin/blp-thumbnailer
             Exec=${blpThumbnailer}/bin/blp-thumbnailer %s %i %o
             MimeType=image/x-blp;
+          '';
+        })
+
+        (writeTextFile {
+          name = "rpg-maker-thumbnailer-entry";
+          destination = "/share/thumbnailers/rpg-maker.thumbnailer";
+          text = ''
+            [Thumbnailer Entry]
+            TryExec=${rpgMakerThumbnailer}/bin/rpg-maker-thumbnailer
+            Exec=${rpgMakerThumbnailer}/bin/rpg-maker-thumbnailer %s %i %o
+            MimeType=image/x-rpg-maker-encrypted;
           '';
         })
       ];
