@@ -56,6 +56,13 @@
           DisableAllAnimations = true;
         };
 
+        # Disable the built-in screenshot shortcuts.
+        "com.apple.symbolichotkeys".AppleSymbolicHotKeys."2".enabled = false;
+        "com.apple.symbolichotkeys".AppleSymbolicHotKeys."3".enabled = false;
+        "com.apple.symbolichotkeys".AppleSymbolicHotKeys."4".enabled = false;
+        "com.apple.symbolichotkeys".AppleSymbolicHotKeys."5".enabled = false;
+        "com.apple.symbolichotkeys".AppleSymbolicHotKeys."6".enabled = false;
+
         # Release Command-Space from Spotlight for Vicinae's global shortcut.
         "com.apple.symbolichotkeys".AppleSymbolicHotKeys."64".enabled = false;
 
