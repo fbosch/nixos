@@ -76,9 +76,15 @@ render_update_output() {
         instantiated=true
       fi
       ;;
-    '$ nix build '*) label="Resolve update script" ;;
-    '$ nix develop '*) label="Run update script" ;;
-    '$ git -C '*) label="Review package changes" ;;
+    '$ nix build '*)
+      label="Resolve update script"
+      ;;
+    '$ nix develop '*)
+      label="Run update script"
+      ;;
+    '$ git -C '*)
+      label="Review package changes"
+      ;;
     *)
       printf '%s\n' "$line"
       continue
@@ -130,7 +136,16 @@ is_update_candidate() {
   package_contents="$(<"$package_file")"
 
   [[ $package_contents == *"version ="* ]] &&
-    [[ $package_contents == *"fetchFromGitHub"* || $package_contents == *"fetchurl"* || $package_contents == *"fetchgit"* ]]
+    [[ $package_contents == *"src ="* ]] &&
+    [[ $package_contents =~ fetch[A-Za-z]+ ]]
+}
+
+uses_explicit_update_script() {
+  local package_file="$1"
+  local package_contents
+
+  package_contents="$(<"$package_file")"
+  [[ $package_contents == *"updateScript"* ]]
 }
 
 package_revision() {
@@ -175,141 +190,148 @@ if [ ! -d "$packages_dir" ]; then
   exit 1
 fi
 
-declare -A package_update_prs=()
-update_cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/nixos/update-local-package"
-update_cache_ttl=3600
-update_cache_available=false
+declare -A package_updates=()
+update_check_dir=""
+update_check_failed=false
+nix_update_command=(nix run nixpkgs#nix-update --)
 
-package_is_at_version() {
-  local package_name="$1"
-  local version="$2"
-  local package_file="$packages_dir/$package_name/package.nix"
-  local package_contents
+cleanup_update_check() {
+  local exit_code=$?
 
-  [ -f "$package_file" ] || return 1
-  package_contents="$(<"$package_file")"
-  [[ $package_contents == *"version = \"$version\";"* ]]
+  if [ -n "$update_check_dir" ]; then
+    rm -rf -- "$update_check_dir" || true
+  fi
+  return "$exit_code"
+}
+trap cleanup_update_check EXIT
+
+create_update_check_copy() {
+  update_check_dir="$(mktemp -d "${TMPDIR:-/tmp}/update-local-package.XXXXXX")"
+  if ! (
+    cd "$repo_root" || exit 1
+    git ls-files -co --exclude-standard -z |
+      while IFS= read -r -d '' path; do
+        if [ -e "$path" ] || [ -L "$path" ]; then
+          printf '%s\0' "$path"
+        fi
+      done |
+      tar --null --verbatim-files-from --create --file=- --files-from=-
+  ) | tar --extract --file=- --directory="$update_check_dir"; then
+    error "failed to create a temporary repository for update checks" >&2
+    exit 1
+  fi
+
+  # nix-update uses Git to inspect changes; stage the copied worktree without committing it.
+  if ! (
+    cd "$update_check_dir" || exit 1
+    git init -q || exit 1
+    git add --all
+  ); then
+    error "failed to initialize the temporary repository for update checks" >&2
+    exit 1
+  fi
 }
 
-record_pending_update() {
-  local path="$1"
-  local old_version="$2"
-  local new_version="$3"
+restore_update_check_copy() {
+  if ! (
+    cd "$update_check_dir" || exit 1
+    git restore --worktree -- .
+  ); then
+    status 1 CHECK "failed to restore the temporary repository after an update check" >&2
+    update_check_failed=true
+    return 1
+  fi
+}
+
+check_package_update() {
+  local package_name="$1"
+  local package_file="$packages_dir/$package_name/package.nix"
+  local check_package_file="$update_check_dir/pkgs/by-name/$package_name/package.nix"
+  local before_hash
+  local after_hash
+  local output_file
+  local old_version
+  local new_version
+  local -a nix_update_args
+
+  if ! old_version="$(package_version "$package_file")"; then
+    status 1 CHECK "unable to read the current version of .#$package_name" >&2
+    update_check_failed=true
+    return 1
+  fi
+  if ! before_hash="$(sha256sum "$check_package_file")"; then
+    status 1 CHECK "unable to snapshot .#$package_name before checking" >&2
+    update_check_failed=true
+    return 1
+  fi
+  if ! output_file="$(mktemp)"; then
+    status 1 CHECK "unable to create output capture for .#$package_name" >&2
+    update_check_failed=true
+    return 1
+  fi
+  nix_update_args=(-q -F)
+  if uses_explicit_update_script "$package_file"; then
+    nix_update_args+=(-u)
+  fi
+  if [[ "$old_version" == unstable-* || "$old_version" == *-unstable ]]; then
+    nix_update_args+=(--version unstable)
+  fi
+  nix_update_args+=(--override-filename "$check_package_file" "$package_name")
+
+  if "$has_gum"; then
+    gum style --foreground 244 "Checking .#$package_name for updates..."
+  else
+    printf 'Checking .#%s for updates...\n' "$package_name"
+  fi
+
+  if ! (
+    cd "$update_check_dir" || exit 1
+    "${nix_update_command[@]}" "${nix_update_args[@]}"
+  ) >"$output_file" 2>&1; then
+    status 1 CHECK "unable to check .#$package_name for updates" >&2
+    cat "$output_file" >&2
+    rm -f -- "$output_file"
+    restore_update_check_copy || true
+    update_check_failed=true
+    return 1
+  fi
+
+  if ! after_hash="$(sha256sum "$check_package_file")"; then
+    rm -f -- "$output_file"
+    status 1 CHECK "unable to snapshot .#$package_name after checking" >&2
+    restore_update_check_copy || true
+    update_check_failed=true
+    return 1
+  fi
+  rm -f -- "$output_file"
+
+  if [ "$before_hash" = "$after_hash" ]; then
+    restore_update_check_copy || true
+    return 0
+  fi
+
+  if ! new_version="$(package_version "$check_package_file")"; then
+    status 1 CHECK "nix-update changed .#$package_name to an unreadable package" >&2
+    restore_update_check_copy || true
+    update_check_failed=true
+    return 1
+  fi
+  package_updates["$package_name"]="$old_version"$'\t'"$new_version"
+  restore_update_check_copy || true
+}
+
+check_upstream_updates() {
+  local package_file
   local package_name
 
-  [ -n "$old_version" ] && [ -n "$new_version" ] || return
-  package_name="${path#pkgs/by-name/}"
-  package_name="${package_name%/package.nix}"
-  if ! package_is_at_version "$package_name" "$old_version"; then
-    return
-  fi
-  if package_is_at_version "$package_name" "$new_version"; then
-    return
-  fi
-  package_update_prs["$package_name"]="$old_version"$'\t'"$new_version"
-}
-
-read_pending_updates() {
-  local path
-  local old_version
-  local new_version
-
-  while IFS=$'\t' read -r path old_version new_version; do
-    record_pending_update "$path" "$old_version" "$new_version"
-  done <"$1"
-}
-
-fetch_pr_updates() {
-  local pr_number="$1"
-
-  cd "$repo_root"
-  # The jq expression deliberately contains jq interpolation syntax.
-  # shellcheck disable=SC2016
-  gh api "repos/{owner}/{repo}/pulls/$pr_number/files?per_page=100" --paginate \
-    --jq '.[] | select(.filename | test("^pkgs/by-name/.+/package\\.nix$")) | .filename as $file | ([.patch | split("\n")[] | select(test("^-\\s*version\\s*=")) | capture("^-\\s*version\\s*=\\s*\\\"(?<version>[^\\\"]+)\\\";").version][0]) as $old | ([.patch | split("\n")[] | select(test("^\\+\\s*version\\s*=")) | capture("^\\+\\s*version\\s*=\\s*\\\"(?<version>[^\\\"]+)\\\";").version][0]) as $new | "\($file)\t\($old)\t\($new)"' 2>/dev/null
-}
-
-fetch_pending_update_pr_numbers() {
-  cd "$repo_root"
-  gh pr list --state open --label custom-packages --json number --jq '.[].number' 2>/dev/null
-}
-
-load_pr_updates() {
-  local pr_number="$1"
-  local cache_file="$update_cache_dir/renovate-pr-$pr_number.tsv"
-  local cache_modified
-  local cache_tmp
-  local path
-  local old_version
-  local new_version
-  local updates
-
-  if "$update_cache_available"; then
-    cache_modified="$(stat -c %Y "$cache_file" 2>/dev/null || true)"
-    if [ -n "$cache_modified" ] && [ "$(($(date +%s) - cache_modified))" -lt "$update_cache_ttl" ]; then
-      read_pending_updates "$cache_file"
-      return
+  create_update_check_copy
+  for package_file in "$packages_dir"/**/package.nix; do
+    package_name="${package_file#"$packages_dir"/}"
+    package_name="${package_name%/package.nix}"
+    if is_update_candidate "$package_file"; then
+      check_package_update "$package_name" || true
     fi
-
-    if cache_tmp="$(mktemp "$update_cache_dir/.renovate-pr-$pr_number.XXXXXX")"; then
-      if fetch_pr_updates "$pr_number" >"$cache_tmp"; then
-        mv "$cache_tmp" "$cache_file"
-        read_pending_updates "$cache_file"
-      else
-        rm -f "$cache_tmp"
-      fi
-      return
-    fi
-  fi
-
-  updates="$(fetch_pr_updates "$pr_number")" || return
-  while IFS=$'\t' read -r path old_version new_version; do
-    record_pending_update "$path" "$old_version" "$new_version"
-  done <<<"$updates"
-}
-
-load_pending_update_prs() {
-  local cache_file="$update_cache_dir/renovate-prs.txt"
-  local cache_modified
-  local cache_tmp
-  local pr_number
-
-  if ! command -v gh >/dev/null 2>&1; then
-    return
-  fi
-  if mkdir -p "$update_cache_dir" 2>/dev/null; then
-    update_cache_available=true
-  fi
-
-  if "$update_cache_available"; then
-    cache_modified="$(stat -c %Y "$cache_file" 2>/dev/null || true)"
-    if [ -z "$cache_modified" ] || [ "$(($(date +%s) - cache_modified))" -ge "$update_cache_ttl" ]; then
-      if cache_tmp="$(mktemp "$update_cache_dir/.renovate-prs.XXXXXX")"; then
-        if fetch_pending_update_pr_numbers >"$cache_tmp"; then
-          mv "$cache_tmp" "$cache_file"
-        else
-          rm -f "$cache_tmp"
-        fi
-      fi
-    fi
-
-    if [ -f "$cache_file" ]; then
-      while IFS= read -r pr_number; do
-        [ -n "$pr_number" ] && load_pr_updates "$pr_number"
-      done <"$cache_file"
-      return
-    fi
-  fi
-
-  while IFS= read -r pr_number; do
-    [ -n "$pr_number" ] && load_pr_updates "$pr_number"
-  done < <(fetch_pending_update_pr_numbers)
-}
-
-clear_update_cache() {
-  rm -f \
-    "$update_cache_dir/renovate-prs.txt" \
-    "$update_cache_dir"/renovate-pr-*.tsv
+  done
 }
 
 select_package_with_gum() {
@@ -320,24 +342,22 @@ select_package_with_gum() {
   local version
   local -a package_names
 
-  if ! command -v gum >/dev/null 2>&1; then
-    error "no package argument provided and 'gum' is not installed" >&2
-    echo "Pass a package name explicitly, for example: $0 lightpanda" >&2
-    exit 1
-  fi
-
   mapfile -t package_names < <(
     for package_file in "$packages_dir"/**/package.nix; do
       package_name="${package_file#"$packages_dir"/}"
       package_name="${package_name%/package.nix}"
       if is_update_candidate "$package_file" &&
-        { "$show_all" || [ -n "${package_update_prs[$package_name]:-}" ]; }; then
+        { "$show_all" || [ -n "${package_updates[$package_name]:-}" ]; }; then
         printf '%s\n' "$package_name"
       fi
     done | sort
   )
 
   if [ "${#package_names[@]}" -eq 0 ]; then
+    if "$update_check_failed"; then
+      status 1 ERROR "one or more package update checks failed; no complete update list is available" >&2
+      return 1
+    fi
     status 3 SKIP "no package updates found" >&2
     return 2
   fi
@@ -345,8 +365,8 @@ select_package_with_gum() {
   if ! selection="$(
     for package_name in "${package_names[@]}"; do
       revision="$(package_revision "$packages_dir/$package_name/package.nix")"
-      if [ -n "${package_update_prs[$package_name]:-}" ]; then
-        printf '%s  %s\n' "$package_name" "$(render_version_update "${package_update_prs[$package_name]}" "$revision")"
+      if [ -n "${package_updates[$package_name]:-}" ]; then
+        printf '%s  %s\n' "$package_name" "$(render_version_update "${package_updates[$package_name]}" "$revision")"
       else
         version="$(package_version "$packages_dir/$package_name/package.nix")"
         printf '%s  %s\n' "$package_name" "$(render_version_update "$version"$'\t'"$version" "$revision")"
@@ -367,8 +387,6 @@ select_package_with_gum() {
   done <<<"$selection"
 }
 
-load_pending_update_prs
-
 show_all=false
 if [ "$#" -eq 1 ] && [ "$1" = "--all" ]; then
   show_all=true
@@ -381,18 +399,28 @@ fi
 declare -a selected_packages
 if [ "$#" -eq 1 ] && ! "$show_all"; then
   selected_packages=("$1")
-elif selection="$(select_package_with_gum)"; then
-  mapfile -t selected_packages <<<"$selection"
 else
-  selection_exit_code=$?
-  if [ "$selection_exit_code" -eq 2 ]; then
-    exit 0
+  if ! "$has_gum"; then
+    error "no package argument provided and 'gum' is not installed" >&2
+    echo "Pass a package name explicitly, for example: $0 lightpanda" >&2
+    exit 1
   fi
-  exit "$selection_exit_code"
+
+  check_upstream_updates
+  if selection="$(select_package_with_gum)"; then
+    mapfile -t selected_packages <<<"$selection"
+  else
+    selection_exit_code=$?
+    if [ "$selection_exit_code" -eq 2 ]; then
+      exit 0
+    fi
+    exit "$selection_exit_code"
+  fi
 fi
 
 for package_name in "${selected_packages[@]}"; do
   package_file="$packages_dir/$package_name/package.nix"
+  current_version=""
 
   if [ ! -f "$package_file" ]; then
     error "package file not found at $package_file" >&2
@@ -404,8 +432,8 @@ for package_name in "${selected_packages[@]}"; do
     continue
   fi
 
-  if [ -n "${package_update_prs[$package_name]:-}" ]; then
-    status 2 UPDATE ".#$package_name $(render_version_update "${package_update_prs[$package_name]}")"
+  if [ -n "${package_updates[$package_name]:-}" ]; then
+    status 2 UPDATE ".#$package_name $(render_version_update "${package_updates[$package_name]}" "$(package_revision "$package_file")")"
   fi
 
   cd "$repo_root"
@@ -424,19 +452,28 @@ for package_name in "${selected_packages[@]}"; do
   fi
 
   before_hash="$(sha256sum "$package_file")"
-  nix_update_args=(-F -u "$package_name")
+  nix_update_args=(-F)
+  if uses_explicit_update_script "$package_file"; then
+    nix_update_args+=(-u)
+  fi
+  if ! current_version="$(package_version "$package_file")"; then
+    error "unable to read the current version of .#$package_name" >&2
+    exit 1
+  fi
+  if [[ "$current_version" == unstable-* || "$current_version" == *-unstable ]]; then
+    nix_update_args+=(--version unstable)
+  fi
+  nix_update_args+=("$package_name")
 
-  run_update "Updating .#$package_name" nix run nixpkgs#nix-update -- "${nix_update_args[@]}"
+  run_update "Updating .#$package_name" "${nix_update_command[@]}" "${nix_update_args[@]}"
   after_hash="$(sha256sum "$package_file")"
 
   if [ "$before_hash" = "$after_hash" ]; then
-    clear_update_cache
     status 3 SKIP ".#$package_name already matches upstream; no changes to build"
     continue
   fi
 
   run_step "Building .#$package_name" nix build ".#$package_name"
 
-  clear_update_cache
   status 2 DONE ".#$package_name is updated and builds successfully"
 done
