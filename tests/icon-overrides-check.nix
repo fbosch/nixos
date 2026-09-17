@@ -4,93 +4,93 @@
 }:
 let
   basePackage = pkgs.runCommand "icon-theme-compose-base" { } ''
-    root="$out/share/icons/Personal"
-    mkdir -p "$root/vendor/application-16" "$root/vendor/application-16@2x" "$root/base/status-normal" "$root/base/status-hidpi"
-    cat > "$root/index.theme" <<'EOF'
-[Icon Theme]
-Name=Personal
-Comment=Composition fixture
-Directories=vendor/application-16,base/status-normal,base/status-hidpi
-ScaledDirectories=vendor/application-16@2x
-Inherits=base
+        root="$out/share/icons/Personal"
+        mkdir -p "$root/vendor/application-16" "$root/vendor/application-16@2x" "$root/base/status-normal" "$root/base/status-hidpi"
+        cat > "$root/index.theme" <<'EOF'
+    [Icon Theme]
+    Name=Personal
+    Comment=Composition fixture
+    Directories=vendor/application-16,base/status-normal,base/status-hidpi
+    ScaledDirectories=vendor/application-16@2x
+    Inherits=base
 
-[vendor/application-16]
-Size=16
-Scale=1
-Context=Applications
-Type=Fixed
+    [vendor/application-16]
+    Size=16
+    Scale=1
+    Context=Applications
+    Type=Fixed
 
-[vendor/application-16@2x]
-Size=16
-Scale=2
-Context=Applications
-Type=Fixed
+    [vendor/application-16@2x]
+    Size=16
+    Scale=2
+    Context=Applications
+    Type=Fixed
 
-[base/status-normal]
-Size=16
-Scale=1
-Context=Status
-Type=Fixed
+    [base/status-normal]
+    Size=16
+    Scale=1
+    Context=Status
+    Type=Fixed
 
-[base/status-hidpi]
-Size=16
-Scale=2
-Context=Status
-Type=Fixed
-EOF
-    printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"><title>base-app</title></svg>' > "$root/vendor/application-16/app.svg"
-    printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"><title>base-app-2x</title></svg>' > "$root/vendor/application-16@2x/app.svg"
-    printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"><title>stale-status</title></svg>' > "$root/base/status-normal/status.svg"
-    printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"><title>stale-status-2x</title></svg>' > "$root/base/status-hidpi/status.svg"
+    [base/status-hidpi]
+    Size=16
+    Scale=2
+    Context=Status
+    Type=Fixed
+    EOF
+        printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"><title>base-app</title></svg>' > "$root/vendor/application-16/app.svg"
+        printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"><title>base-app-2x</title></svg>' > "$root/vendor/application-16@2x/app.svg"
+        printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"><title>stale-status</title></svg>' > "$root/base/status-normal/status.svg"
+        printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"><title>stale-status-2x</title></svg>' > "$root/base/status-hidpi/status.svg"
   '';
 
   providerPackage = pkgs.runCommand "icon-theme-compose-provider" { } ''
-    root="$out/share/icons/Provider"
-    mkdir -p "$root/provider/status-small" "$root/provider/status-hidpi" "$root/provider/application-small"
-    cat > "$root/index.theme" <<'EOF'
-[Icon Theme]
-Name=Provider
-Directories=provider/status-small,provider/status-hidpi,provider/application-small
+        root="$out/share/icons/Provider"
+        mkdir -p "$root/provider/status-small" "$root/provider/status-hidpi" "$root/provider/application-small"
+        cat > "$root/index.theme" <<'EOF'
+    [Icon Theme]
+    Name=Provider
+    Directories=provider/status-small,provider/status-hidpi,provider/application-small
 
-[provider/status-small]
-Size=16
-Scale=1
-Context=Status
-Type=Fixed
+    [provider/status-small]
+    Size=16
+    Scale=1
+    Context=Status
+    Type=Fixed
 
-[provider/status-hidpi]
-Size=16
-Scale=2
-Context=Status
-Type=Fixed
+    [provider/status-hidpi]
+    Size=16
+    Scale=2
+    Context=Status
+    Type=Fixed
 
-[provider/application-small]
-Size=16
-Scale=1
-Context=Applications
-Type=Fixed
-EOF
-    printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><title>provider-app</title></svg>' > "$root/provider/application-small/app.svg"
-    printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><title>provider-status</title></svg>' > "$root/provider/status-small/status.svg"
-    printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><title>provider-status-2x</title></svg>' > "$root/provider/status-hidpi/status.svg"
-    ln -s ../application-small/app.svg "$root/provider/status-small/cross-context.svg"
+    [provider/application-small]
+    Size=16
+    Scale=1
+    Context=Applications
+    Type=Fixed
+    EOF
+        printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><title>provider-app</title></svg>' > "$root/provider/application-small/app.svg"
+        printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><title>provider-status</title></svg>' > "$root/provider/status-small/status.svg"
+        printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><title>provider-status-2x</title></svg>' > "$root/provider/status-hidpi/status.svg"
+        ln -s ../application-small/app.svg "$root/provider/status-small/cross-context.svg"
   '';
 
   fallbackPackage = pkgs.runCommand "icon-theme-compose-fallback" { } ''
-    root="$out/share/icons/Fallback"
-    mkdir -p "$root/fallback/16"
-    cat > "$root/index.theme" <<'EOF'
-[Icon Theme]
-Name=Fallback
-Directories=fallback/16
+        root="$out/share/icons/Fallback"
+        mkdir -p "$root/fallback/16"
+        cat > "$root/index.theme" <<'EOF'
+    [Icon Theme]
+    Name=Fallback
+    Directories=fallback/16
 
-[fallback/16]
-Size=16
-Scale=1
-Context=Status
-Type=Fixed
-EOF
-    printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><title>fallback</title></svg>' > "$root/fallback/16/fallback.svg"
+    [fallback/16]
+    Size=16
+    Scale=1
+    Context=Status
+    Type=Fixed
+    EOF
+        printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><title>fallback</title></svg>' > "$root/fallback/16/fallback.svg"
   '';
 
   externalOverride = pkgs.writeText "icon-theme-compose-override.svg" ''

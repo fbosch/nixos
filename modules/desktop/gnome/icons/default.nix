@@ -1,15 +1,113 @@
-{ config, ... }:
-let
-  composeIconThemeFor = config.flake.lib.iconOverrides.composeIconTheme;
-in
 {
   flake.modules.nixos.desktop =
     { pkgs, ... }:
     let
       inherit (pkgs) lib;
-      composeIconTheme = composeIconThemeFor pkgs;
 
+      applyIconOverrides =
+        { basePackage
+        , overrides
+        , themeName
+        ,
+        }:
+        pkgs.stdenv.mkDerivation {
+          name = "${basePackage.name}-with-overrides";
+          inherit (basePackage) src;
 
+          nativeBuildInputs = (basePackage.nativeBuildInputs or [ ]) ++ [ pkgs.xmlstarlet ];
+          dontBuild = basePackage.dontBuild or true;
+          dontFixup = basePackage.dontFixup or false;
+
+          installPhase =
+            basePackage.installPhase or ''
+              runHook preInstall
+              mkdir -p $out
+              cp -r . $out/
+              runHook postInstall
+            '';
+
+          postInstall = (basePackage.postInstall or "") + ''
+            ${lib.concatMapStringsSep "\n" (override: ''
+              for theme_dir in $out/share/icons/${themeName}*; do
+                ${lib.concatMapStringsSep "\n" (size: ''
+                  size_dir="$theme_dir/${override.context}/${size}"
+                  if [ -d "$size_dir" ]; then
+                    ${
+                      if override ? useBuiltin then
+                        ''
+                          if [ -f "$size_dir/${override.useBuiltin}.svg" ]; then
+                            rm -f "$size_dir/${override.name}.svg"
+                            cp -f "$size_dir/${override.useBuiltin}.svg" "$size_dir/${override.name}.svg"
+                          fi
+                        ''
+                      else if override ? useBuiltinFrom then
+                        ''
+                          source_icon="$theme_dir/${override.useBuiltinFrom}.svg"
+                          if [ -f "$source_icon" ]; then
+                            target_size=""
+                            case "${size}" in
+                              16) target_size="16" ;;
+                              22) target_size="22" ;;
+                              24) target_size="24" ;;
+                              32) target_size="32" ;;
+                              48) target_size="48" ;;
+                              64) target_size="64" ;;
+                              scalable) target_size="64" ;;
+                              symbolic) target_size="16" ;;
+                              *) target_size="16" ;;
+                            esac
+
+                            rm -f "$size_dir/${override.name}.svg"
+                            cp "$source_icon" "$size_dir/${override.name}.svg"
+
+                            if [ "${size}" != "scalable" ]; then
+                              ${pkgs.xmlstarlet}/bin/xmlstarlet ed -L \
+                                -u "//*[local-name()='svg']/@width" -v "$target_size" \
+                                -u "//*[local-name()='svg']/@height" -v "$target_size" \
+                                "$size_dir/${override.name}.svg" 2>/dev/null || true
+                            fi
+                          fi
+                        ''
+                      else
+                        ''
+                          if [ -f "${override.source}" ]; then
+                            target_size=""
+                            case "${size}" in
+                              16) target_size="16" ;;
+                              22) target_size="22" ;;
+                              24) target_size="24" ;;
+                              32) target_size="32" ;;
+                              48) target_size="48" ;;
+                              64) target_size="64" ;;
+                              scalable) target_size="64" ;;
+                              symbolic) target_size="16" ;;
+                              *) target_size="16" ;;
+                            esac
+
+                            rm -f "$size_dir/${override.name}.svg" "$size_dir/${override.name}.png"
+                            cp "${override.source}" "$size_dir/${override.name}.${override.extension or "svg"}"
+
+                            if [ "${size}" != "scalable" ] && [ "${override.extension or "svg"}" = "svg" ]; then
+                              ${pkgs.xmlstarlet}/bin/xmlstarlet ed -L \
+                                -u "//*[local-name()='svg']/@width" -v "$target_size" \
+                                -u "//*[local-name()='svg']/@height" -v "$target_size" \
+                                "$size_dir/${override.name}.svg" 2>/dev/null || true
+                            fi
+                          fi
+                        ''
+                    }
+                  fi
+                '') override.sizes}
+              done
+            '') overrides}
+
+            for dir in $out/share/icons/*/; do
+              if [ -f "$dir/index.theme" ]; then
+                ${pkgs.gtk3}/bin/gtk-update-icon-cache -f -t "$dir" || true
+              fi
+            done
+          '';
+        };
 
       win11IconsBase = pkgs.stdenv.mkDerivation {
         name = "Win11";
@@ -24,35 +122,20 @@ in
         dontFixup = true;
         installPhase = ''
           runHook preInstall
+
           patchShebangs install.sh
           mkdir -p $out/share/icons
+
           DESTDIR="$out" ./install.sh -d $out/share/icons -n Win11
+
           find $out/share/icons -xtype l -delete
+
           for dir in $out/share/icons/*/; do
             if [ -f "$dir/index.theme" ]; then
               ${pkgs.gtk3}/bin/gtk-update-icon-cache -f -t "$dir" || true
             fi
           done
-          runHook postInstall
-        '';
-      };
 
-      confluxIconsBase = pkgs.stdenv.mkDerivation {
-        name = "Conflux";
-        src = pkgs.fetchFromGitHub {
-          owner = "MoshiurRahmanAdib";
-          repo = "Conflux-Icon-Theme";
-          rev = "d64da34e6e81dd9a08ca068d55038b0578b1ba98";
-          sha256 = "sha256-jmm+k7S1w02iEbUhviyKViBxbdJFnusvSKVA6hA1l0A=";
-        };
-        nativeBuildInputs = [ pkgs.gtk3 ];
-        dontBuild = true;
-        dontFixup = true;
-        installPhase = ''
-          runHook preInstall
-          mkdir -p $out/share/icons/Conflux
-          cp -ar apps apps@2x devices devices@2x emblems emblems@2x index.theme mimes mimes@2x places places@2x preferences preferences@2x status status@2x $out/share/icons/Conflux/
-          ${pkgs.gtk3}/bin/gtk-update-icon-cache -f -t $out/share/icons/Conflux || true
           runHook postInstall
         '';
       };
@@ -85,84 +168,84 @@ in
         tar -xf ${pkgs.gnome-calendar.src} --strip-components=1 -C $out
       '';
 
-      confluxIconOverrides = [
+      win11IconOverrides = [
         {
           name = "go-down-symbolic";
           source = "${pkgs.adwaita-icon-theme}/share/icons/Adwaita/symbolic/actions/go-down-symbolic.svg";
           sizes = [ "symbolic" ];
-          context = "Actions";
+          context = "actions";
         }
         {
           name = "go-next-symbolic";
           source = "${pkgs.adwaita-icon-theme}/share/icons/Adwaita/symbolic/actions/go-next-symbolic.svg";
           sizes = [ "symbolic" ];
-          context = "Actions";
+          context = "actions";
         }
         {
           name = "go-next-symbolic-rtl";
           source = "${pkgs.adwaita-icon-theme}/share/icons/Adwaita/symbolic/actions/go-next-symbolic-rtl.svg";
           sizes = [ "symbolic" ];
-          context = "Actions";
+          context = "actions";
         }
         {
           name = "go-previous-symbolic";
           source = "${pkgs.adwaita-icon-theme}/share/icons/Adwaita/symbolic/actions/go-previous-symbolic.svg";
           sizes = [ "symbolic" ];
-          context = "Actions";
+          context = "actions";
         }
         {
           name = "go-previous-symbolic-rtl";
           source = "${pkgs.adwaita-icon-theme}/share/icons/Adwaita/symbolic/actions/go-previous-symbolic-rtl.svg";
           sizes = [ "symbolic" ];
-          context = "Actions";
+          context = "actions";
         }
         {
           name = "pan-start-symbolic";
           source = panStartIcon;
           sizes = [ "symbolic" ];
-          context = "Actions";
+          context = "actions";
         }
         {
           name = "pan-end-symbolic";
           source = panEndIcon;
           sizes = [ "symbolic" ];
-          context = "Actions";
+          context = "actions";
         }
         {
           name = "pan-down-symbolic";
           source = panDownIcon;
           sizes = [ "symbolic" ];
-          context = "Actions";
+          context = "actions";
         }
         {
           name = "calendar-agenda-symbolic";
           source = "${gnomeCalendarIcons}/src/gui/icons/calendar-agenda-symbolic.svg";
           sizes = [ "symbolic" ];
-          context = "Actions";
+          context = "actions";
         }
         {
           name = "checkmark-small-symbolic";
           source = "${gnomeCalendarIcons}/src/gui/icons/checkmark-small-symbolic.svg";
           sizes = [ "symbolic" ];
-          context = "Actions";
+          context = "actions";
         }
         {
           name = "clock-alt-symbolic";
           source = "${gnomeCalendarIcons}/src/gui/icons/clock-alt-symbolic.svg";
           sizes = [ "symbolic" ];
-          context = "Actions";
+          context = "actions";
         }
         {
           name = "loupe-large-symbolic";
           source = "${gnomeCalendarIcons}/src/gui/icons/loupe-large-symbolic.svg";
           sizes = [ "symbolic" ];
-          context = "Actions";
+          context = "actions";
         }
         {
           name = "x-office-calendar-symbolic";
           source = "${pkgs.adwaita-icon-theme}/share/icons/Adwaita/symbolic/mimetypes/x-office-calendar-symbolic.svg";
           sizes = [ "symbolic" ];
-          context = "Mimetypes";
+          context = "mimes";
         }
         {
           name = "folder";
@@ -173,7 +256,7 @@ in
             "24"
             "symbolic"
           ];
-          context = "Places";
+          context = "places";
         }
         {
           name = "folder-open";
@@ -184,7 +267,7 @@ in
             "24"
             "symbolic"
           ];
-          context = "Places";
+          context = "places";
         }
         {
           name = "user-desktop";
@@ -195,7 +278,7 @@ in
             "24"
             "symbolic"
           ];
-          context = "Places";
+          context = "places";
         }
         {
           name = "folder-music";
@@ -206,7 +289,7 @@ in
             "24"
             "symbolic"
           ];
-          context = "Places";
+          context = "places";
         }
         {
           name = "folder-pictures";
@@ -217,7 +300,7 @@ in
             "24"
             "symbolic"
           ];
-          context = "Places";
+          context = "places";
         }
         {
           name = "folder-publicshare";
@@ -228,7 +311,7 @@ in
             "24"
             "symbolic"
           ];
-          context = "Places";
+          context = "places";
         }
         {
           name = "folder-templates";
@@ -239,7 +322,7 @@ in
             "24"
             "symbolic"
           ];
-          context = "Places";
+          context = "places";
         }
         {
           name = "folder-videos";
@@ -250,7 +333,7 @@ in
             "24"
             "symbolic"
           ];
-          context = "Places";
+          context = "places";
         }
         {
           name = "folder-download";
@@ -261,7 +344,7 @@ in
             "24"
             "symbolic"
           ];
-          context = "Places";
+          context = "places";
         }
         {
           name = "folder-documents";
@@ -272,74 +355,41 @@ in
             "24"
             "symbolic"
           ];
-          context = "Places";
+          context = "places";
         }
         {
           name = "discord";
           source = ./discord.svg;
           sizes = [ "scalable" ];
-          context = "Applications";
+          context = "apps";
         }
         {
           name = "io.Astal.ags";
           useBuiltin = "preferences-system";
           sizes = [ "scalable" ];
-          context = "Applications";
+          context = "apps";
         }
         {
           name = "chatgpt";
           source = ./codex.png;
           extension = "png";
           sizes = [ "scalable" ];
-          context = "Applications";
+          context = "apps";
         }
         {
           name = "io.github.ilya_zlobintsev.LACT";
           source = lactIcon;
           sizes = [ "scalable" ];
-          context = "Applications";
+          context = "apps";
         }
       ];
 
-      confluxIcons = composeIconTheme {
-        name = "Conflux";
-        base = {
-          package = confluxIconsBase;
-          theme = "Conflux";
-        };
-        replace.Status = {
-          package = win11IconsBase;
-          theme = "Win11-dark";
-        };
-        fallbacks = [
-          {
-            package = win11IconsBase;
-            theme = "Win11";
-          }
-          {
-            package = pkgs.adwaita-icon-theme;
-            theme = "Adwaita";
-          }
-          {
-            package = pkgs.kdePackages.breeze-icons;
-            theme = "breeze";
-          }
-          {
-            package = pkgs.hicolor-icon-theme;
-            theme = "hicolor";
-          }
-        ];
-        iconOverrides = confluxIconOverrides;
+      win11Icons = applyIconOverrides {
+        basePackage = win11IconsBase;
+        overrides = win11IconOverrides;
+        themeName = "Win11";
       };
 
-      win11Icons = composeIconTheme {
-        name = "Win11";
-        base = {
-          package = win11IconsBase;
-          theme = "Win11";
-        };
-        iconOverrides = confluxIconOverrides;
-      };
       we10xIcons = pkgs.stdenv.mkDerivation {
         name = "We10X";
         src = pkgs.fetchFromGitHub {
@@ -373,7 +423,6 @@ in
     in
     {
       environment.systemPackages = [
-        confluxIcons
         win11Icons
         pkgs.simp1e-cursors
         we10xIcons

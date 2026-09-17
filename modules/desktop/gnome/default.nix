@@ -14,7 +14,7 @@ in
       "org/gnome/desktop/interface" = {
         monospace-font-name = "SF Mono 11";
         gtk-theme = "MonoThemeDark";
-        icon-theme = "Conflux";
+        icon-theme = "Win11-dark";
         cursor-theme = "Win11OSX";
         cursor-size = 24;
         font-name = "SF Pro Display 11";

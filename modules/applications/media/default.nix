@@ -21,8 +21,8 @@
         # "com.obsproject.Studio" # Video recording/streaming
         # "com.obsproject.Studio.Plugin.OBSVkCapture" # OBS plugin
         "be.alexandervanhee.gradia" # image editor
+        "org.kde.iconexplorer" # Icon Explorer
         "org.upscayl.Upscayl"
-        "io.github.rsvzz.iconvwadw"
       ];
 
       services.flatpak.overrides."org.upscayl.Upscayl".Context.filesystems = [
