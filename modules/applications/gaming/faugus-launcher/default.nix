@@ -91,7 +91,8 @@
           "PROTON_NO_WM_DECORATION=1"
           "PROTON_USE_NTSYNC=1"
           "PROTON_ENABLE_NVAPI=1"
-          "PROTON_DXVK_LOWLATENCY=1"
+          # Standard DXVK fallback allows WoW to start on NVIDIA when device creation fails.
+          "PROTON_DXVK_LOWLATENCY=0"
           "DXVK_HUD=0"
         ]
       );
