@@ -225,6 +225,7 @@ in
             "ipc"
           ];
           devices = [ "dri" ];
+          filesystems = [ "/mnt/nas/FrederikDocs:ro" ];
         };
         Environment = {
           LIBVA_DRIVER_NAME = "nvidia";
