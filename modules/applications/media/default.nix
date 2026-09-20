@@ -2,8 +2,6 @@
   flake.modules = {
     nixos.applications = { pkgs, ... }: {
       environment.systemPackages = with pkgs; [
-        # File previewer for Nemo file manager
-        sushi
         loupe
         plezy
         xnviewmp
