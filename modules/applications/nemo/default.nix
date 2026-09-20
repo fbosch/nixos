@@ -14,11 +14,6 @@
             ' FILTER (contains(lcase(?fileName), lcase('
           sed -i '0,/g_string_append (sparql, ")");/s//g_string_append (sparql, "))");/' libnemo-private/nemo-search-engine-tracker.c
         '';
-        # NemoPreview uses an X11-only foreign-parent window API.
-        nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ pkgs.makeWrapper ];
-        postFixup = (old.postFixup or "") + ''
-          wrapProgram $out/bin/nemo --set GDK_BACKEND x11
-        '';
       });
       rpgMakerImageDecrypter = pkgs.writeShellApplication {
         name = "rpg-maker-image-decrypter";
@@ -28,18 +23,6 @@
         ];
         text = builtins.readFile ./scripts/decrypt-rpg-maker-image.sh;
       };
-      nemoPreview = pkgs.nemo-preview.overrideAttrs (old: {
-        patches = (old.patches or [ ]) ++ [ ./patches/nemo-preview-image-converters.patch ];
-        postPatch = (old.postPatch or "") + ''
-          substituteInPlace src/js/viewers/image.js \
-            --replace-fail '@BLP_CONV@' '${pkgs.local."blp-conv"}/bin/blp-conv' \
-            --replace-fail '@RPG_MAKER_IMAGE_DECRYPTER@' '${rpgMakerImageDecrypter}/bin/rpg-maker-image-decrypter'
-        '';
-        nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ pkgs.makeWrapper ];
-        postFixup = (old.postFixup or "") + ''
-          wrapProgram $out/bin/nemo-preview --set GDK_BACKEND x11
-        '';
-      });
     in
     {
       services.gnome.localsearch.enable = true;
@@ -50,7 +33,6 @@
           extensions = [
             local.nemo-image-converter
             pkgs.nemo-fileroller
-            nemoPreview
           ];
         })
 
