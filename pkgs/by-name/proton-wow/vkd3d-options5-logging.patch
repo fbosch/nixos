@@ -1,0 +1,34 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+Subject: [PATCH] vkd3d: log D3D12 OPTIONS5 capability queries
+
+Keep the diagnostic bounded to the D3D12 OPTIONS5 query used for ray-tracing
+capability discovery. WARN remains enabled in the release build while the
+unique prefix makes the result easy to find in a Proton log.
+---
+ libs/vkd3d/device.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/libs/vkd3d/device.c b/libs/vkd3d/device.c
+index 8d4c0c08..b3f6a7d2 100644
+--- a/libs/vkd3d/device.c
++++ b/libs/vkd3d/device.c
+@@ -5021,7 +5021,7 @@ static HRESULT STDMETHODCALLTYPE d3d12_device_CheckFeatureSupport(d3d12_device_iface *iface,
+ 
+             if (feature_data_size != sizeof(*data))
+             {
+-                WARN("Invalid size %u.\n", feature_data_size);
++                WARN("PROTON-WOW VKD3D_OPTIONS5 query rejected: size %u (expected %zu).\n", feature_data_size, sizeof(*data));
+                 return E_INVALIDARG;
+             }
+ 
+@@ -5029,6 +5029,8 @@ static HRESULT STDMETHODCALLTYPE d3d12_device_CheckFeatureSupport(d3d12_device_iface *iface,
+             TRACE("SRV-only Tiled Resources Tier 3 %#x.\n", data->SRVOnlyTiledResourceTier3);
+             TRACE("Render pass tier %u.\n", data->RenderPassesTier);
+             TRACE("Raytracing tier %u.\n", data->RaytracingTier);
++            WARN("PROTON-WOW VKD3D_OPTIONS5: SRVOnlyTiledResourceTier3=%#x RenderPassesTier=%u RaytracingTier=%u.\n",
++                    data->SRVOnlyTiledResourceTier3, data->RenderPassesTier, data->RaytracingTier);
+             return S_OK;
+         }
+ 
+-- 
+2.55.0

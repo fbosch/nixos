@@ -48,7 +48,7 @@
       };
       faugusLaunchArguments = [
         # Battle.net / World of Warcraft
-        "GAMEID=umu-worldofwarcraft mullvad-exclude"
+        "WINE_SIMULATE_WRITECOPY=1 PROTON_ENABLE_WAYLAND=0 GAMEID=umu-worldofwarcraft ${config.home.homeDirectory}/.local/bin/wow-launch-guard mullvad-exclude"
         "PROTON_ENABLE_WAYLAND=0 GAMEID=umu-warcraftiii"
         "GAMEID=umu-infinitefusion mullvad-exclude"
         "GAMEID=umu-infinitefusionkanto"
@@ -122,6 +122,8 @@
           '';
         };
       };
+
+      xdg.dataFile."Steam/compatibilitytools.d/proton-wow".source = pkgs.local.proton-wow.steamcompattool;
 
       xdg.desktopEntries.faugus-launcher = {
         name = "Faugus Launcher";
