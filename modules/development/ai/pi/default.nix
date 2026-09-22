@@ -9,16 +9,14 @@ let
           assert pkgs.lib.assertMsg
             (
               previous.version == "0.87.0"
-            ) "Review Pi patches before upgrading Pi from 0.87.0";
+            ) "Keep the Pi 0.87.0 packaging workaround until upstream feature ports are validated";
           {
-            # Pi 0.87.0 bundles the fullscreen image fix; apply the remaining
-            # local runtime patches after dependencies are available.
+            # Keep the pi-server packaging workaround while upstream runtime
+            # changes await validated feature ports.
             postConfigure = (previous.postConfigure or "") + ''
               # llm-agents still injects the 0.85 pi-server workaround, but 0.87 declares it upstream.
               awk '/"@earendil-works\/pi-server"/ { if (seen++) next } { print }' package.json > package.json.tmp
               mv package.json.tmp package.json
-
-              patch --batch --fuzz=0 -p1 < ${./pi-0.87.patch}
             '';
           }
       );
