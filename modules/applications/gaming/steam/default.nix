@@ -20,7 +20,6 @@
         ];
         extraCompatPackages = with pkgs; [
           proton-ge-bin
-          local.proton-wow
         ];
         package = pkgs.steam.override {
           extraArgs = "-system-composer --enable-features=UseOzonePlatform --ozone-platform=wayland";

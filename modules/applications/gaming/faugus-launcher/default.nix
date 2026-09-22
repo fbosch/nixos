@@ -123,8 +123,6 @@
         };
       };
 
-      xdg.dataFile."Steam/compatibilitytools.d/proton-wow".source = pkgs.local.proton-wow.steamcompattool;
-
       xdg.desktopEntries.faugus-launcher = {
         name = "Faugus Launcher";
         exec = "env WINEFSYNC=1 WINEESYNC=1 DXVK_HUD=0 DXVK_STATE_CACHE=1 faugus-launcher %U";
