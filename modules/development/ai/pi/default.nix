@@ -14,6 +14,10 @@ let
             # Pi 0.87.0 bundles the fullscreen image fix; apply the remaining
             # local runtime patches after dependencies are available.
             postConfigure = (previous.postConfigure or "") + ''
+              # llm-agents still injects the 0.85 pi-server workaround, but 0.87 declares it upstream.
+              awk '/"@earendil-works\/pi-server"/ { if (seen++) next } { print }' package.json > package.json.tmp
+              mv package.json.tmp package.json
+
               patch --batch --fuzz=0 -p1 < ${./pi-0.87.patch}
             '';
           }

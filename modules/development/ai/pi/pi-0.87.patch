@@ -6,7 +6,7 @@ diff -ruN /nix/store/3gafvdd47x0zzw4r5v5lbry3r2nca02l-pi-0.87.0/source/dist/core
  export declare function parseSkillBlock(text: string): ParsedSkillBlock | null;
  /** Session-specific events that extend the core AgentEvent */
 -export type AgentSessionEvent = Exclude<AgentEvent, {
-+export type AgentSessionEvent = 
++export type AgentSessionEvent =
 +  | Exclude<AgentEvent, {
      type: "agent_end";
  }> | {
@@ -796,8 +796,8 @@ diff -ruN /nix/store/3gafvdd47x0zzw4r5v5lbry3r2nca02l-pi-0.87.0/source/dist/core
 -        const model = this.model;
 -        const settings = this.settingsManager.getCompactionSettings(model);
 -        const projection = this.sessionManager.buildSessionProjection();
-+        
-+        
++
++
 +    if (this._isAgentRunActive && this.agent.openAICapabilities) return context;
 +    const model = this.model;
 +        const settings = this.settingsManager.getCompactionSettings();
@@ -809,8 +809,8 @@ diff -ruN /nix/store/3gafvdd47x0zzw4r5v5lbry3r2nca02l-pi-0.87.0/source/dist/core
      /** Internal handler for agent events - shared by subscribe and reconnect */
      _handleAgentEvent = async (event) => {
 -        // When a user message starts, check if it's from either queue and remove it BEFORE emitting
-+        
-+        
++
++
 +    if (event.type === "openai_checkpoint") {
 +      // Persist before any awaited extension callback or tool permission hook.
 +      this.sessionManager.appendCustomEntry(
@@ -837,7 +837,7 @@ diff -ruN /nix/store/3gafvdd47x0zzw4r5v5lbry3r2nca02l-pi-0.87.0/source/dist/core
                      ? { ...replacement, content: [] }
                      : replacement;
 -                this._replaceMessageInPlace(event.message, normalized);
-+                this._replaceMessageInPlace(event.message,  
++                this._replaceMessageInPlace(event.message,
 +          event.message.openAI
 +            ? { ...normalized, openAI: structuredClone(event.message.openAI) }
 +            : normalized,
@@ -947,8 +947,8 @@ diff -ruN /nix/store/3gafvdd47x0zzw4r5v5lbry3r2nca02l-pi-0.87.0/source/dist/core
 -        if (this._agentRunAbortRequested) {
 -            this._finishCancelledRetry();
 -            return false;
-+        
-+        
++
++
 +    if (
 +      msg.openAI &&
 +      (msg.stopReason === "error" ||
@@ -1163,8 +1163,8 @@ diff -ruN /nix/store/3gafvdd47x0zzw4r5v5lbry3r2nca02l-pi-0.87.0/source/dist/core
       */
      async setModel(model, options = {}) {
 -        if (!(await this._modelRuntime.checkAuth(model.provider))) {
-+        
-+        
++
++
 +    this._assertNoActiveOpenAIExchange();
 +    if (!(await this._modelRuntime.checkAuth(model.provider))) {
              throw new Error(`No API key for ${model.provider}/${model.id}`);
@@ -1188,8 +1188,8 @@ diff -ruN /nix/store/3gafvdd47x0zzw4r5v5lbry3r2nca02l-pi-0.87.0/source/dist/core
      }
      async _cycleScopedModel(direction, options) {
 -        const availableIds = new Set(this._modelRuntime.getAvailableSnapshot().map((model) => `${model.provider}\0${model.id}`));
-+        
-+        
++
++
 +    this._assertNoActiveOpenAIExchange();
 +    const availableIds = new Set(this._modelRuntime.getAvailableSnapshot().map((model) => `${model.provider}\0${model.id}`));
          const scopedModels = this._scopedModels.filter((scoped) => availableIds.has(`${scoped.model.provider}\0${scoped.model.id}`));
@@ -1200,8 +1200,8 @@ diff -ruN /nix/store/3gafvdd47x0zzw4r5v5lbry3r2nca02l-pi-0.87.0/source/dist/core
      }
      async _cycleAvailableModel(direction, options) {
 -        const availableModels = this._modelRuntime.getAvailableSnapshot();
-+        
-+        
++
++
 +    this._assertNoActiveOpenAIExchange();
 +    const availableModels = this._modelRuntime.getAvailableSnapshot();
          if (availableModels.length <= 1)
@@ -1315,8 +1315,8 @@ diff -ruN /nix/store/3gafvdd47x0zzw4r5v5lbry3r2nca02l-pi-0.87.0/source/dist/core
       */
      async compact(customInstructions) {
 -        await this.abort();
-+        
-+        
++
++
 +    this._assertNoActiveOpenAIExchange();
 +    await this.abort();
          this._compactionAbortController = new AbortController();
@@ -1401,8 +1401,8 @@ diff -ruN /nix/store/3gafvdd47x0zzw4r5v5lbry3r2nca02l-pi-0.87.0/source/dist/core
 -    async _checkCompaction(assistantMessage, skipAbortedCheck = true, toolResults = []) {
 -        const settings = this.settingsManager.getCompactionSettings(this.model);
 +    async _checkCompaction(assistantMessage, skipAbortedCheck = true) {
-+        
-+        
++
++
 +    if (
 +      assistantMessage.openAI ||
 +      (this._isAgentRunActive && this.agent.openAICapabilities)
@@ -1667,8 +1667,8 @@ diff -ruN /nix/store/3gafvdd47x0zzw4r5v5lbry3r2nca02l-pi-0.87.0/source/dist/core
      }
      async reload(options) {
 -        const oldRunner = this._extensionRunner;
-+        
-+        
++
++
 +    this._assertNoActiveOpenAIExchange();
 +    const oldRunner = this._extensionRunner;
          const previousFlagValues = oldRunner.getFlagValues();
@@ -1697,8 +1697,8 @@ diff -ruN /nix/store/3gafvdd47x0zzw4r5v5lbry3r2nca02l-pi-0.87.0/source/dist/core
 +   */
      _isRetryableError(message) {
 -        // Context overflow is handled by compaction, not retry.
-+        
-+        
++
++
 +    if (message.openAI) return false;
 +    // Context overflow is handled by compaction, not retry.
          if (isContextOverflow(message, this.model?.contextWindow ?? 0))
@@ -1850,8 +1850,8 @@ diff -ruN /nix/store/3gafvdd47x0zzw4r5v5lbry3r2nca02l-pi-0.87.0/source/dist/core
 -            this._refreshFinalizedContext();
 -            this._restoreToolsFromTranscript();
 +            // Update agent state
-+            
-+            
++
++
 +      const sessionContext = this.sessionManager.buildSessionContext();
 +            this.agent.state.messages = sessionContext.messages;
              // Emit session_tree event
@@ -2245,8 +2245,8 @@ diff -ruN /nix/store/3gafvdd47x0zzw4r5v5lbry3r2nca02l-pi-0.87.0/source/dist/core
          setThinkingLevel: notInitialized,
          flagValues: new Map(),
 -        pendingProviderRegistrations: [],
-+        
-+        
++
++
 +        openAICapabilities:  new Map(),
 +    isOpenAIRegistrationIdle: () => true,
 +    registerOpenAICapabilities: (registration) =>  {
@@ -2339,8 +2339,8 @@ diff -ruN /nix/store/3gafvdd47x0zzw4r5v5lbry3r2nca02l-pi-0.87.0/source/dist/core
              runtime.setThinkingLevel(level);
          },
 -        registerProvider(providerOrName, config) {
-+        
-+        
++
++
 +    registerOpenAICapabilities(registration) {
 +      assertActive();
 +      const snapshot = snapshotOpenAICapabilities(registration);
@@ -2399,7 +2399,7 @@ diff -ruN /nix/store/3gafvdd47x0zzw4r5v5lbry3r2nca02l-pi-0.87.0/source/dist/core
   */
  import type { AgentMessage } from "@earendil-works/pi-agent-core";
 -import { type ImageContent, type Provider, type ProviderHeaders } from "@earendil-works/pi-ai";
-+import type { ImageContent, 
++import type { ImageContent,
 +  Api,
 +  Model,
 +  Provider, ProviderHeaders } from "@earendil-works/pi-ai";
@@ -2423,7 +2423,7 @@ diff -ruN /nix/store/3gafvdd47x0zzw4r5v5lbry3r2nca02l-pi-0.87.0/source/dist/core
   * Events with dedicated emitXxx() methods are excluded for stronger type safety.
   */
 -type RunnerEmitEvent = Exclude<ExtensionEvent, ToolCallEvent | ProjectTrustEvent | ToolResultEvent | UserBashEvent | ContextEvent | ContextWithSystemEvent | CacheWarmingDecisionEvent | BeforeProviderRequestEvent | BeforeProviderHeadersEvent | BeforeAgentStartEvent | MessageEndEvent | ResourcesDiscoverEvent | InputEvent | TurnEndEvent | AgentBeforeSettleEvent>;
-+type RunnerEmitEvent = Exclude<ExtensionEvent, 
++type RunnerEmitEvent = Exclude<ExtensionEvent,
 +  | ToolCallEvent | ProjectTrustEvent | ToolResultEvent | UserBashEvent | ContextEvent | BeforeProviderRequestEvent | BeforeProviderHeadersEvent | BeforeAgentStartEvent | MessageEndEvent | ResourcesDiscoverEvent | BeforeModelAvailabilityEvent | InputEvent>;
  type RunnerEmitResult<TEvent extends RunnerEmitEvent> = TEvent extends {
      type: "session_before_switch";
@@ -2503,9 +2503,9 @@ diff -ruN /nix/store/3gafvdd47x0zzw4r5v5lbry3r2nca02l-pi-0.87.0/source/dist/core
          this.extensions = extensions;
          this.runtime = runtime;
 -        this.uiContext = noOpUIContext;
-+        
-+        
-+        
++
++
++
 +    runtime.isOpenAIRegistrationIdle = () => this.isIdleFn();
 +    this.uiContext = noOpUIContext;
          this.cwd = cwd;
@@ -2613,7 +2613,7 @@ diff -ruN /nix/store/3gafvdd47x0zzw4r5v5lbry3r2nca02l-pi-0.87.0/source/dist/core
  }
  /** Raw terminal input listener for extensions. */
 -export type TerminalInputHandler = (data: string) => {
-+export type TerminalInputHandler = (data: string) => 
++export type TerminalInputHandler = (data: string) =>
 +  | {
      consume?: boolean;
      data?: string;
@@ -2642,7 +2642,7 @@ diff -ruN /nix/store/3gafvdd47x0zzw4r5v5lbry3r2nca02l-pi-0.87.0/source/dist/core
      /** Set a widget to display above or below the editor. Accepts string array or component factory. */
      setWidget(key: string, content: string[] | undefined, options?: ExtensionWidgetOptions): void;
 -    setWidget(key: string, content: ((tui: TUI, theme: Theme) => Component & {
-+    setWidget(key: string, content: 
++    setWidget(key: string, content:
 +      | ((tui: TUI, theme: Theme) => Component & {
          dispose?(): void;
      }) | undefined, options?: ExtensionWidgetOptions): void;
@@ -2658,13 +2658,13 @@ diff -ruN /nix/store/3gafvdd47x0zzw4r5v5lbry3r2nca02l-pi-0.87.0/source/dist/core
 +   * git branch and extension statuses from setStatus(). Context usage is on
 +   * ctx.getContextUsage(), token stats on ctx.sessionManager.getEntries(), model info on ctx.model.
 +   */
-+    setFooter(factory: 
++    setFooter(factory:
 +      | ((tui: TUI, theme: Theme, footerData: ReadonlyFooterDataProvider) => Component & {
          dispose?(): void;
      }) | undefined): void;
      /** Set a custom header component (shown at startup, above chat), or undefined to restore the built-in header. */
 -    setHeader(factory: ((tui: TUI, theme: Theme) => Component & {
-+    setHeader(factory: 
++    setHeader(factory:
 +      | ((tui: TUI, theme: Theme) => Component & {
          dispose?(): void;
      }) | undefined): void;
@@ -2672,7 +2672,7 @@ diff -ruN /nix/store/3gafvdd47x0zzw4r5v5lbry3r2nca02l-pi-0.87.0/source/dist/core
      setTitle(title: string): void;
      /** Show a custom component with keyboard focus. */
 -    custom<T>(factory: (tui: TUI, theme: Theme, keybindings: KeybindingsManager, done: (result: T) => void) => (Component & {
-+    custom<T>(factory: (tui: TUI, theme: Theme, keybindings: KeybindingsManager, done: (result: T) => void) => 
++    custom<T>(factory: (tui: TUI, theme: Theme, keybindings: KeybindingsManager, done: (result: T) => void) =>
 +      | (Component & {
          dispose?(): void;
      }) | Promise<Component & {
@@ -2813,7 +2813,7 @@ diff -ruN /nix/store/3gafvdd47x0zzw4r5v5lbry3r2nca02l-pi-0.87.0/source/dist/core
 - * belong to Pi: it restores them after the handler returns, so a handler cannot drop
 - * them and does not need to preserve them.
 - */
-+export type SessionEvent = 
++export type SessionEvent =
 +  | SessionStartEvent | SessionInfoChangedEvent | SessionBeforeSwitchEvent | SessionBeforeForkEvent | SessionBeforeCompactEvent | SessionCompactEvent | SessionCompactFailedEvent | SessionShutdownEvent | SessionBeforeTreeEvent | SessionTreeEvent;
 +/** Fired before each LLM call. Can modify messages. */
  export interface ContextEvent {
@@ -2824,7 +2824,7 @@ diff -ruN /nix/store/3gafvdd47x0zzw4r5v5lbry3r2nca02l-pi-0.87.0/source/dist/core
  }
  /** Result from input event handler */
 -export type InputEventResult = {
-+export type InputEventResult = 
++export type InputEventResult =
 +  | {
      action: "continue";
  } | {
@@ -2834,7 +2834,7 @@ diff -ruN /nix/store/3gafvdd47x0zzw4r5v5lbry3r2nca02l-pi-0.87.0/source/dist/core
   * Later `tool_call` handlers see earlier mutations. No re-validation is performed after mutation.
   */
 -export type ToolCallEvent = BashToolCallEvent | PowerShellToolCallEvent | ReadToolCallEvent | EditToolCallEvent | WriteToolCallEvent | GrepToolCallEvent | FindToolCallEvent | LsToolCallEvent | CustomToolCallEvent;
-+export type ToolCallEvent = 
++export type ToolCallEvent =
 +  | BashToolCallEvent | PowerShellToolCallEvent | ReadToolCallEvent | EditToolCallEvent | WriteToolCallEvent | GrepToolCallEvent | FindToolCallEvent | LsToolCallEvent | CustomToolCallEvent;
  interface ToolResultEventBase {
      type: "tool_result";
@@ -2844,7 +2844,7 @@ diff -ruN /nix/store/3gafvdd47x0zzw4r5v5lbry3r2nca02l-pi-0.87.0/source/dist/core
  }
  /** Fired after a tool executes. Can modify result. */
 -export type ToolResultEvent = BashToolResultEvent | PowerShellToolResultEvent | ReadToolResultEvent | EditToolResultEvent | WriteToolResultEvent | GrepToolResultEvent | FindToolResultEvent | LsToolResultEvent | CustomToolResultEvent;
-+export type ToolResultEvent = 
++export type ToolResultEvent =
 +  | BashToolResultEvent | PowerShellToolResultEvent | ReadToolResultEvent | EditToolResultEvent | WriteToolResultEvent | GrepToolResultEvent | FindToolResultEvent | LsToolResultEvent | CustomToolResultEvent;
  export declare function isBashToolResult(e: ToolResultEvent): e is BashToolResultEvent;
  export declare function isPowerShellToolResult(e: ToolResultEvent): e is PowerShellToolResultEvent;
@@ -2854,7 +2854,7 @@ diff -ruN /nix/store/3gafvdd47x0zzw4r5v5lbry3r2nca02l-pi-0.87.0/source/dist/core
  };
  /** Union of all event types */
 -export type ExtensionEvent = ProjectTrustEvent | ResourcesDiscoverEvent | SessionEvent | ContextEvent | ContextWithSystemEvent | CacheWarmingDecisionEvent | BeforeProviderRequestEvent | BeforeProviderHeadersEvent | AfterProviderResponseEvent | BeforeAgentStartEvent | AgentStartEvent | AgentEndEvent | AgentBeforeSettleEvent | AgentSettledEvent | UIPromptStartEvent | UIPromptEndEvent | TurnStartEvent | TurnEndEvent | MessageStartEvent | MessageUpdateEvent | MessageEndEvent | ToolExecutionStartEvent | ToolExecutionUpdateEvent | ToolExecutionEndEvent | ModelSelectEvent | ThinkingLevelSelectEvent | UserBashEvent | InputEvent | ToolCallEvent | ToolResultEvent;
-+export type ExtensionEvent = 
++export type ExtensionEvent =
 +  | ProjectTrustEvent | ResourcesDiscoverEvent | BeforeModelAvailabilityEvent | SessionEvent | ContextEvent | BeforeProviderRequestEvent | BeforeProviderHeadersEvent | AfterProviderResponseEvent | BeforeAgentStartEvent | AgentStartEvent | AgentEndEvent | AgentSettledEvent | UIPromptStartEvent | UIPromptEndEvent | TurnStartEvent | TurnEndEvent | MessageStartEvent | MessageUpdateEvent | MessageEndEvent | ToolExecutionStartEvent | ToolExecutionUpdateEvent | ToolExecutionEndEvent | ModelSelectEvent | ThinkingLevelSelectEvent | UserBashEvent | InputEvent | ToolCallEvent | ToolResultEvent;
  export interface ContextEventResult {
      messages?: AgentMessage[];
@@ -2949,7 +2949,7 @@ diff -ruN /nix/store/3gafvdd47x0zzw4r5v5lbry3r2nca02l-pi-0.87.0/source/dist/core
 -    on(event: "user_bash", handler: ExtensionHandler<UserBashEvent, UserBashEventResult>): () => void;
 -    on(event: "input", handler: ExtensionHandler<InputEvent, InputEventResult>): () => void;
 +    readonly startupSnapshot?: StartupSnapshotAPI;
-+    
++
 +  /** Exact model opt-in. Register during loading or while idle; duplicates throw. Reload clears registrations. */
 +  registerOpenAICapabilities(registration: OpenAICapabilityRegistration): void;
 +  on(event: "project_trust", handler: ProjectTrustHandler): void;
@@ -2997,7 +2997,7 @@ diff -ruN /nix/store/3gafvdd47x0zzw4r5v5lbry3r2nca02l-pi-0.87.0/source/dist/core
      }): void;
      /** Register a CLI flag. */
 -    registerFlag(name: string, options: {
-+    registerFlag(name: string, options: 
++    registerFlag(name: string, options:
 +      | {
          description?: string;
          type: "boolean";
@@ -3141,7 +3141,7 @@ diff -ruN /nix/store/3gafvdd47x0zzw4r5v5lbry3r2nca02l-pi-0.87.0/source/dist/core
  /** Extension factory function type. Supports both sync and async initialization. */
  export type ExtensionFactory = (pi: ExtensionAPI) => void | Promise<void>;
 -export type InlineExtension = ExtensionFactory | {
-+export type InlineExtension = 
++export type InlineExtension =
 +  | ExtensionFactory | {
      /** Display name shown as `<inline:name>` in the startup Extensions list. */
      name: string;
@@ -3193,7 +3193,7 @@ diff -ruN /nix/store/3gafvdd47x0zzw4r5v5lbry3r2nca02l-pi-0.87.0/source/dist/core
  export interface ExtensionRuntimeState {
 -    flagValues: Map<string, boolean | string>;
 +    startupSnapshot?: StartupSnapshotAPI;
-+    
++
 +  openAICapabilities: Map<string, Readonly<OpenAICapabilityRegistration>>;
 +  isOpenAIRegistrationIdle: () => boolean;
 +  registerOpenAICapabilities: (
@@ -3286,8 +3286,8 @@ diff -ruN /nix/store/3gafvdd47x0zzw4r5v5lbry3r2nca02l-pi-0.87.0/source/dist/core
      }
 -    stream(model, context, options) {
 -        const transcript = normalizeContext(context);
-+    
-+    
++
++
 +  async createOpenAICodexExchange(model, context, options) {
 +    if (model.api !== "openai-codex-responses")
 +      throw new Error(
@@ -4434,7 +4434,7 @@ diff -ruN /nix/store/3gafvdd47x0zzw4r5v5lbry3r2nca02l-pi-0.87.0/source/docs/exte
 @@ -1797,7 +1797,33 @@
  pi.setActiveTools(["read", "bash"]); // Switch to read-only
  ```
- 
+
 -`pi.getAllTools()` returns `name`, `description`, `parameters`, `promptGuidelines`, and `sourceInfo`.
 +`pi.getAllTools()` returns `name`, `description`, `parameters`, `promptGuidelines`, `programmatic`, `sourceInfo`, and an opaque `registrationId`.
 +
@@ -4463,7 +4463,7 @@ diff -ruN /nix/store/3gafvdd47x0zzw4r5v5lbry3r2nca02l-pi-0.87.0/source/docs/exte
 +  return nested.result;
 +}
 +```
- 
+
  Typical `sourceInfo.source` values:
  - `builtin` for built-in tools
 diff -ruN /nix/store/3gafvdd47x0zzw4r5v5lbry3r2nca02l-pi-0.87.0/source/docs/settings.md /tmp/pi-resolved-oldside/docs/settings.md
@@ -4544,7 +4544,7 @@ diff -ruN /nix/store/3gafvdd47x0zzw4r5v5lbry3r2nca02l-pi-0.87.0/source/node_modu
 @@ -1,5 +1,5 @@
 -import { createInitialSystemMessage, getCurrentSystemMessage, getCurrentSystemPrompt, toToolDeclaration, } from "@earendil-works/pi-ai";
 -import { runAgentLoop, runAgentLoopContinue } from "./agent-loop.js";
-+import { uuidv7 } from "@earendil-works/pi-ai";
++import { createInitialSystemMessage, getCurrentSystemMessage, getCurrentSystemPrompt, toToolDeclaration, uuidv7, } from "@earendil-works/pi-ai";
 +import { executeToolCall, runAgentLoop, runAgentLoopContinue } from "./agent-loop.js";
  import { getDefaultStreamFn } from "./stream-fn.js";
  function defaultConvertToLlm(messages) {
