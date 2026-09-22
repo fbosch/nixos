@@ -3674,22 +3674,16 @@ diff -ruN /nix/store/3gafvdd47x0zzw4r5v5lbry3r2nca02l-pi-0.87.0/source/dist/core
 diff -ruN /nix/store/3gafvdd47x0zzw4r5v5lbry3r2nca02l-pi-0.87.0/source/dist/core/settings-manager.js /tmp/pi-resolved-oldside/dist/core/settings-manager.js
 --- a/dist/core/settings-manager.js	1970-01-01 01:00:01.000000000 +0100
 +++ b/dist/core/settings-manager.js	2026-09-22 07:53:53.004992715 +0200
-@@ -7,12 +7,8 @@
- import { normalizePath, resolvePath } from "../utils/paths.js";
- import { stripBom } from "../utils/text.js";
- import { DEFAULT_HTTP_IDLE_TIMEOUT_MS, parseHttpIdleTimeoutMs } from "./http-dispatcher.js";
--const DEFAULT_COMPACTION_TOKEN_SETTINGS = {
--    reserveTokens: 16384,
--    keepRecentTokens: 20000,
--};
--/** Cache-warming profile. "idle" also warms between agent runs. */
--export const CACHE_WARMING_MODES = ["off", "streaming", "idle"];
+@@ -13,6 +13,8 @@
+ };
+ /** Cache-warming profile. "idle" also warms between agent runs. */
+ export const CACHE_WARMING_MODES = ["off", "streaming", "idle"];
 +export const DEFAULT_SELECTOR_OVERLAY_WIDTH = 72;
 +export const MIN_SELECTOR_OVERLAY_WIDTH = 40;
  function isMergeableObject(value) {
      return typeof value === "object" && value !== null && !Array.isArray(value);
  }
-@@ -45,6 +41,11 @@
+@@ -45,6 +47,11 @@
      }
      return undefined;
  }
@@ -3701,7 +3695,7 @@ diff -ruN /nix/store/3gafvdd47x0zzw4r5v5lbry3r2nca02l-pi-0.87.0/source/dist/core
  function toSettingsError(scope, error, path) {
      return {
          scope,
-@@ -1008,6 +1009,18 @@
+@@ -1008,6 +1015,18 @@
          this.markModified("autocompleteMaxVisible");
          this.save();
      }
@@ -3826,7 +3820,7 @@ diff -ruN /nix/store/3gafvdd47x0zzw4r5v5lbry3r2nca02l-pi-0.87.0/source/dist/mode
  import { Container, getCapabilities, SettingsList, Spacer, Text, } from "@earendil-works/pi-tui";
  import { formatHttpIdleTimeoutMs, HTTP_IDLE_TIMEOUT_CHOICES } from "../../../core/http-dispatcher.js";
 -import { CACHE_WARMING_MODES, } from "../../../core/settings-manager.js";
-+import { DEFAULT_SELECTOR_OVERLAY_WIDTH, } from "../../../core/settings-manager.js";
++import { CACHE_WARMING_MODES, DEFAULT_SELECTOR_OVERLAY_WIDTH, } from "../../../core/settings-manager.js";
  import { getSettingsListTheme, parseAutoThemeSetting, theme } from "../theme/theme.js";
  import { DynamicBorder } from "./dynamic-border.js";
  import { keyDisplayText } from "./keybinding-hints.js";
