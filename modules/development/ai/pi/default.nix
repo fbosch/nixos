@@ -8,19 +8,13 @@ let
         previous:
           assert pkgs.lib.assertMsg
             (
-              previous.version == "0.85.1"
-            ) "Review Pi patches before upgrading Pi from 0.85.1";
+              previous.version == "0.87.0"
+            ) "Review Pi patches before upgrading Pi from 0.87.0";
           {
-            patches = (previous.patches or [ ]) ++ [ ./pi-selector-overlays.patch ];
-            # These dependency files exist only after configure, before Bun compiles Pi.
+            # Pi 0.87.0 bundles the fullscreen image fix; apply the remaining
+            # local runtime patches after dependencies are available.
             postConfigure = (previous.postConfigure or "") + ''
-              # WezTerm fullscreen image fix; remove after upstream #8306 is fixed.
-              patch -d node_modules/@earendil-works/pi-tui -p1 \
-                < ${./pi-fullscreen-images.patch}
-              patch --batch --fuzz=0 -p1 < ${./pi-openai-capabilities.patch}
-              patch --batch --fuzz=0 -p1 < ${./pi-auth-profiles-startup.patch}
-              patch --batch --fuzz=0 -p1 < ${./pi-code-mode.patch}
-              patch --batch --fuzz=0 -p1 < ${./pi-startup-session-header.patch}
+              patch --batch --fuzz=0 -p1 < ${./pi-0.87.patch}
             '';
           }
       );
