@@ -5,7 +5,6 @@
     {
       environment.systemPackages = with pkgs; [
         media-downloader
-        megasync
         p7zip
         speedtest-cli
       ];

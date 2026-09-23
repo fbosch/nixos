@@ -2,15 +2,15 @@ diff --git a/docs/settings.md b/docs/settings.md
 index e4c67cda..5b455b24 100644
 --- a/docs/settings.md
 +++ b/docs/settings.md
-@@ -88,6 +88,8 @@ Warming needs a known cache lifetime for the model and the retention tier the re
- | `editorPaddingX` | number | `0` | Horizontal padding for input editor (0-3) |
- | `outputPad` | number | `1` | Horizontal padding for user messages, assistant messages, and thinking (0 or 1) |
- | `autocompleteMaxVisible` | number | `5` | Max visible items in autocomplete dropdown (3-20) |
-+| `selectorOverlayWidth` | number | `72` | Default selector modal width in terminal columns (minimum 40). Clamped to the terminal width |
-+| `selectorOverlayWidths` | object | `{}` | Per-selector width overrides for `settings`, `thinking`, `trust`, `model`, `scoped-models`, `fork`, `tree`, `session`, and `auth` |
- | `showHardwareCursor` | boolean | `false` | Show the terminal cursor while TUI positions it for IME support |
- | `tuiMode` | string | `"regular"` | Interactive TUI mode: `"regular"` or experimental `"fullscreen"`. Changes from `/settings` apply immediately; `--tui-mode` overrides this setting at startup |
- | `fullscreenExitOutput` | string | `"transcript"` | Fullscreen exit output: `"transcript"` prints the final transcript and resume hint, while `"resume-hint"` restores the previous screen and prints only the resume hint. Has no effect in regular TUI mode |
+@@ -82,6 +82,8 @@ Warming needs a known cache lifetime for the model and the retention tier the re
+ | `editorPaddingX` | number | `0` | Horizontal editor padding from 0 to 3 cells. |
+ | `outputPad` | `0 \| 1` | `1` | Horizontal transcript padding. |
+ | `autocompleteMaxVisible` | number | `5` | Visible autocomplete entries, from 3 to 20. |
++| `selectorOverlayWidth` | number | `72` | Default selector modal width in terminal columns (minimum 40). Clamped to the terminal width. |
++| `selectorOverlayWidths` | object | `{}` | Per-selector width overrides for `settings`, `thinking`, `trust`, `model`, `scoped-models`, `fork`, `tree`, `session`, and `auth`. |
+ | `showHardwareCursor` | boolean | `false` | Show the terminal cursor while Pi positions it for input methods. |
+ | `terminal.showImages` | boolean | `true` | Display inline images when supported. |
+ | `terminal.imageWidthCells` | number | `60` | Preferred inline image width in terminal cells. |
 diff --git a/dist/core/settings-manager.d.ts b/dist/core/settings-manager.d.ts
 index 53d2865e..f85f9fd8 100644
 --- a/dist/core/settings-manager.d.ts

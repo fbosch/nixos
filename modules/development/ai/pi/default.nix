@@ -8,8 +8,8 @@ let
         previous:
           assert pkgs.lib.assertMsg
             (
-              previous.version == "0.87.0"
-            ) "Keep the Pi 0.87.0 packaging workaround until upstream feature ports are validated";
+              previous.version == "0.87.1"
+            ) "Keep the Pi 0.87.1 packaging workaround until upstream feature ports are validated";
           {
             # Keep the pi-server packaging workaround while upstream runtime
             # changes await validated feature ports.
