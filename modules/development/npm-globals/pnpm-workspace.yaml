@@ -25,6 +25,8 @@ minimumReleaseAgeExclude:
   - '@fallow-cli/win32-x64-msvc@3.12.0'
   - fallow-type-aware@3.12.0
   - fallow@3.12.0
+  # Renovate security update: pnpm@11.11.0
+  - pnpm@11.11.0
 
 overrides:
   '@tootallnate/once@<3.0.1': '>=3.0.1'
