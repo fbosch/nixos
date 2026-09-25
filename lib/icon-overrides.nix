@@ -14,8 +14,7 @@
         (
           context: source: {
             inherit context;
-            package = source.package;
-            theme = source.theme;
+            inherit (source) package theme;
           }
         )
         replace;
