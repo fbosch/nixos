@@ -7,8 +7,9 @@ let
       pi = llmAgents.pi.overrideAttrs (
         previous:
           assert pkgs.lib.assertMsg
-            (previous.version == "0.87.0")
-            "Review the pi-server packaging workaround when upgrading Pi from 0.87.0";
+            (
+              previous.version == "0.87.1"
+            ) "Keep the Pi 0.87.1 packaging workaround until upstream feature ports are validated";
           {
             postConfigure = (previous.postConfigure or "") + ''
               # llm-agents still injects the 0.85 pi-server workaround, but 0.87 declares it upstream.

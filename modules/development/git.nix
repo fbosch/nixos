@@ -7,6 +7,7 @@ let
       difftastic
       diffnav
       gitui
+      ghgrab
     ];
   };
   mkGitPlatformConfig =

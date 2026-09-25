@@ -193,7 +193,26 @@ fi
 declare -A package_updates=()
 update_check_dir=""
 update_check_failed=false
-nix_update_command=(nix run nixpkgs#nix-update --)
+nix_update_command=()
+
+ensure_nix_update_command() {
+  if [ "${#nix_update_command[@]}" -gt 0 ]; then
+    return 0
+  fi
+
+  local store_path
+  if ! store_path="$(nix build nixpkgs#nix-update --no-link --print-out-paths)"; then
+    error "failed to resolve nix-update from nixpkgs" >&2
+    return 1
+  fi
+
+  nix_update_command=("$store_path/bin/nix-update")
+  if [ ! -x "${nix_update_command[0]}" ]; then
+    error "resolved nix-update executable not found at ${nix_update_command[0]}" >&2
+    nix_update_command=()
+    return 1
+  fi
+}
 
 cleanup_update_check() {
   local exit_code=$?
@@ -288,6 +307,13 @@ check_package_update() {
     cd "$update_check_dir" || exit 1
     "${nix_update_command[@]}" "${nix_update_args[@]}"
   ) >"$output_file" 2>&1; then
+    if grep -Fq 'VersionError: Please specify the version. We can only get the latest version from' "$output_file"; then
+      status 3 SKIP "nix-update could not discover an upstream version for .#$package_name; skipping automatic check" >&2
+      rm -f -- "$output_file"
+      restore_update_check_copy || true
+      return 0
+    fi
+
     status 1 CHECK "unable to check .#$package_name for updates" >&2
     cat "$output_file" >&2
     rm -f -- "$output_file"
@@ -322,6 +348,11 @@ check_package_update() {
 
 check_upstream_updates() {
   local package_file
+  if ! ensure_nix_update_command; then
+    update_check_failed=true
+    return 0
+  fi
+
   local package_name
 
   create_update_check_copy
@@ -464,6 +495,9 @@ for package_name in "${selected_packages[@]}"; do
     nix_update_args+=(--version unstable)
   fi
   nix_update_args+=("$package_name")
+  if ! ensure_nix_update_command; then
+    exit 1
+  fi
 
   run_update "Updating .#$package_name" "${nix_update_command[@]}" "${nix_update_args[@]}"
   after_hash="$(sha256sum "$package_file")"
