@@ -114,7 +114,7 @@ in
 
             [Container]
             ContainerName=pihole
-            Image=pihole/pihole:2026.07.2
+            Image=pihole/pihole:2026.09.0
               PublishPort=${cfg.listenAddress}:${toString cfg.dnsPort}:53/tcp
               PublishPort=${cfg.listenAddress}:${toString cfg.dnsPort}:53/udp
               PublishPort=${cfg.listenAddress}:${toString cfg.webPort}:80/tcp
