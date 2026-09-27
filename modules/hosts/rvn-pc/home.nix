@@ -61,101 +61,107 @@ in
                 };
               };
 
-              systemd.user.services.screenshot-cleanup = {
-                Unit = {
-                  Description = "Move screenshots older than seven days to the trash";
-                };
-                Service = {
-                  Type = "oneshot";
-                  Nice = 19;
-                  CPUWeight = 10;
-                  IOSchedulingClass = "idle";
-                  IOWeight = 10;
-                  ExecStart = "${pkgs.writeShellScript "screenshot-cleanup" ''
-                    set -euo pipefail
-                    screenshot_dir="${config.home.homeDirectory}/Pictures/screenshots"
+              systemd.user = {
+                services = {
+                  screenshot-cleanup = {
+                    Unit = {
+                      Description = "Move screenshots older than seven days to the trash";
+                    };
+                    Service = {
+                      Type = "oneshot";
+                      Nice = 19;
+                      CPUWeight = 10;
+                      IOSchedulingClass = "idle";
+                      IOWeight = 10;
+                      ExecStart = "${pkgs.writeShellScript "screenshot-cleanup" ''
+                        set -euo pipefail
+                        screenshot_dir="${config.home.homeDirectory}/Pictures/screenshots"
 
-                    if [ ! -d "$screenshot_dir" ]; then
-                      exit 0
-                    fi
+                        if [ ! -d "$screenshot_dir" ]; then
+                          exit 0
+                        fi
 
-                    while IFS= read -r -d "" image; do
-                      ${pkgs.glib}/bin/gio trash "$image"
-                    done < <(
-                      ${pkgs.findutils}/bin/find "$screenshot_dir" \
-                        -xdev \
-                        -type f \
-                        -regextype posix-extended \
-                        -iregex '.*\.(avif|bmp|gif|heic|heif|jpe?g|jxl|png|svg|tiff?|webp)$' \
-                        -mmin +10080 \
-                        -print0
-                    )
-                  ''}";
-                };
-              };
+                        while IFS= read -r -d "" image; do
+                          ${pkgs.glib}/bin/gio trash "$image"
+                        done < <(
+                          ${pkgs.findutils}/bin/find "$screenshot_dir" \
+                            -xdev \
+                            -type f \
+                            -regextype posix-extended \
+                            -iregex '.*\.(avif|bmp|gif|heic|heif|jpe?g|jxl|png|svg|tiff?|webp)$' \
+                            -mmin +10080 \
+                            -print0
+                        )
+                      ''}";
+                    };
+                  };
 
-              systemd.user.services.trash-cleanup = {
-                Unit = {
-                  Description = "Permanently remove trash items older than 30 days";
-                };
-                Service = {
-                  Type = "oneshot";
-                  Nice = 19;
-                  CPUWeight = 10;
-                  IOSchedulingClass = "idle";
-                  IOWeight = 10;
-                  ExecStart = "${pkgs.writeShellScript "trash-cleanup" ''
-                    set -euo pipefail
-                    trash_dir="''${XDG_DATA_HOME:-$HOME/.local/share}/Trash"
-                    trash_files_dir="$trash_dir/files"
-                    trash_info_dir="$trash_dir/info"
+                  trash-cleanup = {
+                    Unit = {
+                      Description = "Permanently remove trash items older than 30 days";
+                    };
+                    Service = {
+                      Type = "oneshot";
+                      Nice = 19;
+                      CPUWeight = 10;
+                      IOSchedulingClass = "idle";
+                      IOWeight = 10;
+                      ExecStart = "${pkgs.writeShellScript "trash-cleanup" ''
+                        set -euo pipefail
+                        trash_dir="''${XDG_DATA_HOME:-$HOME/.local/share}/Trash"
+                        trash_files_dir="$trash_dir/files"
+                        trash_info_dir="$trash_dir/info"
 
-                    if [ ! -d "$trash_files_dir" ]; then
-                      exit 0
-                    fi
+                        if [ ! -d "$trash_files_dir" ]; then
+                          exit 0
+                        fi
 
-                    if [ ! -d "$trash_info_dir" ]; then
-                      exit 0
-                    fi
+                        if [ ! -d "$trash_info_dir" ]; then
+                          exit 0
+                        fi
 
-                    while IFS= read -r -d "" trash_info_file; do
-                      info_name="''${trash_info_file##*/}"
-                      entry_name="''${info_name%.trashinfo}"
-                      ${pkgs.coreutils}/bin/rm -rf -- "$trash_files_dir/$entry_name" "$trash_info_file"
-                    done < <(
-                      ${pkgs.findutils}/bin/find "$trash_info_dir" \
-                        -xdev \
-                        -mindepth 1 \
-                        -maxdepth 1 \
-                        -type f \
-                        -name "*.trashinfo" \
-                        -mmin +43200 \
-                        -print0
-                    )
-                  ''}";
-                };
-              };
+                        while IFS= read -r -d "" trash_info_file; do
+                          info_name="''${trash_info_file##*/}"
+                          entry_name="''${info_name%.trashinfo}"
+                          ${pkgs.coreutils}/bin/rm -rf -- "$trash_files_dir/$entry_name" "$trash_info_file"
+                        done < <(
+                          ${pkgs.findutils}/bin/find "$trash_info_dir" \
+                            -xdev \
+                            -mindepth 1 \
+                            -maxdepth 1 \
+                            -type f \
+                            -name "*.trashinfo" \
+                            -mmin +43200 \
+                            -print0
+                        )
+                      ''}";
+                    };
+                  };
 
-              systemd.user.timers.trash-cleanup = {
-                Unit = {
-                  Description = "Daily trash cleanup timer";
                 };
-                Timer = {
-                  OnCalendar = "daily";
-                  Persistent = true;
-                };
-                Install.WantedBy = [ "timers.target" ];
-              };
+                timers = {
+                  trash-cleanup = {
+                    Unit = {
+                      Description = "Daily trash cleanup timer";
+                    };
+                    Timer = {
+                      OnCalendar = "daily";
+                      Persistent = true;
+                    };
+                    Install.WantedBy = [ "timers.target" ];
+                  };
 
-              systemd.user.timers.screenshot-cleanup = {
-                Unit = {
-                  Description = "Daily screenshot cleanup timer";
+                  screenshot-cleanup = {
+                    Unit = {
+                      Description = "Daily screenshot cleanup timer";
+                    };
+                    Timer = {
+                      OnCalendar = "daily";
+                      Persistent = true;
+                    };
+                    Install.WantedBy = [ "timers.target" ];
+                  };
                 };
-                Timer = {
-                  OnCalendar = "daily";
-                  Persistent = true;
-                };
-                Install.WantedBy = [ "timers.target" ];
               };
             }
           )

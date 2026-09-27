@@ -11,8 +11,6 @@ let
               previous.version == "0.87.1"
             ) "Keep the Pi 0.87.1 packaging workaround until upstream feature ports are validated";
           {
-            # Keep the pi-server packaging workaround while upstream runtime
-            # changes await validated feature ports.
             postConfigure = (previous.postConfigure or "") + ''
               # llm-agents still injects the 0.85 pi-server workaround, but 0.87 declares it upstream.
               awk '/"@earendil-works\/pi-server"/ { if (seen++) next } { print }' package.json > package.json.tmp
