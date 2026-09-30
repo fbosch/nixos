@@ -117,7 +117,7 @@ index 1b32ff42..56e2d990 100644
  import { formatHttpIdleTimeoutMs, HTTP_IDLE_TIMEOUT_CHOICES } from "../../../core/http-dispatcher.js";
 -import { CACHE_WARMING_MODES, } from "../../../core/settings-manager.js";
 +import { CACHE_WARMING_MODES, DEFAULT_SELECTOR_OVERLAY_WIDTH, } from "../../../core/settings-manager.js";
- import { getSettingsListTheme, parseAutoThemeSetting, theme } from "../theme/theme.js";
+ import { getSettingsListTheme, parseAutoThemeSetting, SYSTEM_THEME_NAME, theme, } from "../theme/theme.js";
  import { DynamicBorder } from "./dynamic-border.js";
  import { keyDisplayText } from "./keybinding-hints.js";
 @@ -585,9 +585,17 @@ export class SettingsSelectorComponent extends Container {
@@ -475,9 +475,9 @@ index 2c17c2f0..8b1e96a3 100644
 +    }
 +    return undefined;
 +}
- class ExpandableText extends Text {
-     getCollapsedText;
-     getExpandedText;
+ class ExpandableText extends ThemedText {
+     state;
+     constructor(getCollapsedText, getExpandedText, expanded = false, paddingX = 0, paddingY = 0) {
 @@ -3882,39 +3942,79 @@ export class InteractiveMode {
          dispose?.();
      }

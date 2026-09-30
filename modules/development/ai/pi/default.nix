@@ -8,11 +8,12 @@ let
         previous:
           assert pkgs.lib.assertMsg
             (
-              previous.version == "0.87.1"
-            ) "Keep the Pi 0.87.1 packaging workaround until upstream feature ports are validated";
+              previous.version == "0.99.1"
+            ) "Review the Pi selector overlay patch and pi-server workaround before upgrading from 0.99.1";
           {
+            patches = (previous.patches or [ ]) ++ [ ./pi-selector-overlays.patch ];
             postConfigure = (previous.postConfigure or "") + ''
-              # llm-agents still injects the 0.85 pi-server workaround, but 0.87 declares it upstream.
+              # llm-agents injects pi-server even though upstream already declares it.
               awk '/"@earendil-works\/pi-server"/ { if (seen++) next } { print }' package.json > package.json.tmp
               mv package.json.tmp package.json
             '';
