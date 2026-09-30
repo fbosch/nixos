@@ -1,0 +1,137 @@
+diff --git a/dist/core/extensions/model-availability.js b/dist/core/extensions/model-availability.js
+new file mode 100644
+--- /dev/null
++++ b/dist/core/extensions/model-availability.js
+@@ -0,0 +1,24 @@
++import { ModelRegistry } from "../model-registry.js";
++import { ExtensionRunner } from "./runner.js";
++
++// Pre-session context: no model, command actions, or UI yet. Do not bindCore here:
++// its action bindings belong to the eventual AgentSession, not this short-lived runner.
++export async function prepareModelAvailability({ cwd, sessionManager, settingsManager, resourceLoader, modelRuntime, sessionStartEvent }) {
++    const { extensions, runtime } = resourceLoader.getExtensions();
++    const runner = new ExtensionRunner(extensions, runtime, cwd, sessionManager, new ModelRegistry(modelRuntime));
++    runner.isProjectTrustedFn = () => settingsManager.isProjectTrusted();
++    const errors = [];
++    const unsubscribe = runner.onError((error) => errors.push(new Error(error.error)));
++    try {
++        const start = sessionStartEvent ?? { reason: "startup" };
++        await runner.emit({ ...start, type: "before_model_availability" });
++        if (errors.length > 0) {
++            throw new AggregateError(errors, "Could not prepare model availability");
++        }
++        // The hook binds credentials without refreshing; selection reads a snapshot.
++        await modelRuntime.refresh({ allowNetwork: false });
++    }
++    finally {
++        unsubscribe();
++    }
++}
+diff --git a/dist/core/sdk.js b/dist/core/sdk.js
+--- a/dist/core/sdk.js
++++ b/dist/core/sdk.js
+@@ -7,1 +7,2 @@
+ import { formatNoModelsAvailableMessage } from "./auth-guidance.js";
++import { prepareModelAvailability } from "./extensions/model-availability.js";
+@@ -78,1 +79,2 @@
+-export async function createAgentSession(options = {}) {
++// The internal second argument avoids redispatch after CLI services prepared this session.
++export async function createAgentSession(options = {}, modelAvailabilityPrepared = false) {
+@@ -94,1 +96,4 @@
+-    // Check if session has existing data to restore
++    if (!modelAvailabilityPrepared) {
++        await prepareModelAvailability({ cwd, sessionManager, settingsManager, resourceLoader, modelRuntime, sessionStartEvent: options.sessionStartEvent });
++    }
++    // Check if session has existing data to restore
+diff --git a/dist/core/agent-session-services.js b/dist/core/agent-session-services.js
+--- a/dist/core/agent-session-services.js
++++ b/dist/core/agent-session-services.js
+@@ -3,1 +3,2 @@
+ import { resolvePath } from "../utils/paths.js";
++import { prepareModelAvailability } from "./extensions/model-availability.js";
+@@ -113,2 +114,10 @@
+-    await modelRuntime.refresh({ allowNetwork: false });
+     diagnostics.push(...applyExtensionFlagValues(resourceLoader, options.extensionFlagValues));
++    if (options.sessionManager) {
++        await prepareModelAvailability({
++            cwd, sessionManager: options.sessionManager, settingsManager, resourceLoader, modelRuntime,
++            sessionStartEvent: options.sessionStartEvent,
++        });
++    }
++    else {
++        await modelRuntime.refresh({ allowNetwork: false });
++    }
+@@ -120,4 +129,5 @@
+         settingsManager,
+         resourceLoader,
+         diagnostics,
++        modelAvailabilityPreparedFor: options.sessionManager,
+     };
+@@ -153,2 +166,2 @@
+         sessionStartEvent: options.sessionStartEvent,
+-    });
++    }, options.services.modelAvailabilityPreparedFor === options.sessionManager);
+diff --git a/dist/main.js b/dist/main.js
+--- a/dist/main.js
++++ b/dist/main.js
+@@ -595,1 +595,3 @@
+             agentDir,
++            sessionManager,
++            sessionStartEvent,
+diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
+--- a/dist/core/agent-session.js
++++ b/dist/core/agent-session.js
+@@ -2885,2 +2885,4 @@
+         if (hasBindings) {
++            await this._extensionRunner.emit({ type: "before_model_availability", reason: "reload" });
++            await this._modelRuntime.refresh({ allowNetwork: false });
+             await options?.beforeSessionStart?.();
+diff --git a/dist/core/agent-session-services.d.ts b/dist/core/agent-session-services.d.ts
+--- a/dist/core/agent-session-services.d.ts
++++ b/dist/core/agent-session-services.d.ts
+@@ -29,1 +29,5 @@
+     agentDir?: string;
++    /** Prepare auth for this destination session before callers resolve model availability. */
++    sessionManager?: SessionManager;
++    /** Lifecycle metadata for the pre-availability hook. */
++    sessionStartEvent?: SessionStartEvent;
+@@ -67,4 +71,6 @@
+     settingsManager: SettingsManager;
+     resourceLoader: ResourceLoader;
+     diagnostics: AgentSessionRuntimeDiagnostic[];
++    /** Destination already prepared by the packaged pre-availability hook. */
++    modelAvailabilityPreparedFor?: SessionManager;
+ }
+diff --git a/dist/core/extensions/types.d.ts b/dist/core/extensions/types.d.ts
+--- a/dist/core/extensions/types.d.ts
++++ b/dist/core/extensions/types.d.ts
+@@ -541,1 +541,12 @@
+-/** Fired when a session is started, loaded, or reloaded */
++/** Packaged-runtime hook, awaited before credential-dependent model selection.
++ * Startup/replacement has no selected model, UI, or bound session actions yet.
++ * cwd, project trust, destination sessionManager, and modelRegistry are available.
++ * Bind credentials here; the runtime refreshes local availability afterwards.
++ * Reload emits before beforeSessionStart, retaining the current model and bindings.
++ */
++export interface BeforeModelAvailabilityEvent {
++    type: "before_model_availability";
++    reason: SessionStartEvent["reason"];
++    previousSessionFile?: string;
++}
++/** Fired when a session is started, loaded, or reloaded */
+@@ -638,1 +650,1 @@
+-export type SessionEvent = SessionStartEvent | SessionInfoChangedEvent | SessionBeforeSwitchEvent | SessionBeforeForkEvent | SessionBeforeCompactEvent | SessionCompactEvent | SessionCompactFailedEvent | SessionShutdownEvent | SessionBeforeTreeEvent | SessionTreeEvent;
++export type SessionEvent = BeforeModelAvailabilityEvent | SessionStartEvent | SessionInfoChangedEvent | SessionBeforeSwitchEvent | SessionBeforeForkEvent | SessionBeforeCompactEvent | SessionCompactEvent | SessionCompactFailedEvent | SessionShutdownEvent | SessionBeforeTreeEvent | SessionTreeEvent;
+@@ -1141,1 +1153,2 @@
++    on(event: "before_model_availability", handler: ExtensionHandler<BeforeModelAvailabilityEvent>): () => void;
+     on(event: "session_start", handler: ExtensionHandler<SessionStartEvent>): () => void;
+diff --git a/dist/core/extensions/index.d.ts b/dist/core/extensions/index.d.ts
+--- a/dist/core/extensions/index.d.ts
++++ b/dist/core/extensions/index.d.ts
+@@ -0,0 +1,1 @@
++export type { BeforeModelAvailabilityEvent } from "./types.ts";
+diff --git a/dist/index.d.ts b/dist/index.d.ts
+--- a/dist/index.d.ts
++++ b/dist/index.d.ts
+@@ -0,0 +1,1 @@
++export type { BeforeModelAvailabilityEvent } from "./core/extensions/index.ts";

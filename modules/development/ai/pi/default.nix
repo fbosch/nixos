@@ -9,13 +9,17 @@ let
           assert pkgs.lib.assertMsg
             (
               previous.version == "0.99.1"
-            ) "Review the Pi selector overlay patch and pi-server workaround before upgrading from 0.99.1";
+            ) "Review the Pi auth-startup and selector patches and pi-server workaround before upgrading from 0.99.1";
           {
-            patches = (previous.patches or [ ]) ++ [ ./pi-selector-overlays.patch ];
+            patches = (previous.patches or [ ]) ++ [
+              ./pi-selector-overlays.patch
+              ./pi-auth-startup.patch
+            ];
             postConfigure = (previous.postConfigure or "") + ''
               # llm-agents injects pi-server even though upstream already declares it.
               awk '/"@earendil-works\/pi-server"/ { if (seen++) next } { print }' package.json > package.json.tmp
               mv package.json.tmp package.json
+              PI_OFFLINE=1 PI_TEST_PACKAGE="$PWD" node --test ${./__tests__/auth-startup.test.mjs}
             '';
           }
       );
