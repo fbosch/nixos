@@ -112,7 +112,6 @@ in
         sddm = {
           wayland = {
             enable = true;
-            compositor = "weston";
           };
           settings = {
             Theme = {
