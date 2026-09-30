@@ -1,32 +1,47 @@
 let
-  sharedSystemPackages = { pkgs, ... }: {
-    environment.systemPackages = with pkgs; [
-      ripgrep
-      eza
-      lf
-      yazi
-      scooter
-      zoxide
-      broot
-      skim
-      mprocs
-      tmux
-      gum
-      peco
-      tree
-      just
-      grc
-      cloc
-      xh
-      lynx
-      jq
-      yq
-      fd
-      hyperfine
-      html2text
-      croc
-    ];
-  };
+  sharedSystemPackages =
+    { pkgs, ... }:
+    let
+      # Nixpkgs mprocs also ships an experimental dekit; only the pinned package should provide it.
+      mprocsWithoutDekit = pkgs.symlinkJoin {
+        name = "mprocs-without-dekit";
+        paths = [ pkgs.mprocs ];
+        postBuild = ''
+          test -x "$out/bin/mprocs"
+          rm "$out/bin/dekit"
+          test ! -e "$out/bin/dekit"
+        '';
+      };
+    in
+    {
+      environment.systemPackages = with pkgs; [
+        ripgrep
+        eza
+        lf
+        yazi
+        scooter
+        zoxide
+        broot
+        skim
+        local.dekit
+        mprocsWithoutDekit
+        tmux
+        gum
+        peco
+        tree
+        just
+        grc
+        cloc
+        xh
+        lynx
+        jq
+        yq
+        fd
+        hyperfine
+        html2text
+        croc
+      ];
+    };
 in
 {
   flake.modules = {
