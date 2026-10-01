@@ -677,7 +677,7 @@ void main() {
             updateWindow(m_window.lock());
         }
 
-        void draw(PHLMONITOR monitor, float const& alpha) override {
+        void draw(PHLMONITOR monitor, float const& alpha, const SP<Workspace::CWorkspacePresentable>&) override {
             if (!monitor || !visible())
                 return;
 

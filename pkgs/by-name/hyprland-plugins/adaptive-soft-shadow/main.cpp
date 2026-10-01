@@ -362,6 +362,7 @@ void main() {
         struct SData {
             WP<CAdaptiveSoftShadowDecoration> decoration;
             float                             alpha = 1.F;
+            SP<Workspace::CWorkspacePresentable> presentation;
         };
 
         explicit CAdaptiveSoftShadowPassElement(const SData& data) : m_data(data) {}
@@ -412,12 +413,12 @@ void main() {
             updateWindow(m_window.lock());
         }
 
-        void draw(PHLMONITOR, const float& alpha) override {
+        void draw(PHLMONITOR, const float& alpha, const SP<Workspace::CWorkspacePresentable>& presentation) override {
             const auto self = dynamicPointerCast<CAdaptiveSoftShadowDecoration>(IHyprWindowDecoration::self());
             if (!self)
                 return;
 
-            g_pHyprRenderer->addPassElement(makeUnique<CAdaptiveSoftShadowPassElement>(CAdaptiveSoftShadowPassElement::SData{.decoration = self, .alpha = alpha}));
+            g_pHyprRenderer->addPassElement(makeUnique<CAdaptiveSoftShadowPassElement>(CAdaptiveSoftShadowPassElement::SData{.decoration = self, .alpha = alpha, .presentation = presentation}));
         }
 
         eDecorationType getDecorationType() override {
@@ -505,7 +506,7 @@ void main() {
             damageEntire();
         }
 
-        void render(PHLMONITOR monitor, float alpha) {
+        void render(PHLMONITOR monitor, float alpha, const SP<Workspace::CWorkspacePresentable>& presentation) {
             const auto data = getRenderData(monitor);
             if (!data.valid)
                 return;
@@ -520,7 +521,7 @@ void main() {
             if (canUseAdvancedBlend())
                 renderAdvancedBlend(data, window, shadowStrength, alpha);
             else
-                renderFallback(data, shadowStrength, alpha);
+                renderFallback(data, shadowStrength, alpha, presentation);
 
             if (m_extents != m_reportedExtents)
                 g_pDecorationPositioner->repositionDeco(this);
@@ -642,13 +643,13 @@ void main() {
             };
         }
 
-        void renderFallback(const SAdaptiveShadowRenderData& data, float shadowStrength, float alpha) {
+        void renderFallback(const SAdaptiveShadowRenderData& data, float shadowStrength, float alpha, const SP<Workspace::CWorkspacePresentable>& presentation) {
             const auto& color = g_color->value();
             warnAboutTruncatedGradient(color);
             const auto colorCount = std::min(color.m_colors.size(), MAXIMUM_GRADIENT_COLORS);
             std::vector<CHyprColor> colors{color.m_colors.begin(), color.m_colors.begin() + colorCount};
             const Config::CGradientValueData boundedColor{std::move(colors), normalizedGradientAngle(color.m_angle)};
-            g_pHyprRenderer->drawShadow(data.fullBox, data.rounding, data.roundingPower, data.range, boundedColor, shadowStrength * alpha);
+            g_pHyprRenderer->drawShadow(data.fullBox, data.rounding, data.roundingPower, data.range, boundedColor, shadowStrength * alpha, presentation);
         }
 
         void renderAdvancedBlend(const SAdaptiveShadowRenderData& data, PHLWINDOW window, float shadowStrength, float alpha) {
@@ -732,7 +733,7 @@ void main() {
     std::vector<UP<IPassElement>> CAdaptiveSoftShadowPassElement::draw() {
         const auto decoration = m_data.decoration.lock();
         if (decoration)
-            decoration->render(g_pHyprRenderer->m_renderData.pMonitor.lock(), m_data.alpha);
+            decoration->render(g_pHyprRenderer->m_renderData.pMonitor.lock(), m_data.alpha, m_data.presentation);
         return {};
     }
 
