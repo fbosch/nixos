@@ -27,6 +27,7 @@ const { resolveModelScope } = await load("core/model-resolver.js");
 async function fixture(run) {
   const dir = await mkdtemp(join(tmpdir(), "pi-auth-startup-"));
   const events = [];
+  let failOnReload = false;
   const selected = AuthStorage.inMemory({
     "openai-codex": {
       type: "oauth",
@@ -60,6 +61,8 @@ async function fixture(run) {
         profile,
         event.previousSessionFile,
       ]);
+      if (failOnReload && event.reason === "reload")
+        throw new Error("credential binding failed during reload");
       ctx.modelRegistry.runtime.credentials.store = selected;
     });
     pi.on("session_start", (event, ctx) => {
@@ -70,7 +73,7 @@ async function fixture(run) {
   const settings = () =>
     SettingsManager.create(dir, dir, { projectTrusted: false });
   try {
-    await run({ dir, events, factory, makeRuntime, settings });
+    await run({ dir, events, factory, makeRuntime, settings, setReloadFailure: () => { failOnReload = true; } });
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
@@ -125,7 +128,7 @@ test("standalone SDK awaits auth binding before default and restored selection",
 });
 
 test("CLI service ordering, replacement metadata, and reload before callback", async () => {
-  await fixture(async ({ dir, events, factory, makeRuntime, settings }) => {
+  await fixture(async ({ dir, events, factory, makeRuntime, settings, setReloadFailure }) => {
     const createRuntime = async ({ sessionManager, sessionStartEvent }) => {
       const services = await createAgentSessionServices({
         cwd: dir,
@@ -244,6 +247,24 @@ test("CLI service ordering, replacement metadata, and reload before callback", a
         ["session_start", "reload"],
       ],
     );
+    await runtime.session.bindExtensions({ onError: () => {} });
+    setReloadFailure();
+    const modelRuntime = runtime.session.modelRuntime;
+    const refresh = modelRuntime.refresh.bind(modelRuntime);
+    let refreshCalls = 0;
+    modelRuntime.refresh = async (...args) => {
+      refreshCalls++;
+      return refresh(...args);
+    };
+    let reloadCallbackRan = false;
+    await assert.rejects(
+      runtime.session.reload({
+        beforeSessionStart: () => { reloadCallbackRan = true; },
+      }),
+      /Could not prepare model availability/,
+    );
+    assert.equal(refreshCalls, 0, "auth hook failure must stop model availability refresh");
+    assert.equal(reloadCallbackRan, false, "auth hook failure must stop reload continuation");
     await runtime.dispose();
   });
 });

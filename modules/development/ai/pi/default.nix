@@ -4,34 +4,30 @@ let
     { pkgs, ... }:
     let
       llmAgents = inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system};
-      piCompile = "bun build --compile ./dist/bun/cli.js ./src/utils/image-resize-worker.ts";
       pi = llmAgents.pi.overrideAttrs (
         previous:
-        assert pkgs.lib.assertMsg (previous.version == "0.99.1")
-          "Review the Pi auth-startup and selector patches, codemode worker packaging, and pi-server workaround before upgrading from 0.99.1";
-        assert pkgs.lib.assertMsg (pkgs.lib.hasInfix piCompile previous.preInstall)
-          "Review Pi codemode worker packaging: upstream's compile command changed";
+        assert pkgs.lib.assertMsg (previous.version == "0.99.2")
+          "Review the Pi auth-startup and selector patches, codemode worker packaging, and pi-server workaround before upgrading from 0.99.2";
+        assert pkgs.lib.assertMsg (
+          pkgs.lib.hasInfix "./src/extensions/codemode/worker.ts" (previous.preInstall or "")
+        ) "Review Pi codemode worker packaging: upstream's worker entry changed";
+        assert pkgs.lib.assertMsg (
+          pkgs.lib.hasInfix "--compile-autoload-package-json" (previous.preInstall or "")
+        ) "Review Pi binary package.json autoloading: upstream's compile flags changed";
         {
           patches = (previous.patches or [ ]) ++ [
             ./pi-selector-overlays.patch
             ./pi-auth-startup.patch
             ./pi-tool-search-ranking.patch
           ];
-          # The npm tarball has only dist/; preserve upstream's embedded src/ worker path.
-          preInstall = ''
-            mkdir -p src/extensions/codemode
-            echo 'import "../../../dist/extensions/codemode/worker.js";' > src/extensions/codemode/worker.ts
-          ''
-          +
-            pkgs.lib.replaceStrings [ piCompile ] [ "${piCompile} ./src/extensions/codemode/worker.ts" ]
-              previous.preInstall;
           postInstallCheck = (previous.postInstallCheck or "") + ''
             PI_TEST_BINARY="$out/bin/pi" node --test ${./__tests__/codemode-worker.test.mjs} ${./__tests__/tool-search-ranking.test.mjs}
           '';
           postConfigure = (previous.postConfigure or "") + ''
-            # llm-agents injects pi-server even though upstream already declares it.
+            # llm-agents injects a duplicate pi-server declaration for Pi 0.99.2.
             awk '/"@earendil-works\/pi-server"/ { if (seen++) next } { print }' package.json > package.json.tmp
             mv package.json.tmp package.json
+            test "$(grep -Fc '"@earendil-works/pi-server"' package.json)" -eq 1
             PI_OFFLINE=1 PI_TEST_PACKAGE="$PWD" node --test ${./__tests__/auth-startup.test.mjs}
           '';
         }

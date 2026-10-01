@@ -52,9 +52,9 @@ function context(registry, label, signal) {
 async function runSearch(registry, signal, query = "archive", limit = 2, globalSignal) {
   return toolSearch.execute("rank-test", { query, limit }, signal, undefined, context(registry, "tool_search", globalSignal));
 }
-async function runScript(registry, code, signal, globalSignal) {
+async function runScript(registry, code, signal, globalSignal, timeoutMs = 10000) {
   return codemode.execute("rank-script", {
-    code: '// @options: {"timeout_ms": 10000}\\n' + code,
+    code: '// @options: {"timeout_ms": ' + timeoutMs + '}\\n' + code,
   }, signal, undefined, context(registry, "codemode", globalSignal));
 }
 function usage() {
@@ -319,6 +319,36 @@ export default async function () {
     assert.equal(state.changes.length, 0);
   }
 
+  for (const scenario of ["early-return", "timeout"]) {
+    resetState();
+    const localRegistry = {};
+    let callAborted = false;
+    const remove = installToolSearchRanker(localRegistry, async (request) => {
+      assert.ok(request.signal, "codemode ranking must receive the sandbox call signal");
+      await new Promise((resolve) => {
+        const abort = () => {
+          callAborted = true;
+          resolve();
+        };
+        if (request.signal.aborted) {
+          abort();
+          return;
+        }
+        request.signal.addEventListener("abort", abort, { once: true });
+      });
+      return { matches: [] };
+    });
+    const code = scenario === "early-return"
+      ? 'void searchTools("archive"); return "script finished";'
+      : 'return await searchTools("archive");';
+    const result = await runScript(localRegistry, code, undefined, undefined, scenario === "timeout" ? 500 : 2000);
+    assert.equal(callAborted, true, "sandbox " + scenario + " must abort pending tool searches");
+    if (scenario === "early-return")
+      assert.notEqual(result.isError, true, "unawaited search must not delay script completion until timeout");
+    if (scenario === "timeout")
+      assert.equal(result.isError, true, "a timed-out sandbox script should report an error");
+    remove();
+  }
   console.log("PI_TOOL_SEARCH_RANKING_COMPILED_OK");
 }
 `;

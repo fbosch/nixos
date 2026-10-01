@@ -2,7 +2,7 @@
 +++ b/dist/extensions/codemode/execute.js
 @@ -9,7 +9,7 @@
  import { CodemodeSandbox, loadQuickJSWasm, parseCodemodeSource, renderToolSample, toCodemodeIdentifier, } from "@earendil-works/pi-codemode";
- import { getCodemodeWorkerUrl, getQuickJSWasmPath } from "../../config.js";
+ import { getCodemodeWorkerSpecifier, getQuickJSWasmPath } from "../../config.js";
  import { combineUsage } from "../../core/usage-totals.js";
 -import { Bm25Ranker, createToolSearchDocument, DEFAULT_TOOL_SEARCH_LIMIT } from "../tool-search/tool.js";
 +import { createToolSearchDocument, DEFAULT_TOOL_SEARCH_LIMIT, rankToolSearch } from "../tool-search/tool.js";
@@ -18,10 +18,10 @@
              ...(options.models && ctx
                  ? createModelGlobals(ctx.modelRegistry, toolCallId, calls, publish, addModelUsage)
                  : []),
-@@ -279,14 +279,13 @@
-     };
- }
- /** `searchTools()` and `describeTool()`: ranked search and lookup over the script's nested tools. */
+@@ -292,14 +292,13 @@
+  * `searchTools()`, `describeTool()`, and `describeNamespace()`: ranked search and lookup over the
+  * script's nested tools and their namespaces.
+  */
 -function createDiscoveryGlobals(tools, samples, options) {
 -    const ranker = new Bm25Ranker();
 +function createDiscoveryGlobals(tools, samples, options, context, signal, addUsage) {
@@ -31,20 +31,23 @@
              name: "searchTools",
              spread: true,
 -            execute: (args) => {
-+            execute: async (args) => {
++            execute: async (args, { signal: callSignal } = {}) => {
                  const [query, searchOptions] = args;
                  if (typeof query !== "string")
                      throw new Error("searchTools() expects a query string");
-@@ -304,7 +303,15 @@
+@@ -317,7 +316,18 @@
                          return [];
                      return [createToolSearchDocument(tool, toolNamespace)];
                  });
 -                return ranker.rank(query, documents, limit).map((match) => entry(match.name));
++                const rankingSignal = callSignal && signal && callSignal !== signal
++                    ? AbortSignal.any([signal, callSignal])
++                    : callSignal ?? signal;
 +                const ranked = await rankToolSearch(context?.modelRegistry, {
 +                    query,
 +                    documents,
 +                    limit,
-+                    signal,
++                    signal: rankingSignal,
 +                    context,
 +                    onUsage: addUsage,
 +                });
@@ -162,20 +165,16 @@
  const STOP_WORDS = new Set([
      "a",
      "an",
-@@ -85,7 +184,11 @@
+@@ -86,7 +185,7 @@
      schemaText(tool.parameters, parts);
      if (namespace)
-         parts.push(namespace.name, namespace.description ?? "");
+         parts.push(namespace.name, namespace.description ?? "", namespace.instructions ?? "");
 -    return { name: tool.name, text: parts.filter((part) => part.trim()).join(" ") };
-+    return {
-+        name: tool.name,
-+        text: parts.filter((part) => part.trim()).join(" "),
-+        description: tool.description,
-+    };
++    return { name: tool.name, text: parts.filter((part) => part.trim()).join(" "), description: tool.description };
  }
  /** Okapi BM25 with the usual parameters. Ties keep document order. */
  export class Bm25Ranker {
-@@ -143,17 +246,34 @@
+@@ -144,23 +243,40 @@
   * Rank the searchable tools that are not active yet and activate the matches, so the next model
   * call declares them. Activation is recorded in the transcript like any tool change.
   */
@@ -216,20 +215,18 @@
 +    };
  }
  /**
-  * The `tool_search` description. `sources` lists the namespaces whose tools can be found, with
-@@ -168,7 +288,7 @@
-             return description ? `- ${source.name}: ${description}` : `- ${source.name}`;
-         })
-             .join("\n");
--    return `# Tool discovery\n\nSearches over deferred tool metadata with BM25 and exposes matching tools for the next model call.\n\nYou have access to tools from the following sources:\n${listed}\n\nSome of the tools may not have been provided to you upfront, and you should use this tool (\`${TOOL_SEARCH_TOOL_NAME}\`) to search for the required tools. For MCP tool discovery, always use \`${TOOL_SEARCH_TOOL_NAME}\`.`;
-+    return `# Tool discovery\n\nSearches deferred tool metadata and exposes matching tools for the next model call.\n\nYou have access to tools from the following sources:\n${listed}\n\nSome of the tools may not have been provided to you upfront, and you should use this tool (\`${TOOL_SEARCH_TOOL_NAME}\`) to search for the required tools. For MCP tool discovery, always use \`${TOOL_SEARCH_TOOL_NAME}\`.`;
- }
+  * The `tool_search` description. It does not list the searchable tools or their namespaces, so it
+  * stays the same while tools are registered, for example when MCP servers connect.
+  */
+-export const TOOL_SEARCH_DESCRIPTION = `# Tool discovery\n\nSearches over deferred tool metadata with BM25 and exposes matching tools for the next model call.\n\nSome of the tools, such as tools of MCP servers, may not have been provided to you upfront, and you should use this tool (\`${TOOL_SEARCH_TOOL_NAME}\`) to search for the required tools. For MCP tool discovery, always use \`${TOOL_SEARCH_TOOL_NAME}\`.`;
++export const TOOL_SEARCH_DESCRIPTION = `# Tool discovery\n\nSearches deferred tool metadata and exposes matching tools for the next model call.\n\nSome of the tools, such as tools of MCP servers, may not have been provided to you upfront, and you should use this tool (\`${TOOL_SEARCH_TOOL_NAME}\`) to search for the required tools. For MCP tool discovery, always use \`${TOOL_SEARCH_TOOL_NAME}\`.`;
  export function createToolSearchToolDefinition(options = {}) {
      return {
-@@ -191,19 +311,43 @@
-             }
-             return { descriptions: { [TOOL_SEARCH_TOOL_NAME]: createToolSearchDescription([...sources.values()]) } };
-         },
+         name: TOOL_SEARCH_TOOL_NAME,
+@@ -170,19 +286,43 @@
+         parameters: toolSearchSchema,
+         // Searching is not something scripts need; it changes what the model sees.
+         exposure: "model-only",
 -        async execute(_toolCallId, { query, limit }) {
 +        async execute(_toolCallId, { query, limit }, signal, _onUpdate, context) {
              if (query.trim() === "")
