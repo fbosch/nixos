@@ -23,6 +23,19 @@ error() {
   status 1 ERROR "$*"
 }
 
+report_updater_failure_detail() {
+  local output_file="$1"
+  local detail
+
+  detail="$(grep -E '(^|[[:space:]])[^[:space:]]*(Error|Exception): ' "$output_file" | tail -n 1 || true)"
+  if [ -z "$detail" ]; then
+    detail="$(awk 'NF { last = $0 } END { print last }' "$output_file")"
+  fi
+  if [ -n "$detail" ]; then
+    printf '  %s\n' "$detail" >&2
+  fi
+}
+
 run_step() {
   local title="$1"
   shift
@@ -126,6 +139,7 @@ usage() {
   echo "Example: $0 lightpanda" >&2
   echo "         $0 hyprland-plugins/cursor-outline" >&2
   echo "       $0 --all" >&2
+  echo "         --all includes every package available on the current system" >&2
   echo "       $0" >&2
 }
 
@@ -135,8 +149,15 @@ is_update_candidate() {
 
   package_contents="$(<"$package_file")"
 
+  [[ $package_contents == *"updateScript"* ]] && return 0
+  [[ $package_contents == *"src = inputs."* ]] && return 0
+
+  if [[ $package_contents == *"src ="* ]] &&
+    [[ $package_contents =~ fetch[A-Za-z]+ ]]; then
+    return 0
+  fi
+
   [[ $package_contents == *"version ="* ]] &&
-    [[ $package_contents == *"src ="* ]] &&
     [[ $package_contents =~ fetch[A-Za-z]+ ]]
 }
 
@@ -191,6 +212,8 @@ if [ ! -d "$packages_dir" ]; then
 fi
 
 declare -A package_updates=()
+declare -A package_check_results=()
+declare -a all_package_names=()
 update_check_dir=""
 update_check_failed=false
 nix_update_command=()
@@ -273,18 +296,22 @@ check_package_update() {
   local new_version
   local -a nix_update_args
 
+  package_check_results["$package_name"]="checking"
   if ! old_version="$(package_version "$package_file")"; then
     status 1 CHECK "unable to read the current version of .#$package_name" >&2
+    package_check_results["$package_name"]="failed"
     update_check_failed=true
     return 1
   fi
   if ! before_hash="$(sha256sum "$check_package_file")"; then
     status 1 CHECK "unable to snapshot .#$package_name before checking" >&2
+    package_check_results["$package_name"]="failed"
     update_check_failed=true
     return 1
   fi
   if ! output_file="$(mktemp)"; then
     status 1 CHECK "unable to create output capture for .#$package_name" >&2
+    package_check_results["$package_name"]="failed"
     update_check_failed=true
     return 1
   fi
@@ -292,7 +319,7 @@ check_package_update() {
   if uses_explicit_update_script "$package_file"; then
     nix_update_args+=(-u)
   fi
-  if [[ "$old_version" == unstable-* || "$old_version" == *-unstable ]]; then
+  if [[ "$old_version" == unstable-* || "$old_version" == *-unstable || "$old_version" == unstable ]]; then
     nix_update_args+=(--version unstable)
   fi
   nix_update_args+=(--override-filename "$check_package_file" "$package_name")
@@ -308,14 +335,17 @@ check_package_update() {
     "${nix_update_command[@]}" "${nix_update_args[@]}"
   ) >"$output_file" 2>&1; then
     if grep -Fq 'VersionError: Please specify the version. We can only get the latest version from' "$output_file"; then
-      status 3 SKIP "nix-update could not discover an upstream version for .#$package_name; skipping automatic check" >&2
+      status 1 CHECK "package .#$package_name has an upstream source, but nix-update could not discover its release" >&2
+      package_check_results["$package_name"]="unavailable"
+      update_check_failed=true
       rm -f -- "$output_file"
       restore_update_check_copy || true
-      return 0
+      return 1
     fi
 
     status 1 CHECK "unable to check .#$package_name for updates" >&2
-    cat "$output_file" >&2
+    report_updater_failure_detail "$output_file"
+    package_check_results["$package_name"]="failed"
     rm -f -- "$output_file"
     restore_update_check_copy || true
     update_check_failed=true
@@ -325,6 +355,7 @@ check_package_update() {
   if ! after_hash="$(sha256sum "$check_package_file")"; then
     rm -f -- "$output_file"
     status 1 CHECK "unable to snapshot .#$package_name after checking" >&2
+    package_check_results["$package_name"]="failed"
     restore_update_check_copy || true
     update_check_failed=true
     return 1
@@ -332,34 +363,94 @@ check_package_update() {
   rm -f -- "$output_file"
 
   if [ "$before_hash" = "$after_hash" ]; then
+    package_check_results["$package_name"]="current"
+    status 6 CURRENT ".#$package_name is up to date"
     restore_update_check_copy || true
     return 0
   fi
 
   if ! new_version="$(package_version "$check_package_file")"; then
     status 1 CHECK "nix-update changed .#$package_name to an unreadable package" >&2
+    package_check_results["$package_name"]="failed"
     restore_update_check_copy || true
     update_check_failed=true
     return 1
   fi
   package_updates["$package_name"]="$old_version"$'\t'"$new_version"
+  package_check_results["$package_name"]="update"
+  status 2 UPDATE ".#$package_name has an upstream update: $old_version → $new_version"
   restore_update_check_copy || true
 }
 
-check_upstream_updates() {
-  local package_file
-  if ! ensure_nix_update_command; then
+load_package_inventory() {
+  local system
+  local package_names_output
+
+  if ! system="$(nix eval --raw --impure --expr builtins.currentSystem)"; then
+    status 1 CHECK "unable to determine the current Nix system" >&2
     update_check_failed=true
+    return 1
+  fi
+  if ! package_names_output="$(
+    cd "$repo_root" &&
+      nix eval --raw --apply 'packages: builtins.concatStringsSep "\n" (builtins.attrNames packages)' ".#packages.$system"
+  )"; then
+    status 1 CHECK "unable to enumerate flake packages for $system" >&2
+    update_check_failed=true
+    return 1
+  fi
+  if [ -z "$package_names_output" ]; then
+    status 1 CHECK "flake package set for $system is empty" >&2
+    update_check_failed=true
+    return 1
+  fi
+
+  mapfile -t all_package_names <<<"$package_names_output"
+}
+
+check_upstream_updates() {
+  local package_name
+  local package_file
+  local has_update_candidate=false
+
+  if ! load_package_inventory; then
     return 0
   fi
 
-  local package_name
+  for package_name in "${all_package_names[@]}"; do
+    package_file="$packages_dir/$package_name/package.nix"
+    if [ ! -f "$package_file" ]; then
+      status 1 CHECK "flake package .#$package_name has no package.nix at $package_file" >&2
+      package_check_results["$package_name"]="failed"
+      update_check_failed=true
+      continue
+    fi
+    if is_update_candidate "$package_file"; then
+      has_update_candidate=true
+    else
+      package_check_results["$package_name"]="manual"
+      status 3 SKIP ".#$package_name has no upstream package source dependency" >&2
+    fi
+  done
+
+  if ! "$has_update_candidate"; then
+    return 0
+  fi
+  if ! ensure_nix_update_command; then
+    update_check_failed=true
+    for package_name in "${all_package_names[@]}"; do
+      package_file="$packages_dir/$package_name/package.nix"
+      if [ -f "$package_file" ] && is_update_candidate "$package_file"; then
+        package_check_results["$package_name"]="failed"
+      fi
+    done
+    return 0
+  fi
 
   create_update_check_copy
-  for package_file in "$packages_dir"/**/package.nix; do
-    package_name="${package_file#"$packages_dir"/}"
-    package_name="${package_name%/package.nix}"
-    if is_update_candidate "$package_file"; then
+  for package_name in "${all_package_names[@]}"; do
+    package_file="$packages_dir/$package_name/package.nix"
+    if [ -f "$package_file" ] && is_update_candidate "$package_file"; then
       check_package_update "$package_name" || true
     fi
   done
@@ -371,18 +462,14 @@ select_package_with_gum() {
   local package_name
   local revision
   local version
-  local -a package_names
+  local check_result
+  local -a package_names=()
 
-  mapfile -t package_names < <(
-    for package_file in "$packages_dir"/**/package.nix; do
-      package_name="${package_file#"$packages_dir"/}"
-      package_name="${package_name%/package.nix}"
-      if is_update_candidate "$package_file" &&
-        { "$show_all" || [ -n "${package_updates[$package_name]:-}" ]; }; then
-        printf '%s\n' "$package_name"
-      fi
-    done | sort
-  )
+  for package_name in "${all_package_names[@]}"; do
+    if "$show_all" || [ "${package_check_results[$package_name]:-}" = update ]; then
+      package_names+=("$package_name")
+    fi
+  done
 
   if [ "${#package_names[@]}" -eq 0 ]; then
     if "$update_check_failed"; then
@@ -392,16 +479,34 @@ select_package_with_gum() {
     status 3 SKIP "no package updates found" >&2
     return 2
   fi
+  if "$update_check_failed"; then
+    status 1 ERROR "one or more package update checks failed; the displayed update list may be incomplete" >&2
+  fi
 
   if ! selection="$(
     for package_name in "${package_names[@]}"; do
-      revision="$(package_revision "$packages_dir/$package_name/package.nix")"
-      if [ -n "${package_updates[$package_name]:-}" ]; then
-        printf '%s  %s\n' "$package_name" "$(render_version_update "${package_updates[$package_name]}" "$revision")"
-      else
-        version="$(package_version "$packages_dir/$package_name/package.nix")"
-        printf '%s  %s\n' "$package_name" "$(render_version_update "$version"$'\t'"$version" "$revision")"
-      fi
+      check_result="${package_check_results[$package_name]:-manual}"
+      case "$check_result" in
+        update)
+          revision="$(package_revision "$packages_dir/$package_name/package.nix")"
+          version="$(render_version_update "${package_updates[$package_name]}" "$revision")"
+          ;;
+        current)
+          revision="$(package_revision "$packages_dir/$package_name/package.nix")"
+          version="$(package_version "$packages_dir/$package_name/package.nix")"
+          version="$(render_version_update "$version"$'\t'"$version" "$revision") (up to date)"
+          ;;
+        unavailable)
+          version="upstream version not discoverable"
+          ;;
+        failed)
+          version="check failed"
+          ;;
+        *)
+          version="no automatic upstream check"
+          ;;
+      esac
+      printf '%s  %s\n' "$package_name" "$version"
     done | gum choose --no-limit --ordered --no-strip-ansi --header "Select packages to update"
   )"; then
     status 3 SKIP "cancelled" >&2
@@ -459,7 +564,7 @@ for package_name in "${selected_packages[@]}"; do
   fi
 
   if ! is_update_candidate "$package_file"; then
-    status 3 SKIP ".#$package_name has no versioned upstream source for nix-update"
+    status 3 SKIP ".#$package_name has no upstream package source dependency"
     continue
   fi
 

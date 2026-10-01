@@ -6,7 +6,7 @@
 }:
 
 let
-  version = "3.10.0";
+  version = "3.12.2";
   sources = {
     aarch64-darwin = {
       name = "darwin-arm64";
@@ -22,7 +22,7 @@ let
     };
     x86_64-linux = {
       name = "linux-amd64";
-      hash = "sha256-NVD5PxFWnM/sdtmyQkGJ54R4lyeGUlMhGPqtPMonqng=";
+      hash = "sha256-I6UXZRS7PPxVGb0m0gWw6OErvCCK96Tr+q53QzsGuEs=";
     };
   };
   source =

@@ -6,14 +6,14 @@
 
 python3Packages.buildPythonApplication rec {
   pname = "caliper";
-  version = "0.13.0";
+  version = "0.16.0";
   pyproject = true;
 
   src = fetchFromGitHub {
     owner = "edonadei";
     repo = "caliper";
     tag = "v${version}";
-    hash = "sha256-kWCf7pWGQYOB5/agOMKzEFEBtCpoCdvNXe6lDxJ1C54=";
+    hash = "sha256-6nRZsvwxj0Bgvvx11VNcTl0FF9fWszOD5NnUevScZ3Y=";
   };
 
   build-system = [ python3Packages.hatchling ];
