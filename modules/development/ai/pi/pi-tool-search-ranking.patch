@@ -1,0 +1,336 @@
+--- a/dist/extensions/codemode/execute.js
++++ b/dist/extensions/codemode/execute.js
+@@ -9,7 +9,7 @@
+ import { CodemodeSandbox, loadQuickJSWasm, parseCodemodeSource, renderToolSample, toCodemodeIdentifier, } from "@earendil-works/pi-codemode";
+ import { getCodemodeWorkerUrl, getQuickJSWasmPath } from "../../config.js";
+ import { combineUsage } from "../../core/usage-totals.js";
+-import { Bm25Ranker, createToolSearchDocument, DEFAULT_TOOL_SEARCH_LIMIT } from "../tool-search/tool.js";
++import { createToolSearchDocument, DEFAULT_TOOL_SEARCH_LIMIT, rankToolSearch } from "../tool-search/tool.js";
+ import { CODEMODE_STORE_ENTRY_TYPE, getCodemodeCallableTools, MODEL_GLOBAL_DECLARATIONS, toCodemodeDeclaration, } from "./tool.js";
+ const ARGS_PREVIEW_CHARS = 200;
+ const ERROR_PREVIEW_CHARS = 500;
+@@ -229,7 +229,7 @@
+     const sandbox = new CodemodeSandbox({
+         tools: sandboxTools,
+         globals: [
+-            ...createDiscoveryGlobals(callable, samples, options),
++            ...createDiscoveryGlobals(callable, samples, options, ctx, signal, addModelUsage),
+             ...(options.models && ctx
+                 ? createModelGlobals(ctx.modelRegistry, toolCallId, calls, publish, addModelUsage)
+                 : []),
+@@ -279,14 +279,13 @@
+     };
+ }
+ /** `searchTools()` and `describeTool()`: ranked search and lookup over the script's nested tools. */
+-function createDiscoveryGlobals(tools, samples, options) {
+-    const ranker = new Bm25Ranker();
++function createDiscoveryGlobals(tools, samples, options, context, signal, addUsage) {
+     const entry = (name) => ({ name: toCodemodeIdentifier(name), description: samples.get(name) ?? "" });
+     return [
+         {
+             name: "searchTools",
+             spread: true,
+-            execute: (args) => {
++            execute: async (args) => {
+                 const [query, searchOptions] = args;
+                 if (typeof query !== "string")
+                     throw new Error("searchTools() expects a query string");
+@@ -304,7 +303,15 @@
+                         return [];
+                     return [createToolSearchDocument(tool, toolNamespace)];
+                 });
+-                return ranker.rank(query, documents, limit).map((match) => entry(match.name));
++                const ranked = await rankToolSearch(context?.modelRegistry, {
++                    query,
++                    documents,
++                    limit,
++                    signal,
++                    context,
++                    onUsage: addUsage,
++                });
++                return ranked.matches.map((match) => entry(match.name));
+             },
+         },
+         {
+--- a/dist/extensions/tool-search/tool.js
++++ b/dist/extensions/tool-search/tool.js
+@@ -8,8 +8,107 @@
+  * like any other tool change and survives `/tree`, resume, and fork on that branch.
+  */
+ import { Type } from "typebox";
++const toolSearchRankers = new WeakMap();
+ export const TOOL_SEARCH_TOOL_NAME = "tool_search";
+ export const DEFAULT_TOOL_SEARCH_LIMIT = 8;
++/** Installations are compared by record identity so stale unregister callbacks cannot remove replacements. */
++export function installToolSearchRanker(registry, ranker) {
++    if ((typeof registry !== "object" && typeof registry !== "function") || registry === null) {
++        throw new TypeError("registry must be an object");
++    }
++    if (typeof ranker !== "function") {
++        throw new TypeError("ranker must be a function");
++    }
++    const installation = { ranker };
++    toolSearchRankers.set(registry, installation);
++    let active = true;
++    return () => {
++        if (!active)
++            return;
++        active = false;
++        if (toolSearchRankers.get(registry) === installation)
++            toolSearchRankers.delete(registry);
++    };
++}
++function checkSearchSignal(signal) {
++    if (!signal?.aborted)
++        return;
++    if (typeof signal.throwIfAborted === "function")
++        signal.throwIfAborted();
++    const error = new Error("Tool search ranking aborted");
++    error.name = "AbortError";
++    throw error;
++}
++function combineSearchSignals(signal, contextSignal) {
++    if (!signal)
++        return contextSignal;
++    if (!contextSignal || signal === contextSignal)
++        return signal;
++    return AbortSignal.any([signal, contextSignal]);
++}
++function validateSearchLimit(limit) {
++    if (!Number.isInteger(limit) || limit <= 0)
++        throw new Error("Tool search limit must be a positive integer");
++}
++/** Invoke the shared ranker, validating extension output before any caller can use it. */
++export async function rankToolSearch(registry, request) {
++    const signal = combineSearchSignals(request.signal, request.context?.signal);
++    const { query, documents, limit, onUsage, ...hookRequest } = request;
++    validateSearchLimit(limit);
++    checkSearchSignal(signal);
++    const installation = registry ? toolSearchRankers.get(registry) : undefined;
++    if (!installation) {
++        const matches = new Bm25Ranker().rank(query, documents, limit);
++        checkSearchSignal(signal);
++        return { matches };
++    }
++    const lexicalRanker = new Bm25Ranker();
++    let usageReported = false;
++    const reportUsage = (usage) => {
++        if (usageReported)
++            throw new Error("Tool search usage was already reported for this search");
++        usageReported = true;
++        onUsage?.(usage);
++    };
++    const result = await installation.ranker({
++        ...hookRequest,
++        query,
++        documents,
++        limit,
++        signal,
++        reportUsage,
++        rankLexical(lexicalLimit) {
++            validateSearchLimit(lexicalLimit);
++            checkSearchSignal(signal);
++            const matches = lexicalRanker.rank(query, documents, lexicalLimit);
++            checkSearchSignal(signal);
++            return matches;
++        },
++    });
++    if (result?.usage && !usageReported) {
++        usageReported = true;
++        onUsage?.(result.usage);
++    }
++    checkSearchSignal(signal);
++    if (toolSearchRankers.get(registry) !== installation)
++        throw new Error("Tool search ranker was unregistered or replaced during ranking");
++    if (!result || !Array.isArray(result.matches))
++        throw new Error("Tool search ranker must return a matches array");
++    if (result.matches.length > limit)
++        throw new Error("Tool search ranker returned more matches than the requested limit");
++    const candidateNames = new Set(documents.map((document) => document.name));
++    const seen = new Set();
++    for (const match of result.matches) {
++        if (!match || typeof match.name !== "string" || !candidateNames.has(match.name))
++            throw new Error("Tool search ranker returned an unknown candidate");
++        if (seen.has(match.name))
++            throw new Error(`Tool search ranker returned duplicate candidate ${JSON.stringify(match.name)}`);
++        if (typeof match.score !== "number" || !Number.isFinite(match.score) || match.score < 0)
++            throw new Error(`Tool search ranker returned an invalid score for ${JSON.stringify(match.name)}`);
++        seen.add(match.name);
++    }
++    return result;
++}
+ const STOP_WORDS = new Set([
+     "a",
+     "an",
+@@ -85,7 +184,11 @@
+     schemaText(tool.parameters, parts);
+     if (namespace)
+         parts.push(namespace.name, namespace.description ?? "");
+-    return { name: tool.name, text: parts.filter((part) => part.trim()).join(" ") };
++    return {
++        name: tool.name,
++        text: parts.filter((part) => part.trim()).join(" "),
++        description: tool.description,
++    };
+ }
+ /** Okapi BM25 with the usual parameters. Ties keep document order. */
+ export class Bm25Ranker {
+@@ -143,17 +246,34 @@
+  * Rank the searchable tools that are not active yet and activate the matches, so the next model
+  * call declares them. Activation is recorded in the transcript like any tool change.
+  */
+-function searchAndLoad(tools, query, limit) {
++async function searchAndLoad(tools, query, limit, signal, context, onUsage) {
+     const active = tools.getActiveTools();
+     const candidates = tools.getAllTools().filter((tool) => isSearchable(tool.exposure) && !active.includes(tool.name));
+     const documents = candidates.map((tool) => createToolSearchDocument(tool, tool.namespace));
+-    const matches = new Bm25Ranker().rank(query, documents, limit);
++    const ranked = await rankToolSearch(context?.modelRegistry, {
++        query,
++        documents,
++        limit,
++        signal,
++        context,
++        onUsage,
++    });
++    checkSearchSignal(combineSearchSignals(signal, context?.signal));
++    const currentActive = tools.getActiveTools();
++    const currentCandidates = new Set(tools.getAllTools()
++        .filter((tool) => isSearchable(tool.exposure) && !currentActive.includes(tool.name))
++        .map((tool) => tool.name));
++    const matches = ranked.matches.filter((match) => currentCandidates.has(match.name));
++    checkSearchSignal(combineSearchSignals(signal, context?.signal));
+     if (matches.length > 0)
+-        tools.setActiveTools([...active, ...matches.map((match) => match.name)]);
+-    return matches.map((match) => ({
+-        name: match.name,
+-        description: candidates.find((tool) => tool.name === match.name)?.description ?? "",
+-    }));
++        tools.setActiveTools([...currentActive, ...matches.map((match) => match.name)]);
++    return {
++        tools: matches.map((match) => ({
++            name: match.name,
++            description: candidates.find((tool) => tool.name === match.name)?.description ?? "",
++        })),
++        usage: ranked.usage,
++    };
+ }
+ /**
+  * The `tool_search` description. `sources` lists the namespaces whose tools can be found, with
+@@ -168,7 +288,7 @@
+             return description ? `- ${source.name}: ${description}` : `- ${source.name}`;
+         })
+             .join("\n");
+-    return `# Tool discovery\n\nSearches over deferred tool metadata with BM25 and exposes matching tools for the next model call.\n\nYou have access to tools from the following sources:\n${listed}\n\nSome of the tools may not have been provided to you upfront, and you should use this tool (\`${TOOL_SEARCH_TOOL_NAME}\`) to search for the required tools. For MCP tool discovery, always use \`${TOOL_SEARCH_TOOL_NAME}\`.`;
++    return `# Tool discovery\n\nSearches deferred tool metadata and exposes matching tools for the next model call.\n\nYou have access to tools from the following sources:\n${listed}\n\nSome of the tools may not have been provided to you upfront, and you should use this tool (\`${TOOL_SEARCH_TOOL_NAME}\`) to search for the required tools. For MCP tool discovery, always use \`${TOOL_SEARCH_TOOL_NAME}\`.`;
+ }
+ export function createToolSearchToolDefinition(options = {}) {
+     return {
+@@ -191,19 +311,43 @@
+             }
+             return { descriptions: { [TOOL_SEARCH_TOOL_NAME]: createToolSearchDescription([...sources.values()]) } };
+         },
+-        async execute(_toolCallId, { query, limit }) {
++        async execute(_toolCallId, { query, limit }, signal, _onUpdate, context) {
+             if (query.trim() === "")
+                 throw new Error("query must not be empty");
+             const max = limit ?? DEFAULT_TOOL_SEARCH_LIMIT;
+             if (!Number.isInteger(max) || max <= 0)
+                 throw new Error("limit must be a positive integer");
+-            const tools = options.tools ? searchAndLoad(options.tools, query, max) : [];
++            let ranked;
++            let reportedUsage;
++            try {
++                ranked = options.tools
++                    ? await searchAndLoad(options.tools, query, max, signal, context, (usage) => {
++                        reportedUsage = usage;
++                    })
++                    : { tools: [] };
++                checkSearchSignal(combineSearchSignals(signal, context?.signal));
++            }
++            catch (error) {
++                if (reportedUsage === undefined)
++                    throw error;
++                return {
++                    isError: true,
++                    usage: reportedUsage,
++                    content: [{ type: "text", text: error instanceof Error ? error.message : String(error) }],
++                    details: { loaded: [] },
++                };
++            }
++            const tools = ranked.tools;
+             const text = tools.length === 0
+                 ? "No matching tools found."
+                 : `Loaded ${tools.length} tool${tools.length === 1 ? "" : "s"}. They are available from your next call:\n${tools
+                     .map((tool) => `- ${tool.name}: ${tool.description.trim().split(/\r?\n/)[0]}`)
+                     .join("\n")}`;
+-            return { content: [{ type: "text", text }], details: { loaded: tools.map((tool) => tool.name) } };
++            return {
++                content: [{ type: "text", text }],
++                details: { loaded: tools.map((tool) => tool.name) },
++                ...((reportedUsage ?? ranked.usage) ? { usage: reportedUsage ?? ranked.usage } : {}),
++            };
+         },
+     };
+ }
+--- a/dist/extensions/tool-search/tool.d.ts
++++ b/dist/extensions/tool-search/tool.d.ts
+@@ -8,18 +8,37 @@
+  * like any other tool change and survives `/tree`, resume, and fork on that branch.
+  */
+ import { type Static, Type } from "typebox";
+-import type { ExtensionAPI, ToolDefinition, ToolInfo, ToolNamespace } from "../../core/extensions/types.ts";
++import type { ExtensionAPI, ExtensionContext, ToolDefinition, ToolInfo, ToolNamespace } from "../../core/extensions/types.ts";
++import type { Usage } from "@earendil-works/pi-ai/compat";
+ export declare const TOOL_SEARCH_TOOL_NAME = "tool_search";
+ export declare const DEFAULT_TOOL_SEARCH_LIMIT = 8;
+ /** A tool as the ranker sees it: its name and the text built by {@link createToolSearchDocument}. */
+ export interface ToolSearchDocument {
+     name: string;
+     text: string;
++    description?: string;
+ }
+ export interface ToolSearchMatch {
+     name: string;
+     score: number;
+ }
++export interface ToolSearchRankingRequest {
++    query: string;
++    documents: readonly ToolSearchDocument[];
++    limit: number;
++    signal?: AbortSignal;
++    context?: ExtensionContext;
++    /** Reports the full inference usage once, before ranking returns or throws. */
++    reportUsage?: (usage: Usage) => void;
++    rankLexical(limit: number): ToolSearchMatch[];
++}
++export interface ToolSearchRankingResult {
++    matches: ToolSearchMatch[];
++    usage?: Usage;
++}
++export type ToolSearchRankingHook = (request: ToolSearchRankingRequest) => ToolSearchRankingResult | Promise<ToolSearchRankingResult>;
++/** Install a ranking hook for one session's model registry; unregistering an older hook never removes a replacement. */
++export declare function installToolSearchRanker(registry: object, ranker: ToolSearchRankingHook): () => void;
+ /** Ranks tools for a query. BM25 today; a hybrid ranker with embeddings can replace it. */
+ export interface ToolRanker {
+     rank(query: string, documents: readonly ToolSearchDocument[], limit: number): ToolSearchMatch[];
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -34,6 +34,7 @@
+ export { createCodemodeExtension } from "./extensions/codemode/index.js";
+ export { createMcpExtension } from "./extensions/mcp/index.js";
+ export { createToolSearchExtension } from "./extensions/tool-search/index.js";
++export { installToolSearchRanker } from "./extensions/tool-search/tool.js";
+ // Main entry point
+ export { main } from "./main.js";
+ // Run modes for programmatic SDK usage
+--- a/dist/index.d.ts
++++ b/dist/index.d.ts
+@@ -31,6 +31,7 @@
+ export type { LoadedMcpConfig, McpExposure, McpServerConfig, McpServerEntry } from "./extensions/mcp/config.ts";
+ export { createMcpExtension, type McpExtensionOptions, type McpTransportFactory } from "./extensions/mcp/index.ts";
+ export { createToolSearchExtension } from "./extensions/tool-search/index.ts";
++export { type ToolSearchDocument, type ToolSearchMatch, type ToolSearchRankingHook, type ToolSearchRankingRequest, type ToolSearchRankingResult, installToolSearchRanker } from "./extensions/tool-search/tool.ts";
+ export { type MainOptions, main } from "./main.ts";
+ export { InteractiveMode, type InteractiveModeOptions, type JsonAgentSessionEvent, type ModelInfo, type PrintModeOptions, RpcClient, type RpcClientOptions, type RpcCommand, type RpcEventListener, type RpcExtensionUIRequest, type RpcExtensionUIResponse, type RpcResponse, type RpcSessionState, runPrintMode, runRpcMode, } from "./modes/index.ts";
+ export { ArminComponent, AssistantMessageComponent, BashExecutionComponent, BorderedLoader, BranchSummaryMessageComponent, CompactionSummaryMessageComponent, CustomEditor, type CustomEditorOptions, CustomMessageComponent, DynamicBorder, ExtensionEditorComponent, ExtensionInputComponent, ExtensionSelectorComponent, FooterComponent, keyHint, keyText, LoginDialogComponent, ModelSelectorComponent, OAuthSelectorComponent, type RenderDiffOptions, rawKeyHint, renderDiff, SessionSelectorComponent, type SettingsCallbacks, type SettingsConfig, SettingsSelectorComponent, ShowImagesSelectorComponent, SkillInvocationMessageComponent, ThemeSelectorComponent, ThinkingSelectorComponent, ToolExecutionComponent, type ToolExecutionOptions, TreeSelectorComponent, truncateToVisualLines, UserMessageComponent, UserMessageSelectorComponent, type VisualTruncateResult, } from "./modes/interactive/components/index.ts";

@@ -15,6 +15,7 @@ let
           patches = (previous.patches or [ ]) ++ [
             ./pi-selector-overlays.patch
             ./pi-auth-startup.patch
+            ./pi-tool-search-ranking.patch
           ];
           # The npm tarball has only dist/; preserve upstream's embedded src/ worker path.
           preInstall = ''
@@ -25,7 +26,7 @@ let
             pkgs.lib.replaceStrings [ piCompile ] [ "${piCompile} ./src/extensions/codemode/worker.ts" ]
               previous.preInstall;
           postInstallCheck = (previous.postInstallCheck or "") + ''
-            PI_TEST_BINARY="$out/bin/pi" node --test ${./__tests__/codemode-worker.test.mjs}
+            PI_TEST_BINARY="$out/bin/pi" node --test ${./__tests__/codemode-worker.test.mjs} ${./__tests__/tool-search-ranking.test.mjs}
           '';
           postConfigure = (previous.postConfigure or "") + ''
             # llm-agents injects pi-server even though upstream already declares it.
