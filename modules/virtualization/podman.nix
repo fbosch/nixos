@@ -80,7 +80,12 @@
         startPodmanMachine = pkgs.writeShellScript "start-podman-machine" ''
           set -eu
 
-          state="$(${pkgs.podman}/bin/podman machine inspect ${podmanMachineName} --format '{{.State}}' 2>/dev/null || true)"
+          machines="$(${pkgs.podman}/bin/podman machine list --format '{{.Name}}')"
+          if ! printf '%s\n' "$machines" | /usr/bin/grep -Fxq "${podmanMachineName}"; then
+            ${pkgs.podman}/bin/podman machine init "${podmanMachineName}"
+          fi
+
+          state="$(${pkgs.podman}/bin/podman machine inspect ${podmanMachineName} --format '{{.State}}')"
           if [ "$state" != "running" ]; then
             ${pkgs.podman}/bin/podman machine start ${podmanMachineName}
           fi
@@ -118,6 +123,8 @@
           config = {
             ProgramArguments = [ "${startPodmanMachine}" ];
             RunAtLoad = true;
+            # The VM process must outlive this launch agent's startup script.
+            AbandonProcessGroup = true;
             StartInterval = 300;
             KeepAlive = false;
             StandardOutPath = "${config.home.homeDirectory}/Library/Logs/podman-machine.out.log";
