@@ -51,3 +51,4 @@ nixpkgs
 modules/desktop/ocr/.venv
 uv-workspaces/*/.venv
 .docs/
+.pi/tasks/

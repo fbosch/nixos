@@ -91,20 +91,15 @@ diff --git a/dist/modes/interactive/components/settings-selector.d.ts b/dist/mod
 index f05084fc..21cd2a1e 100644
 --- a/dist/modes/interactive/components/settings-selector.d.ts
 +++ b/dist/modes/interactive/components/settings-selector.d.ts
-@@ -35,6 +35,7 @@ export interface SettingsConfig {
-     editorPaddingX: number;
-     outputPad: 0 | 1;
-     autocompleteMaxVisible: number;
+@@ -35,3 +35,4 @@ export interface SettingsConfig {
+     treeFilterMode: "default" | "no-tools" | "user-only" | "labeled-only" | "all";
+     showHardwareCursor: boolean;
 +    selectorOverlayWidth?: number;
-     quietStartup: boolean;
-     defaultProjectTrust: DefaultProjectTrust;
-     clearOnShrink: boolean;
-@@ -72,6 +73,7 @@ export interface SettingsCallbacks {
-     onEditorPaddingXChange: (padding: number) => void;
-     onOutputPadChange: (padding: 0 | 1) => void;
+     quietStartup: QuietStartup;
+@@ -72,4 +73,5 @@ export interface SettingsCallbacks {
      onAutocompleteMaxVisibleChange: (maxVisible: number) => void;
 +    onSelectorOverlayWidthChange?: (width: number) => void;
-     onQuietStartupChange: (enabled: boolean) => void;
+     onQuietStartupChange: (quiet: QuietStartup) => void;
      onDefaultProjectTrustChange: (defaultProjectTrust: DefaultProjectTrust) => void;
      onClearOnShrinkChange: (enabled: boolean) => void;
 diff --git a/dist/modes/interactive/components/settings-selector.js b/dist/modes/interactive/components/settings-selector.js
@@ -616,29 +611,33 @@ index 2c17c2f0..8b1e96a3 100644
              selector.onCopy = async (text) => {
                  if (!text) {
                      this.showError("Selected entry has no text to copy");
-@@ -4989,18 +5093,10 @@ export class InteractiveMode {
-             .finally(() => clearTimeout(timeout));
-     }
-     showAmbientAuthDialog(providerOption) {
+@@ -5078,17 +5188,9 @@ export class InteractiveMode {
+-    showAmbientAuthDialog(providerOption, onBack) {
 -        const restoreEditor = () => {
 -            this.editorContainer.clear();
 -            this.editorContainer.addChild(this.editor);
 -            this.ui.setFocus(this.editor);
 -            this.ui.requestRender();
 -        };
--        const dialog = new LoginDialogComponent(this.ui, providerOption.id, () => restoreEditor(), providerOption.name, `${providerOption.name} setup`);
-+        let closeDialog = () => { };
-+        const dialog = new LoginDialogComponent(this.ui, providerOption.id, () => closeDialog(), providerOption.name, `${providerOption.name} setup`);
-         dialog.showInfo(`${providerOption.method?.name ?? "Authentication"} is configured outside ${APP_NAME}.`, [], true);
+-        const dialog = new LoginDialogComponent(this.ui, providerOption.id, () => {
+-            restoreEditor();
+-            onBack?.();
+-        }, providerOption.name, `${providerOption.name} setup`);
+-        dialog.showInfo(`${providerOption.method?.name ?? "Authentication"} is configured outside ${APP_NAME}.`, [], true);
 -        this.editorContainer.clear();
 -        this.editorContainer.addChild(dialog);
 -        this.ui.setFocus(dialog);
 -        this.ui.requestRender();
++    showAmbientAuthDialog(providerOption, onBack) {
++        let closeDialog = () => { };
++        const dialog = new LoginDialogComponent(this.ui, providerOption.id, () => {
++            closeDialog();
++            onBack?.();
++        }, providerOption.name, `${providerOption.name} setup`);
++        dialog.showInfo(`${providerOption.method?.name ?? "Authentication"} is configured outside ${APP_NAME}.`, [], true);
 +        closeDialog = this.showLoginDialogModal(dialog);
      }
-     async showApiKeyLoginDialog(providerId, providerName) {
-         const previousModel = this.session.model;
-@@ -5014,16 +5110,7 @@ export class InteractiveMode {
+@@ -5095,16 +5197,7 @@ export class InteractiveMode {
                  theme.fg("accent", `  ${path.join(getDocsPath(), "providers.md")}`),
              ]);
          }
@@ -656,9 +655,8 @@ index 2c17c2f0..8b1e96a3 100644
          try {
              await this.loginProvider(dialog, providerId, "api_key");
              restoreEditor();
-@@ -5042,31 +5129,36 @@ export class InteractiveMode {
-     }
-     showAuthSelect(dialog, prompt) {
+@@ -5136,26 +5229,29 @@ export class InteractiveMode {
+     showAuthSelect(dialog, prompt, providerId) {
          return new Promise((resolve, reject) => {
 -            const restoreDialog = () => {
 -                this.editorContainer.clear();
@@ -666,7 +664,6 @@ index 2c17c2f0..8b1e96a3 100644
 -                this.ui.setFocus(dialog);
 -                this.ui.requestRender();
 -            };
-             const labels = prompt.options.map((option) => option.label);
 +            let handle;
 +            const closeSelector = () => {
 +                prompt.signal?.removeEventListener("abort", onAbort);
@@ -677,6 +674,7 @@ index 2c17c2f0..8b1e96a3 100644
 +                closeSelector();
 +                reject(new Error("Login cancelled"));
 +            };
+             const labels = prompt.options.map((option) => option.label);
              const selector = new ExtensionSelectorComponent(prompt.message, labels, (optionLabel) => {
 -                restoreDialog();
 +                closeSelector();
@@ -689,7 +687,7 @@ index 2c17c2f0..8b1e96a3 100644
 -                restoreDialog();
 +                closeSelector();
                  reject(new Error("Login cancelled"));
-             });
+             }, { description: providerId === RADIUS_PROVIDER_ID ? RADIUS_LOGIN_INTRO : undefined });
 -            this.editorContainer.clear();
 -            this.editorContainer.addChild(selector);
 -            this.ui.setFocus(selector);
@@ -699,12 +697,6 @@ index 2c17c2f0..8b1e96a3 100644
 +            handle = this.showComponentOverlay(selector, selector, "auth");
          });
      }
-     async showAuthPrompt(dialog, prompt) {
-+        if (prompt.signal?.aborted)
-+            throw new Error("Login cancelled");
-         let response;
-         if (prompt.type === "select") {
-             response = this.showAuthSelect(dialog, prompt);
 @@ -5120,16 +5212,7 @@ export class InteractiveMode {
      async showLoginDialog(providerId, providerName) {
          const previousModel = this.session.model;

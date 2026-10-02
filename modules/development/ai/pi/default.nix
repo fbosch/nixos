@@ -6,8 +6,8 @@ let
       llmAgents = inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system};
       pi = llmAgents.pi.overrideAttrs (
         previous:
-        assert pkgs.lib.assertMsg (previous.version == "0.99.2")
-          "Review the Pi auth-startup and selector patches, codemode worker packaging, and pi-server workaround before upgrading from 0.99.2";
+        assert pkgs.lib.assertMsg (previous.version == "1.0.0")
+          "Review the Pi auth-startup and selector patches, codemode worker packaging, and pi-server workaround before upgrading from 1.0.0";
         assert pkgs.lib.assertMsg (
           pkgs.lib.hasInfix "./src/extensions/codemode/worker.ts" (previous.preInstall or "")
         ) "Review Pi codemode worker packaging: upstream's worker entry changed";
@@ -24,7 +24,7 @@ let
             PI_TEST_BINARY="$out/bin/pi" node --test ${./__tests__/codemode-worker.test.mjs} ${./__tests__/tool-search-ranking.test.mjs}
           '';
           postConfigure = (previous.postConfigure or "") + ''
-            # llm-agents injects a duplicate pi-server declaration for Pi 0.99.2.
+            # The Pi package source contains duplicate pi-server declarations.
             awk '/"@earendil-works\/pi-server"/ { if (seen++) next } { print }' package.json > package.json.tmp
             mv package.json.tmp package.json
             test "$(grep -Fc '"@earendil-works/pi-server"' package.json)" -eq 1

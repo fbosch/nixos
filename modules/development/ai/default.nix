@@ -24,16 +24,14 @@ let
               in
               assert pkgs.lib.assertMsg
                 (
-                  previous.version == "0.38.1"
-                ) "Review the agent-browser wrapper before upgrading from 0.38.1";
+                  previous.version == "0.38.2"
+                ) "Review the agent-browser wrapper before upgrading from 0.38.2";
               {
                 # Avoid the generic executable path: agent-browser applies it to every engine.
                 postInstall = ''
                   mkdir -p $out/share/agent-browser
                   cp -r ../skills ../skill-data $out/share/agent-browser/
-                  wrapProgram $out/bin/agent-browser \
-                    --set AGENT_BROWSER_ENGINE lightpanda \
-                    --prefix PATH : ${browserPath}
+                  wrapProgram $out/bin/agent-browser --set AGENT_BROWSER_ENGINE lightpanda --prefix PATH : ${browserPath}
                 '';
               }
             )
