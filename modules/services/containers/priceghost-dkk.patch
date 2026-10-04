@@ -223,7 +223,7 @@ diff -ruN a/frontend/src/components/PriceSelectionModal.tsx b/frontend/src/compo
 diff -ruN a/frontend/src/components/ProductCard.tsx b/frontend/src/components/ProductCard.tsx
 --- a/frontend/src/components/ProductCard.tsx	1970-01-01 01:00:01.000000000 +0100
 +++ b/frontend/src/components/ProductCard.tsx	2026-05-10 22:48:38.752184574 +0200
-@@ -82,7 +82,7 @@
+@@ -82,6 +82,6 @@
      const numPrice = typeof price === 'string' ? parseFloat(price) : price;
      if (isNaN(numPrice)) return 'N/A';
      const currencySymbol =
@@ -285,7 +285,7 @@ diff -ruN a/frontend/src/pages/NotificationHistory.tsx b/frontend/src/pages/Noti
 diff -ruN a/frontend/src/pages/ProductDetail.tsx b/frontend/src/pages/ProductDetail.tsx
 --- a/frontend/src/pages/ProductDetail.tsx	1970-01-01 01:00:01.000000000 +0100
 +++ b/frontend/src/pages/ProductDetail.tsx	2026-05-10 22:48:38.746756625 +0200
-@@ -167,7 +167,7 @@
+@@ -167,6 +167,6 @@
      const numPrice = typeof price === 'string' ? parseFloat(price) : price;
      if (isNaN(numPrice)) return 'N/A';
      const currencySymbol =
