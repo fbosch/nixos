@@ -92,27 +92,6 @@ namespace PositionStorage {
         if (!dir) return false;
         const auto data = PositionStore::serialize(records);
         if (data.size() > 1024 * 1024) { error = "state exceeds size limit"; return false; }
-        FD old(::openat(dir.value, path.filename().c_str(), O_RDONLY | O_NOFOLLOW | O_CLOEXEC));
-        if (!old && errno != ENOENT) { error = std::strerror(errno); return false; }
-        char header[sizeof("persistent-position-v1\n") - 1]{};
-        if (old) {
-            struct stat info{};
-            if (::fstat(old.value, &info) < 0 || !S_ISREG(info.st_mode)) { error = "state is not a regular file"; return false; }
-            const auto n = ::read(old.value, header, sizeof(header));
-            if (n < 0) { error = std::strerror(errno); return false; }
-            if (n == sizeof(header) && std::string_view(header, sizeof(header)) == "persistent-position-v1\n") {
-                // Preserve the original inode before upgrading; a failed rename leaves v1 in place.
-                const auto backup = path.filename().string() + ".v1.bak";
-                if (::linkat(dir.value, path.filename().c_str(), dir.value, backup.c_str(), 0) < 0) {
-                    struct stat preserved{};
-                    if (errno != EEXIST || ::fstatat(dir.value, backup.c_str(), &preserved, AT_SYMLINK_NOFOLLOW) < 0 ||
-                        !S_ISREG(preserved.st_mode) || preserved.st_dev != info.st_dev || preserved.st_ino != info.st_ino) {
-                        error = "cannot preserve v1 backup: existing backup differs or is unsafe"; return false;
-                    }
-                }
-                if (::fsync(dir.value) < 0) { error = std::strerror(errno); return false; }
-            }
-        }
         static std::atomic<uint64_t> sequence = 0;
         std::string temporary;
         FD file;

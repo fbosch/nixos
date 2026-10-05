@@ -39,17 +39,6 @@ namespace PositionStore {
         bool operator==(const Record&) const = default;
     };
     using Records = std::map<Key, Record>;
-    inline size_t mergeMissing(Records& current, const Records& legacy) {
-        size_t added = 0;
-        for (const auto& [key, incoming] : legacy) {
-            auto& record = current[key];
-            if (incoming.position && !record.position) { record.position = incoming.position; ++added; }
-            if (incoming.size && !record.size) { record.size = incoming.size; ++added; }
-            if (incoming.windowed && !record.windowed) { record.windowed = incoming.windowed; ++added; }
-            if (incoming.placement && !record.placement) { record.placement = incoming.placement; ++added; }
-        }
-        return added;
-    }
 
     inline bool validKey(std::string_view value, bool allowEmpty = false) {
         if (value.empty()) return allowEmpty;
@@ -107,8 +96,7 @@ namespace PositionStore {
     }
     inline std::optional<Records> parse(std::string_view input) {
         if (input.size() > 1024 * 1024 || input.empty() || input.back() != '\n') return std::nullopt;
-        const bool v1 = input.starts_with("persistent-position-v1\n");
-        if (!v1 && !input.starts_with("persistent-position-v2\n")) return std::nullopt;
+        if (!input.starts_with("persistent-position-v2\n")) return std::nullopt;
         input.remove_prefix(sizeof("persistent-position-v2\n") - 1);
         Records records;
         while (!input.empty()) {
@@ -124,7 +112,7 @@ namespace PositionStore {
                 if (tab == std::string_view::npos) break;
                 start = tab + 1;
             }
-            if (fields.size() != (v1 ? 4 : 9) || fields[0].empty() || fields[0].size() > 512 || fields[1].size() > 512 || line.size() > 1800) return std::nullopt;
+            if (fields.size() != 9 || fields[0].empty() || fields[0].size() > 512 || fields[1].size() > 512 || line.size() > 1800) return std::nullopt;
             auto id = unhex(fields[0]), monitor = unhex(fields[1]);
             if (!id || !monitor || !validKey(*id) || !validKey(*monitor, true)) return std::nullopt;
             auto pair = [](std::string_view x, std::string_view y, bool size) -> std::optional<std::optional<Point>> {
@@ -136,21 +124,19 @@ namespace PositionStore {
                 return result;
             };
             auto position = pair(fields[2], fields[3], false);
-            if (!position || (v1 && !*position)) return std::nullopt;
+            if (!position) return std::nullopt;
             Record record{*position, std::nullopt, std::nullopt};
-            if (!v1) {
-                auto size = pair(fields[4], fields[5], true);
-                if (!size || (fields[6] != "-" && fields[6] != "0" && fields[6] != "1")) return std::nullopt;
-                record.size = *size;
-                if (fields[6] != "-") record.windowed = fields[6] == "1";
-                if (fields[7] != "-" || fields[8] != "-") {
-                    auto target = unhex(fields[7]);
-                    if (!target || !validKey(*target) || (fields[8] != "free" && !validCorner(fields[8]))) return std::nullopt;
-                    if (fields[8] == "free" && !record.position) return std::nullopt;
-                    record.placement = Placement{*target, fields[8] == "free" ? "" : std::string(fields[8])};
-                }
-                if (!record.position && !record.size && !record.windowed && !record.placement) return std::nullopt;
+            auto size = pair(fields[4], fields[5], true);
+            if (!size || (fields[6] != "-" && fields[6] != "0" && fields[6] != "1")) return std::nullopt;
+            record.size = *size;
+            if (fields[6] != "-") record.windowed = fields[6] == "1";
+            if (fields[7] != "-" || fields[8] != "-") {
+                auto target = unhex(fields[7]);
+                if (!target || !validKey(*target) || (fields[8] != "free" && !validCorner(fields[8]))) return std::nullopt;
+                if (fields[8] == "free" && !record.position) return std::nullopt;
+                record.placement = Placement{*target, fields[8] == "free" ? "" : std::string(fields[8])};
             }
+            if (!record.position && !record.size && !record.windowed && !record.placement) return std::nullopt;
             if (!records.emplace(Key{*id, *monitor}, record).second) return std::nullopt;
             input.remove_prefix(end + 1);
         }

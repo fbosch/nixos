@@ -382,50 +382,6 @@ namespace {
     }
     int stateVersion(lua_State* state) { lua_pushinteger(state, 2); return 1; }
 
-    int importLegacy(lua_State* state) {
-        if (lua_type(state, 1) != LUA_TSTRING || lua_type(state, 2) != LUA_TTABLE)
-            return fail(state, "expected absolute state path and bounded legacy records array");
-        size_t length = 0;
-        const auto bytes = lua_tolstring(state, 1, &length);
-        std::string path(bytes, length);
-        const fs::path statePath(path);
-        const char* xdgState = std::getenv("XDG_STATE_HOME");
-        const char* home = std::getenv("HOME");
-        if (path.find('\0') != std::string::npos || ((!xdgState || !*xdgState) && (!home || !*home)))
-            return fail(state, "invalid state path or missing state root");
-        const fs::path stateRoot = xdgState && *xdgState ? fs::path(xdgState) : fs::path(home) / ".local/state";
-        if (!PositionStorage::validatePath(statePath, stateRoot)) return fail(state, "state file outside state root");
-        const size_t count = lua_rawlen(state, 2);
-        if (count > 4096 || !denseArray(state, 2, count)) return fail(state, "invalid legacy records array");
-        Records legacy;
-        for (size_t i = 1; i <= count; ++i) {
-            lua_rawgeti(state, 2, i);
-            if (lua_type(state, -1) != LUA_TTABLE ||
-                !knownFields(state, lua_gettop(state), {"id", "monitor", "x", "y", "width", "height", "windowed", "kind", "target_monitor", "corner"})) {
-                lua_pop(state, 1); return fail(state, "invalid legacy record fields");
-            }
-            auto id = textField(state, -1, "id"), monitor = textField(state, -1, "monitor");
-            auto record = parseRecord(state, -1);
-            lua_pop(state, 1);
-            if (!id || !monitor || !validKey(*id) || !validKey(*monitor, true) || !record ||
-                (record->placement && !monitor->empty())) return fail(state, "invalid legacy record");
-            if (!legacy.emplace(Key{*id, *monitor}, *record).second) return fail(state, "duplicate legacy record");
-        }
-        std::string error;
-        if (g_dirty) queueSave();
-        if (!g_writer.drain(error)) return fail(state, "pending state write failed: " + error);
-        // Configure follows immediately; do not let its drain requeue a pre-import snapshot.
-        g_dirty = false;
-        Records records;
-        if (!PositionStorage::load(statePath, records, error, true)) return fail(state, error);
-        if (records.size() + legacy.size() > 8192) return fail(state, "too many legacy records");
-        if (mergeMissing(records, legacy)) {
-            if (records.size() > 4096) return fail(state, "too many merged records");
-            if (!PositionStorage::writeAtomic(statePath, records, error)) return fail(state, error);
-        }
-        lua_pushboolean(state, true);
-        return 1;
-    }
     int configure(lua_State* state) {
         if (lua_type(state, 1) != LUA_TSTRING || lua_type(state, 2) != LUA_TTABLE)
             return fail(state, "expected absolute state path and ordered selector array");
@@ -587,7 +543,6 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     if (!HyprlandAPI::getHyprlandVersion(handle).hash.starts_with("19fb395d"))
         throw std::runtime_error("persistent-position: unsupported Hyprland revision for windowed rule hook");
     if (!HyprlandAPI::addLuaFunction(handle, "persistent_position", "configure", configure) ||
-        !HyprlandAPI::addLuaFunction(handle, "persistent_position", "import_legacy", importLegacy) ||
         !HyprlandAPI::addLuaFunction(handle, "persistent_position", "state_version", stateVersion) ||
         !HyprlandAPI::addLuaFunction(handle, "persistent_position", "accept_pip_placement", acceptPipPlacement) ||
         !HyprlandAPI::addLuaFunction(handle, "persistent_position", "capture_focused", captureFocused)) {
