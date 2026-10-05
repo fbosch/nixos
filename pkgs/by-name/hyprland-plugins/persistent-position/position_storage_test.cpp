@@ -33,6 +33,12 @@ int main() {
     require(load(file, records, error, true) && records.empty());
     Records first{{{"nemo", "DP-1"}, {12, 40}}};
     Records second{{{"nemo", "DP-1"}, {90, 90}}};
+    Records imported{{{"nemo", "DP-1"}, {999, 999}}, {{"nemo", "HDMI-1"}, {33, 44}}};
+    Records merged = first;
+    require(mergeMissing(merged, imported) == 1);
+    require(merged.at({"nemo", "DP-1"}) == Point{12, 40});
+    require(merged.at({"nemo", "HDMI-1"}) == Point{33, 44});
+    require(mergeMissing(merged, imported) == 0);
     require(writeAtomic(file, first, error));
     require(load(file, records, error) && records == first);
     fs::create_directory_symlink(outside, root / "escape");

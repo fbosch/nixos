@@ -23,6 +23,12 @@ namespace PositionStore {
         bool operator==(const Point&) const = default;
     };
     using Records = std::map<Key, Point>;
+    inline size_t mergeMissing(Records& current, const Records& legacy) {
+        size_t added = 0;
+        for (const auto& [key, position] : legacy)
+            added += current.emplace(key, position).second ? 1 : 0;
+        return added;
+    }
 
     inline bool validKey(std::string_view value, bool allowEmpty = false) {
         if (value.empty()) return allowEmpty;

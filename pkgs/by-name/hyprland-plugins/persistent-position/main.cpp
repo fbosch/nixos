@@ -231,6 +231,55 @@ namespace {
         if (source.empty() || !probe.ok()) { error = "invalid RE2 selector pattern"; return std::nullopt; }
         return Matcher{*fieldFrom(*name), *pattern, std::make_unique<Desktop::Rule::CRegexMatchEngine>(*pattern)};
     }
+    int importLegacy(lua_State* state) {
+        if (lua_type(state, 1) != LUA_TSTRING || lua_type(state, 2) != LUA_TTABLE)
+            return fail(state, "expected absolute state path and bounded legacy records array");
+        size_t length = 0;
+        const auto bytes = lua_tolstring(state, 1, &length);
+        std::string path(bytes, length);
+        const fs::path statePath(path);
+        const char* xdgState = std::getenv("XDG_STATE_HOME");
+        const char* home = std::getenv("HOME");
+        if (path.find('\0') != std::string::npos || ((!xdgState || !*xdgState) && (!home || !*home)))
+            return fail(state, "invalid state path or missing state root");
+        const fs::path stateRoot = xdgState && *xdgState ? fs::path(xdgState) : fs::path(home) / ".local/state";
+        if (!PositionStorage::validatePath(statePath, stateRoot)) return fail(state, "state file outside state root");
+        const size_t count = lua_rawlen(state, 2);
+        if (count > 4096 || !denseArray(state, 2, count)) return fail(state, "invalid legacy records array");
+        Records legacy;
+        for (size_t i = 1; i <= count; ++i) {
+            lua_rawgeti(state, 2, i);
+            if (lua_type(state, -1) != LUA_TTABLE || !knownFields(state, lua_gettop(state), {"id", "monitor", "x", "y"})) {
+                lua_pop(state, 1); return fail(state, "invalid legacy record fields");
+            }
+            auto id = textField(state, -1, "id"), monitor = textField(state, -1, "monitor");
+            lua_getfield(state, -1, "x");
+            const bool numericX = lua_type(state, -1) == LUA_TNUMBER;
+            const double x = numericX ? lua_tonumber(state, -1) : 0;
+            lua_pop(state, 1);
+            lua_getfield(state, -1, "y");
+            const bool numericY = lua_type(state, -1) == LUA_TNUMBER;
+            const double y = numericY ? lua_tonumber(state, -1) : 0;
+            lua_pop(state, 2);
+            if (!id || !monitor || !validKey(*id) || !validKey(*monitor, true) || !numericX || !numericY || !validPoint({x, y}) ||
+                !legacy.emplace(Key{*id, *monitor}, Point{x, y}).second)
+                return fail(state, "invalid or duplicate legacy record");
+        }
+        std::string error;
+        if (g_dirty) queueSave();
+        if (!g_writer.drain(error)) return fail(state, "pending state write failed: " + error);
+        // Configure follows immediately; do not let its drain requeue a pre-import snapshot.
+        g_dirty = false;
+        Records records;
+        if (!PositionStorage::load(statePath, records, error, true)) return fail(state, error);
+        if (records.size() + legacy.size() > 8192) return fail(state, "too many legacy records");
+        if (mergeMissing(records, legacy)) {
+            if (records.size() > 4096) return fail(state, "too many merged records");
+            if (!PositionStorage::writeAtomic(statePath, records, error)) return fail(state, error);
+        }
+        lua_pushboolean(state, true);
+        return 1;
+    }
     int configure(lua_State* state) {
         if (lua_type(state, 1) != LUA_TSTRING || lua_type(state, 2) != LUA_TTABLE)
             return fail(state, "expected absolute state path and ordered selector array");
@@ -362,6 +411,7 @@ namespace {
 APICALL EXPORT std::string PLUGIN_API_VERSION() { return HYPRLAND_API_VERSION; }
 APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     if (!HyprlandAPI::addLuaFunction(handle, "persistent_position", "configure", configure) ||
+        !HyprlandAPI::addLuaFunction(handle, "persistent_position", "import_legacy", importLegacy) ||
         !HyprlandAPI::addLuaFunction(handle, "persistent_position", "capture_focused", captureFocused)) {
         cleanup();
         throw std::runtime_error("persistent-position: Lua registration failed");
@@ -400,4 +450,12 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     g_keyListener = Event::bus()->m_events.input.keyboard.key.listen([](const auto&, auto&) { scheduleSync(true); });
     return {"persistent-position", "Opt-in durable pre-layout floating position restore", "local", "0.1.0"};
 }
-APICALL EXPORT void PLUGIN_EXIT() { cleanup(); }
+APICALL EXPORT void PLUGIN_EXIT() {
+    const char* runtime = std::getenv("XDG_RUNTIME_DIR");
+    const char* signature = std::getenv("HYPRLAND_INSTANCE_SIGNATURE");
+    if (runtime && *runtime && signature && *signature) {
+        std::error_code ignored;
+        std::filesystem::remove(std::filesystem::path(runtime) / "hypr" / signature / "persistent-position.ready", ignored);
+    }
+    cleanup();
+}
