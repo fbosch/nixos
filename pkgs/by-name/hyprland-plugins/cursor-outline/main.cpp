@@ -117,11 +117,11 @@ void main() {
             m_texture(std::move(texture)), m_cursorBoxPixels(cursorBoxPixels), m_radiusPixels(radiusPixels), m_monitorScale(monitorScale),
             m_drawBoxPixels(cursorBoxPixels.copy().expand(radiusPixels)) {}
 
-        bool needsLiveBlur() override {
+        bool needsLiveBlur(Render::CRenderContext&) override {
             return false;
         }
 
-        bool needsPrecomputeBlur() override {
+        bool needsPrecomputeBlur(Render::CRenderContext&) override {
             return false;
         }
 
@@ -133,19 +133,21 @@ void main() {
             return EK_CUSTOM;
         }
 
-        std::optional<CBox> boundingBox() override {
-            return m_drawBoxPixels.copy().scale(1.F / m_monitorScale).round();
+        std::optional<CBox> boundingBox(Render::CRenderContext& ctx) override {
+            CBox box = m_drawBoxPixels;
+            ctx.m_data.renderModif.applyToBox(box);
+            return box.scale(1.F / m_monitorScale).round();
         }
 
-        CRegion opaqueRegion() override {
+        CRegion opaqueRegion(Render::CRenderContext&) override {
             return {};
         }
 
-        std::vector<UP<IPassElement>> draw() override {
+        std::vector<UP<IPassElement>> draw(Render::CRenderContext& ctx) override {
             if (!m_texture || m_texture->m_type != TEXTURE_RGBA || m_cursorBoxPixels.empty() || !ensureShader())
                 return {};
 
-            auto&   renderData = g_pHyprRenderer->m_renderData;
+            auto&   renderData = ctx.m_data;
             CRegion outputRegion{m_drawBoxPixels};
             renderData.renderModif.applyToRegion(outputRegion);
 
@@ -155,7 +157,7 @@ void main() {
 
             CBox projectedBox = m_drawBoxPixels;
             renderData.renderModif.applyToBox(projectedBox);
-            const auto matrix = g_pHyprRenderer->projectBoxToTarget(projectedBox, Math::invertTransform(m_texture->m_transform));
+            const auto matrix = g_pHyprRenderer->projectBoxToTarget(ctx, projectedBox, Math::invertTransform(m_texture->m_transform));
 
             g_pHyprOpenGL->setActiveTexture(GL_TEXTURE0);
             m_texture->bind();
@@ -171,18 +173,18 @@ void main() {
             shader->setUniformFloat2(SHADER_FULL_SIZE, m_cursorBoxPixels.width, m_cursorBoxPixels.height);
             shader->setUniformFloat(SHADER_RADIUS, m_radiusPixels);
 
-            const auto color = g_pHyprRenderer->getConvertedColor(outlineColor());
+            const auto color = g_pHyprRenderer->getConvertedColor(ctx, outlineColor());
             shader->setUniformFloat4(SHADER_COLOR, color.r, color.g, color.b, color.a);
 
             glBindVertexArray(static_cast<GLuint>(shader->getUniformLocation(SHADER_SHADER_VAO)));
-            damage.forEachRect([](const auto& rect) {
-                g_pHyprOpenGL->scissor(&rect, g_pHyprRenderer->m_renderData.transformDamage);
+            damage.forEachRect([&ctx](const auto& rect) {
+                g_pHyprOpenGL->scissor(ctx, &rect, ctx.m_data.transformDamage);
                 glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
             });
 
             glBindVertexArray(0);
             g_pHyprOpenGL->bindArrayBuffer(0);
-            g_pHyprOpenGL->scissor(nullptr);
+            g_pHyprOpenGL->scissor(ctx, nullptr);
             m_texture->unbind();
             g_pHyprOpenGL->setActiveTexture(GL_TEXTURE0);
             return {};
@@ -237,7 +239,7 @@ void main() {
         damageOutline(Pointer::mgr()->getCursorBoxGlobal());
     }
 
-    void queueOutlineForMonitor(PHLMONITOR monitor) {
+    void queueOutlineForMonitor(Render::CRenderContext& ctx, PHLMONITOR monitor) {
         if (!g_outlineEnabled || !monitor || monitor->isMirror() || !monitor->m_enabled || !monitor->m_dpmsStatus || !g_pHyprRenderer->shouldRenderCursor() ||
             !Pointer::mgr()->softwareLockedFor(monitor))
             return;
@@ -256,7 +258,7 @@ void main() {
         pixelBox.round();
 
         const int radiusPixels = std::clamp(static_cast<int>(std::ceil(outlineLogicalPixels() * monitor->m_scale)), 1, MAXIMUM_OUTLINE_PIXELS);
-        g_pHyprRenderer->addPassElement(makeUnique<CCursorOutlinePassElement>(std::move(texture), pixelBox, radiusPixels, monitor->m_scale));
+        IHyprRenderer::addPassElement(ctx, makeUnique<CCursorOutlinePassElement>(std::move(texture), pixelBox, radiusPixels, monitor->m_scale));
         g_lastCursorBox = Pointer::mgr()->getCursorBoxGlobal();
     }
 
@@ -320,9 +322,9 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     if (!HyprlandAPI::addLuaFunction(handle, "cursor_outline", "off", disableOutline))
         throw std::runtime_error("cursor-outline: failed to register disable action");
 
-    g_renderStageListener    = Event::bus()->m_events.render.stage.listen([](eRenderStage stage) {
-        if (stage == RENDER_LAST_MOMENT)
-            queueOutlineForMonitor(g_pHyprRenderer->m_renderData.pMonitor.lock());
+    g_renderStageListener    = Event::bus()->m_events.render.stage.listen([](const Event::SRenderStageEvent& event) {
+        if (event.stage == RENDER_LAST_MOMENT && event.context)
+            queueOutlineForMonitor(event.context->get(), event.monitor);
     });
     g_monitorAddedListener   = Event::bus()->m_events.monitor.added.listen([](PHLMONITOR monitor) {
         if (g_outlineEnabled)
@@ -357,6 +359,8 @@ APICALL EXPORT void PLUGIN_EXIT() {
     g_mouseMoveListener.reset();
     g_cursorChangedListener.reset();
     setOutlineEnabled(false);
+    if (g_pHyprRenderer)
+        IHyprRenderer::currentPass(g_pHyprRenderer->context()).clear();
 
     if (g_shader) {
         g_pHyprOpenGL->makeEGLCurrent();

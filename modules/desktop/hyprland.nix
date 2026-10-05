@@ -52,10 +52,7 @@
           pointerEdgeHooksPlugin = pkgs.local."hyprland-plugins/pointer-edge-hooks";
           windowInteractionHooksPlugin = pkgs.local."hyprland-plugins/window-interaction-hooks";
           xdgDesktopPortalHyprlandPackage =
-            inputs.hyprland.packages.${system}.xdg-desktop-portal-hyprland.override
-              {
-                hyprland = hyprlandPackage;
-              };
+            inputs.hyprland.packages.${system}.xdg-desktop-portal-hyprland;
         in
         {
           nix.settings = {

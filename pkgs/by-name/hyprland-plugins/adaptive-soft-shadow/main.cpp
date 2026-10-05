@@ -17,6 +17,7 @@
 #include <hyprland/src/render/Framebuffer.hpp>
 #include <hyprland/src/render/OpenGL.hpp>
 #include <hyprland/src/render/Renderer.hpp>
+#include <hyprland/src/render/WindowRenderPresentation.hpp>
 #include <hyprland/src/render/Shader.hpp>
 #include <hyprland/src/render/decorations/IHyprWindowDecoration.hpp>
 #include <hyprland/src/render/pass/PassElement.hpp>
@@ -362,18 +363,18 @@ void main() {
         struct SData {
             WP<CAdaptiveSoftShadowDecoration> decoration;
             float                             alpha = 1.F;
-            SP<Workspace::CWorkspacePresentable> presentation;
+            Render::SWindowRenderPresentation presentation;
         };
 
         explicit CAdaptiveSoftShadowPassElement(const SData& data) : m_data(data) {}
 
-        std::vector<UP<IPassElement>> draw() override;
+        std::vector<UP<IPassElement>> draw(Render::CRenderContext& ctx) override;
 
-        bool needsLiveBlur() override {
+        bool needsLiveBlur(Render::CRenderContext&) override {
             return false;
         }
 
-        bool needsPrecomputeBlur() override {
+        bool needsPrecomputeBlur(Render::CRenderContext&) override {
             return false;
         }
 
@@ -413,12 +414,12 @@ void main() {
             updateWindow(m_window.lock());
         }
 
-        void draw(PHLMONITOR, const float& alpha, const SP<Workspace::CWorkspacePresentable>& presentation) override {
+        void draw(Render::CRenderContext& ctx, PHLMONITOR, const float& alpha, const Render::SWindowRenderPresentation& presentation) override {
             const auto self = dynamicPointerCast<CAdaptiveSoftShadowDecoration>(IHyprWindowDecoration::self());
             if (!self)
                 return;
 
-            g_pHyprRenderer->addPassElement(makeUnique<CAdaptiveSoftShadowPassElement>(CAdaptiveSoftShadowPassElement::SData{.decoration = self, .alpha = alpha, .presentation = presentation}));
+            IHyprRenderer::addPassElement(ctx, makeUnique<CAdaptiveSoftShadowPassElement>(CAdaptiveSoftShadowPassElement::SData{.decoration = self, .alpha = alpha, .presentation = presentation}));
         }
 
         eDecorationType getDecorationType() override {
@@ -506,22 +507,22 @@ void main() {
             damageEntire();
         }
 
-        void render(PHLMONITOR monitor, float alpha, const SP<Workspace::CWorkspacePresentable>& presentation) {
-            const auto data = getRenderData(monitor);
+        void render(Render::CRenderContext& ctx, PHLMONITOR monitor, float alpha, const Render::SWindowRenderPresentation& presentation) {
+            const auto data = getRenderData(monitor, presentation);
             if (!data.valid)
                 return;
 
             const auto window = m_window.lock();
             const auto shadowStrength = strength();
-            const auto previousWindow = g_pHyprRenderer->m_renderData.currentWindow;
-            const Hyprutils::Utils::CScopeGuard restoreWindow{[previousWindow] { g_pHyprRenderer->m_renderData.currentWindow = previousWindow; }};
-            g_pHyprRenderer->m_renderData.currentWindow = m_window;
+            const auto previousWindow = ctx.m_data.currentWindow;
+            const Hyprutils::Utils::CScopeGuard restoreWindow{[&ctx, previousWindow] { ctx.m_data.currentWindow = previousWindow; }};
+            ctx.m_data.currentWindow = m_window;
             g_pHyprRenderer->disableScissor();
 
-            if (canUseAdvancedBlend())
-                renderAdvancedBlend(data, window, shadowStrength, alpha);
+            if (canUseAdvancedBlend(ctx))
+                renderAdvancedBlend(ctx, data, window, shadowStrength, alpha, presentation);
             else
-                renderFallback(data, shadowStrength, alpha, presentation);
+                renderFallback(ctx, data, shadowStrength, alpha, presentation);
 
             if (m_extents != m_reportedExtents)
                 g_pDecorationPositioner->repositionDeco(this);
@@ -572,11 +573,11 @@ void main() {
             return !window->m_ruleApplicator->noShadow().valueOrDefault();
         }
 
-        bool canUseAdvancedBlend() {
+        bool canUseAdvancedBlend(const Render::CRenderContext& ctx) {
             if (!ensureAdvancedBlendShader())
                 return false;
 
-            const auto& renderData = g_pHyprRenderer->m_renderData;
+            const auto& renderData = ctx.m_data;
             if (!renderData.currentFB || !renderData.pMonitor || renderData.renderingTransformedSource)
                 return false;
 
@@ -593,7 +594,7 @@ void main() {
             return !(renderData.pMonitor->needsUnmodifiedCopy() && renderData.currentFB->getMirrorTexture());
         }
 
-        SAdaptiveShadowRenderData getRenderData(PHLMONITOR monitor) {
+        SAdaptiveShadowRenderData getRenderData(PHLMONITOR monitor, const Render::SWindowRenderPresentation& presentation) {
             if (!monitor || !canRender())
                 return {};
 
@@ -603,8 +604,7 @@ void main() {
             const auto roundingPower = window->presentation().roundingPower();
             const auto correctionOffset = borderSize * (std::sqrt(2.0) - 1.0) * std::max(2.0 - roundingPower, 0.0);
             const auto rounding = roundingBase > 0 ? roundingBase + borderSize - correctionOffset : 0.0;
-            const auto workspace = window->m_workspace;
-            const auto workspaceOffset = workspace && !(window->m_state & Desktop::View::WINDOW_STATE_PINNED) ? workspace->m_renderOffset->value() : Vector2D{};
+            const auto& workspaceOffset = presentation.workspaceOffset;
             const auto range = shadowRange();
 
             CBox fullBox = m_lastWindowBoxWithDecos;
@@ -625,7 +625,7 @@ void main() {
                 },
             };
 
-            fullBox.translate(window->presentation().floatingOffset());
+            fullBox.translate(presentation.floatingOffset);
             if (fullBox.width < 1 || fullBox.height < 1)
                 return {};
             CBox shadowBox = fullBox;
@@ -643,20 +643,21 @@ void main() {
             };
         }
 
-        void renderFallback(const SAdaptiveShadowRenderData& data, float shadowStrength, float alpha, const SP<Workspace::CWorkspacePresentable>& presentation) {
+        void renderFallback(Render::CRenderContext& ctx, const SAdaptiveShadowRenderData& data, float shadowStrength, float alpha, const Render::SWindowRenderPresentation& presentation) {
             const auto& color = g_color->value();
             warnAboutTruncatedGradient(color);
             const auto colorCount = std::min(color.m_colors.size(), MAXIMUM_GRADIENT_COLORS);
             std::vector<CHyprColor> colors{color.m_colors.begin(), color.m_colors.begin() + colorCount};
             const Config::CGradientValueData boundedColor{std::move(colors), normalizedGradientAngle(color.m_angle)};
-            g_pHyprRenderer->drawShadow(data.fullBox, data.rounding, data.roundingPower, data.range, boundedColor, shadowStrength * alpha, presentation);
+            g_pHyprRenderer->drawShadow(ctx, data.fullBox, static_cast<int>(std::round(data.rounding)), data.roundingPower, data.range, boundedColor, shadowStrength * alpha, presentation);
         }
 
-        void renderAdvancedBlend(const SAdaptiveShadowRenderData& data, PHLWINDOW window, float shadowStrength, float alpha) {
+        void renderAdvancedBlend(Render::CRenderContext& ctx, const SAdaptiveShadowRenderData& data, PHLWINDOW window, float shadowStrength, float alpha, const Render::SWindowRenderPresentation& presentation) {
             CBox box = data.fullBox;
-            g_pHyprRenderer->m_renderData.renderModif.applyToBox(box);
+            auto& renderData = ctx.m_data;
+            renderData.renderModif.applyToBox(box);
 
-            const auto matrix = g_pHyprRenderer->projectBoxToTarget(box);
+            const auto matrix = g_pHyprRenderer->projectBoxToTarget(ctx, box);
             g_pHyprOpenGL->blend(true);
             const auto shader = g_pHyprOpenGL->useShader(g_advancedBlendShader);
             shader->setUniformMatrix3fv(SHADER_PROJ, 1, GL_TRUE, matrix.getMatrix());
@@ -679,26 +680,23 @@ void main() {
             shader->setUniformFloat(SHADER_THICK, 0.F);
 
             CRegion drawRegion;
-            if (g_pHyprRenderer->m_renderData.clipBox.width != 0 && g_pHyprRenderer->m_renderData.clipBox.height != 0) {
-                drawRegion = g_pHyprRenderer->m_renderData.clipBox;
-                drawRegion.intersect(g_pHyprRenderer->m_renderData.damage);
+            if (renderData.clipBox.width != 0 && renderData.clipBox.height != 0) {
+                drawRegion = renderData.clipBox;
+                drawRegion.intersect(renderData.damage);
             } else
-                drawRegion = g_pHyprRenderer->m_renderData.damage;
+                drawRegion = renderData.damage;
 
             if (window) {
                 if (const auto logicalWindowBox = window->surfaceLogicalBox(); logicalWindowBox.has_value()) {
                     CBox scaledWindowBox = *logicalWindowBox;
-                    const auto workspace = window->m_workspace;
-                    if (workspace && !(window->m_state & Desktop::View::WINDOW_STATE_PINNED))
-                        scaledWindowBox.translate(workspace->m_renderOffset->value());
-                    scaledWindowBox.translate(window->presentation().floatingOffset() - g_pHyprRenderer->m_renderData.pMonitor->m_position);
-                    scaledWindowBox.scale(g_pHyprRenderer->m_renderData.pMonitor->m_scale).round();
-                    g_pHyprRenderer->m_renderData.renderModif.applyToBox(scaledWindowBox);
+                    scaledWindowBox.translate(presentation.workspaceOffset + presentation.floatingOffset - renderData.pMonitor->m_position);
+                    scaledWindowBox.scale(renderData.pMonitor->m_scale).round();
+                    renderData.renderModif.applyToBox(scaledWindowBox);
 
                     const auto cutoutTopLeft = scaledWindowBox.pos() - box.pos();
                     const auto cutoutBottomRight = cutoutTopLeft + scaledWindowBox.size();
-                    auto cutoutRadius = std::max(0.F, static_cast<float>(window->presentation().rounding() * g_pHyprRenderer->m_renderData.pMonitor->m_scale));
-                    cutoutRadius = std::round(cutoutRadius * g_pHyprRenderer->m_renderData.renderModif.combinedScale());
+                    auto cutoutRadius = std::max(0.F, static_cast<float>(window->presentation().rounding() * renderData.pMonitor->m_scale));
+                    cutoutRadius = std::round(cutoutRadius * renderData.renderModif.combinedScale());
 
                     shader->setUniformFloat2(SHADER_WINDOW_TOP_LEFT, cutoutTopLeft.x, cutoutTopLeft.y);
                     shader->setUniformFloat2(SHADER_WINDOW_BOTTOM_RIGHT, cutoutBottomRight.x, cutoutBottomRight.y);
@@ -714,8 +712,8 @@ void main() {
             glBindVertexArray(shader->getUniformLocation(SHADER_SHADER_VAO));
             const auto equation = blendEquation();
             glBlendEquation(isSolidBlack(color) && sourceOverEquivalentForSolidBlack(equation) ? GL_FUNC_ADD : equation);
-            drawRegion.forEachRect([](const auto& rect) {
-                g_pHyprOpenGL->scissor(&rect, g_pHyprRenderer->m_renderData.transformDamage);
+            drawRegion.forEachRect([&ctx](const auto& rect) {
+                g_pHyprOpenGL->scissor(ctx, &rect, ctx.m_data.transformDamage);
                 glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
             });
         }
@@ -730,10 +728,10 @@ void main() {
         CRegion           m_lastShadowRegion;
     };
 
-    std::vector<UP<IPassElement>> CAdaptiveSoftShadowPassElement::draw() {
+    std::vector<UP<IPassElement>> CAdaptiveSoftShadowPassElement::draw(Render::CRenderContext& ctx) {
         const auto decoration = m_data.decoration.lock();
         if (decoration)
-            decoration->render(g_pHyprRenderer->m_renderData.pMonitor.lock(), m_data.alpha, m_data.presentation);
+            decoration->render(ctx, ctx.m_data.pMonitor.lock(), m_data.alpha, m_data.presentation);
         return {};
     }
 
@@ -813,7 +811,7 @@ extern "C" __attribute__((visibility("default"))) void PLUGIN_EXIT() {
     g_windowOpenListener.reset();
     // Transformed windows can retain plugin elements in nested passes that removeAllOfType cannot reach.
     if (g_pHyprRenderer)
-        g_pHyprRenderer->currentPass().clear();
+        IHyprRenderer::currentPass(g_pHyprRenderer->context()).clear();
     if (g_advancedBlendShader && g_pHyprOpenGL)
         g_pHyprOpenGL->makeEGLCurrent();
     g_advancedBlendShader.reset();

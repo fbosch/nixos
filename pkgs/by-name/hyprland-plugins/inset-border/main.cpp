@@ -15,6 +15,7 @@
 #include <hyprland/src/render/Framebuffer.hpp>
 #include <hyprland/src/render/OpenGL.hpp>
 #include <hyprland/src/render/Renderer.hpp>
+#include <hyprland/src/render/WindowRenderPresentation.hpp>
 #include <hyprland/src/render/Shader.hpp>
 #include <hyprland/src/render/decorations/IHyprWindowDecoration.hpp>
 #include <hyprland/src/render/pass/BorderPassElement.hpp>
@@ -449,11 +450,11 @@ void main() {
         return g_advancedBlendSupported;
     }
 
-    bool canUseAdvancedBlend() {
+    bool canUseAdvancedBlend(const Render::CRenderContext& ctx) {
         if (!ensureAdvancedBlendShader())
             return false;
 
-        const auto& renderData = g_pHyprRenderer->m_renderData;
+        const auto& renderData = ctx.m_data;
         if (!renderData.currentFB || !renderData.pMonitor || !renderData.renderingTransformedSource)
             return false;
 
@@ -474,13 +475,13 @@ void main() {
         return !(renderData.pMonitor->needsUnmodifiedCopy() && renderData.currentFB->getMirrorTexture());
     }
 
-    void renderFallback(const CBorderPassElement::SBorderData& data) {
+    void renderFallback(Render::CRenderContext& ctx, const CBorderPassElement::SBorderData& data) {
         const auto& color = data.grad1;
         warnAboutTruncatedGradient(color);
         const auto colorCount = std::min(color.m_colors.size(), MAXIMUM_GRADIENT_COLORS);
         std::vector<CHyprColor> colors{color.m_colors.begin(), color.m_colors.begin() + colorCount};
         const Config::CGradientValueData boundedColor{std::move(colors), normalizedGradientAngle(color.m_angle)};
-        g_pHyprOpenGL->renderBorder(data.box, boundedColor,
+        g_pHyprOpenGL->renderBorder(ctx, data.box, boundedColor,
                                     {.round         = data.round,
                                      .roundingPower = data.roundingPower,
                                      .borderSize    = data.borderSize,
@@ -488,8 +489,8 @@ void main() {
                                      .outerRound    = data.outerRound});
     }
 
-    void renderAdvancedBlend(const CBorderPassElement::SBorderData& data) {
-        auto& renderData = g_pHyprRenderer->m_renderData;
+    void renderAdvancedBlend(Render::CRenderContext& ctx, const CBorderPassElement::SBorderData& data) {
+        auto& renderData = ctx.m_data;
         if (renderData.damage.empty() || data.borderSize < 1)
             return;
 
@@ -504,7 +505,7 @@ void main() {
         CBox box = innerBox;
         box.expand(scaledBorderSize);
         const auto rounding = data.round + (data.round == 0 ? 0 : scaledBorderSize);
-        const auto matrix = g_pHyprRenderer->projectBoxToTarget(box);
+        const auto matrix = g_pHyprRenderer->projectBoxToTarget(ctx, box);
 
         const auto previousBlend = g_pHyprOpenGL->blendEnabled();
         g_pHyprOpenGL->blend(false);
@@ -548,8 +549,8 @@ void main() {
         }
 
         glBindVertexArray(shader->getUniformLocation(SHADER_SHADER_VAO));
-        borderRegion.forEachRect([](const auto& rect) {
-            g_pHyprOpenGL->scissor(&rect, g_pHyprRenderer->m_renderData.transformDamage);
+        borderRegion.forEachRect([&ctx](const auto& rect) {
+            g_pHyprOpenGL->scissor(ctx, &rect, ctx.m_data.transformDamage);
             glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
         });
     }
@@ -589,7 +590,7 @@ void main() {
             return false;
 
         // Isolate the window group so transparent client pixels never expose the desktop to the blend shader.
-        const auto window = g_pHyprRenderer ? g_pHyprRenderer->m_renderData.currentWindow.lock() : nullptr;
+        const auto window = g_pHyprRenderer ? g_pHyprRenderer->context().m_data.currentWindow.lock() : nullptr;
         return window && &window->effects() == controller && borderVisible(window);
     }
 
@@ -623,23 +624,23 @@ void main() {
       public:
         explicit CInsetBorderPassElement(const CBorderPassElement::SBorderData& data) : m_data(data) {}
 
-        std::vector<UP<IPassElement>> draw() override {
-            const auto previousWindow = g_pHyprRenderer->m_renderData.currentWindow;
-            const Hyprutils::Utils::CScopeGuard restoreWindow{[previousWindow] { g_pHyprRenderer->m_renderData.currentWindow = previousWindow; }};
-            g_pHyprRenderer->m_renderData.currentWindow = m_data.window;
+        std::vector<UP<IPassElement>> draw(Render::CRenderContext& ctx) override {
+            const auto previousWindow = ctx.m_data.currentWindow;
+            const Hyprutils::Utils::CScopeGuard restoreWindow{[&ctx, previousWindow] { ctx.m_data.currentWindow = previousWindow; }};
+            ctx.m_data.currentWindow = m_data.window;
 
-            if (canUseAdvancedBlend())
-                renderAdvancedBlend(m_data);
+            if (canUseAdvancedBlend(ctx))
+                renderAdvancedBlend(ctx, m_data);
             else
-                renderFallback(m_data);
+                renderFallback(ctx, m_data);
             return {};
         }
 
-        bool needsLiveBlur() override {
+        bool needsLiveBlur(Render::CRenderContext&) override {
             return false;
         }
 
-        bool needsPrecomputeBlur() override {
+        bool needsPrecomputeBlur(Render::CRenderContext&) override {
             return false;
         }
 
@@ -677,7 +678,7 @@ void main() {
             updateWindow(m_window.lock());
         }
 
-        void draw(PHLMONITOR monitor, float const& alpha, const SP<Workspace::CWorkspacePresentable>&) override {
+        void draw(Render::CRenderContext& ctx, PHLMONITOR monitor, float const& alpha, const Render::SWindowRenderPresentation& presentation) override {
             if (!monitor || !visible())
                 return;
 
@@ -685,13 +686,12 @@ void main() {
             if (!window)
                 return;
 
-            const auto workspace = window->m_workspace;
-            const auto workspaceOffset = workspace && !(window->m_state & Desktop::View::WINDOW_STATE_PINNED) ? workspace->m_renderOffset->value() : Vector2D{};
+            const auto& workspaceOffset = presentation.workspaceOffset;
             const auto borderThickness = thickness();
             const auto borderInset     = inset();
 
             CBox windowBox = {m_lastWindowPos.x, m_lastWindowPos.y, m_lastWindowSize.x, m_lastWindowSize.y};
-            windowBox.translate(-monitor->m_position + workspaceOffset + window->presentation().floatingOffset());
+            windowBox.translate(-monitor->m_position + workspaceOffset + presentation.floatingOffset);
             windowBox.expand(-(borderInset + borderThickness));
             windowBox.scale(monitor->m_scale).round();
 
@@ -715,9 +715,9 @@ void main() {
             data.window        = m_window;
 
             if (blendEquation() == GL_FUNC_ADD)
-                g_pHyprRenderer->addPassElement(makeUnique<CBorderPassElement>(data));
+                IHyprRenderer::addPassElement(ctx, makeUnique<CBorderPassElement>(data));
             else
-                g_pHyprRenderer->addPassElement(makeUnique<CInsetBorderPassElement>(data));
+                IHyprRenderer::addPassElement(ctx, makeUnique<CInsetBorderPassElement>(data));
         }
 
         eDecorationType getDecorationType() override {
@@ -842,7 +842,7 @@ extern "C" __attribute__((visibility("default"))) PLUGIN_DESCRIPTION_INFO PLUGIN
 extern "C" __attribute__((visibility("default"))) void PLUGIN_EXIT() {
     g_windowOpenListener.reset();
     if (g_pHyprRenderer)
-        g_pHyprRenderer->currentPass().clear();
+        IHyprRenderer::currentPass(g_pHyprRenderer->context()).clear();
     if (g_transformHook)
         HyprlandAPI::removeFunctionHook(g_handle, g_transformHook);
     g_transformHook = nullptr;
