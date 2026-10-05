@@ -1,8 +1,6 @@
 # Hyprland plugins
 
-This directory contains nine local Hyprland plugin packages. Eight are used by
-this NixOS configuration; `persistent-position` is available for isolated
-testing but not installed or loaded in the production session.
+This directory contains nine local Hyprland plugin packages used by this NixOS configuration.
 
 | Plugin                                                  | Version | Purpose                                                          |
 | ------------------------------------------------------- | ------- | ---------------------------------------------------------------- |
@@ -12,7 +10,7 @@ testing but not installed or loaded in the production session.
 | [`custom-layout-resize`](custom-layout-resize/)         | 0.3.1   | Drive custom tiled-layout resizing from native pointer motion.   |
 | [`focus-animation`](focus-animation/)                   | 0.1.10  | Add a scale-based `windowsFocus` animation leaf.                 |
 | [`inset-border`](inset-border/)                         | 0.3.0   | Draw focus-aware keylines inside window content.                 |
-| [`persistent-position`](persistent-position/)           | 0.1.0   | Save opt-in floating positions and restore before initial layout. |
+| [`persistent-position`](persistent-position/)           | 0.2.0   | Save opt-in floating positions and restore before initial layout. |
 | [`pointer-edge-hooks`](pointer-edge-hooks/)             | 0.1.0   | Emit pointer zones relative to the bottom monitor edge.          |
 | [`window-interaction-hooks`](window-interaction-hooks/) | 0.2.0   | Emit live and completed native window move and resize events.    |
 
@@ -44,14 +42,14 @@ the packages and publishes their library paths as session variables:
 | `custom-layout-resize`     | `HYPR_CUSTOM_LAYOUT_RESIZE_PLUGIN`     | `libcustom-layout-resize.so`     |
 | `focus-animation`          | `HYPR_FOCUS_ANIMATION_PLUGIN`          | `libfocus-animation.so`          |
 | `inset-border`             | `HYPR_INSET_BORDER_PLUGIN`             | `libinset-border.so`             |
-| `persistent-position`      | Not published; package available but not installed or loaded by default | `libpersistent-position.so` |
+| `persistent-position`      | `HYPR_PERSISTENT_POSITION_PLUGIN`      | `libpersistent-position.so` |
 | `pointer-edge-hooks`       | `HYPR_POINTER_EDGE_HOOKS_PLUGIN`       | `libpointer-edge-hooks.so`       |
 | `window-interaction-hooks` | `HYPR_WINDOW_INTERACTION_HOOKS_PLUGIN` | `libwindow-interaction-hooks.so` |
 
 The production plugins have matching Lua integrations in the
 [`dotfiles` repository](https://github.com/fbosch/dotfiles/tree/master/.config/hypr/plugins).
 They load libraries with `hl.plugin.load()` and configure or subscribe to the
-interfaces described below. `persistent-position` has no production integration.
+interfaces described below. `persistent-position` uses an explicit enable flag and migrates retained state before taking ownership.
 
 ## Building and testing
 
@@ -350,7 +348,7 @@ events.
 
 ### `persistent-position`
 
-[`persistent-position/README.md`](persistent-position/README.md) documents the opt-in Lua API, state file, capture rules, and limits. This package is included in the build check but not in the production session.
+[`persistent-position/README.md`](persistent-position/README.md) documents the native geometry/PiP API, durable state, capture rules, migration, and revision-pinned hooks.
 
 ## Reload behavior
 

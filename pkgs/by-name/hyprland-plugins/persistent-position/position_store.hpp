@@ -10,6 +10,7 @@
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace PositionStore {
     struct Key {
@@ -22,11 +23,31 @@ namespace PositionStore {
         double y;
         bool operator==(const Point&) const = default;
     };
-    using Records = std::map<Key, Point>;
+    struct Placement {
+        std::string monitor;
+        std::string corner; // Empty means free placement using Record::position.
+        bool operator==(const Placement&) const = default;
+    };
+    inline bool validCorner(std::string_view corner) {
+        return corner == "top-left" || corner == "top-right" || corner == "bottom-left" || corner == "bottom-right";
+    }
+    struct Record {
+        std::optional<Point> position;
+        std::optional<Point> size;
+        std::optional<bool> windowed;
+        std::optional<Placement> placement;
+        bool operator==(const Record&) const = default;
+    };
+    using Records = std::map<Key, Record>;
     inline size_t mergeMissing(Records& current, const Records& legacy) {
         size_t added = 0;
-        for (const auto& [key, position] : legacy)
-            added += current.emplace(key, position).second ? 1 : 0;
+        for (const auto& [key, incoming] : legacy) {
+            auto& record = current[key];
+            if (incoming.position && !record.position) { record.position = incoming.position; ++added; }
+            if (incoming.size && !record.size) { record.size = incoming.size; ++added; }
+            if (incoming.windowed && !record.windowed) { record.windowed = incoming.windowed; ++added; }
+            if (incoming.placement && !record.placement) { record.placement = incoming.placement; ++added; }
+        }
         return added;
     }
 
@@ -37,6 +58,9 @@ namespace PositionStore {
     }
     inline bool validPoint(Point p) {
         return std::isfinite(p.x) && std::isfinite(p.y) && std::abs(p.x) <= 1000000 && std::abs(p.y) <= 1000000;
+    }
+    inline bool validSize(Point size) {
+        return validPoint(size) && size.x > 0 && size.y > 0;
     }
     inline std::string hex(std::string_view value) {
         constexpr char digits[] = "0123456789abcdef";
@@ -66,34 +90,68 @@ namespace PositionStore {
         std::ostringstream out;
         out.imbue(std::locale::classic());
         out.precision(17);
-        out << "persistent-position-v1\n";
-        for (const auto& [key, point] : records)
-            out << hex(key.selector) << '\t' << hex(key.monitor) << '\t' << point.x << '\t' << point.y << '\n';
+        out << "persistent-position-v2\n";
+        for (const auto& [key, record] : records) {
+            out << hex(key.selector) << '\t' << hex(key.monitor);
+            auto pair = [&out](const std::optional<Point>& value) {
+                if (value) out << '\t' << value->x << '\t' << value->y;
+                else out << "\t-\t-";
+            };
+            pair(record.position);
+            pair(record.size);
+            out << '\t' << (record.windowed ? (*record.windowed ? "1" : "0") : "-");
+            out << '\t' << (record.placement ? hex(record.placement->monitor) : "-");
+            out << '\t' << (record.placement ? (record.placement->corner.empty() ? "free" : record.placement->corner) : "-") << '\n';
+        }
         return out.str();
     }
     inline std::optional<Records> parse(std::string_view input) {
-        if (input.size() > 1024 * 1024 || !input.starts_with("persistent-position-v1\n") || input.back() != '\n') return std::nullopt;
-        input.remove_prefix(sizeof("persistent-position-v1\n") - 1);
+        if (input.size() > 1024 * 1024 || input.empty() || input.back() != '\n') return std::nullopt;
+        const bool v1 = input.starts_with("persistent-position-v1\n");
+        if (!v1 && !input.starts_with("persistent-position-v2\n")) return std::nullopt;
+        input.remove_prefix(sizeof("persistent-position-v2\n") - 1);
         Records records;
         while (!input.empty()) {
             if (records.size() >= 4096) return std::nullopt;
             const auto end = input.find('\n');
             if (end == std::string_view::npos) return std::nullopt;
             const auto line = input.substr(0, end);
-            const auto a = line.find('\t');
-            const auto b = a == std::string_view::npos ? a : line.find('\t', a + 1);
-            const auto c = b == std::string_view::npos ? b : line.find('\t', b + 1);
-            if (a == std::string_view::npos || b == std::string_view::npos || c == std::string_view::npos ||
-                a == 0 || c == b + 1 || c + 1 == line.size() ||
-                line.find('\t', c + 1) != std::string_view::npos) return std::nullopt;
-            if (a > 512 || b - a > 513 || line.size() > 1100) return std::nullopt;
-            auto id = unhex(line.substr(0, a)), monitor = unhex(line.substr(a + 1, b - a - 1));
+            std::vector<std::string_view> fields;
+            size_t start = 0;
+            while (true) {
+                const auto tab = line.find('\t', start);
+                fields.push_back(line.substr(start, tab == std::string_view::npos ? tab : tab - start));
+                if (tab == std::string_view::npos) break;
+                start = tab + 1;
+            }
+            if (fields.size() != (v1 ? 4 : 9) || fields[0].empty() || fields[0].size() > 512 || fields[1].size() > 512 || line.size() > 1800) return std::nullopt;
+            auto id = unhex(fields[0]), monitor = unhex(fields[1]);
             if (!id || !monitor || !validKey(*id) || !validKey(*monitor, true)) return std::nullopt;
-            Point point{};
-            std::istringstream values(std::string(line.substr(b + 1, c - b - 1)) + " " + std::string(line.substr(c + 1)));
-            values.imbue(std::locale::classic());
-            if (!(values >> point.x >> point.y) || (values >> std::ws, !values.eof()) || !validPoint(point)) return std::nullopt;
-            if (!records.emplace(Key{*id, *monitor}, point).second) return std::nullopt;
+            auto pair = [](std::string_view x, std::string_view y, bool size) -> std::optional<std::optional<Point>> {
+                if (x == "-" && y == "-") return std::optional<Point>{};
+                Point result{};
+                std::istringstream values(std::string(x) + " " + std::string(y));
+                values.imbue(std::locale::classic());
+                if (!(values >> result.x >> result.y) || (values >> std::ws, !values.eof()) || !(size ? validSize(result) : validPoint(result))) return std::nullopt;
+                return result;
+            };
+            auto position = pair(fields[2], fields[3], false);
+            if (!position || (v1 && !*position)) return std::nullopt;
+            Record record{*position, std::nullopt, std::nullopt};
+            if (!v1) {
+                auto size = pair(fields[4], fields[5], true);
+                if (!size || (fields[6] != "-" && fields[6] != "0" && fields[6] != "1")) return std::nullopt;
+                record.size = *size;
+                if (fields[6] != "-") record.windowed = fields[6] == "1";
+                if (fields[7] != "-" || fields[8] != "-") {
+                    auto target = unhex(fields[7]);
+                    if (!target || !validKey(*target) || (fields[8] != "free" && !validCorner(fields[8]))) return std::nullopt;
+                    if (fields[8] == "free" && !record.position) return std::nullopt;
+                    record.placement = Placement{*target, fields[8] == "free" ? "" : std::string(fields[8])};
+                }
+                if (!record.position && !record.size && !record.windowed && !record.placement) return std::nullopt;
+            }
+            if (!records.emplace(Key{*id, *monitor}, record).second) return std::nullopt;
             input.remove_prefix(end + 1);
         }
         return records;

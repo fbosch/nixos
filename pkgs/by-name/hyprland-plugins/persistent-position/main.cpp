@@ -4,6 +4,7 @@
 #include <hyprland/src/config/ConfigValue.hpp>
 #include <hyprland/src/desktop/rule/matchEngine/RegexMatchEngine.hpp>
 #include <hyprland/src/desktop/state/FocusState.hpp>
+#include <hyprland/src/desktop/state/ViewState.hpp>
 #include <hyprland/src/desktop/view/window/Window.hpp>
 #include <hyprland/src/desktop/view/window/WindowMetadata.hpp>
 #include <hyprland/src/event/EventBus.hpp>
@@ -12,12 +13,14 @@
 #include <hyprland/src/managers/fullscreen/FullscreenController.hpp>
 #include <hyprland/src/output/Monitor.hpp>
 #include <hyprland/src/plugins/PluginAPI.hpp>
+#include <hyprland/src/state/MonitorState.hpp>
 #include <re2/re2.h>
 
 #include <algorithm>
 #include <cerrno>
 #include <cstdlib>
 #include <cstdio>
+#include <dlfcn.h>
 #include <format>
 #include <stdexcept>
 #include <iterator>
@@ -59,6 +62,10 @@ namespace {
         Matcher match;
         std::vector<Matcher> exclude;
         bool global = false;
+        bool restoreSize = true;
+        bool forceWindowed = true;
+        bool genericGeometry = true;
+        bool restoreMonitor = false;
     };
 
     std::string g_path;
@@ -81,6 +88,12 @@ namespace {
     void warning(const char* reason) { std::fprintf(stderr, "persistent-position: %s\n", reason); }
 
     PositionStorage::Writer g_writer;
+    CFunctionHook* g_ruleHook = nullptr;
+    CFunctionHook* g_recheckHook = nullptr;
+    using ReadRules = bool (*)(Desktop::Rule::CWindowRuleApplicator*, bool);
+    using RecheckRules = void (*)(Desktop::Rule::CWindowRuleApplicator*);
+    ReadRules g_readRules = nullptr;
+    RecheckRules g_recheckRules = nullptr;
 
     void queueSave() {
         if (g_dirty && !g_path.empty()) g_writer.enqueue(g_path, g_records);
@@ -105,40 +118,116 @@ namespace {
     void capture(PHLWINDOW window) {
         if (!eligible(window) || g_path.empty()) return;
         const auto selector = matching(window);
-        if (!selector) return;
+        if (!selector || !selector->genericGeometry) return;
         const auto monitor = window->m_monitor.lock();
         const auto box = window->layoutBox();
         const Point position{box.x - monitor->m_position.x, box.y - monitor->m_position.y};
-        if (!validPoint(position) || !std::isfinite(box.width) || !std::isfinite(box.height) || box.width <= 0 || box.height <= 0) return;
+        const Point size{box.width, box.height};
+        if (!validPoint(position) || !validSize(size)) return;
         Key key{selector->id, selector->global ? "" : monitor->m_name};
         if (!validKey(key.monitor, selector->global) || (g_records.size() >= 4096 && !g_records.contains(key))) return;
-        if (const auto it = g_records.find(key); it != g_records.end() && it->second == position) return;
-        g_records[std::move(key)] = position;
+        Record next = g_records.contains(key) ? g_records.at(key) : Record{};
+        if (selector->genericGeometry) {
+            next.position = position;
+            if (selector->restoreSize) next.size = size;
+        }
+        if (selector->forceWindowed) next.windowed = true;
+        if (const auto it = g_records.find(key); it != g_records.end() && it->second == next) return;
+        g_records[std::move(key)] = next;
         g_dirty = true;
         queueSave();
+    }
+
+    void restorePip(PHLWINDOW window, const Record& record) {
+        if (!record.placement) return;
+        auto& rules = window->m_ruleApplicator->static_;
+        rules.center = false;
+        const auto& corner = record.placement->corner;
+        if (corner.empty()) {
+            if (record.position)
+                rules.position = Math::SExpressionVec2{std::format("{}", record.position->x), std::format("{}", record.position->y)};
+        } else {
+            rules.position = Math::SExpressionVec2{
+                corner.ends_with("left") ? "15" : "max(15,monitor_w-window_w-15)",
+                corner.starts_with("top") ? "15" : "max(15,monitor_h-window_h-15)"};
+        }
+        auto& tags = window->m_ruleApplicator->m_tagKeeper;
+        for (const char* suffix : {"top-left", "top-right", "bottom-left", "bottom-right"}) {
+            tags.applyTag(std::string("-pip-") + suffix);
+            tags.removeDynamicTag(std::string("pip-") + suffix);
+        }
+        if (!corner.empty()) {
+            tags.applyTag("+pip-" + corner);
+            window->m_ruleApplicator->animationStyle().set(corner.starts_with("top") ? "slide top" : "slide bottom",
+                Desktop::Types::PRIORITY_SET_PROP);
+        }
     }
 
     void onOpen(PHLWINDOW window) {
         if (!window || !window->m_ruleApplicator || g_path.empty() || g_selectors.empty()) return;
         const auto& rules = window->m_ruleApplicator->static_;
-        if (rules.position || rules.center.value_or(false) || rules.fullscreen.value_or(false) || rules.maximize.value_or(false) ||
-            !window->m_monitor.lock() || !window->layoutTarget()->floating()) return;
+        if (!window->m_monitor.lock() || !window->layoutTarget()->floating()) return;
         const auto selector = matching(window);
         if (!selector) return;
         const auto monitor = window->m_monitor.lock();
         const auto it = g_records.find({selector->id, selector->global ? "" : monitor->m_name});
         if (it == g_records.end()) return;
+        if (!selector->genericGeometry) { restorePip(window, it->second); return; }
+        if (selector->genericGeometry && selector->restoreSize && it->second.size)
+            window->m_ruleApplicator->static_.size = Math::SExpressionVec2{
+                std::format("{}", it->second.size->x), std::format("{}", it->second.size->y)};
+        if (!selector->genericGeometry || !it->second.position || rules.position || rules.center.value_or(false) ||
+            rules.fullscreen.value_or(false) || rules.maximize.value_or(false)) return;
         const auto area = monitor->logicalBoxMinusReserved();
-        if (!validPoint(it->second) || area.w <= 0 || area.h <= 0) return;
+        if (area.w <= 0 || area.h <= 0) return;
         // The floating layout evaluates window_w/h after applying the first-map size rule.
         // muParser's min/max clamp without changing that size or moving the selected monitor.
         auto axis = [](double saved, double start, double extent, const char* size) {
             return std::format("max({0},min({1},max({0},({0}+{2}-{3}))))", start, saved, extent, size);
         };
         window->m_ruleApplicator->static_.position = Math::SExpressionVec2{
-            axis(it->second.x, area.x - monitor->m_position.x, area.w, "window_w"),
-            axis(it->second.y, area.y - monitor->m_position.y, area.h, "window_h"),
+            axis(it->second.position->x, area.x - monitor->m_position.x, area.w, "window_w"),
+            axis(it->second.position->y, area.y - monitor->m_position.y, area.h, "window_h"),
         };
+    }
+
+    void enforceWindowed(Desktop::Rule::CWindowRuleApplicator* applicator) {
+        if (g_path.empty()) return;
+        const auto& windows = Desktop::viewState()->windows();
+        const auto found = std::ranges::find_if(windows, [applicator](const PHLWINDOW& candidate) {
+            return candidate && candidate->m_ruleApplicator.get() == applicator &&
+                (candidate->m_state & Desktop::View::WINDOW_STATE_FIRST_MAP);
+        });
+        if (found == windows.end()) return;
+        const auto selector = matching(*found);
+        if (!selector) return;
+        if (!selector->genericGeometry && selector->restoreMonitor) {
+            const auto it = g_records.find({selector->id, ""});
+            if (it != g_records.end() && it->second.placement) {
+                const auto& name = it->second.placement->monitor;
+                const auto& monitors = State::monitorState()->monitors();
+                if (std::ranges::any_of(monitors, [&name](const auto& monitor) { return monitor->m_name == name; }))
+                    applicator->static_.monitor = name + " silent";
+            }
+        }
+        if (!selector->forceWindowed) return;
+        // This hook runs before mapWindow's setStaticProps and routing; openEarly is too late for fullscreen.
+        applicator->static_.fullscreen = false;
+        applicator->static_.maximize = false;
+        // A requested (0,0) mode wins over pending client fullscreen at first map only.
+        applicator->static_.fullscreenStateClient = 0;
+        applicator->static_.fullscreenStateInternal = 0;
+    }
+
+    bool readRules(Desktop::Rule::CWindowRuleApplicator* applicator, bool preRead) {
+        const bool recheck = g_readRules(applicator, preRead);
+        if (!preRead) enforceWindowed(applicator);
+        return recheck;
+    }
+
+    void recheckRules(Desktop::Rule::CWindowRuleApplicator* applicator) {
+        g_recheckRules(applicator);
+        enforceWindowed(applicator);
     }
 
     bool activeDrag() {
@@ -231,6 +320,68 @@ namespace {
         if (source.empty() || !probe.ok()) { error = "invalid RE2 selector pattern"; return std::nullopt; }
         return Matcher{*fieldFrom(*name), *pattern, std::make_unique<Desktop::Rule::CRegexMatchEngine>(*pattern)};
     }
+    std::optional<Record> parseRecord(lua_State* state, int index) {
+        index = lua_absindex(state, index);
+        Record record;
+        auto pair = [&](const char* x, const char* y, bool size, std::optional<Point>& out) {
+            lua_getfield(state, index, x);
+            lua_getfield(state, index, y);
+            const bool absent = lua_isnil(state, -2) && lua_isnil(state, -1);
+            const bool numeric = lua_type(state, -2) == LUA_TNUMBER && lua_type(state, -1) == LUA_TNUMBER;
+            const Point value{lua_tonumber(state, -2), lua_tonumber(state, -1)};
+            lua_pop(state, 2);
+            if (absent) return true;
+            if (!numeric || !(size ? validSize(value) : validPoint(value))) return false;
+            out = value;
+            return true;
+        };
+        if (!pair("x", "y", false, record.position) || !pair("width", "height", true, record.size)) return std::nullopt;
+        lua_getfield(state, index, "windowed");
+        if (!lua_isnil(state, -1)) {
+            if (lua_type(state, -1) != LUA_TBOOLEAN) { lua_pop(state, 1); return std::nullopt; }
+            record.windowed = lua_toboolean(state, -1);
+        }
+        lua_pop(state, 1);
+        for (const char* name : {"kind", "target_monitor", "corner"}) {
+            lua_getfield(state, index, name);
+            const bool valid = lua_isnil(state, -1) || lua_type(state, -1) == LUA_TSTRING;
+            lua_pop(state, 1);
+            if (!valid) return std::nullopt;
+        }
+        const auto kind = textField(state, index, "kind");
+        const auto target = textField(state, index, "target_monitor");
+        const auto corner = textField(state, index, "corner");
+        if (kind || target || corner) {
+            if (!kind || !target || !validKey(*target) ||
+                (*kind != "corner" && *kind != "free")) return std::nullopt;
+            if (*kind == "corner" && (!corner || !validCorner(*corner) || record.position)) return std::nullopt;
+            if (*kind == "free" && (corner || !record.position)) return std::nullopt;
+            record.placement = Placement{*target, corner.value_or("")};
+        }
+        if (!record.position && !record.size && !record.windowed && !record.placement) return std::nullopt;
+        return record;
+    }
+
+    int acceptPipPlacement(lua_State* state) {
+        if (g_path.empty() || lua_type(state, 1) != LUA_TTABLE ||
+            !knownFields(state, 1, {"kind", "target_monitor", "corner", "x", "y", "width", "height"}))
+            return fail(state, "expected configured PiP authority and placement");
+        const auto authority = std::ranges::find_if(g_selectors, [](const Selector& s) { return !s.genericGeometry; });
+        if (authority == g_selectors.end()) return fail(state, "no PiP authority configured");
+        auto record = parseRecord(state, 1);
+        if (!record || !record->placement) return fail(state, "invalid PiP placement");
+        const Key key{authority->id, ""};
+        if (g_records.size() >= 4096 && !g_records.contains(key)) return fail(state, "state record limit reached");
+        if (!g_records.contains(key) || g_records.at(key) != *record) {
+            g_records[key] = *record;
+            g_dirty = true;
+            queueSave();
+        }
+        lua_pushboolean(state, true);
+        return 1;
+    }
+    int stateVersion(lua_State* state) { lua_pushinteger(state, 2); return 1; }
+
     int importLegacy(lua_State* state) {
         if (lua_type(state, 1) != LUA_TSTRING || lua_type(state, 2) != LUA_TTABLE)
             return fail(state, "expected absolute state path and bounded legacy records array");
@@ -249,21 +400,16 @@ namespace {
         Records legacy;
         for (size_t i = 1; i <= count; ++i) {
             lua_rawgeti(state, 2, i);
-            if (lua_type(state, -1) != LUA_TTABLE || !knownFields(state, lua_gettop(state), {"id", "monitor", "x", "y"})) {
+            if (lua_type(state, -1) != LUA_TTABLE ||
+                !knownFields(state, lua_gettop(state), {"id", "monitor", "x", "y", "width", "height", "windowed", "kind", "target_monitor", "corner"})) {
                 lua_pop(state, 1); return fail(state, "invalid legacy record fields");
             }
             auto id = textField(state, -1, "id"), monitor = textField(state, -1, "monitor");
-            lua_getfield(state, -1, "x");
-            const bool numericX = lua_type(state, -1) == LUA_TNUMBER;
-            const double x = numericX ? lua_tonumber(state, -1) : 0;
+            auto record = parseRecord(state, -1);
             lua_pop(state, 1);
-            lua_getfield(state, -1, "y");
-            const bool numericY = lua_type(state, -1) == LUA_TNUMBER;
-            const double y = numericY ? lua_tonumber(state, -1) : 0;
-            lua_pop(state, 2);
-            if (!id || !monitor || !validKey(*id) || !validKey(*monitor, true) || !numericX || !numericY || !validPoint({x, y}) ||
-                !legacy.emplace(Key{*id, *monitor}, Point{x, y}).second)
-                return fail(state, "invalid or duplicate legacy record");
+            if (!id || !monitor || !validKey(*id) || !validKey(*monitor, true) || !record ||
+                (record->placement && !monitor->empty())) return fail(state, "invalid legacy record");
+            if (!legacy.emplace(Key{*id, *monitor}, *record).second) return fail(state, "duplicate legacy record");
         }
         std::string error;
         if (g_dirty) queueSave();
@@ -304,7 +450,7 @@ namespace {
             lua_rawgeti(state, 2, i);
             if (lua_type(state, -1) != LUA_TTABLE) { lua_pop(state, 1); return fail(state, "selector must be a table"); }
             const int index = lua_gettop(state);
-            if (!knownFields(state, index, {"id", "matcher", "pattern", "per_monitor", "exclude"})) {
+            if (!knownFields(state, index, {"id", "matcher", "pattern", "per_monitor", "exclude", "restore_size", "force_windowed", "geometry_authority", "restore_monitor"})) {
                 lua_pop(state, 1); return fail(state, "unknown selector field");
             }
             auto id = textField(state, index, "id");
@@ -316,6 +462,24 @@ namespace {
             lua_getfield(state, index, "per_monitor");
             if (lua_type(state, -1) != LUA_TNIL && lua_type(state, -1) != LUA_TBOOLEAN) { lua_pop(state, 2); return fail(state, "per_monitor must be boolean"); }
             selector.global = lua_type(state, -1) == LUA_TBOOLEAN && !lua_toboolean(state, -1);
+            lua_pop(state, 1);
+            for (auto [field, target] : {std::pair{"restore_size", &selector.restoreSize},
+                                         {"force_windowed", &selector.forceWindowed}, {"restore_monitor", &selector.restoreMonitor}}) {
+                lua_getfield(state, index, field);
+                if (lua_type(state, -1) != LUA_TNIL && lua_type(state, -1) != LUA_TBOOLEAN) {
+                    lua_pop(state, 2); return fail(state, std::string(field) + " must be boolean");
+                }
+                if (lua_type(state, -1) == LUA_TBOOLEAN) *target = lua_toboolean(state, -1);
+                lua_pop(state, 1);
+            }
+            lua_getfield(state, index, "geometry_authority");
+            if (lua_type(state, -1) != LUA_TNIL) {
+                if (lua_type(state, -1) != LUA_TSTRING ||
+                    (std::string_view(lua_tostring(state, -1)) != "generic" && std::string_view(lua_tostring(state, -1)) != "pip")) {
+                    lua_pop(state, 2); return fail(state, "geometry_authority must be generic or pip");
+                }
+                selector.genericGeometry = std::string_view(lua_tostring(state, -1)) == "generic";
+            }
             lua_pop(state, 1);
             lua_getfield(state, index, "exclude");
             if (lua_type(state, -1) != LUA_TNIL) {
@@ -349,6 +513,13 @@ namespace {
             }
             lua_pop(state, 2); // exclude and selector
             selectors.push_back(std::move(selector));
+        }
+        const auto pipCount = std::ranges::count_if(selectors, [](const Selector& s) { return !s.genericGeometry; });
+        if (pipCount > 1) return fail(state, "only one PiP geometry authority is supported");
+        for (const auto& s : selectors) {
+            if (!s.genericGeometry && (!s.global || s.restoreSize || s.forceWindowed))
+                return fail(state, "PiP requires global policy, restore_size=false and force_windowed=false");
+            if (s.genericGeometry && s.restoreMonitor) return fail(state, "restore_monitor requires PiP authority");
         }
         // Cancel old-generation capture callbacks before draining their immutable writer snapshots.
         if (g_syncSequence && g_pEventLoopManager) g_pEventLoopManager->removeDoLater(g_syncSequence);
@@ -398,6 +569,8 @@ namespace {
         if (g_explicitSequence && g_pEventLoopManager) g_pEventLoopManager->removeDoLater(g_explicitSequence);
         g_syncSequence = g_explicitSequence = 0;
         g_openListener.reset(); g_closeListener.reset(); g_moveListener.reset(); g_buttonListener.reset(); g_keyListener.reset();
+        if (g_recheckHook) { g_recheckHook->unhook(); g_recheckHook = nullptr; g_recheckRules = nullptr; }
+        if (g_ruleHook) { g_ruleHook->unhook(); g_ruleHook = nullptr; g_readRules = nullptr; }
         g_drag.reset(); g_suppressedDrag.reset(); g_dragReleaseMonitor.reset(); g_explicitWindows.clear();
         g_dragMotion = g_dragQualified = false;
         if (g_dirty) queueSave();
@@ -410,12 +583,30 @@ namespace {
 
 APICALL EXPORT std::string PLUGIN_API_VERSION() { return HYPRLAND_API_VERSION; }
 APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
+    // The hook targets exact, exported nonvirtual symbols and this revision's map ordering.
+    if (!HyprlandAPI::getHyprlandVersion(handle).hash.starts_with("19fb395d"))
+        throw std::runtime_error("persistent-position: unsupported Hyprland revision for windowed rule hook");
     if (!HyprlandAPI::addLuaFunction(handle, "persistent_position", "configure", configure) ||
         !HyprlandAPI::addLuaFunction(handle, "persistent_position", "import_legacy", importLegacy) ||
+        !HyprlandAPI::addLuaFunction(handle, "persistent_position", "state_version", stateVersion) ||
+        !HyprlandAPI::addLuaFunction(handle, "persistent_position", "accept_pip_placement", acceptPipPlacement) ||
         !HyprlandAPI::addLuaFunction(handle, "persistent_position", "capture_focused", captureFocused)) {
         cleanup();
         throw std::runtime_error("persistent-position: Lua registration failed");
     }
+    const auto source = ::dlsym(RTLD_DEFAULT, "_ZN7Desktop4Rule21CWindowRuleApplicator15readStaticRulesEb");
+    const auto recheckSource = ::dlsym(RTLD_DEFAULT, "_ZN7Desktop4Rule21CWindowRuleApplicator18recheckStaticRulesEv");
+    if (!source || !recheckSource ||
+        !(g_ruleHook = HyprlandAPI::createFunctionHook(handle, source, reinterpret_cast<const void*>(&readRules))) || !g_ruleHook->hook()) {
+        cleanup();
+        throw std::runtime_error("persistent-position: pre-map static-rule hook unavailable");
+    }
+    g_readRules = reinterpret_cast<ReadRules>(g_ruleHook->m_original);
+    if (!(g_recheckHook = HyprlandAPI::createFunctionHook(handle, recheckSource, reinterpret_cast<const void*>(&recheckRules))) || !g_recheckHook->hook()) {
+        cleanup();
+        throw std::runtime_error("persistent-position: static-rule recheck hook unavailable");
+    }
+    g_recheckRules = reinterpret_cast<RecheckRules>(g_recheckHook->m_original);
     g_writer.start();
     g_openListener = Event::bus()->m_events.window.openEarly.listen([](PHLWINDOW window) { onOpen(window); });
     g_closeListener = Event::bus()->m_events.window.close.listen([](PHLWINDOW window) {
@@ -448,7 +639,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     });
     g_buttonListener = Event::bus()->m_events.input.mouse.button.listen([](const auto&, auto&) { scheduleSync(true); });
     g_keyListener = Event::bus()->m_events.input.keyboard.key.listen([](const auto&, auto&) { scheduleSync(true); });
-    return {"persistent-position", "Opt-in durable pre-layout floating position restore", "local", "0.1.0"};
+    return {"persistent-position", "Durable native floating geometry and PiP persistence", "local", "0.2.0"};
 }
 APICALL EXPORT void PLUGIN_EXIT() {
     const char* runtime = std::getenv("XDG_RUNTIME_DIR");
