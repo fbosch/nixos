@@ -268,3 +268,27 @@ test("CLI service ordering, replacement metadata, and reload before callback", a
     await runtime.dispose();
   });
 });
+
+test("selector overlay widths default to 72 columns", () => {
+  const settings = SettingsManager.inMemory();
+  assert.equal(settings.getSelectorOverlayWidth(), 72);
+});
+
+test("selector overlay widths normalize per-selector overrides and enforce the minimum", () => {
+  const settings = SettingsManager.inMemory({
+    selectorOverlayWidth: 83.9,
+    selectorOverlayWidths: {
+      model: 121.9,
+      tree: 25,
+    },
+  });
+
+  assert.equal(settings.getSelectorOverlayWidth(), 83);
+  assert.equal(settings.getSelectorOverlayWidth("model"), 121);
+  assert.equal(settings.getSelectorOverlayWidth("tree"), 40);
+  assert.equal(settings.getSelectorOverlayWidth("auth"), 83);
+
+  settings.setSelectorOverlayWidth(31.5);
+  assert.equal(settings.getSelectorOverlayWidth(), 40);
+  assert.equal(settings.getSelectorOverlayWidth("model"), 121);
+});

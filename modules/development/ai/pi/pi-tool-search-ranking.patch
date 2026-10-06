@@ -1,22 +1,16 @@
 --- a/dist/extensions/codemode/execute.js
 +++ b/dist/extensions/codemode/execute.js
-@@ -9,7 +9,7 @@
- import { CodemodeSandbox, loadQuickJSWasm, parseCodemodeSource, renderToolSample, toCodemodeIdentifier, } from "@earendil-works/pi-codemode";
- import { getCodemodeWorkerSpecifier, getQuickJSWasmPath } from "../../config.js";
- import { combineUsage } from "../../core/usage-totals.js";
+@@ -11,1 +11,1 @@
 -import { Bm25Ranker, createToolSearchDocument, DEFAULT_TOOL_SEARCH_LIMIT } from "../tool-search/tool.js";
 +import { createToolSearchDocument, DEFAULT_TOOL_SEARCH_LIMIT, rankToolSearch } from "../tool-search/tool.js";
- import { CODEMODE_DOCS_PATH, CODEMODE_STORE_ENTRY_TYPE, getCodemodeCallableTools, toCodemodeDeclaration, } from "./tool.js";
- const ARGS_PREVIEW_CHARS = 200;
- const ERROR_PREVIEW_CHARS = 500;
-@@ -229,7 +229,7 @@
+@@ -357,7 +357,7 @@
      const sandbox = new CodemodeSandbox({
          tools: sandboxTools,
          globals: [
 -            ...createDiscoveryGlobals(callable, samples, options),
 +            ...createDiscoveryGlobals(callable, samples, options, ctx, signal, addModelUsage),
              ...(options.models && ctx
-                 ? createModelGlobals(ctx.modelRegistry, toolCallId, calls, publish, addModelUsage)
+                 ? createModelGlobals(ctx.modelRegistry, toolCallId, calls, publish, addModelUsage, addGeneratedImages)
                  : []),
 @@ -292,14 +292,13 @@
   * `searchTools()`, `describeTool()`, and `describeNamespace()`: ranked search and lookup over the

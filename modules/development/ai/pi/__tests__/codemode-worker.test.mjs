@@ -16,6 +16,9 @@ export default async function () {
   let tool;
   createCodemodeExtension({ models: false })({
     registerTool: (definition) => { tool = definition; },
+    getAllTools: () => [],
+    getSettings: () => ({}),
+    appendEntry() {},
   });
   const ctx = {
     tools: [{
@@ -56,7 +59,7 @@ test("compiled codemode worker evaluates scripts and bridges nested calls offlin
     await writeFile(path, extension);
     const result = spawnSync(binary, [
       "--offline", "--no-extensions", "--no-skills", "--no-prompt-templates",
-      "--no-context-files", "--no-themes", "--no-session", "-e", path, "--help",
+      "--no-context-files", "--no-themes", "--no-session", "-e", path, "--mode", "rpc",
     ], {
       cwd: dir,
       env: {
@@ -73,7 +76,7 @@ test("compiled codemode worker evaluates scripts and bridges nested calls offlin
     const output = `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
     assert.ifError(result.error);
     assert.equal(result.status, 0, output);
-    // --help can swallow extension errors and exit zero; require successful execution.
+    // Require actual extension execution, not just a successful CLI parse.
     assert.match(output, /PI_CODEMODE_COMPILED_WORKER_OK/, output);
     assert.doesNotMatch(output, /Script sandbox failed|Cannot find module/, output);
   } finally {

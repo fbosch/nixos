@@ -31,14 +31,10 @@
 +}
 --- a/dist/core/sdk.js
 +++ b/dist/core/sdk.js
-@@ -5,6 +5,7 @@
+@@ -5,2 +5,3 @@
  import { resolvePath } from "../utils/paths.js";
- import { AgentSession } from "./agent-session.js";
- import { formatNoModelsAvailableMessage } from "./auth-guidance.js";
 +import { prepareModelAvailability } from "./extensions/model-availability.js";
- import { CacheWarmer } from "./cache-warmer.js";
- import { DEFAULT_THINKING_LEVEL } from "./defaults.js";
- import { convertToLlm } from "./messages.js";
+ import { AgentSession } from "./agent-session.js";
 @@ -65,7 +66,8 @@
   * });
   * ```
@@ -117,14 +113,8 @@
              extensionFlagValues: parsed.unknownFlags,
 --- a/dist/core/agent-session.js
 +++ b/dist/core/agent-session.js
-@@ -31,6 +31,7 @@
- import { createToolHtmlRenderer } from "./export-html/tool-renderer.js";
- import { ExtensionRunner, wrapRegisteredTools, } from "./extensions/index.js";
- import { emitSessionShutdownEvent } from "./extensions/runner.js";
+@@ -33,0 +34,1 @@
 +import { emitBeforeModelAvailability } from "./extensions/model-availability.js";
- import { convertToLlm } from "./messages.js";
- import { ModelRegistry } from "./model-registry.js";
- import { NestedToolCallRunner } from "./nested-tool-calls.js";
 @@ -2895,6 +2896,8 @@
              this._extensionShutdownHandler ||
              this._extensionErrorListener;

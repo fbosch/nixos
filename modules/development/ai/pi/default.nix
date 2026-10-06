@@ -6,8 +6,8 @@ let
       llmAgents = inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system};
       pi = llmAgents.pi.overrideAttrs (
         previous:
-          assert pkgs.lib.assertMsg (previous.version == "1.0.2")
-            "Review the Pi auth-startup, selector, discovery, and MCP-background patches, codemode worker packaging, and pi-server workaround before upgrading from 1.0.2";
+          assert pkgs.lib.assertMsg (previous.version == "1.0.4")
+            "Review the Pi auth-startup, selector, discovery, and MCP-background patches, codemode worker packaging, and pi-server workaround before upgrading from 1.0.4";
           assert pkgs.lib.assertMsg
             (
               pkgs.lib.hasInfix "./src/extensions/codemode/worker.ts" (previous.preInstall or "")
