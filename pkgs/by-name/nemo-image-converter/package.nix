@@ -1,16 +1,16 @@
-{
-  lib,
-  stdenv,
-  fetchFromGitHub,
-  meson,
-  ninja,
-  pkg-config,
-  nemo,
-  glib,
-  gtk3,
-  imagemagick,
-  gettext,
-  wrapGAppsHook3,
+{ lib
+, stdenv
+, fetchFromGitHub
+, meson
+, ninja
+, pkg-config
+, nemo
+, glib
+, gtk3
+, imagemagick
+, gettext
+, wrapGAppsHook3
+,
 }:
 
 stdenv.mkDerivation {
