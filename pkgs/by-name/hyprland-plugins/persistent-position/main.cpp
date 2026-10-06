@@ -71,7 +71,9 @@ namespace {
     std::string g_path;
     Records g_records;
     bool g_dirty = false;
+    uint64_t g_generation = 0;
     std::vector<Selector> g_selectors;
+    bool g_needsRuleEnforcement = false;
     CHyprSignalListener g_openListener, g_closeListener, g_moveListener, g_buttonListener, g_keyListener;
     PHLWINDOWREF g_drag, g_suppressedDrag;
     PHLMONITORREF g_dragReleaseMonitor;
@@ -96,7 +98,9 @@ namespace {
     RecheckRules g_recheckRules = nullptr;
 
     void queueSave() {
-        if (g_dirty && !g_path.empty()) g_writer.enqueue(g_path, g_records);
+        if (!g_dirty || g_path.empty()) return;
+        if (g_writer.persisted(g_generation)) { g_dirty = false; return; }
+        g_writer.enqueue(g_path, g_records, g_generation);
     }
 
     const Selector* matching(PHLWINDOW window) {
@@ -134,6 +138,7 @@ namespace {
         if (selector->forceWindowed) next.windowed = true;
         if (const auto it = g_records.find(key); it != g_records.end() && it->second == next) return;
         g_records[std::move(key)] = next;
+        ++g_generation;
         g_dirty = true;
         queueSave();
     }
@@ -221,13 +226,13 @@ namespace {
 
     bool readRules(Desktop::Rule::CWindowRuleApplicator* applicator, bool preRead) {
         const bool recheck = g_readRules(applicator, preRead);
-        if (!preRead) enforceWindowed(applicator);
+        if (!preRead && g_needsRuleEnforcement) enforceWindowed(applicator);
         return recheck;
     }
 
     void recheckRules(Desktop::Rule::CWindowRuleApplicator* applicator) {
         g_recheckRules(applicator);
-        enforceWindowed(applicator);
+        if (g_needsRuleEnforcement) enforceWindowed(applicator);
     }
 
     bool activeDrag() {
@@ -263,6 +268,8 @@ namespace {
         // Input release is delivered before dragEnd; preserve the target first.
         if (beforeRelease && activeDrag())
             if (const auto window = g_drag.lock()) g_dragReleaseMonitor = window->m_monitor;
+        if (!g_drag.lock() && !g_suppressedDrag.lock() &&
+            (!g_layoutManager || !g_layoutManager->dragController() || !g_layoutManager->dragController()->target())) return;
         if (!g_syncSequence && g_pEventLoopManager)
             g_syncSequence = g_pEventLoopManager->doLater([] { syncDrag(); });
     }
@@ -374,6 +381,7 @@ namespace {
         if (g_records.size() >= 4096 && !g_records.contains(key)) return fail(state, "state record limit reached");
         if (!g_records.contains(key) || g_records.at(key) != *record) {
             g_records[key] = *record;
+            ++g_generation;
             g_dirty = true;
             queueSave();
         }
@@ -500,6 +508,9 @@ namespace {
         g_records = std::move(records);
         g_dirty = false;
         g_path = std::move(path);
+        g_needsRuleEnforcement = std::ranges::any_of(selectors, [](const Selector& selector) {
+            return selector.forceWindowed || (!selector.genericGeometry && selector.restoreMonitor);
+        });
         g_selectors = std::move(selectors);
         lua_pushboolean(state, true);
         return 1;

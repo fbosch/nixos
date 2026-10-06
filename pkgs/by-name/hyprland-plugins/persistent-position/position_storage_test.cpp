@@ -61,15 +61,21 @@ int main() {
     {
         Writer writer;
         writer.start();
-        writer.enqueue(file.string(), first);
-        writer.enqueue(file.string(), second);
+        writer.enqueue(file.string(), first, 1);
+        writer.enqueue(file.string(), second, 2);
         require(writer.drain(error));
         require(load(file, records, error) && records == second);
-        writer.enqueue(nextFile.string(), first);
+        require(writer.persisted(2) && !writer.persisted(1));
+        writer.enqueue(nextFile.string(), first, 3);
         require(writer.drain(error));
         require(load(file, records, error) && records == second);
         require(load(nextFile, records, error) && records == first);
-        writer.enqueue(nextFile.string(), second);
+        require(writer.persisted(3));
+        const auto sameInode = root / "persisted-inode";
+        fs::create_hard_link(nextFile, sameInode);
+        writer.enqueue(nextFile.string(), first, 3);
+        require(writer.drain(error) && fs::equivalent(nextFile, sameInode));
+        writer.enqueue(nextFile.string(), second, 4);
         writer.stop(); // Joining drains a pending latest snapshot without compositor callbacks.
     }
     require(load(nextFile, records, error) && records == second);
@@ -83,5 +89,15 @@ int main() {
     std::string contents;
     std::getline(preserved, contents);
     require(contents == "unsupported-state");
+    {
+        Writer writer;
+        writer.start();
+        writer.enqueue(file.string(), second, 1);
+        require(!writer.drain(error) && !writer.persisted(1));
+        fs::remove(file);
+        writer.enqueue(file.string(), second, 1);
+        require(writer.drain(error) && writer.persisted(1));
+        require(load(file, records, error) && records == second);
+    }
     fs::remove_all(base);
 }
