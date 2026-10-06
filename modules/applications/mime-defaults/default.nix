@@ -157,11 +157,10 @@ in
     };
 
   perSystem =
-    {
-      config,
-      lib,
-      pkgs,
-      ...
+    { config
+    , lib
+    , pkgs
+    , ...
     }:
     {
       checks = lib.optionalAttrs (pkgs.stdenv.hostPlatform.system == "x86_64-linux") {

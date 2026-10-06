@@ -319,7 +319,7 @@ check_package_update() {
   if uses_explicit_update_script "$package_file"; then
     nix_update_args+=(-u)
   fi
-  if [[ "$old_version" == unstable-* || "$old_version" == *-unstable || "$old_version" == unstable ]]; then
+  if [[ $old_version == unstable-* || $old_version == *-unstable || $old_version == unstable ]]; then
     nix_update_args+=(--version unstable)
   fi
   nix_update_args+=(--override-filename "$check_package_file" "$package_name")
@@ -487,24 +487,24 @@ select_package_with_gum() {
     for package_name in "${package_names[@]}"; do
       check_result="${package_check_results[$package_name]:-manual}"
       case "$check_result" in
-        update)
-          revision="$(package_revision "$packages_dir/$package_name/package.nix")"
-          version="$(render_version_update "${package_updates[$package_name]}" "$revision")"
-          ;;
-        current)
-          revision="$(package_revision "$packages_dir/$package_name/package.nix")"
-          version="$(package_version "$packages_dir/$package_name/package.nix")"
-          version="$(render_version_update "$version"$'\t'"$version" "$revision") (up to date)"
-          ;;
-        unavailable)
-          version="upstream version not discoverable"
-          ;;
-        failed)
-          version="check failed"
-          ;;
-        *)
-          version="no automatic upstream check"
-          ;;
+      update)
+        revision="$(package_revision "$packages_dir/$package_name/package.nix")"
+        version="$(render_version_update "${package_updates[$package_name]}" "$revision")"
+        ;;
+      current)
+        revision="$(package_revision "$packages_dir/$package_name/package.nix")"
+        version="$(package_version "$packages_dir/$package_name/package.nix")"
+        version="$(render_version_update "$version"$'\t'"$version" "$revision") (up to date)"
+        ;;
+      unavailable)
+        version="upstream version not discoverable"
+        ;;
+      failed)
+        version="check failed"
+        ;;
+      *)
+        version="no automatic upstream check"
+        ;;
       esac
       printf '%s  %s\n' "$package_name" "$version"
     done | gum choose --no-limit --ordered --no-strip-ansi --header "Select packages to update"
@@ -596,7 +596,7 @@ for package_name in "${selected_packages[@]}"; do
     error "unable to read the current version of .#$package_name" >&2
     exit 1
   fi
-  if [[ "$current_version" == unstable-* || "$current_version" == *-unstable ]]; then
+  if [[ $current_version == unstable-* || $current_version == *-unstable ]]; then
     nix_update_args+=(--version unstable)
   fi
   nix_update_args+=("$package_name")

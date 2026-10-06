@@ -15,14 +15,6 @@
           sed -i '0,/g_string_append (sparql, ")");/s//g_string_append (sparql, "))");/' libnemo-private/nemo-search-engine-tracker.c
         '';
       });
-      rpgMakerImageDecrypter = pkgs.writeShellApplication {
-        name = "rpg-maker-image-decrypter";
-        runtimeInputs = [
-          pkgs.coreutils
-          pkgs.local.rpgmasd
-        ];
-        text = builtins.readFile ./scripts/decrypt-rpg-maker-image.sh;
-      };
     in
     {
       services.gnome.localsearch.enable = true;

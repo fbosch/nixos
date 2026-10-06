@@ -95,7 +95,7 @@ run_scan() {
   local update_mode="${3:-current}"
   local script_arg="${4:-}"
   local -a script_args=()
-  if [[ -n "$script_arg" ]]; then
+  if [[ -n $script_arg ]]; then
     script_args=("$script_arg")
   fi
   : >"$tmp_dir/nix.log"
@@ -161,7 +161,6 @@ grep -Fq 'font-microsoft  unstable' "$tmp_dir/choose.log"
 grep -Fq 'surge  0.12.0' "$tmp_dir/choose.log"
 grep -Fq 'webapp/apple-maps  no automatic upstream check' "$tmp_dir/choose.log"
 
-
 if ! run_scan none "$tmp_dir/updated.out" updated; then
   cat "$tmp_dir/updated.out" >&2
   exit 1
@@ -169,8 +168,6 @@ fi
 grep -Fq '[UPDATE] .#font-fast-font has an upstream update: final → new' "$tmp_dir/updated.out"
 grep -Fq 'font-fast-font  final →' "$tmp_dir/choose.log"
 grep -Fq '→ new' "$tmp_dir/choose.log"
-
-
 
 # Other updater errors must remain failures and retain their diagnostic output.
 if run_scan network "$tmp_dir/network.out"; then

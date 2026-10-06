@@ -6,8 +6,9 @@
     nix-unit = {
       inputs =
         (builtins.mapAttrs (_name: input: input.outPath) (builtins.removeAttrs inputs [ "self" ]))
+        # Stage Hyprland's nested inputs, including xdph, for sandboxed evaluation.
+        // (lib.mapAttrs' (name: input: lib.nameValuePair "hyprland/${name}" input.outPath) inputs.hyprland.inputs)
         // {
-          "hyprland/nixpkgs" = inputs.hyprland.inputs.nixpkgs.outPath;
           "nix-cachyos-kernel/nixpkgs" = inputs.nix-cachyos-kernel.inputs.nixpkgs.outPath;
         };
 

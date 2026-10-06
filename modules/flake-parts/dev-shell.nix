@@ -124,7 +124,8 @@
             ripsecrets.enable = true;
             trim-trailing-whitespace = {
               enable = true;
-              excludes = [ "\\.md$" ];
+              # Blank patch context lines contain a required space.
+              excludes = [ "\\.md$" "\\.(patch|diff)$" ];
             };
           };
         };
