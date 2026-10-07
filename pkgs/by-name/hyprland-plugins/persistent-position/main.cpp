@@ -550,9 +550,9 @@ namespace {
 
 APICALL EXPORT std::string PLUGIN_API_VERSION() { return HYPRLAND_API_VERSION; }
 APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
-    // The hook targets exact, exported nonvirtual symbols and this revision's map ordering.
-    if (!HyprlandAPI::getHyprlandVersion(handle).hash.starts_with("19fb395d"))
-        throw std::runtime_error("persistent-position: unsupported Hyprland revision for windowed rule hook");
+    // Compare against the build headers, not a manually maintained supported commit.
+    if (std::string_view(__hyprland_api_get_hash()) != __hyprland_api_get_client_hash())
+        throw std::runtime_error("persistent-position: Hyprland build/runtime mismatch; rebuild the plugin");
     if (!HyprlandAPI::addLuaFunction(handle, "persistent_position", "configure", configure) ||
         !HyprlandAPI::addLuaFunction(handle, "persistent_position", "state_version", stateVersion) ||
         !HyprlandAPI::addLuaFunction(handle, "persistent_position", "accept_pip_placement", acceptPipPlacement) ||

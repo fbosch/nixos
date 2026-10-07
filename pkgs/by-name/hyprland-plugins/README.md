@@ -49,7 +49,7 @@ the packages and publishes their library paths as session variables:
 The production plugins have matching Lua integrations in the
 [`dotfiles` repository](https://github.com/fbosch/dotfiles/tree/master/.config/hypr/plugins).
 They load libraries with `hl.plugin.load()` and configure or subscribe to the
-interfaces described below. `persistent-position` uses an explicit enable flag and migrates retained state before taking ownership.
+interfaces described below. `persistent-position` uses an explicit enable flag and loads its native v2 state before taking ownership.
 
 ## Building and testing
 
@@ -348,7 +348,7 @@ events.
 
 ### `persistent-position`
 
-[`persistent-position/README.md`](persistent-position/README.md) documents the native geometry/PiP API, durable state, capture rules, migration, and revision-pinned hooks.
+[`persistent-position/README.md`](persistent-position/README.md) documents the native geometry/PiP API, durable state, capture rules, and runtime-checked hooks.
 
 ## Reload behavior
 
