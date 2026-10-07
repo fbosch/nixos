@@ -1,5 +1,4 @@
 #include "position_store.hpp"
-#include "position_config.hpp"
 #include <cstdlib>
 #include <cstdio>
 #include <limits>
@@ -19,8 +18,10 @@ int main() {
     require(!parse("persistent-position-v2\n706970\t\t-\t-\t-\t-\t-\t44502d32\tfree\n"));
     require(!parse("persistent-position-v2\n706970\t\t-\t-\t-\t-\t-\t44502d32\tnowhere\n"));
     require(!parse("persistent-position-v2\n706970\t\t1\t2\t0\t100\t-\t-\t-\n"));
-    require(PositionConfig::denseKeys(2, {1, 2}));
-    require(!PositionConfig::denseKeys(2, {1, 3}));
+    require(validKey("nemo-main"));
+    require(!validKey(""));
+    require(!validKey(std::string(257, 'x')));
+    require(!validKey("bad\nkey"));
     require(!parse("persistent-position-v3\n"));
     require(!parse("persistent-position-v2\n6e656d6f\t\t1\t2\t0\t4\t1\n"));
     require(!parse("persistent-position-v2\n6e656d6f\t\t1\t2\t-\t4\t1\n"));

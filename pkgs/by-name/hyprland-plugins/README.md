@@ -11,7 +11,7 @@ This directory contains nine local Hyprland plugin packages used by this NixOS c
 | [`focus-animation`](focus-animation/)                   | 0.1.10  | Add a scale-based `windowsFocus` animation leaf.                 |
 | [`inset-border`](inset-border/)                         | 0.3.0   | Draw focus-aware keylines inside window content.                 |
 | [`persistent-position`](persistent-position/)           | 0.2.0   | Save opt-in floating positions and restore before initial layout. |
-| [`pointer-edge-hooks`](pointer-edge-hooks/)             | 0.1.0   | Emit pointer zones relative to the bottom monitor edge.          |
+| [`pointer-edge-hooks`](pointer-edge-hooks/)             | 0.2.0   | Emit pointer zones relative to the bottom monitor edge.          |
 | [`window-interaction-hooks`](window-interaction-hooks/) | 0.2.0   | Emit live and completed native window move and resize events.    |
 
 All plugins are MIT-licensed and currently packaged for `x86_64-linux`.
@@ -272,29 +272,31 @@ Lua API under `hl.plugin.pointer_edge_hooks`:
 
 | Function                              | Result                                                                      |
 | ------------------------------------- | --------------------------------------------------------------------------- |
-| `start(showThreshold, hideThreshold)` | Start tracking and return whether the initial zone was emitted.             |
+| `start(showThreshold, hideThreshold)` | Start tracking and return whether the initial zone was posted.              |
 | `stop()`                              | Stop tracking and return whether tracking was active.                       |
-| `sync()`                              | Force the current zone to be emitted and return whether emission succeeded. |
-| `rebind()`                            | Re-registers the custom event and returns whether registration succeeded.   |
+| `sync()`                              | Force the current zone to be posted and return whether a monitor was found. |
 
 Thresholds are integers measured in logical pixels. `showThreshold` must be
 non-negative and `hideThreshold` must be greater than `showThreshold`. The
 internal defaults are 20 and 60.
 
-The plugin emits `pointer_edge_hooks.zone` with two string fields:
+The plugin posts one Socket2 event, `pointeredgezone>>zone,monitor-id`, where
+`zone` is `show`, `neutral`, or `hide` and `monitor-id` is Hyprland's numeric
+monitor ID. For example, `pointeredgezone>>show,1`. `show` covers distances
+through `showThreshold`, `neutral` covers distances through `hideThreshold`,
+and larger distances produce `hide`. Mouse movement emits only when the zone
+or monitor ID changes; `start()` and `sync()` force a sample. Stopping or
+unloading posts `neutral` for the last tracked monitor. When that monitor is
+removed or the pointer leaves all monitor rectangles, the plugin clears its
+cached zone and posts `neutral`; monitor addition, removal, and layout changes
+also resample.
 
-| Position | Field     | Value                        |
-| -------- | --------- | ---------------------------- |
-| 1        | `zone`    | `show`, `neutral`, or `hide` |
-| 2        | `monitor` | Hyprland monitor name.       |
-
-`show` covers distances through `showThreshold`, `neutral` covers distances
-through `hideThreshold`, and larger distances produce `hide`. Mouse movement
-emits only when the zone or monitor changes. `start()` and `sync()` force an
-event. A pointer outside known monitor rectangles produces no event.
-
-Call `rebind()` after a config reload for the same reason as
-`custom-layout-resize`.
+The Waybar daemon subscribes to Socket2 before calling `sync()`, and requests
+another snapshot after reconnecting. Socket2 does not replay events; in the
+matching Hyprland 5a78b5e source it disconnects a subscriber after 64 queued
+events. The daemon resets its pointer zone on disconnect or monitor removal;
+repeated snapshots of the same zone do not restart visibility deadlines. The
+daemon buffers fragmented Socket2 lines and drains bursts from the stream.
 
 ### `window-interaction-hooks`
 
@@ -360,7 +362,6 @@ Custom events belong to the Lua state in which they were registered. After a
 configuration reload, call `rebind()` on:
 
 - `hl.plugin.custom_layout_resize`
-- `hl.plugin.pointer_edge_hooks`
 - `hl.plugin.window_interaction_hooks`
 
 Call `hl.plugin.focus_animation.prepare()` after reload to restore its animation

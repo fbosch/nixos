@@ -1,14 +1,15 @@
 #include <hyprland/src/event/EventBus.hpp>
+#include <hyprland/src/ipc/s2/S2.hpp>
 #include <hyprland/src/managers/input/InputManager.hpp>
 #include <hyprland/src/output/Monitor.hpp>
 #include <hyprland/src/plugins/PluginAPI.hpp>
 #include <hyprland/src/state/MonitorState.hpp>
 
+#include <format>
 #include <limits>
 #include <stdexcept>
 #include <string>
 #include <string_view>
-#include <vector>
 
 extern "C" {
 #include <lauxlib.h>
@@ -22,27 +23,38 @@ namespace {
         int         showThreshold = 20;
         int         hideThreshold = 60;
         std::string lastZone;
-        std::string lastMonitor;
+        int         lastMonitor = -1;
     };
 
-    HANDLE                             g_handle = nullptr;
-    SP<Event::CEventBus::CCustomEvent> g_zoneEvent;
-    CHyprSignalListener                g_mouseMoveListener;
-    SPointerState                      g_state;
+    CHyprSignalListener g_mouseMoveListener;
+    CHyprSignalListener g_monitorRemovedListener;
+    CHyprSignalListener g_monitorAddedListener;
+    CHyprSignalListener g_monitorLayoutListener;
+    SPointerState       g_state;
+
+    void postZone(std::string_view zone, int monitor) {
+        if (auto& sock = IPC::Socket2::sock(); sock)
+            sock->postEvent({.event = "pointeredgezone", .data = std::format("{},{}", zone, monitor)});
+    }
+
+    void clearZone() {
+        if (g_state.active && g_state.lastMonitor >= 0)
+            postZone("neutral", g_state.lastMonitor);
+        g_state.lastZone.clear();
+        g_state.lastMonitor = -1;
+    }
 
     void stopPointer() {
+        clearZone();
         g_state = {};
     }
 
     void cleanupPluginState() {
         stopPointer();
         g_mouseMoveListener.reset();
-
-        if (g_handle && g_zoneEvent)
-            HyprlandAPI::removeEvent(g_handle, g_zoneEvent->m_name);
-
-        g_zoneEvent.reset();
-        g_handle = nullptr;
+        g_monitorRemovedListener.reset();
+        g_monitorAddedListener.reset();
+        g_monitorLayoutListener.reset();
     }
 
     class CPluginInitializationGuard final {
@@ -76,7 +88,7 @@ namespace {
     }
 
     bool emitZone(bool force) {
-        if (!g_state.active || !g_zoneEvent || !g_pInputManager || !State::monitorState())
+        if (!g_state.active || !g_pInputManager || !State::monitorState())
             return false;
 
         const auto pointer = g_pInputManager->getMouseCoordsInternal();
@@ -89,19 +101,19 @@ namespace {
                 break;
             }
         }
-        if (!monitor)
+        if (!monitor) {
+            clearZone();
             return false;
+        }
 
         const auto distance = monitor->m_position.y + monitor->m_size.y - pointer.y;
-        const auto zone     = std::string{zoneFor(distance)};
-        if (!force && zone == g_state.lastZone && monitor->m_name == g_state.lastMonitor)
+        const auto zone     = zoneFor(distance);
+        if (!force && zone == g_state.lastZone && monitor->m_id == g_state.lastMonitor)
             return true;
 
-        if (!g_zoneEvent->emit({zone, monitor->m_name}))
-            return false;
-
+        postZone(zone, monitor->m_id);
         g_state.lastZone    = zone;
-        g_state.lastMonitor = monitor->m_name;
+        g_state.lastMonitor = monitor->m_id;
         return true;
     }
 
@@ -118,8 +130,6 @@ namespace {
         g_state.active        = true;
         g_state.showThreshold = static_cast<int>(showThreshold);
         g_state.hideThreshold = static_cast<int>(hideThreshold);
-        g_state.lastZone.clear();
-        g_state.lastMonitor.clear();
 
         lua_pushboolean(state, emitZone(true));
         return 1;
@@ -137,19 +147,6 @@ namespace {
         return 1;
     }
 
-    // Config reloads replace Lua handlers without notifying already-loaded
-    // plugins. Re-registering the custom event exposes it to the new Lua state.
-    int rebindZoneEvent(lua_State* state) {
-        if (!g_handle || !g_zoneEvent) {
-            lua_pushboolean(state, false);
-            return 1;
-        }
-
-        HyprlandAPI::removeEvent(g_handle, g_zoneEvent->m_name);
-        lua_pushboolean(state, HyprlandAPI::addEvent(g_handle, g_zoneEvent));
-        return 1;
-    }
-
 } // namespace
 
 APICALL EXPORT std::string PLUGIN_API_VERSION() {
@@ -157,32 +154,29 @@ APICALL EXPORT std::string PLUGIN_API_VERSION() {
 }
 
 APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
-    g_handle = handle;
-    g_zoneEvent = makeShared<Event::CEventBus::CCustomEvent>(
-        "pointer_edge_hooks.zone",
-        std::vector{
-            Event::CEventBus::CCustomEvent::TYPE_STRING,
-            Event::CEventBus::CCustomEvent::TYPE_STRING,
-        });
-
-    if (!HyprlandAPI::addEvent(handle, g_zoneEvent))
-        throw std::runtime_error("pointer-edge-hooks: failed to register zone event");
-
     CPluginInitializationGuard cleanup;
     if (!HyprlandAPI::addLuaFunction(handle, "pointer_edge_hooks", "start", startPointer) ||
         !HyprlandAPI::addLuaFunction(handle, "pointer_edge_hooks", "stop", stopPointerLua) ||
-        !HyprlandAPI::addLuaFunction(handle, "pointer_edge_hooks", "sync", syncPointer) ||
-        !HyprlandAPI::addLuaFunction(handle, "pointer_edge_hooks", "rebind", rebindZoneEvent)) {
+        !HyprlandAPI::addLuaFunction(handle, "pointer_edge_hooks", "sync", syncPointer)) {
         throw std::runtime_error("pointer-edge-hooks: failed to register Lua functions");
     }
 
     g_mouseMoveListener = Event::bus()->m_events.input.mouse.move.listen([](const auto&, auto&) { emitZone(false); });
+    // MonitorState removes disconnected outputs on this signal; invalidate a removed ID
+    // before sampling again so a stationary pointer cannot leave an obsolete zone cached.
+    g_monitorRemovedListener = Event::bus()->m_events.monitor.removed.listen([](PHLMONITOR monitor) {
+        if (monitor && monitor->m_id == g_state.lastMonitor)
+            clearZone();
+        emitZone(false);
+    });
+    g_monitorAddedListener  = Event::bus()->m_events.monitor.added.listen([](PHLMONITOR) { emitZone(false); });
+    g_monitorLayoutListener = Event::bus()->m_events.monitor.layoutChanged.listen([] { emitZone(false); });
 
     const auto description = PLUGIN_DESCRIPTION_INFO{
         "pointer-edge-hooks",
         "Emit bottom-edge pointer zone transitions from native Hyprland pointer state",
         "local",
-        "0.1.0",
+        "0.2.0",
     };
     cleanup.release();
     return description;
