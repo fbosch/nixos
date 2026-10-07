@@ -202,6 +202,20 @@ void onOpenEarly(PHLWINDOW child) {
         !(child->m_state & Desktop::View::WINDOW_STATE_FIRST_MAP))
         return;
 
+    const auto& rules = g_rules.rules();
+    if (rules.empty())
+        return;
+    const std::string_view childClass = child->metadata().initialAppID();
+    const std::string_view initialTitle = child->metadata().initialTitle();
+    // Filter first: XWayland parent resolution can scan all windows.
+    const bool hasPotentialRule = std::ranges::any_of(rules, [childClass, initialTitle](const Rule& rule) {
+        return rule.childClass == childClass &&
+            (rule.childTitlePrefixes.empty() || std::ranges::any_of(rule.childTitlePrefixes,
+                [initialTitle](const std::string& prefix) { return initialTitle.starts_with(prefix); }));
+    });
+    if (!hasPotentialRule)
+        return;
+
     const auto declaredParentWindow = child->backend().parent();
     const bool hasDeclaredParent = declaredParentWindow || child->backend().traits().transient;
     ParentCandidate declaredParent{
@@ -212,17 +226,21 @@ void onOpenEarly(PHLWINDOW child) {
         .isChild = declaredParentWindow == child,
     };
 
-    const auto focusedWindow = Desktop::focusState()->window();
-    const bool focusedMapped = focusedWindow && focusedWindow != child && Desktop::View::validMapped(focusedWindow) && !focusedWindow->isHidden();
-    ParentCandidate focusedParent{
-        .className = focusedWindow ? std::optional<std::string_view>(focusedWindow->metadata().initialAppID()) : std::nullopt,
-        .mapped = focusedMapped,
-        .hidden = focusedWindow && focusedWindow->isHidden(),
-        .isChild = focusedWindow == child,
-    };
+    PHLWINDOW focusedWindow;
+    ParentCandidate focusedParent{};
+    // An unavailable declared parent also prevents focus inference.
+    if (!hasDeclaredParent) {
+        focusedWindow = Desktop::focusState()->window();
+        const bool focusedMapped = focusedWindow && focusedWindow != child && Desktop::View::validMapped(focusedWindow) && !focusedWindow->isHidden();
+        focusedParent = ParentCandidate{
+            .className = focusedWindow ? std::optional<std::string_view>(focusedWindow->metadata().initialAppID()) : std::nullopt,
+            .mapped = focusedMapped,
+            .hidden = focusedWindow && focusedWindow->isHidden(),
+            .isChild = focusedWindow == child,
+        };
+    }
 
-    const auto selected = selectRule(
-        g_rules.rules(), child->metadata().initialAppID(), child->metadata().initialTitle(), declaredParent, focusedParent);
+    const auto selected = selectRule(rules, childClass, initialTitle, declaredParent, focusedParent);
     if (!selected)
         return;
     if (selected->rule->noAnim)
@@ -238,12 +256,12 @@ void onOpenEarly(PHLWINDOW child) {
         return;
 
     const auto box = parentWindow->layoutBox();
-    const auto expression = makePositionExpression(
+    auto expression = makePositionExpression(
         Rect{box.x, box.y, box.w, box.h}, Point{monitor->m_position.x, monitor->m_position.y});
     if (!expression)
         return;
 
-    child->m_ruleApplicator->static_.position = Math::SExpressionVec2{expression->x, expression->y};
+    child->m_ruleApplicator->static_.position = Math::SExpressionVec2{std::move(expression->x), std::move(expression->y)};
 }
 
 int configure(lua_State* state) {
