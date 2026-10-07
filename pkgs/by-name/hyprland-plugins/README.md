@@ -1,6 +1,6 @@
 # Hyprland plugins
 
-This directory contains nine local Hyprland plugin packages used by this NixOS configuration.
+This directory contains ten local Hyprland plugin packages used by this NixOS configuration.
 
 | Plugin                                                  | Version | Purpose                                                          |
 | ------------------------------------------------------- | ------- | ---------------------------------------------------------------- |
@@ -12,6 +12,7 @@ This directory contains nine local Hyprland plugin packages used by this NixOS c
 | [`inset-border`](inset-border/)                         | 0.3.0   | Draw focus-aware keylines inside window content.                 |
 | [`persistent-position`](persistent-position/)           | 0.2.0   | Save opt-in floating positions and restore before initial layout. |
 | [`pointer-edge-hooks`](pointer-edge-hooks/)             | 0.2.0   | Emit pointer zones relative to the bottom monitor edge.          |
+| [`transient-placement`](transient-placement/)       | 0.1.0   | Center configured floating children before initial layout.      |
 | [`window-interaction-hooks`](window-interaction-hooks/) | 0.2.0   | Emit live and completed native window move and resize events.    |
 
 All plugins are MIT-licensed and currently packaged for `x86_64-linux`.
@@ -43,6 +44,7 @@ the packages and publishes their library paths as session variables:
 | `focus-animation`          | `HYPR_FOCUS_ANIMATION_PLUGIN`          | `libfocus-animation.so`          |
 | `inset-border`             | `HYPR_INSET_BORDER_PLUGIN`             | `libinset-border.so`             |
 | `persistent-position`      | `HYPR_PERSISTENT_POSITION_PLUGIN`      | `libpersistent-position.so` |
+| `transient-placement`      | `HYPR_TRANSIENT_PLACEMENT_PLUGIN` | `libtransient-placement.so` |
 | `pointer-edge-hooks`       | `HYPR_POINTER_EDGE_HOOKS_PLUGIN`       | `libpointer-edge-hooks.so`       |
 | `window-interaction-hooks` | `HYPR_WINDOW_INTERACTION_HOOKS_PLUGIN` | `libwindow-interaction-hooks.so` |
 
@@ -215,6 +217,24 @@ process before removing the tag.
 This plugin hooks the private `CANRManager::onTick()` method because Hyprland
 does not expose an ANR interception API. The plugin locates the function at
 runtime and only installs the hook when the expected signature is present.
+
+### `transient-placement`
+
+[`transient-placement/main.cpp`](transient-placement/main.cpp) centers configured floating children over a declared or inferred parent before the first floating layout. It does not set floating state, change size, alter fullscreen or monitor routing, or reposition the window after its initial layout. Existing `position`, `center`, and fullscreen rules take precedence.
+
+Lua API under `hl.plugin.transient_placement`:
+
+| Function           | Result                                                   |
+| ------------------ | -------------------------------------------------------- |
+| `configure(rules)` | Replace the ordered rule set and return `true`.          |
+
+Each dense-array rule requires nonempty `parent_class` and `child_class` values. The plugin compares them exactly against the initial window classes. Optional `child_title_prefixes` is a dense array matched against the initial title; omitting it allows any title. `infer_focused_parent` and `no_anim` both default to `false`.
+
+A declared native parent takes precedence. If it does not match a rule, the plugin does not infer another parent for that rule. Focus inference applies only to opted-in rules with no declared parent, and requires a mapped, nonhidden focused window other than the child. An unavailable declared parent also prevents inference.
+
+The plugin writes a position expression during `window.openEarly`. Hyprland evaluates it in the first floating layout after applying the resolved child size, so the child centers on the parent's layout box using `window_w` and `window_h`. Invalid parent or monitor geometry leaves the window unchanged. `no_anim = true` sets Hyprland's no-animation property at set-property priority for the matched window. That policy remains in effect after placement and plugin unload.
+
+`configure({})` disables placement. Malformed input or unknown fields return `nil, error` without replacing the active rule set. Call `configure(rules)` during each config execution after confirming that the plugin is loaded. Hyprland re-registers plugin Lua functions after config reloads, so this plugin needs no custom-event rebind.
 
 ## Interaction plugins
 

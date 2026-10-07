@@ -51,6 +51,7 @@
           insetBorderPlugin = pkgs.local."hyprland-plugins/inset-border";
           pointerEdgeHooksPlugin = pkgs.local."hyprland-plugins/pointer-edge-hooks";
           persistentPositionPlugin = pkgs.local."hyprland-plugins/persistent-position";
+          transientPlacementPlugin = pkgs.local."hyprland-plugins/transient-placement";
           windowInteractionHooksPlugin = pkgs.local."hyprland-plugins/window-interaction-hooks";
           xdgDesktopPortalHyprlandPackage =
             inputs.hyprland.packages.${system}.xdg-desktop-portal-hyprland;
@@ -116,6 +117,7 @@
               HYPR_INSET_BORDER_PLUGIN = "${insetBorderPlugin}/lib/libinset-border.so";
               HYPR_POINTER_EDGE_HOOKS_PLUGIN = "${pointerEdgeHooksPlugin}/lib/libpointer-edge-hooks.so";
               HYPR_PERSISTENT_POSITION_PLUGIN = "${persistentPositionPlugin}/lib/libpersistent-position.so";
+              HYPR_TRANSIENT_PLACEMENT_PLUGIN = "${transientPlacementPlugin}/lib/libtransient-placement.so";
               HYPR_PERSISTENT_POSITION_ENABLED = "1";
               HYPR_WINDOW_INTERACTION_HOOKS_PLUGIN = "${windowInteractionHooksPlugin}/lib/libwindow-interaction-hooks.so";
               __GL_GSYNC_ALLOWED = "1";
@@ -136,6 +138,7 @@
               insetBorderPlugin
               pointerEdgeHooksPlugin
               persistentPositionPlugin
+              transientPlacementPlugin
               windowInteractionHooksPlugin
               inputs.hyprpaper.packages.${system}.hyprpaper
               pkgs.hyprprop
