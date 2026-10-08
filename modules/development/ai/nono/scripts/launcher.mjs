@@ -142,14 +142,6 @@ export function launchArguments(cwd, agentDir, home, environment, profile, rawPi
   for (const path of [join(configHome, "fbb", "data", "typos.abolish"), join(configHome, "nix", "git", "config")]) {
     if (existingFile(path)) extra.push("--read-file", path);
   }
-  const connections = join(configHome, "containers", "podman-connections.json");
-  if (existingFile(connections)) {
-    for (const path of [connections, join(dataHome, "containers", "podman", "machine", "machine")]) {
-      if (existingFile(path)) extra.push("--read-file", path);
-    }
-    const knownHosts = join(home, ".ssh", "known_hosts");
-    if (existingFile(knownHosts)) extra.push("--read-file", knownHosts, "--bypass-protection", knownHosts);
-  }
   const direnvAllow = join(dataHome, "direnv", "allow");
   return [
     "run", "--profile", profile, "--allow-cwd", "--suppress-save-prompt", "/",

@@ -182,7 +182,7 @@ test("global, trusted project and docs-cache references retain canonical writabl
   assert.ok(!grants().includes(home));
 });
 
-test("retains direnv, FFF, hashline, read-only aliases and Podman narrow grants", () => {
+test("retains narrow grants without Podman or SSH host-file access", () => {
   const { root, home, cwd, agent, raw, profile } = fixture();
   const config = join(root, "config");
   const data = join(root, "data");
@@ -192,15 +192,16 @@ test("retains direnv, FFF, hashline, read-only aliases and Podman narrow grants"
   const hashline = join(config, "pi-hashline-edit-pro");
   const known = join(home, ".ssh", "known_hosts");
   const connection = join(config, "containers", "podman-connections.json");
+  const machine = join(data, "containers", "podman", "machine", "machine");
   const typo = join(config, "fbb", "data", "typos.abolish");
-  for (const path of [allow, fff, hashline, join(home, ".ssh"), join(config, "containers"), join(config, "fbb", "data")]) mkdirSync(path, { recursive: true });
-  for (const path of [known, connection, typo]) writeFileSync(path, "fixture");
+  for (const path of [allow, fff, hashline, join(home, ".ssh"), join(config, "containers"), join(data, "containers", "podman", "machine"), join(config, "fbb", "data")]) mkdirSync(path, { recursive: true });
+  for (const path of [known, connection, machine, typo]) writeFileSync(path, "fixture");
   const args = launchArguments(cwd, agent, home, { XDG_CONFIG_HOME: config, XDG_DATA_HOME: data, XDG_CACHE_HOME: cache }, profile, raw);
   assert.ok(values(args, "--allow").includes(fff));
   assert.ok(values(args, "--allow").includes(hashline));
   assert.deepEqual(values(args, "--read"), [allow]);
-  for (const path of [connection, known, typo]) assert.ok(values(args, "--read-file").includes(path));
-  assert.deepEqual(values(args, "--bypass-protection"), [known]);
+  assert.deepEqual(values(args, "--read-file"), [typo]);
+  assert.deepEqual(values(args, "--bypass-protection"), []);
   assert.ok(!values(args, "--allow").includes(config));
 });
 
