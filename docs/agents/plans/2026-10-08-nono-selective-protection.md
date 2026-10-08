@@ -1,6 +1,38 @@
 # Nono selective protection for Pi
 
-Status: the existing-profile ownership migration is implemented in the worktree. Full host verification and operator activation are pending. Selective protection remains deferred and unverified.
+Status: the Nix-owned Pi command wrapper is implemented and built locally, but not activated. Fish configuration stays Stow-managed. Full host evaluation and platform enforcement checks remain pending.
+
+## Current approved scope
+
+The latest approval covers a `pi` command wrapper in `~/nixos`, including immutable pre-sandbox code and dependencies. It does not cover moving Fish configuration into Nix.
+
+- Nix owns the installed `pi` wrapper and its nono profile. Changes to its source require a rebuild and activation.
+- Fish configuration and `.shinit` remain editable Stow files. They remove the old Pi PATH override after `/run/current-system/sw/share/pi/nono-wrapper` appears. Existing hosts retain their legacy sandbox launcher until Nix activation.
+- Stow stops deploying `.pi/agent/bin`. Unknown files and symlinks must not be overwritten during the handoff.
+- Writable shell startup files and mutable reference/grant settings remain separate risks. This wrapper change does not close every next-launch persistence route.
+
+## Wrapper implementation and verification
+
+`modules/development/ai/pi/default.nix` installs a binary `pi` wrapper. It starts store-backed Node and `modules/development/ai/nono/scripts/launcher.mjs`, which imports only Node builtins. The wrapper clears Node preload variables and cannot source `BASH_ENV` before confinement. Nono, the profile, and the patched raw Pi executable use absolute store paths. First-position `--no-sandbox` remains an explicit bypass; `NONO_CAP_FILE` never selects it.
+
+`modules/development/ai/nono/default.nix` replaces the old `nono.nix` declaration. Its `scripts/profile.json` is the common source for the packaged policy and `/etc/nono/pi.json`. Runtime grants retain the existing reference, Stow-target, direnv, FFF, hashline, and Podman behavior. Settings and trust files remain mutable JSON inputs.
+
+- The offline Darwin package build passed. Its 9 launcher tests also passed against the built binary, including shell/Node preload injection fixtures.
+- All 17 isolated module assertions passed for each of Darwin and Linux. These are not full host evaluations or Linux runtime tests.
+- Six activation fixtures passed for recognized links, unknown links, regular files, symlinked ancestors, dry runs, and absent launchers. Only the recognized legacy alias was removed.
+- Routing fixtures passed before and after the activation marker, including an inherited old PATH entry. Stow fixtures confirmed that Fish and `.shinit` stay Stow-owned while Pi's bin directory is excluded.
+- Fish/POSIX syntax, scoped nixpkgs-fmt, Statix, Deadnix, prose checks, and diff checks passed.
+- The built wrapper returned Pi `1.1.0` with `--no-sandbox --version`. Normal launch reached nono but failed to create its audit session under `~/.local/state/nono/audit` with `Operation not permitted` in this already-confined session. Live confinement is unverified.
+- `devenv test` remains blocked by `failed to create devenv home directory: /Users/fbb/.local/share/devenv/: File exists (os error 17)`.
+
+## Operator handoff
+
+1. Include the new `modules/development/ai/nono/` files in the Nix flake revision and use the matching dotfiles PATH changes. Keep the legacy source files until existing hosts have completed the migration; a fresh host should deploy the Nix wrapper first.
+2. Review and activate the Nix configuration outside Pi's sandbox. No activation was performed here. Home Manager retires only a recognized Stow launcher link and refuses unknown conflicts.
+3. Start fresh shells and agent sessions. Confirm that `command -v pi` selects the system wrapper and that `~/.pi/agent/bin` is absent from Fish's PATH. Older dotfiles revisions or existing shell environments can retain that writable search path.
+4. Test normal sandboxed launches and fixture mutation denial on each target platform before claiming enforcement. Once every host uses the Nix wrapper, remove the marked legacy PATH branches and unused Stow launcher sources.
+
+The sections below preserve the earlier selective-protection proposal and its evidence. They do not authorize a Fish ownership migration, and their proposed live-launcher ownership is superseded by the scope above.
 
 ## Goal and agreed scope
 

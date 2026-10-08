@@ -17,6 +17,7 @@ Each managed file has one writer. Avoid Home Manager child files below directori
 | Path or responsibility | Owner |
 | --- | --- |
 | `~/.config/fish/**` hand-maintained configuration | Stow |
+| Public `pi` command, its pre-sandbox dependencies, and nono profile | NixOS or nix-darwin packages and system configuration; Stow excludes `.pi/agent/bin` |
 | Darwin machine context (`NH_DARWIN_HOST`, and `CORPORATE=1` on corporate hosts) | nix-darwin `environment.variables`, loaded through its Fish integration |
 | `~/.gitconfig` portable identity, aliases, signing, and GitHub username | Stow |
 | `~/.config/nix/git/config` generated platform helper and host maintenance include | Home Manager |

@@ -1,7 +1,6 @@
 { inputs, ... }:
 let
-  systemPackages =
-    { pkgs, ... }:
+  mkPi = pkgs:
     let
       llmAgents = inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system};
       pi = llmAgents.pi.overrideAttrs (
@@ -70,9 +69,30 @@ let
           }
       );
     in
-    {
-      environment.systemPackages = [ pi ];
-    };
+    pi;
+  mkLauncher = pkgs:
+    let
+      rawPi = mkPi pkgs;
+      profile = pkgs.writeText "pi-nono-profile.json" (builtins.toJSON (builtins.fromJSON (builtins.readFile ../nono/scripts/profile.json)));
+    in
+    pkgs.runCommand "pi"
+      {
+        nativeBuildInputs = [ pkgs.makeBinaryWrapper ];
+        meta.mainProgram = "pi";
+      }
+      ''
+        mkdir -p "$out/bin"
+        mkdir -p "$out/share/pi"
+        touch "$out/share/pi/nono-wrapper"
+        # A binary entry avoids sourcing BASH_ENV before nono applies confinement.
+        makeBinaryWrapper ${pkgs.nodejs}/bin/node "$out/bin/pi" \
+          --unset NODE_OPTIONS --unset NODE_PATH \
+          --add-flags "${../nono/scripts/launcher.mjs} ${pkgs.nono}/bin/nono ${rawPi}/bin/pi ${profile}"
+        PI_TEST_BINARY="$out/bin/pi" ${pkgs.nodejs}/bin/node --test ${../nono}/__tests__/launcher.test.mjs
+      '';
+  systemPackages = { pkgs, ... }: {
+    environment.systemPackages = [ (mkLauncher pkgs) ];
+  };
   homeManagerPi =
     { lib, pkgs, ... }:
     {
@@ -80,6 +100,28 @@ let
         lib.hm.dag.entryBetween [ "dotfiles" ] [ "writeBoundary" "linkGeneration" ]
           ''
             set -euo pipefail
+
+            for ancestor in "$HOME" "$HOME/.pi" "$HOME/.pi/agent" "$HOME/.pi/agent/bin"; do
+              if [ -L "$ancestor" ]; then
+                echo "Refusing symlinked Pi activation ancestor: $ancestor" >&2
+                exit 1
+              fi
+            done
+
+            legacy="$HOME/.pi/agent/bin/pi"
+            if [ -L "$legacy" ]; then
+              target=$(${pkgs.coreutils}/bin/realpath -m -- "$legacy")
+              local_source=$(${pkgs.coreutils}/bin/realpath -m -- "$HOME/dotfiles/.pi/agent/bin/pi")
+              pinned_source=$(${pkgs.coreutils}/bin/realpath -m -- "${inputs.dotfiles}/.pi/agent/bin/pi")
+              if [ "$target" != "$local_source" ] && [ "$target" != "$pinned_source" ]; then
+                echo "Refusing unknown Pi launcher alias: $legacy -> $target" >&2
+                exit 1
+              fi
+              $DRY_RUN_CMD ${pkgs.coreutils}/bin/rm -- "$legacy"
+            elif [ -e "$legacy" ]; then
+              echo "Refusing unknown Pi launcher at $legacy" >&2
+              exit 1
+            fi
 
             $DRY_RUN_CMD ${pkgs.coreutils}/bin/install -d -m 0700 "$HOME/.pi/agent"
           '';
@@ -112,9 +154,24 @@ in
       securePiAgentDirectory = piHomeConfig.home.activation.securePiAgentDirectory;
     in
     {
+      packages.pi-sandbox = mkLauncher pkgs;
+      packages.pi-raw = mkPi pkgs;
       nix-unit.tests.piActivation = {
         testSecuresPiAgentDirectory = {
           expr = lib.hasInfix ''/bin/install -d -m 0700 "$HOME/.pi/agent"'' securePiAgentDirectory.data;
+          expected = true;
+        };
+        testRetiresOnlyKnownPiAlias = {
+          expr =
+            lib.hasInfix ''/bin/rm -- "$legacy"'' securePiAgentDirectory.data
+            && lib.hasInfix ''pinned_source=$('' securePiAgentDirectory.data
+            && lib.hasInfix ''"$HOME/dotfiles/.pi/agent/bin/pi"'' securePiAgentDirectory.data
+            && lib.hasInfix ''Refusing unknown Pi launcher'' securePiAgentDirectory.data;
+          expected = true;
+        };
+        testRejectsSymlinkedAncestors = {
+          expr = lib.hasInfix ''"$HOME/.pi/agent/bin"'' securePiAgentDirectory.data
+            && lib.hasInfix ''if [ -L "$ancestor" ]'' securePiAgentDirectory.data;
           expected = true;
         };
         testRunsBeforeDotfiles = {
