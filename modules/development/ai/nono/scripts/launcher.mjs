@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -160,6 +160,11 @@ export function launchArguments(cwd, agentDir, home, environment, profile, rawPi
   ];
 }
 
+export function prepareJitiCache(temporaryDirectory = tmpdir(), platform = process.platform) {
+  // Landlock grants bind existing paths; create the cache before nono resolves the profile.
+  if (platform === "linux") mkdirSync(join(temporaryDirectory, "jiti"), { recursive: true, mode: 0o700 });
+}
+
 export function launchCommand(args, cwd, agentDir, home, environment, nono, rawPi, profile) {
   if (!isAbsolute(rawPi) || !existsSync(rawPi)) throw new Error(`Raw Pi executable missing: ${rawPi}`);
   if (args[0] === "--no-sandbox") return [rawPi, ...args.slice(1)];
@@ -179,6 +184,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     }
     const agentDir = environment.PI_CODING_AGENT_DIR || join(homedir(), ".pi", "agent");
     const command = launchCommand(args, process.cwd(), agentDir, homedir(), environment, nono, rawPi, profile);
+    if (command[0] === nono) prepareJitiCache();
     const child = spawnSync(command[0], command.slice(1), { stdio: "inherit", env: environment });
     if (child.error) throw child.error;
     if (child.signal) process.kill(process.pid, child.signal);

@@ -6,7 +6,8 @@
         ],
         "read": [
             "$HOME/.agents/skills",
-            "$HOME/.nvm"
+            "$HOME/.nvm",
+            "$TMPDIR/jiti"
         ],
         "suppress_save_prompt": [
             "/"

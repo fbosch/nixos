@@ -1,10 +1,19 @@
 import { afterEach, test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { launchArguments, launchCommand } from "../scripts/launcher.mjs";
+import { launchArguments, launchCommand, prepareJitiCache } from "../scripts/launcher.mjs";
+
+test("profile grants Jiti cache reads without allowing reads throughout tmp", () => {
+  const profile = JSON.parse(readFileSync(new URL("../scripts/profile.json", import.meta.url), "utf8"));
+  assert.ok(profile.filesystem.read.includes("$TMPDIR/jiti"));
+  for (const paths of [profile.filesystem.read, profile.filesystem.allow]) {
+    assert.ok(!paths.includes("/tmp"));
+    assert.ok(!paths.includes("$TMPDIR"));
+  }
+});
 
 const created = [];
 function fixture() {
@@ -26,6 +35,48 @@ afterEach(() => { for (const path of created.splice(0)) rmSync(path, { recursive
 function values(args, flag) {
   return args.flatMap((part, index) => part === flag ? [args[index + 1]] : []);
 }
+
+test("Linux prepares a missing Jiti cache before sandboxing and preserves an existing cache", () => {
+  const { root } = fixture();
+  const temporary = join(root, "temporary");
+  const cache = join(temporary, "jiti");
+  prepareJitiCache(temporary, "linux");
+  assert.ok(existsSync(cache));
+  const cached = join(cache, "extension.mjs");
+  writeFileSync(cached, "cached");
+  prepareJitiCache(temporary, "linux");
+  assert.equal(readFileSync(cached, "utf8"), "cached");
+});
+
+test("Jiti cache preparation does not change Darwin runtime directories", () => {
+  const { root } = fixture();
+  const temporary = join(root, "temporary");
+  prepareJitiCache(temporary, "darwin");
+  assert.equal(existsSync(temporary), false);
+});
+
+test("Linux profile permits Jiti cache write/read cycles but denies unrelated temporary-file reads", {
+  skip: process.platform !== "linux" || !process.env.NONO_TEST_BINARY,
+}, () => {
+  const { root, cwd } = fixture();
+  const temporary = join(root, "temporary");
+  prepareJitiCache(temporary, "linux");
+  const cache = join(temporary, "jiti", "extension.mjs");
+  const outside = join(temporary, "unrelated");
+  writeFileSync(outside, "private fixture");
+  const child = spawnSync(process.env.NONO_TEST_BINARY, [
+    "run", "--profile", new URL("../scripts/profile.json", import.meta.url).pathname, "--allow-cwd", "--",
+    process.execPath, "-e", `
+      const fs = require("node:fs");
+      const assert = require("node:assert/strict");
+      fs.writeFileSync(process.argv[1], "compiled extension");
+      assert.equal(fs.readFileSync(process.argv[1], "utf8"), "compiled extension");
+      assert.throws(() => fs.readFileSync(process.argv[2]), { code: "EACCES" });
+    `, cache, outside,
+  ], { cwd, env: { ...process.env, TMPDIR: temporary }, encoding: "utf8" });
+  assert.ifError(child.error);
+  assert.equal(child.status, 0, child.stderr);
+});
 
 test("always selects absolute nono, immutable profile and distinct raw Pi, preserving argv", () => {
   const { launch, nono, raw, profile } = fixture();

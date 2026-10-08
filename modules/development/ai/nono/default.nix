@@ -71,6 +71,7 @@ in
               read = [
                 "$HOME/.agents/skills"
                 "$HOME/.nvm"
+                "$TMPDIR/jiti"
               ];
               suppress_save_prompt = [ "/" ];
             };
