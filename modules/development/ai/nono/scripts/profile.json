@@ -2,7 +2,9 @@
     "extends": "default",
     "filesystem": {
         "allow": [
-            "$HOME/.pi"
+            "$HOME/.pi",
+            "$HOME/.npm/_cacache",
+            "$HOME/.npm/_logs"
         ],
         "read": [
             "$HOME/.agents/skills",

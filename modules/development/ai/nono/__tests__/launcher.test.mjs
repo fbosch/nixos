@@ -2,9 +2,9 @@ import { afterEach, test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
-import { launchArguments, launchCommand, prepareJitiCache } from "../scripts/launcher.mjs";
+import { launchArguments, launchCommand, prepareJitiCache, prepareNpmCache } from "../scripts/launcher.mjs";
 
 test("profile grants Jiti cache reads without allowing reads throughout tmp", () => {
   const profile = JSON.parse(readFileSync(new URL("../scripts/profile.json", import.meta.url), "utf8"));
@@ -13,6 +13,11 @@ test("profile grants Jiti cache reads without allowing reads throughout tmp", ()
     assert.ok(!paths.includes("/tmp"));
     assert.ok(!paths.includes("$TMPDIR"));
   }
+});
+
+test("profile grants npm cache and log writes without making all npm state writable", () => {
+  const profile = JSON.parse(readFileSync(new URL("../scripts/profile.json", import.meta.url), "utf8"));
+  assert.deepEqual(profile.filesystem.allow, ["$HOME/.pi", "$HOME/.npm/_cacache", "$HOME/.npm/_logs"]);
 });
 
 const created = [];
@@ -35,6 +40,16 @@ afterEach(() => { for (const path of created.splice(0)) rmSync(path, { recursive
 function values(args, flag) {
   return args.flatMap((part, index) => part === flag ? [args[index + 1]] : []);
 }
+
+test("prepares missing npm cache and log directories without replacing existing contents", () => {
+  const { home } = fixture();
+  prepareNpmCache(home);
+  const cached = join(home, ".npm", "_cacache", "package");
+  assert.ok(existsSync(join(home, ".npm", "_logs")));
+  writeFileSync(cached, "cached");
+  prepareNpmCache(home);
+  assert.equal(readFileSync(cached, "utf8"), "cached");
+});
 
 test("Linux prepares a missing Jiti cache before sandboxing and preserves an existing cache", () => {
   const { root } = fixture();
@@ -76,6 +91,42 @@ test("Linux profile permits Jiti cache write/read cycles but denies unrelated te
   ], { cwd, env: { ...process.env, TMPDIR: temporary }, encoding: "utf8" });
   assert.ifError(child.error);
   assert.equal(child.status, 0, child.stderr);
+});
+
+test("Linux profile permits npm cache and log writes but denies other npm state writes", {
+  skip: process.platform !== "linux" || !process.env.NONO_TEST_BINARY,
+}, () => {
+  // The default profile permits /tmp writes; place the denied-write fixture outside /tmp.
+  const root = mkdtempSync(join(homedir(), "pi-npm-profile-test-"));
+  created.push(root);
+  const home = join(root, "home");
+  const cwd = join(root, "project");
+  const cache = join(home, ".npm", "_cacache");
+  const logs = join(home, ".npm", "_logs");
+  prepareNpmCache(home);
+  mkdirSync(cwd);
+  const outside = join(home, ".npm", "unrelated");
+  writeFileSync(outside, "unchanged");
+  const child = spawnSync(process.env.NONO_TEST_BINARY, [
+    "run", "--profile", new URL("../scripts/profile.json", import.meta.url).pathname, "--allow-cwd", "--",
+    process.execPath, "-e", `
+      const fs = require("node:fs");
+      const path = require("node:path");
+      const assert = require("node:assert/strict");
+      const temporary = path.join(process.argv[1], "tmp");
+      fs.mkdirSync(temporary);
+      const cached = path.join(temporary, "package");
+      fs.writeFileSync(cached, "cache fixture");
+      assert.equal(fs.readFileSync(cached, "utf8"), "cache fixture");
+      const log = path.join(process.argv[2], "npm.log");
+      fs.writeFileSync(log, "log fixture");
+      assert.equal(fs.readFileSync(log, "utf8"), "log fixture");
+      assert.throws(() => fs.writeFileSync(process.argv[3], "changed"), { code: "EACCES" });
+    `, cache, logs, outside,
+  ], { cwd, env: { ...process.env, HOME: home }, encoding: "utf8" });
+  assert.ifError(child.error);
+  assert.equal(child.status, 0, child.stderr);
+  assert.equal(readFileSync(outside, "utf8"), "unchanged");
 });
 
 test("always selects absolute nono, immutable profile and distinct raw Pi, preserving argv", () => {

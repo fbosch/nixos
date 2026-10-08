@@ -165,6 +165,13 @@ export function prepareJitiCache(temporaryDirectory = tmpdir(), platform = proce
   if (platform === "linux") mkdirSync(join(temporaryDirectory, "jiti"), { recursive: true, mode: 0o700 });
 }
 
+export function prepareNpmCache(home = homedir()) {
+  // Like Jiti's cache, these narrow profile paths must exist before Landlock grants are built.
+  for (const directory of ["_cacache", "_logs"]) {
+    mkdirSync(join(home, ".npm", directory), { recursive: true, mode: 0o700 });
+  }
+}
+
 export function launchCommand(args, cwd, agentDir, home, environment, nono, rawPi, profile) {
   if (!isAbsolute(rawPi) || !existsSync(rawPi)) throw new Error(`Raw Pi executable missing: ${rawPi}`);
   if (args[0] === "--no-sandbox") return [rawPi, ...args.slice(1)];
@@ -184,7 +191,10 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     }
     const agentDir = environment.PI_CODING_AGENT_DIR || join(homedir(), ".pi", "agent");
     const command = launchCommand(args, process.cwd(), agentDir, homedir(), environment, nono, rawPi, profile);
-    if (command[0] === nono) prepareJitiCache();
+    if (command[0] === nono) {
+      prepareJitiCache();
+      prepareNpmCache();
+    }
     const child = spawnSync(command[0], command.slice(1), { stdio: "inherit", env: environment });
     if (child.error) throw child.error;
     if (child.signal) process.kill(process.pid, child.signal);

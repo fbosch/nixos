@@ -67,7 +67,11 @@ in
           };
           expected = {
             filesystem = {
-              allow = [ "$HOME/.pi" ];
+              allow = [
+                "$HOME/.pi"
+                "$HOME/.npm/_cacache"
+                "$HOME/.npm/_logs"
+              ];
               read = [
                 "$HOME/.agents/skills"
                 "$HOME/.nvm"
