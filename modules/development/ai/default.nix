@@ -43,6 +43,7 @@ let
         llmAgents.codex
         llmAgents.openspec
         agentBrowser
+        pkgs.nono
         pkgs.local.caliper
       ]
       ++ pkgs.lib.optionals (!(hostMeta.corporate or false)) [ llmAgents.opencode ]
