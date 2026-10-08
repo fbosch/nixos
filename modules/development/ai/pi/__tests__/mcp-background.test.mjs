@@ -44,7 +44,7 @@ function fixture(exposure = "codemode", errors = []) {
   const factory = runInNewContext(
     source.replace(/^import .*;\n/gm, "").replace(/export default createMcpExtension\(\);/, "").replace(/^export /gm, "") + "\ncreateMcpExtension;",
     {
-      process, setImmediate, setTimeout, clearTimeout,
+      process, AbortController, setImmediate, setTimeout, clearTimeout,
       join, resolve: join, getAgentDir: () => "/tmp/pi-mcp-test",
       openBrowser() {},
       mcpNamespace: (name) => `mcp__${name}`,

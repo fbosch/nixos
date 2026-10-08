@@ -1,9 +1,17 @@
+diff --git a/dist/extensions/codemode/execute.js b/dist/extensions/codemode/execute.js
+index 4b00fa1..552d43d 100644
 --- a/dist/extensions/codemode/execute.js
 +++ b/dist/extensions/codemode/execute.js
-@@ -11,1 +11,1 @@
+@@ -7,7 +7,7 @@ import { getCodemodeWorkerSpecifier, getQuickJSWasmPath } from "../../config.js"
+ import { formatSize } from "../../core/tools/truncate.js";
+ import { combineUsage } from "../../core/usage-totals.js";
+ import { writeOutputFile } from "../../utils/output-files.js";
 -import { Bm25Ranker, createToolSearchDocument, DEFAULT_TOOL_SEARCH_LIMIT } from "../tool-search/tool.js";
 +import { createToolSearchDocument, DEFAULT_TOOL_SEARCH_LIMIT, rankToolSearch } from "../tool-search/tool.js";
-@@ -357,7 +357,7 @@
+ import { CODEMODE_DOCS_PATH, CODEMODE_STORE_ENTRY_TYPE, getCodemodeCallableTools, toCodemodeDeclaration, } from "./tool.js";
+ const ARGS_PREVIEW_CHARS = 200;
+ const ERROR_PREVIEW_CHARS = 500;
+@@ -413,7 +413,7 @@ export async function executeCodemode(toolCallId, input, signal, onUpdate, ctx,
      const sandbox = new CodemodeSandbox({
          tools: sandboxTools,
          globals: [
@@ -12,7 +20,7 @@
              ...(options.models && ctx
                  ? createModelGlobals(ctx.modelRegistry, toolCallId, calls, publish, addModelUsage, addGeneratedImages)
                  : []),
-@@ -292,14 +292,13 @@
+@@ -485,14 +485,13 @@ function isNamespaceName(namespace, query) {
   * `searchTools()`, `describeTool()`, and `describeNamespace()`: ranked search and lookup over the
   * script's nested tools and their namespaces.
   */
@@ -29,7 +37,7 @@
                  const [query, searchOptions] = args;
                  if (typeof query !== "string")
                      throw new Error("searchTools() expects a query string");
-@@ -317,7 +316,18 @@
+@@ -510,7 +509,18 @@ function createDiscoveryGlobals(tools, samples, options) {
                          return [];
                      return [createToolSearchDocument(tool, toolNamespace)];
                  });
@@ -49,6 +57,51 @@
              },
          },
          {
+diff --git a/dist/extensions/tool-search/tool.d.ts b/dist/extensions/tool-search/tool.d.ts
+index 15e7f9e..a0d565d 100644
+--- a/dist/extensions/tool-search/tool.d.ts
++++ b/dist/extensions/tool-search/tool.d.ts
+@@ -8,18 +8,37 @@
+  * like any other tool change and survives `/tree`, resume, and fork on that branch.
+  */
+ import { type Static, Type } from "typebox";
+-import type { ExtensionAPI, ToolDefinition, ToolInfo, ToolNamespace } from "../../core/extensions/types.ts";
++import type { ExtensionAPI, ExtensionContext, ToolDefinition, ToolInfo, ToolNamespace } from "../../core/extensions/types.ts";
++import type { Usage } from "@earendil-works/pi-ai/compat";
+ export declare const TOOL_SEARCH_TOOL_NAME = "tool_search";
+ export declare const DEFAULT_TOOL_SEARCH_LIMIT = 8;
+ /** A tool as the ranker sees it: its name and the text built by {@link createToolSearchDocument}. */
+ export interface ToolSearchDocument {
+     name: string;
+     text: string;
++    description?: string;
+ }
+ export interface ToolSearchMatch {
+     name: string;
+     score: number;
+ }
++export interface ToolSearchRankingRequest {
++    query: string;
++    documents: readonly ToolSearchDocument[];
++    limit: number;
++    signal?: AbortSignal;
++    context?: ExtensionContext;
++    /** Reports the full inference usage once, before ranking returns or throws. */
++    reportUsage?: (usage: Usage) => void;
++    rankLexical(limit: number): ToolSearchMatch[];
++}
++export interface ToolSearchRankingResult {
++    matches: ToolSearchMatch[];
++    usage?: Usage;
++}
++export type ToolSearchRankingHook = (request: ToolSearchRankingRequest) => ToolSearchRankingResult | Promise<ToolSearchRankingResult>;
++/** Install a ranking hook for one session's model registry; unregistering an older hook never removes a replacement. */
++export declare function installToolSearchRanker(registry: object, ranker: ToolSearchRankingHook): () => void;
+ /** Ranks tools for a query. BM25 today; a hybrid ranker with embeddings can replace it. */
+ export interface ToolRanker {
+     rank(query: string, documents: readonly ToolSearchDocument[], limit: number): ToolSearchMatch[];
+diff --git a/dist/extensions/tool-search/tool.js b/dist/extensions/tool-search/tool.js
+index 1f2bcd6..2baf38e 100644
 --- a/dist/extensions/tool-search/tool.js
 +++ b/dist/extensions/tool-search/tool.js
 @@ -8,8 +8,107 @@
@@ -159,7 +212,7 @@
  const STOP_WORDS = new Set([
      "a",
      "an",
-@@ -86,7 +185,7 @@
+@@ -86,7 +185,7 @@ export function createToolSearchDocument(tool, namespace) {
      schemaText(tool.parameters, parts);
      if (namespace)
          parts.push(namespace.name, namespace.description ?? "", namespace.instructions ?? "");
@@ -168,7 +221,7 @@
  }
  /** Okapi BM25 with the usual parameters. Ties keep document order. */
  export class Bm25Ranker {
-@@ -144,23 +243,40 @@
+@@ -144,23 +243,40 @@ function isSearchable(exposure) {
   * Rank the searchable tools that are not active yet and activate the matches, so the next model
   * call declares them. Activation is recorded in the transcript like any tool change.
   */
@@ -217,7 +270,7 @@
  export function createToolSearchToolDefinition(options = {}) {
      return {
          name: TOOL_SEARCH_TOOL_NAME,
-@@ -170,19 +286,43 @@
+@@ -170,19 +286,43 @@ export function createToolSearchToolDefinition(options = {}) {
          parameters: toolSearchSchema,
          // Searching is not something scripts need; it changes what the model sees.
          exposure: "model-only",
@@ -264,60 +317,11 @@
          },
      };
  }
---- a/dist/extensions/tool-search/tool.d.ts
-+++ b/dist/extensions/tool-search/tool.d.ts
-@@ -8,18 +8,37 @@
-  * like any other tool change and survives `/tree`, resume, and fork on that branch.
-  */
- import { type Static, Type } from "typebox";
--import type { ExtensionAPI, ToolDefinition, ToolInfo, ToolNamespace } from "../../core/extensions/types.ts";
-+import type { ExtensionAPI, ExtensionContext, ToolDefinition, ToolInfo, ToolNamespace } from "../../core/extensions/types.ts";
-+import type { Usage } from "@earendil-works/pi-ai/compat";
- export declare const TOOL_SEARCH_TOOL_NAME = "tool_search";
- export declare const DEFAULT_TOOL_SEARCH_LIMIT = 8;
- /** A tool as the ranker sees it: its name and the text built by {@link createToolSearchDocument}. */
- export interface ToolSearchDocument {
-     name: string;
-     text: string;
-+    description?: string;
- }
- export interface ToolSearchMatch {
-     name: string;
-     score: number;
- }
-+export interface ToolSearchRankingRequest {
-+    query: string;
-+    documents: readonly ToolSearchDocument[];
-+    limit: number;
-+    signal?: AbortSignal;
-+    context?: ExtensionContext;
-+    /** Reports the full inference usage once, before ranking returns or throws. */
-+    reportUsage?: (usage: Usage) => void;
-+    rankLexical(limit: number): ToolSearchMatch[];
-+}
-+export interface ToolSearchRankingResult {
-+    matches: ToolSearchMatch[];
-+    usage?: Usage;
-+}
-+export type ToolSearchRankingHook = (request: ToolSearchRankingRequest) => ToolSearchRankingResult | Promise<ToolSearchRankingResult>;
-+/** Install a ranking hook for one session's model registry; unregistering an older hook never removes a replacement. */
-+export declare function installToolSearchRanker(registry: object, ranker: ToolSearchRankingHook): () => void;
- /** Ranks tools for a query. BM25 today; a hybrid ranker with embeddings can replace it. */
- export interface ToolRanker {
-     rank(query: string, documents: readonly ToolSearchDocument[], limit: number): ToolSearchMatch[];
---- a/dist/index.js
-+++ b/dist/index.js
-@@ -34,6 +34,7 @@
- export { createCodemodeExtension } from "./extensions/codemode/index.js";
- export { createMcpExtension } from "./extensions/mcp/index.js";
- export { createToolSearchExtension } from "./extensions/tool-search/index.js";
-+export { installToolSearchRanker } from "./extensions/tool-search/tool.js";
- // Main entry point
- export { main } from "./main.js";
- // Run modes for programmatic SDK usage
+diff --git a/dist/index.d.ts b/dist/index.d.ts
+index d0ef2a0..b39c01d 100644
 --- a/dist/index.d.ts
 +++ b/dist/index.d.ts
-@@ -31,6 +31,7 @@
+@@ -32,6 +32,7 @@ export type { CodemodeStoreEntryData, CodemodeToolDetails } from "./extensions/c
  export type { LoadedMcpConfig, McpExposure, McpServerConfig, McpServerEntry } from "./extensions/mcp/config.ts";
  export { createMcpExtension, type McpExtensionOptions, type McpTransportFactory } from "./extensions/mcp/index.ts";
  export { createToolSearchExtension } from "./extensions/tool-search/index.ts";
@@ -325,3 +329,15 @@
  export { type MainOptions, main } from "./main.ts";
  export { InteractiveMode, type InteractiveModeOptions, type JsonAgentSessionEvent, type ModelInfo, type PrintModeOptions, RpcClient, type RpcClientOptions, type RpcCommand, type RpcEventListener, type RpcExtensionUIRequest, type RpcExtensionUIResponse, type RpcResponse, type RpcSessionState, runPrintMode, runRpcMode, } from "./modes/index.ts";
  export { ArminComponent, AssistantMessageComponent, BashExecutionComponent, BorderedLoader, BranchSummaryMessageComponent, CompactionSummaryMessageComponent, CustomEditor, type CustomEditorOptions, CustomMessageComponent, DynamicBorder, ExtensionEditorComponent, ExtensionInputComponent, ExtensionSelectorComponent, FooterComponent, keyHint, keyText, LoginDialogComponent, ModelSelectorComponent, OAuthSelectorComponent, type RenderDiffOptions, rawKeyHint, renderDiff, SessionSelectorComponent, type SettingsCallbacks, type SettingsConfig, SettingsSelectorComponent, ShowImagesSelectorComponent, SkillInvocationMessageComponent, ThemeSelectorComponent, ThinkingSelectorComponent, ToolExecutionComponent, type ToolExecutionOptions, TreeSelectorComponent, truncateToVisualLines, UserMessageComponent, UserMessageSelectorComponent, type VisualTruncateResult, } from "./modes/interactive/components/index.ts";
+diff --git a/dist/index.js b/dist/index.js
+index c48934f..457e295 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -34,6 +34,7 @@ export { VIRTUAL_MODEL_STATE_ENTRY, } from "./core/virtual-models.js";
+ export { createCodemodeExtension } from "./extensions/codemode/index.js";
+ export { createMcpExtension } from "./extensions/mcp/index.js";
+ export { createToolSearchExtension } from "./extensions/tool-search/index.js";
++export { installToolSearchRanker } from "./extensions/tool-search/tool.js";
+ // Main entry point
+ export { main } from "./main.js";
+ // Run modes for programmatic SDK usage

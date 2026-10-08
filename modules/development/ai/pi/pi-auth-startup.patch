@@ -29,32 +29,33 @@
 +        unsubscribe();
 +    }
 +}
---- a/dist/core/sdk.js
-+++ b/dist/core/sdk.js
-@@ -5,2 +5,3 @@
- import { resolvePath } from "../utils/paths.js";
-+import { prepareModelAvailability } from "./extensions/model-availability.js";
- import { AgentSession } from "./agent-session.js";
-@@ -65,7 +66,8 @@
-  * });
-  * ```
-  */
--export async function createAgentSession(options = {}) {
-+// The internal second argument avoids redispatch after CLI services prepared this session.
-+export async function createAgentSession(options = {}, modelAvailabilityPrepared = false) {
-     const cwd = resolvePath(options.cwd ?? options.sessionManager?.getCwd() ?? process.cwd());
-     const agentDir = options.agentDir ? resolvePath(options.agentDir) : getDefaultAgentDir();
-     let resourceLoader = options.resourceLoader;
-@@ -79,6 +81,9 @@
-         await resourceLoader.reload();
-         time("resourceLoader.reload");
-     }
-+    if (!modelAvailabilityPrepared) {
-+        await prepareModelAvailability({ cwd, sessionManager, settingsManager, resourceLoader, modelRuntime, sessionStartEvent: options.sessionStartEvent });
-+    }
-     // Check if session has existing data to restore
-     const existingSession = sessionManager.buildSessionContext();
-     const hasExistingSession = existingSession.messages.length > 0;
+
+diff --git a/dist/core/agent-session-services.d.ts b/dist/core/agent-session-services.d.ts
+index 0b1c83f..ded330b 100644
+--- a/dist/core/agent-session-services.d.ts
++++ b/dist/core/agent-session-services.d.ts
+@@ -27,6 +27,10 @@ export interface AgentSessionRuntimeDiagnostic {
+ export interface CreateAgentSessionServicesOptions {
+     cwd: string;
+     agentDir?: string;
++    /** Prepare auth for this destination session before callers resolve model availability. */
++    sessionManager?: SessionManager;
++    /** Lifecycle metadata for the pre-availability hook. */
++    sessionStartEvent?: SessionStartEvent;
+     settingsManager?: SettingsManager;
+     modelRuntime?: ModelRuntime;
+     modelRuntimeSignal?: AbortSignal;
+@@ -68,6 +72,8 @@ export interface AgentSessionServices {
+     settingsManager: SettingsManager;
+     resourceLoader: ResourceLoader;
+     diagnostics: AgentSessionRuntimeDiagnostic[];
++    /** Destination already prepared by the packaged pre-availability hook. */
++    modelAvailabilityPreparedFor?: SessionManager;
+ }
+ /**
+  * Create cwd-bound runtime services.
+diff --git a/dist/core/agent-session-services.js b/dist/core/agent-session-services.js
+index 71a876d..8367d53 100644
 --- a/dist/core/agent-session-services.js
 +++ b/dist/core/agent-session-services.js
 @@ -1,6 +1,7 @@
@@ -65,7 +66,7 @@
  import { ModelRuntime } from "./model-runtime.js";
  import { DefaultResourceLoader, } from "./resource-loader.js";
  import { createAgentSession } from "./sdk.js";
-@@ -108,8 +109,16 @@
+@@ -108,8 +109,16 @@ export async function createAgentSessionServices(options) {
          }
      }
      extensionsResult.runtime.pendingVirtualModelRegistrations = [];
@@ -83,7 +84,7 @@
      return {
          cwd,
          agentDir,
-@@ -117,6 +126,7 @@
+@@ -117,6 +126,7 @@ export async function createAgentSessionServices(options) {
          settingsManager,
          resourceLoader,
          diagnostics,
@@ -91,7 +92,7 @@
      };
  }
  /**
-@@ -142,6 +152,6 @@
+@@ -142,6 +152,6 @@ export async function createAgentSessionFromServices(options) {
          noTools: options.noTools,
          customTools: options.customTools,
          sessionStartEvent: options.sessionStartEvent,
@@ -100,22 +101,19 @@
  }
  //# sourceMappingURL=agent-session-services.js.map
 \ No newline at end of file
---- a/dist/main.js
-+++ b/dist/main.js
-@@ -593,6 +593,8 @@
-         const services = await createAgentSessionServices({
-             cwd,
-             agentDir,
-+            sessionManager,
-+            sessionStartEvent,
-             settingsManager: runtimeSettingsManager,
-             modelRuntimeSignal: AbortSignal.timeout(15_000),
-             extensionFlagValues: parsed.unknownFlags,
+diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
+index c5ad719..b3404a7 100644
 --- a/dist/core/agent-session.js
 +++ b/dist/core/agent-session.js
-@@ -33,0 +34,1 @@
+@@ -31,6 +31,7 @@ import { exportSessionToHtml } from "./export-html/index.js";
+ import { createToolHtmlRenderer } from "./export-html/tool-renderer.js";
+ import { ExtensionRunner, wrapRegisteredTools, } from "./extensions/index.js";
+ import { emitSessionShutdownEvent } from "./extensions/runner.js";
 +import { emitBeforeModelAvailability } from "./extensions/model-availability.js";
-@@ -2895,6 +2896,8 @@
+ import { createToolNameMatcher, isMcpToolName } from "./mcp-servers.js";
+ import { convertToLlm } from "./messages.js";
+ import { ModelRegistry } from "./model-registry.js";
+@@ -2962,6 +2963,8 @@ export class AgentSession {
              this._extensionShutdownHandler ||
              this._extensionErrorListener;
          if (hasBindings) {
@@ -124,31 +122,20 @@
              await options?.beforeSessionStart?.();
              await this._extensionRunner.emit({ type: "session_start", reason: "reload" });
              this._extensionRunner.reportUnhandledMcpServers();
---- a/dist/core/agent-session-services.d.ts
-+++ b/dist/core/agent-session-services.d.ts
-@@ -27,6 +27,10 @@
- export interface CreateAgentSessionServicesOptions {
-     cwd: string;
-     agentDir?: string;
-+    /** Prepare auth for this destination session before callers resolve model availability. */
-+    sessionManager?: SessionManager;
-+    /** Lifecycle metadata for the pre-availability hook. */
-+    sessionStartEvent?: SessionStartEvent;
-     settingsManager?: SettingsManager;
-     modelRuntime?: ModelRuntime;
-     modelRuntimeSignal?: AbortSignal;
-@@ -68,6 +72,8 @@
-     settingsManager: SettingsManager;
-     resourceLoader: ResourceLoader;
-     diagnostics: AgentSessionRuntimeDiagnostic[];
-+    /** Destination already prepared by the packaged pre-availability hook. */
-+    modelAvailabilityPreparedFor?: SessionManager;
- }
+diff --git a/dist/core/extensions/index.d.ts b/dist/core/extensions/index.d.ts
+index 91e42e1..3db9806 100644
+--- a/dist/core/extensions/index.d.ts
++++ b/dist/core/extensions/index.d.ts
+@@ -1,3 +1,4 @@
++export type { BeforeModelAvailabilityEvent } from "./types.ts";
  /**
-  * Create cwd-bound runtime services.
+  * Extension system for lifecycle events and custom tools.
+  */
+diff --git a/dist/core/extensions/types.d.ts b/dist/core/extensions/types.d.ts
+index 586c761..cae9697 100644
 --- a/dist/core/extensions/types.d.ts
 +++ b/dist/core/extensions/types.d.ts
-@@ -543,6 +543,17 @@
+@@ -558,6 +558,17 @@ export interface McpServersChangeEvent {
      /** Every registered server after the change. */
      servers: RegisteredMcpServer[];
  }
@@ -166,7 +153,7 @@
  /** Fired when a session is started, loaded, or reloaded */
  export interface SessionStartEvent {
      type: "session_start";
-@@ -640,7 +651,7 @@
+@@ -655,7 +666,7 @@ export interface SessionTreeEvent {
      summaryEntry?: BranchSummaryEntry;
      fromExtension?: boolean;
  }
@@ -175,7 +162,7 @@
  /**
   * Fired before each LLM call. Can modify messages.
   *
-@@ -1143,6 +1154,7 @@
+@@ -1162,6 +1173,7 @@ export type ExtensionHandler<E, R = undefined> = (event: E, ctx: ExtensionContex
  export interface ExtensionAPI {
      on(event: "project_trust", handler: ProjectTrustHandler): () => void;
      on(event: "resources_discover", handler: ExtensionHandler<ResourcesDiscoverEvent, ResourcesDiscoverResult>): () => void;
@@ -183,13 +170,40 @@
      on(event: "session_start", handler: ExtensionHandler<SessionStartEvent>): () => void;
      on(event: "session_info_changed", handler: ExtensionHandler<SessionInfoChangedEvent>): () => void;
      on(event: "session_before_switch", handler: ExtensionHandler<SessionBeforeSwitchEvent, SessionBeforeSwitchResult>): () => void;
---- a/dist/core/extensions/index.d.ts
-+++ b/dist/core/extensions/index.d.ts
-@@ -1,3 +1,4 @@
-+export type { BeforeModelAvailabilityEvent } from "./types.ts";
- /**
-  * Extension system for lifecycle events and custom tools.
+diff --git a/dist/core/sdk.js b/dist/core/sdk.js
+index b1d632f..9e4b13b 100644
+--- a/dist/core/sdk.js
++++ b/dist/core/sdk.js
+@@ -3,6 +3,7 @@ import { Agent, setDefaultStreamFn } from "@earendil-works/pi-agent-core";
+ import { clampThinkingLevel, streamSimple } from "@earendil-works/pi-ai/compat";
+ import { getAgentDir } from "../config.js";
+ import { resolvePath } from "../utils/paths.js";
++import { prepareModelAvailability } from "./extensions/model-availability.js";
+ import { AgentSession } from "./agent-session.js";
+ import { formatNoModelsAvailableMessage } from "./auth-guidance.js";
+ import { CacheWarmer } from "./cache-warmer.js";
+@@ -66,7 +67,8 @@ function getDefaultAgentDir() {
+  * });
+  * ```
   */
+-export async function createAgentSession(options = {}) {
++// The internal second argument avoids redispatch after CLI services prepared this session.
++export async function createAgentSession(options = {}, modelAvailabilityPrepared = false) {
+     const cwd = resolvePath(options.cwd ?? options.sessionManager?.getCwd() ?? process.cwd());
+     const agentDir = options.agentDir ? resolvePath(options.agentDir) : getDefaultAgentDir();
+     let resourceLoader = options.resourceLoader;
+@@ -80,6 +82,9 @@ export async function createAgentSession(options = {}) {
+         await resourceLoader.reload();
+         time("resourceLoader.reload");
+     }
++    if (!modelAvailabilityPrepared) {
++        await prepareModelAvailability({ cwd, sessionManager, settingsManager, resourceLoader, modelRuntime, sessionStartEvent: options.sessionStartEvent });
++    }
+     // Check if session has existing data to restore
+     const existingSession = sessionManager.buildSessionContext();
+     const hasExistingSession = existingSession.messages.length > 0;
+diff --git a/dist/index.d.ts b/dist/index.d.ts
+index 9f9bd73..d0ef2a0 100644
 --- a/dist/index.d.ts
 +++ b/dist/index.d.ts
 @@ -1,3 +1,4 @@
@@ -197,3 +211,16 @@
  export { type Args, parseArgs } from "./cli/args.ts";
  export { CONFIG_DIR_NAME, getAgentDir, getDocsPath, getExamplesPath, getPackageDir, getReadmePath, VERSION, } from "./config.ts";
  export { AgentSession, type AgentSessionConfig, type AgentSessionEvent, type AgentSessionEventListener, type ModelCycleResult, type ParsedSkillBlock, type PromptOptions, parseSkillBlock, type SessionStats, } from "./core/agent-session.ts";
+diff --git a/dist/main.js b/dist/main.js
+index ac397ec..5508121 100644
+--- a/dist/main.js
++++ b/dist/main.js
+@@ -599,6 +599,8 @@ export async function main(args, options) {
+         const services = await createAgentSessionServices({
+             cwd,
+             agentDir,
++            sessionManager,
++            sessionStartEvent,
+             settingsManager: runtimeSettingsManager,
+             modelRuntimeSignal: AbortSignal.timeout(15_000),
+             extensionFlagValues: parsed.unknownFlags,

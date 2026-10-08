@@ -1,18 +1,5 @@
-diff --git a/docs/settings.md b/docs/settings.md
-index e4c67cda..5b455b24 100644
---- a/docs/settings.md
-+++ b/docs/settings.md
-@@ -82,6 +82,8 @@ Warming needs a known cache lifetime for the model and the retention tier the re
- | `editorPaddingX` | number | `0` | Horizontal editor padding from 0 to 3 cells. |
- | `outputPad` | `0 \| 1` | `1` | Horizontal transcript padding. |
- | `autocompleteMaxVisible` | number | `5` | Visible autocomplete entries, from 3 to 20. |
-+| `selectorOverlayWidth` | number | `72` | Default selector modal width in terminal columns (minimum 40). Clamped to the terminal width. |
-+| `selectorOverlayWidths` | object | `{}` | Per-selector width overrides for `settings`, `thinking`, `trust`, `model`, `scoped-models`, `fork`, `tree`, `session`, and `auth`. |
- | `showHardwareCursor` | boolean | `false` | Show the terminal cursor while Pi positions it for input methods. |
- | `terminal.showImages` | boolean | `true` | Display inline images when supported. |
- | `terminal.imageWidthCells` | number | `60` | Preferred inline image width in terminal cells. |
 diff --git a/dist/core/settings-manager.d.ts b/dist/core/settings-manager.d.ts
-index 53d2865e..f85f9fd8 100644
+index 6f182c2..3e0d054 100644
 --- a/dist/core/settings-manager.d.ts
 +++ b/dist/core/settings-manager.d.ts
 @@ -29,6 +29,9 @@ export interface RetrySettings {
@@ -25,7 +12,7 @@ index 53d2865e..f85f9fd8 100644
  export interface TerminalSettings {
      showImages?: boolean;
      imageWidthCells?: number;
-@@ -116,6 +119,8 @@ export interface Settings {
+@@ -133,6 +136,8 @@ export interface Settings {
      editorPaddingX?: number;
      outputPad?: 0 | 1;
      autocompleteMaxVisible?: number;
@@ -34,7 +21,7 @@ index 53d2865e..f85f9fd8 100644
      showHardwareCursor?: boolean;
      markdown?: MarkdownSettings;
      warnings?: WarningSettings;
-@@ -338,6 +343,8 @@ export declare class SettingsManager {
+@@ -383,6 +388,8 @@ export declare class SettingsManager {
      setOutputPad(padding: 0 | 1): void;
      getAutocompleteMaxVisible(): number;
      setAutocompleteMaxVisible(maxVisible: number): void;
@@ -44,7 +31,7 @@ index 53d2865e..f85f9fd8 100644
      getMermaidRenderingMode(): MermaidRenderingMode;
      setMermaidRenderingMode(mode: MermaidRenderingMode): void;
 diff --git a/dist/core/settings-manager.js b/dist/core/settings-manager.js
-index ed9d8d26..aefd28c5 100644
+index 89bc08c..8f50169 100644
 --- a/dist/core/settings-manager.js
 +++ b/dist/core/settings-manager.js
 @@ -13,6 +13,8 @@ const DEFAULT_COMPACTION_TOKEN_SETTINGS = {
@@ -56,7 +43,7 @@ index ed9d8d26..aefd28c5 100644
  function isMergeableObject(value) {
      return typeof value === "object" && value !== null && !Array.isArray(value);
  }
-@@ -45,6 +47,11 @@ function parseTimeoutSetting(value, settingName) {
+@@ -107,6 +109,11 @@ function parseTimeoutSetting(value, settingName) {
      }
      return undefined;
  }
@@ -68,7 +55,7 @@ index ed9d8d26..aefd28c5 100644
  function toSettingsError(scope, error, path) {
      return {
          scope,
-@@ -1008,6 +1015,18 @@ export class SettingsManager {
+@@ -1103,6 +1110,18 @@ export class SettingsManager {
          this.markModified("autocompleteMaxVisible");
          this.save();
      }
@@ -88,19 +75,27 @@ index ed9d8d26..aefd28c5 100644
          return this.settings.markdown?.codeBlockIndent ?? "  ";
      }
 diff --git a/dist/modes/interactive/components/settings-selector.d.ts b/dist/modes/interactive/components/settings-selector.d.ts
-index f05084fc..21cd2a1e 100644
+index eda723e..74dbd77 100644
 --- a/dist/modes/interactive/components/settings-selector.d.ts
 +++ b/dist/modes/interactive/components/settings-selector.d.ts
-@@ -34,0 +35,1 @@
+@@ -32,6 +32,7 @@ export interface SettingsConfig {
+     doubleEscapeAction: "fork" | "tree" | "none";
+     treeFilterMode: "default" | "no-tools" | "user-only" | "labeled-only" | "all";
+     showHardwareCursor: boolean;
 +    selectorOverlayWidth?: number;
-@@ -72,4 +73,5 @@ export interface SettingsCallbacks {
+     editorPaddingX: number;
+     outputPad: 0 | 1;
+     autocompleteMaxVisible: number;
+@@ -73,6 +74,7 @@ export interface SettingsCallbacks {
+     onEditorPaddingXChange: (padding: number) => void;
+     onOutputPadChange: (padding: 0 | 1) => void;
      onAutocompleteMaxVisibleChange: (maxVisible: number) => void;
 +    onSelectorOverlayWidthChange?: (width: number) => void;
      onQuietStartupChange: (quiet: QuietStartup) => void;
      onDefaultProjectTrustChange: (defaultProjectTrust: DefaultProjectTrust) => void;
      onClearOnShrinkChange: (enabled: boolean) => void;
 diff --git a/dist/modes/interactive/components/settings-selector.js b/dist/modes/interactive/components/settings-selector.js
-index 1b32ff42..56e2d990 100644
+index e4ba72c..d7ca730 100644
 --- a/dist/modes/interactive/components/settings-selector.js
 +++ b/dist/modes/interactive/components/settings-selector.js
 @@ -1,7 +1,7 @@
@@ -112,7 +107,7 @@ index 1b32ff42..56e2d990 100644
  import { getSettingsListTheme, parseAutoThemeSetting, SYSTEM_THEME_NAME, theme, } from "../theme/theme.js";
  import { DynamicBorder } from "./dynamic-border.js";
  import { keyDisplayText } from "./keybinding-hints.js";
-@@ -585,9 +585,17 @@ export class SettingsSelectorComponent extends Container {
+@@ -604,9 +604,17 @@ export class SettingsSelectorComponent extends Container {
              currentValue: String(config.autocompleteMaxVisible),
              values: ["3", "5", "7", "10", "15", "20"],
          });
@@ -131,7 +126,7 @@ index 1b32ff42..56e2d990 100644
              id: "clear-on-shrink",
              label: "Clear on shrink",
              description: "Clear empty rows when content shrinks (may cause flicker)",
-@@ -687,6 +695,9 @@ export class SettingsSelectorComponent extends Container {
+@@ -706,6 +714,9 @@ export class SettingsSelectorComponent extends Container {
                  case "autocomplete-max-visible":
                      callbacks.onAutocompleteMaxVisibleChange(parseInt(newValue, 10));
                      break;
@@ -142,7 +137,7 @@ index 1b32ff42..56e2d990 100644
                      callbacks.onClearOnShrinkChange(newValue === "true");
                      break;
 diff --git a/dist/modes/interactive/components/tree-selector.d.ts b/dist/modes/interactive/components/tree-selector.d.ts
-index 407ad519..1f2d04f6 100644
+index 407ad51..1f2d04f 100644
 --- a/dist/modes/interactive/components/tree-selector.d.ts
 +++ b/dist/modes/interactive/components/tree-selector.d.ts
 @@ -23,6 +23,7 @@ declare class TreeList implements Component {
@@ -171,7 +166,7 @@ index 407ad519..1f2d04f6 100644
      private hideLabelInput;
      handleInput(keyData: string): void;
 diff --git a/dist/modes/interactive/components/tree-selector.js b/dist/modes/interactive/components/tree-selector.js
-index ee90a338..2516b64c 100644
+index ee90a33..2516b64 100644
 --- a/dist/modes/interactive/components/tree-selector.js
 +++ b/dist/modes/interactive/components/tree-selector.js
 @@ -69,6 +69,9 @@ class TreeList {
@@ -277,7 +272,7 @@ index ee90a338..2516b64c 100644
          this.labelInput = new LabelInput(entryId, currentLabel);
          this.labelInput.onSubmit = (id, label) => {
 diff --git a/dist/modes/interactive/components/user-message-selector.d.ts b/dist/modes/interactive/components/user-message-selector.d.ts
-index 8e92f6aa..76669d7b 100644
+index 8e92f6a..76669d7 100644
 --- a/dist/modes/interactive/components/user-message-selector.d.ts
 +++ b/dist/modes/interactive/components/user-message-selector.d.ts
 @@ -16,6 +16,7 @@ declare class UserMessageList implements Component {
@@ -300,7 +295,7 @@ index 8e92f6aa..76669d7b 100644
  }
  export {};
 diff --git a/dist/modes/interactive/components/user-message-selector.js b/dist/modes/interactive/components/user-message-selector.js
-index 7f268828..aacae231 100644
+index 7f26882..aacae23 100644
 --- a/dist/modes/interactive/components/user-message-selector.js
 +++ b/dist/modes/interactive/components/user-message-selector.js
 @@ -1,6 +1,8 @@
@@ -391,13 +386,19 @@ index 7f268828..aacae231 100644
          return this.messageList;
      }
 diff --git a/dist/modes/interactive/interactive-mode.js b/dist/modes/interactive/interactive-mode.js
-index 2c17c2f0..8b1e96a3 100644
+index 421255a..7688688 100644
 --- a/dist/modes/interactive/interactive-mode.js
 +++ b/dist/modes/interactive/interactive-mode.js
-@@ -11,1 +11,1 @@
+@@ -8,7 +8,7 @@ import * as os from "node:os";
+ import * as path from "node:path";
+ import { isRetryableAssistantError, } from "@earendil-works/pi-ai/compat";
+ import * as TuiLayouts from "@earendil-works/pi-tui";
 -import { CombinedAutocompleteProvider, Container, fuzzyFilter, getCapabilities, hyperlink, Markdown, matchesKey, Spacer, setCapabilityOverrides, setKeybindings, Text, TruncatedText, TuiAltScreen, TuiMainScreen, visibleWidth, } from "@earendil-works/pi-tui";
 +import { CombinedAutocompleteProvider, Container, fuzzyFilter, getCapabilities, hyperlink, isFocusable, Markdown, matchesKey, Spacer, setCapabilityOverrides, setKeybindings, Text, TruncatedText, TuiAltScreen, TuiMainScreen, visibleWidth, } from "@earendil-works/pi-tui";
-@@ -92,6 +92,66 @@ function isWorkingStatusEditor(editor) {
+ import chalk from "chalk";
+ import { spawn } from "child_process";
+ import { APP_NAME, APP_TITLE, CONFIG_DIR_NAME, detectInstallChange, getAgentDir, getAuthPath, getDebugLogPath, getDocsPath, VERSION, } from "../../config.js";
+@@ -99,6 +99,66 @@ function isWorkingStatusEditor(editor) {
  function isExpandable(obj) {
      return typeof obj === "object" && obj !== null && "setExpanded" in obj && typeof obj.setExpanded === "function";
  }
@@ -464,7 +465,7 @@ index 2c17c2f0..8b1e96a3 100644
  class ExpandableText extends ThemedText {
      state;
      constructor(getCollapsedText, getExpandedText, expanded = false, paddingX = 0, paddingY = 0) {
-@@ -3882,39 +3942,79 @@ export class InteractiveMode {
+@@ -4006,39 +4066,79 @@ export class InteractiveMode {
          dispose?.();
      }
      /**
@@ -556,7 +557,7 @@ index 2c17c2f0..8b1e96a3 100644
                  autoCompact: this.session.autoCompactionEnabled,
                  defaultModel,
                  currentModel: this.session.model,
-@@ -3947,6 +4047,7 @@ export class InteractiveMode {
+@@ -4071,6 +4171,7 @@ export class InteractiveMode {
                  editorPaddingX: this.settingsManager.getEditorPaddingX(),
                  outputPad: this.settingsManager.getOutputPad(),
                  autocompleteMaxVisible: this.settingsManager.getAutocompleteMaxVisible(),
@@ -564,7 +565,7 @@ index 2c17c2f0..8b1e96a3 100644
                  quietStartup: this.settingsManager.getQuietStartup(),
                  clearOnShrink: this.settingsManager.getClearOnShrink(),
                  showTerminalProgress: this.settingsManager.getShowTerminalProgress(),
-@@ -4100,6 +4201,9 @@ export class InteractiveMode {
+@@ -4218,6 +4319,9 @@ export class InteractiveMode {
                          this.editor.setAutocompleteMaxVisible(maxVisible);
                      }
                  },
@@ -574,7 +575,7 @@ index 2c17c2f0..8b1e96a3 100644
                  onClearOnShrinkChange: (enabled) => {
                      this.settingsManager.setClearOnShrink(enabled);
                      this.ui.setClearOnShrink(enabled);
-@@ -4111,8 +4215,8 @@ export class InteractiveMode {
+@@ -4229,8 +4333,8 @@ export class InteractiveMode {
                      this.settingsManager.setShowTerminalProgress(enabled);
                  },
                  onTuiModeChange: (mode) => {
@@ -584,7 +585,7 @@ index 2c17c2f0..8b1e96a3 100644
                          this.showStatus("Close active overlays before changing TUI mode");
                          return;
                      }
-@@ -4482,7 +4586,7 @@ export class InteractiveMode {
+@@ -4603,7 +4707,7 @@ export class InteractiveMode {
              }, () => {
                  done();
                  this.ui.requestRender();
@@ -593,7 +594,7 @@ index 2c17c2f0..8b1e96a3 100644
              return { component: selector, focus: selector.getMessageList() };
          });
      }
-@@ -4612,7 +4716,7 @@ export class InteractiveMode {
+@@ -4733,7 +4837,7 @@ export class InteractiveMode {
              }, (entryId, label) => {
                  this.sessionManager.appendLabelChange(entryId, label);
                  this.ui.requestRender();
@@ -602,33 +603,32 @@ index 2c17c2f0..8b1e96a3 100644
              selector.onCopy = async (text) => {
                  if (!text) {
                      this.showError("Selected entry has no text to copy");
-@@ -5078,17 +5188,9 @@ export class InteractiveMode {
--    showAmbientAuthDialog(providerOption, onBack) {
+@@ -5133,21 +5237,13 @@ export class InteractiveMode {
+             .finally(() => clearTimeout(timeout));
+     }
+     showAmbientAuthDialog(providerOption, onBack) {
 -        const restoreEditor = () => {
 -            this.editorContainer.clear();
 -            this.editorContainer.addChild(this.editor);
 -            this.ui.setFocus(this.editor);
 -            this.ui.requestRender();
 -        };
--        const dialog = new LoginDialogComponent(this.ui, providerOption.id, () => {
++        let closeDialog = () => { };
+         const dialog = new LoginDialogComponent(this.ui, providerOption.id, () => {
 -            restoreEditor();
--            onBack?.();
--        }, providerOption.name, `${providerOption.name} setup`);
--        dialog.showInfo(`${providerOption.method?.name ?? "Authentication"} is configured outside ${APP_NAME}.`, [], true);
++            closeDialog();
+             onBack?.();
+         }, providerOption.name, `${providerOption.name} setup`);
+         dialog.showInfo(`${providerOption.method?.name ?? "Authentication"} is configured outside ${APP_NAME}.`, [], true);
 -        this.editorContainer.clear();
 -        this.editorContainer.addChild(dialog);
 -        this.ui.setFocus(dialog);
 -        this.ui.requestRender();
-+    showAmbientAuthDialog(providerOption, onBack) {
-+        let closeDialog = () => { };
-+        const dialog = new LoginDialogComponent(this.ui, providerOption.id, () => {
-+            closeDialog();
-+            onBack?.();
-+        }, providerOption.name, `${providerOption.name} setup`);
-+        dialog.showInfo(`${providerOption.method?.name ?? "Authentication"} is configured outside ${APP_NAME}.`, [], true);
 +        closeDialog = this.showLoginDialogModal(dialog);
      }
-@@ -5095,16 +5197,7 @@ export class InteractiveMode {
+     async showApiKeyLoginDialog(providerId, providerName, onBack) {
+         const previousModel = this.session.model;
+@@ -5161,16 +5257,7 @@ export class InteractiveMode {
                  theme.fg("accent", `  ${path.join(getDocsPath(), "providers.md")}`),
              ]);
          }
@@ -644,9 +644,10 @@ index 2c17c2f0..8b1e96a3 100644
 -        };
 +        const restoreEditor = this.showLoginDialogModal(dialog);
          try {
-             await this.loginProvider(dialog, providerId, "api_key");
+             await this.loginProvider(dialog, providerId, providerName, "api_key");
              restoreEditor();
-@@ -5187,26 +5280,29 @@ export class InteractiveMode {
+@@ -5192,28 +5279,31 @@ export class InteractiveMode {
+     }
      showAuthSelect(dialog, prompt, providerId) {
          return new Promise((resolve, reject) => {
 -            const restoreDialog = () => {
@@ -654,7 +655,6 @@ index 2c17c2f0..8b1e96a3 100644
 -                this.editorContainer.addChild(dialog);
 -                this.ui.setFocus(dialog);
 -                this.ui.requestRender();
--            };
 +            let handle;
 +            const closeSelector = () => {
 +                prompt.signal?.removeEventListener("abort", onAbort);
@@ -664,7 +664,7 @@ index 2c17c2f0..8b1e96a3 100644
 +            const onAbort = () => {
 +                closeSelector();
 +                reject(new Error("Login cancelled"));
-+            };
+             };
              const labels = prompt.options.map((option) => option.label);
              const selector = new ExtensionSelectorComponent(prompt.message, labels, (optionLabel) => {
 -                restoreDialog();
@@ -688,7 +688,8 @@ index 2c17c2f0..8b1e96a3 100644
 +            handle = this.showComponentOverlay(selector, selector, "auth");
          });
      }
-@@ -5255,16 +5347,7 @@ export class InteractiveMode {
+     async showAuthPrompt(dialog, prompt, providerId) {
+@@ -5276,16 +5366,7 @@ export class InteractiveMode {
      async showLoginDialog(providerId, providerName, onBack) {
          const previousModel = this.session.model;
          const dialog = new LoginDialogComponent(this.ui, providerId, (_success, _message) => { }, providerName);
@@ -704,5 +705,18 @@ index 2c17c2f0..8b1e96a3 100644
 -        };
 +        const restoreEditor = this.showLoginDialogModal(dialog);
          try {
-             await this.loginProvider(dialog, providerId, "oauth");
+             await this.loginProvider(dialog, providerId, providerName, "oauth");
              restoreEditor();
+diff --git a/docs/settings.md b/docs/settings.md
+index e706317..3b8ed12 100644
+--- a/docs/settings.md
++++ b/docs/settings.md
+@@ -99,6 +99,8 @@ See [Compaction Reference](compaction.md) for trigger, summarization, and valida
+ | `editorPaddingX` | number | `0` | Horizontal editor padding from 0 to 3 cells. |
+ | `outputPad` | `0 \| 1` | `1` | Horizontal transcript padding for messages, tool output, `!` command output, and summary blocks. |
+ | `autocompleteMaxVisible` | number | `5` | Visible autocomplete entries, from 3 to 20. |
++| `selectorOverlayWidth` | number | `72` | Default selector modal width in terminal columns (minimum 40). Clamped to the terminal width. |
++| `selectorOverlayWidths` | object | `{}` | Per-selector width overrides for `settings`, `thinking`, `trust`, `model`, `scoped-models`, `fork`, `tree`, `session`, and `auth`. |
+ | `showHardwareCursor` | boolean | `false` | Show the terminal cursor while Pi positions it for input methods. |
+ | `terminal.showImages` | boolean | `true` | Display inline images when supported. |
+ | `terminal.imageWidthCells` | number | `60` | Preferred inline image width in terminal cells. |
