@@ -10,7 +10,7 @@ let
   sources = {
     aarch64-darwin = {
       name = "darwin-arm64";
-      hash = "sha256-SLKahF/K/2yJr6n3pjDAaFkDw3ig9ZweuXRjYqRUn30=";
+      hash = "sha256-Uzmu/ouRWXKIvQukMFFZ/SudPHyYbt6akeWNlHdmzfc=";
     };
     x86_64-darwin = {
       name = "darwin-amd64";
