@@ -138,6 +138,10 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     llm-agents.url = "github:numtide/llm-agents.nix";
+    pi = {
+      url = "github:earendil-works/pi/stable";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     herdr = {
       url = "github:herdrdev/herdr/master";
       inputs.nixpkgs.follows = "nixpkgs";

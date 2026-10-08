@@ -5,9 +5,7 @@ let
     {
       environment = {
         systemPackages = [ pkgs.nono ];
-        etc."nono/pi.json".source = pkgs.writeText "pi-nono-profile.json" (
-          builtins.toJSON piProfile
-        );
+        etc."nono/pi.json".source = pkgs.writeText "pi-nono-profile.json" (builtins.toJSON piProfile);
       };
     };
 in
@@ -75,7 +73,8 @@ in
               read = [
                 "$HOME/.agents/skills"
                 "$HOME/.nvm"
-                "$TMPDIR/jiti"
+                "/tmp"
+                "$TMPDIR"
               ];
               suppress_save_prompt = [ "/" ];
             };

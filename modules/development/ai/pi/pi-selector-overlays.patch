@@ -1,717 +1,682 @@
-diff --git a/dist/core/settings-manager.d.ts b/dist/core/settings-manager.d.ts
-index 6f182c2..3e0d054 100644
---- a/dist/core/settings-manager.d.ts
-+++ b/dist/core/settings-manager.d.ts
-@@ -29,6 +29,9 @@ export interface RetrySettings {
- }
+diff --git a/packages/coding-agent/src/core/settings-manager.ts b/packages/coding-agent/src/core/settings-manager.ts
+--- a/packages/coding-agent/src/core/settings-manager.ts
++++ b/packages/coding-agent/src/core/settings-manager.ts
+@@ -53,6 +53,18 @@
+ 
  export type TuiMode = RendererTuiMode;
  export type FullscreenExitOutput = "transcript" | "resume-hint";
-+export type SelectorOverlayName = "settings" | "thinking" | "trust" | "model" | "scoped-models" | "fork" | "tree" | "session" | "auth";
-+export declare const DEFAULT_SELECTOR_OVERLAY_WIDTH = 72;
-+export declare const MIN_SELECTOR_OVERLAY_WIDTH = 40;
- export interface TerminalSettings {
-     showImages?: boolean;
-     imageWidthCells?: number;
-@@ -133,6 +136,8 @@ export interface Settings {
-     editorPaddingX?: number;
-     outputPad?: 0 | 1;
-     autocompleteMaxVisible?: number;
-+    selectorOverlayWidth?: number;
-+    selectorOverlayWidths?: Partial<Record<SelectorOverlayName, number>>;
-     showHardwareCursor?: boolean;
-     markdown?: MarkdownSettings;
-     warnings?: WarningSettings;
-@@ -383,6 +388,8 @@ export declare class SettingsManager {
-     setOutputPad(padding: 0 | 1): void;
-     getAutocompleteMaxVisible(): number;
-     setAutocompleteMaxVisible(maxVisible: number): void;
-+    getSelectorOverlayWidth(selector?: SelectorOverlayName): number;
-+    setSelectorOverlayWidth(width: number): void;
-     getCodeBlockIndent(): string;
-     getMermaidRenderingMode(): MermaidRenderingMode;
-     setMermaidRenderingMode(mode: MermaidRenderingMode): void;
-diff --git a/dist/core/settings-manager.js b/dist/core/settings-manager.js
-index 89bc08c..8f50169 100644
---- a/dist/core/settings-manager.js
-+++ b/dist/core/settings-manager.js
-@@ -13,6 +13,8 @@ const DEFAULT_COMPACTION_TOKEN_SETTINGS = {
- };
- /** Cache-warming profile. "idle" also warms between agent runs. */
- export const CACHE_WARMING_MODES = ["off", "streaming", "idle"];
++export type SelectorOverlayName =
++	| "settings"
++	| "thinking"
++	| "trust"
++	| "model"
++	| "scoped-models"
++	| "fork"
++	| "tree"
++	| "session"
++	| "auth";
 +export const DEFAULT_SELECTOR_OVERLAY_WIDTH = 72;
 +export const MIN_SELECTOR_OVERLAY_WIDTH = 40;
- function isMergeableObject(value) {
-     return typeof value === "object" && value !== null && !Array.isArray(value);
- }
-@@ -107,6 +109,11 @@ function parseTimeoutSetting(value, settingName) {
-     }
-     return undefined;
- }
-+function normalizeSelectorOverlayWidth(width) {
-+    if (typeof width !== "number" || Number.isFinite(width) === false)
-+        return DEFAULT_SELECTOR_OVERLAY_WIDTH;
-+    return Math.max(MIN_SELECTOR_OVERLAY_WIDTH, Math.floor(width));
+ 
+ export interface TerminalSettings {
+ 	showImages?: boolean; // default: true (only relevant if terminal supports images)
+@@ -172,6 +184,8 @@
+ 	editorPaddingX?: number; // Horizontal padding for input editor (default: 0)
+ 	outputPad?: 0 | 1; // Horizontal padding for transcript content (default: 1)
+ 	autocompleteMaxVisible?: number; // Max visible items in autocomplete dropdown (default: 5)
++	selectorOverlayWidth?: number;
++	selectorOverlayWidths?: Partial<Record<SelectorOverlayName, number>>;
+ 	showHardwareCursor?: boolean; // Show terminal cursor while still positioning it for IME
+ 	markdown?: MarkdownSettings;
+ 	warnings?: WarningSettings;
+@@ -186,6 +200,11 @@
+ 	fullscreenScrollbar?: ScrollViewScrollbar; // default: "auto"; no effect in regular TUI mode
+ 	fullscreenCopyOnSelect?: boolean; // default: true; no effect in regular TUI mode
+ 	fullscreenWheelScrollLines?: WheelScrollLines; // default: "auto"; lines per wheel event, 1-100
 +}
- function toSettingsError(scope, error, path) {
-     return {
-         scope,
-@@ -1103,6 +1110,18 @@ export class SettingsManager {
-         this.markModified("autocompleteMaxVisible");
-         this.save();
-     }
-+    getSelectorOverlayWidth(selector) {
-+        const selectorWidth = selector ? this.settings.selectorOverlayWidths?.[selector] : undefined;
-+        if (typeof selectorWidth === "number" && Number.isFinite(selectorWidth)) {
-+            return normalizeSelectorOverlayWidth(selectorWidth);
-+        }
-+        return normalizeSelectorOverlayWidth(this.settings.selectorOverlayWidth);
-+    }
-+    setSelectorOverlayWidth(width) {
-+        this.globalSettings.selectorOverlayWidth = normalizeSelectorOverlayWidth(width);
-+        this.markModified("selectorOverlayWidth");
-+        this.save();
-+    }
-     getCodeBlockIndent() {
-         return this.settings.markdown?.codeBlockIndent ?? "  ";
-     }
-diff --git a/dist/modes/interactive/components/settings-selector.d.ts b/dist/modes/interactive/components/settings-selector.d.ts
-index eda723e..74dbd77 100644
---- a/dist/modes/interactive/components/settings-selector.d.ts
-+++ b/dist/modes/interactive/components/settings-selector.d.ts
-@@ -32,6 +32,7 @@ export interface SettingsConfig {
-     doubleEscapeAction: "fork" | "tree" | "none";
-     treeFilterMode: "default" | "no-tools" | "user-only" | "labeled-only" | "all";
-     showHardwareCursor: boolean;
-+    selectorOverlayWidth?: number;
-     editorPaddingX: number;
-     outputPad: 0 | 1;
-     autocompleteMaxVisible: number;
-@@ -73,6 +74,7 @@ export interface SettingsCallbacks {
-     onEditorPaddingXChange: (padding: number) => void;
-     onOutputPadChange: (padding: 0 | 1) => void;
-     onAutocompleteMaxVisibleChange: (maxVisible: number) => void;
-+    onSelectorOverlayWidthChange?: (width: number) => void;
-     onQuietStartupChange: (quiet: QuietStartup) => void;
-     onDefaultProjectTrustChange: (defaultProjectTrust: DefaultProjectTrust) => void;
-     onClearOnShrinkChange: (enabled: boolean) => void;
-diff --git a/dist/modes/interactive/components/settings-selector.js b/dist/modes/interactive/components/settings-selector.js
-index e4ba72c..d7ca730 100644
---- a/dist/modes/interactive/components/settings-selector.js
-+++ b/dist/modes/interactive/components/settings-selector.js
-@@ -1,7 +1,7 @@
- import { getSupportedThinkingLevels } from "@earendil-works/pi-ai";
- import { Container, getCapabilities, SettingsList, Spacer, Text, } from "@earendil-works/pi-tui";
- import { formatHttpIdleTimeoutMs, HTTP_IDLE_TIMEOUT_CHOICES } from "../../../core/http-dispatcher.js";
--import { CACHE_WARMING_MODES, } from "../../../core/settings-manager.js";
-+import { CACHE_WARMING_MODES, DEFAULT_SELECTOR_OVERLAY_WIDTH, } from "../../../core/settings-manager.js";
- import { getSettingsListTheme, parseAutoThemeSetting, SYSTEM_THEME_NAME, theme, } from "../theme/theme.js";
- import { DynamicBorder } from "./dynamic-border.js";
- import { keyDisplayText } from "./keybinding-hints.js";
-@@ -604,9 +604,17 @@ export class SettingsSelectorComponent extends Container {
-             currentValue: String(config.autocompleteMaxVisible),
-             values: ["3", "5", "7", "10", "15", "20"],
-         });
--        // Clear on shrink toggle (insert after autocomplete-max-visible)
-+        // Default selector modal width (insert after autocomplete-max-visible)
-         const autocompleteIndex = items.findIndex((item) => item.id === "autocomplete-max-visible");
-         items.splice(autocompleteIndex + 1, 0, {
-+            id: "selector-overlay-width",
-+            label: "Default selector modal width",
-+            description: "Fallback width in terminal columns; per-selector JSON overrides take precedence",
-+            currentValue: String(config.selectorOverlayWidth ?? DEFAULT_SELECTOR_OVERLAY_WIDTH),
-+            values: ["72", "80", "100", "120"],
-+        });
-+        // Clear on shrink toggle (insert after selector-overlay-width)
-+        items.splice(autocompleteIndex + 2, 0, {
-             id: "clear-on-shrink",
-             label: "Clear on shrink",
-             description: "Clear empty rows when content shrinks (may cause flicker)",
-@@ -706,6 +714,9 @@ export class SettingsSelectorComponent extends Container {
-                 case "autocomplete-max-visible":
-                     callbacks.onAutocompleteMaxVisibleChange(parseInt(newValue, 10));
-                     break;
-+                case "selector-overlay-width":
-+                    callbacks.onSelectorOverlayWidthChange?.(parseInt(newValue, 10));
-+                    break;
-                 case "clear-on-shrink":
-                     callbacks.onClearOnShrinkChange(newValue === "true");
-                     break;
-diff --git a/dist/modes/interactive/components/tree-selector.d.ts b/dist/modes/interactive/components/tree-selector.d.ts
-index 407ad51..1f2d04f 100644
---- a/dist/modes/interactive/components/tree-selector.d.ts
-+++ b/dist/modes/interactive/components/tree-selector.d.ts
-@@ -23,6 +23,7 @@ declare class TreeList implements Component {
-     onCopy?: (text: string | undefined) => void;
-     onLabelEdit?: (entryId: string, currentLabel: string | undefined) => void;
-     constructor(tree: SessionTreeNode[], currentLeafId: string | null, maxVisibleLines: number, initialSelectedId?: string, initialFilterMode?: FilterMode);
-+    setMaxVisibleLines(maxVisibleLines: number): void;
-     /**
-      * Find the index of the nearest visible entry, walking up the parent chain if needed.
-      * Returns the index in filteredNodes, or the last index as fallback.
-@@ -79,12 +80,15 @@ export declare class TreeSelectorComponent extends Container implements Focusabl
-     private labelInput;
-     private labelInputContainer;
-     private treeContainer;
-+    private treeHelp;
-     private onLabelChangeCallback?;
-+    private readonly getViewportHeight?;
-     onCopy?: (text: string | undefined) => void;
-     private _focused;
-     get focused(): boolean;
-     set focused(value: boolean);
--    constructor(tree: SessionTreeNode[], currentLeafId: string | null, terminalHeight: number, onSelect: (entryId: string) => void, onCancel: () => void, onLabelChange?: (entryId: string, label: string | undefined) => void, initialSelectedId?: string, initialFilterMode?: FilterMode);
-+    constructor(tree: SessionTreeNode[], currentLeafId: string | null, terminalHeight: number, onSelect: (entryId: string) => void, onCancel: () => void, onLabelChange?: (entryId: string, label: string | undefined) => void, initialSelectedId?: string, initialFilterMode?: FilterMode, getViewportHeight?: () => number);
-+    render(width: number): string[];
-     private showLabelInput;
-     private hideLabelInput;
-     handleInput(keyData: string): void;
-diff --git a/dist/modes/interactive/components/tree-selector.js b/dist/modes/interactive/components/tree-selector.js
-index ee90a33..2516b64 100644
---- a/dist/modes/interactive/components/tree-selector.js
-+++ b/dist/modes/interactive/components/tree-selector.js
-@@ -69,6 +69,9 @@ class TreeList {
-         this.selectedIndex = this.findNearestVisibleIndex(targetId);
-         this.lastSelectedId = this.filteredNodes[this.selectedIndex]?.node.entry.id ?? null;
-     }
-+    setMaxVisibleLines(maxVisibleLines) {
-+        this.maxVisibleLines = Math.max(1, maxVisibleLines);
-+    }
-     /**
-      * Find the index of the nearest visible entry, walking up the parent chain if needed.
-      * Returns the index in filteredNodes, or the last index as fallback.
-@@ -1041,8 +1044,14 @@ class SearchLine {
++
++function normalizeSelectorOverlayWidth(width: unknown): number {
++	if (typeof width !== "number" || !Number.isFinite(width)) return DEFAULT_SELECTOR_OVERLAY_WIDTH;
++	return Math.max(MIN_SELECTOR_OVERLAY_WIDTH, Math.floor(width));
  }
+ 
+ function isMergeableObject(value: unknown): value is Record<string, unknown> {
+@@ -1528,6 +1547,18 @@
+ 		this.save();
+ 	}
+ 
++	getSelectorOverlayWidth(selector?: SelectorOverlayName): number {
++		const width = selector ? this.settings.selectorOverlayWidths?.[selector] : undefined;
++		if (typeof width === "number" && Number.isFinite(width)) return normalizeSelectorOverlayWidth(width);
++		return normalizeSelectorOverlayWidth(this.settings.selectorOverlayWidth);
++	}
++
++	setSelectorOverlayWidth(width: number): void {
++		this.globalSettings.selectorOverlayWidth = normalizeSelectorOverlayWidth(width);
++		this.markModified("selectorOverlayWidth");
++		this.save();
++	}
++
+ 	getCodeBlockIndent(): string {
+ 		return this.settings.markdown?.codeBlockIndent ?? "  ";
+ 	}
+diff --git a/packages/coding-agent/src/modes/interactive/components/settings-selector.ts b/packages/coding-agent/src/modes/interactive/components/settings-selector.ts
+--- a/packages/coding-agent/src/modes/interactive/components/settings-selector.ts
++++ b/packages/coding-agent/src/modes/interactive/components/settings-selector.ts
+@@ -15,6 +15,7 @@
+ import { formatHttpIdleTimeoutMs, HTTP_IDLE_TIMEOUT_CHOICES } from "../../../core/http-dispatcher.ts";
+ import {
+ 	CACHE_WARMING_MODES,
++	DEFAULT_SELECTOR_OVERLAY_WIDTH,
+ 	type CacheWarmingMode,
+ 	type DefaultProjectTrust,
+ 	type FullscreenExitOutput,
+@@ -85,6 +86,7 @@
+ 	doubleEscapeAction: "fork" | "tree" | "none";
+ 	treeFilterMode: "default" | "no-tools" | "user-only" | "labeled-only" | "all";
+ 	showHardwareCursor: boolean;
++	selectorOverlayWidth?: number;
+ 	editorPaddingX: number;
+ 	outputPad: 0 | 1;
+ 	autocompleteMaxVisible: number;
+@@ -127,6 +129,7 @@
+ 	onEditorPaddingXChange: (padding: number) => void;
+ 	onOutputPadChange: (padding: 0 | 1) => void;
+ 	onAutocompleteMaxVisibleChange: (maxVisible: number) => void;
++	onSelectorOverlayWidthChange?: (width: number) => void;
+ 	onQuietStartupChange: (quiet: QuietStartup) => void;
+ 	onDefaultProjectTrustChange: (defaultProjectTrust: DefaultProjectTrust) => void;
+ 	onClearOnShrinkChange: (enabled: boolean) => void;
+@@ -842,9 +845,17 @@
+ 			values: ["3", "5", "7", "10", "15", "20"],
+ 		});
+ 
+-		// Clear on shrink toggle (insert after autocomplete-max-visible)
++		// Default selector modal width (insert after autocomplete-max-visible)
+ 		const autocompleteIndex = items.findIndex((item) => item.id === "autocomplete-max-visible");
+ 		items.splice(autocompleteIndex + 1, 0, {
++			id: "selector-overlay-width",
++			label: "Default selector modal width",
++			description: "Fallback width in terminal columns; per-selector JSON overrides take precedence",
++			currentValue: String(config.selectorOverlayWidth ?? DEFAULT_SELECTOR_OVERLAY_WIDTH),
++			values: ["72", "80", "100", "120"],
++		});
++		// Clear on shrink toggle (insert after selector-overlay-width)
++		items.splice(autocompleteIndex + 2, 0, {
+ 			id: "clear-on-shrink",
+ 			label: "Clear on shrink",
+ 			description: "Clear empty rows when content shrinks (may cause flicker)",
+@@ -953,6 +964,9 @@
+ 					case "autocomplete-max-visible":
+ 						callbacks.onAutocompleteMaxVisibleChange(parseInt(newValue, 10));
+ 						break;
++					case "selector-overlay-width":
++						callbacks.onSelectorOverlayWidthChange?.(parseInt(newValue, 10));
++						break;
+ 					case "clear-on-shrink":
+ 						callbacks.onClearOnShrinkChange(newValue === "true");
+ 						break;
+diff --git a/packages/coding-agent/src/modes/interactive/components/tree-selector.ts b/packages/coding-agent/src/modes/interactive/components/tree-selector.ts
+--- a/packages/coding-agent/src/modes/interactive/components/tree-selector.ts
++++ b/packages/coding-agent/src/modes/interactive/components/tree-selector.ts
+@@ -144,6 +144,10 @@
+ 		const targetId = initialSelectedId ?? currentLeafId;
+ 		this.selectedIndex = this.findNearestVisibleIndex(targetId);
+ 		this.lastSelectedId = this.filteredNodes[this.selectedIndex]?.node.entry.id ?? null;
++	}
++
++	setMaxVisibleLines(maxVisibleLines: number): void {
++		this.maxVisibleLines = Math.max(1, maxVisibleLines);
+ 	}
+ 
+ 	/**
+@@ -1184,9 +1188,14 @@
+ 
  /** Component that renders tree help as semantic rows with chunk-aware wrapping */
- class TreeHelp {
-+    visible = true;
-+    setVisible(visible) {
-+        this.visible = visible;
-+    }
-     invalidate() { }
-     render(width) {
-+        if (!this.visible)
-+            return [];
-         const items = TREE_HELP_ITEMS.map(({ keys, label, labelFirst }) => {
-             const text = formatHelpKeys(keys);
-             if (!text)
-@@ -1178,7 +1187,9 @@ export class TreeSelectorComponent extends Container {
-     labelInput = null;
-     labelInputContainer;
-     treeContainer;
-+    treeHelp;
-     onLabelChangeCallback;
-+    getViewportHeight;
-     onCopy;
-     // Focusable implementation - propagate to labelInput when active for IME cursor positioning
-     _focused = false;
-@@ -1192,9 +1203,10 @@ export class TreeSelectorComponent extends Container {
-             this.labelInput.focused = value;
-         }
-     }
--    constructor(tree, currentLeafId, terminalHeight, onSelect, onCancel, onLabelChange, initialSelectedId, initialFilterMode) {
-+    constructor(tree, currentLeafId, terminalHeight, onSelect, onCancel, onLabelChange, initialSelectedId, initialFilterMode, getViewportHeight) {
-         super();
-         this.onLabelChangeCallback = onLabelChange;
-+        this.getViewportHeight = getViewportHeight;
-         const maxVisibleLines = Math.max(5, Math.floor(terminalHeight / 2));
-         this.treeList = new TreeList(tree, currentLeafId, maxVisibleLines, initialSelectedId, initialFilterMode);
-         this.treeList.onSelect = onSelect;
-@@ -1207,7 +1219,8 @@ export class TreeSelectorComponent extends Container {
-         this.addChild(new Spacer(1));
-         this.addChild(new DynamicBorder());
-         this.addChild(new Text(theme.bold("  Session Tree"), 1, 0));
--        this.addChild(new TreeHelp());
-+        this.treeHelp = new TreeHelp();
-+        this.addChild(this.treeHelp);
-         this.addChild(new SearchLine(this.treeList));
-         this.addChild(new DynamicBorder());
-         this.addChild(new Spacer(1));
-@@ -1219,6 +1232,44 @@ export class TreeSelectorComponent extends Container {
-             setTimeout(() => onCancel(), 100);
-         }
-     }
-+    render(width) {
-+        if (!this.getViewportHeight)
-+            return super.render(width);
-+        const viewportHeight = this.getViewportHeight();
-+        this.treeHelp.setVisible(true);
-+        let initialLines = super.render(width);
-+        if (this.labelInput) {
-+            if (initialLines.length > viewportHeight) {
-+                this.treeHelp.setVisible(false);
-+                initialLines = super.render(width);
-+            }
-+            if (initialLines.length <= viewportHeight)
-+                return initialLines;
-+            return this.labelInput.render(width).slice(0, viewportHeight);
-+        }
-+        let chromeRows = initialLines.length - this.treeList.render(width).length;
-+        if (chromeRows >= viewportHeight) {
-+            this.treeHelp.setVisible(false);
-+            initialLines = super.render(width);
-+            chromeRows = initialLines.length - this.treeList.render(width).length;
-+        }
-+        if (chromeRows >= viewportHeight) {
-+            // On extremely short terminals, prioritize the focused list over optional modal chrome.
-+            this.treeList.setMaxVisibleLines(1);
-+            return this.treeList.render(width).slice(0, viewportHeight);
-+        }
-+        let maxVisibleLines = viewportHeight - chromeRows;
-+        let rendered = initialLines;
-+        for (let attempt = 0; attempt < 2; attempt++) {
-+            this.treeList.setMaxVisibleLines(maxVisibleLines);
-+            rendered = super.render(width);
-+            const overflow = rendered.length - viewportHeight;
-+            if (overflow <= 0)
-+                return rendered;
-+            maxVisibleLines -= overflow;
-+        }
-+        return rendered;
-+    }
-     showLabelInput(entryId, currentLabel) {
-         this.labelInput = new LabelInput(entryId, currentLabel);
-         this.labelInput.onSubmit = (id, label) => {
-diff --git a/dist/modes/interactive/components/user-message-selector.d.ts b/dist/modes/interactive/components/user-message-selector.d.ts
-index 8e92f6a..76669d7 100644
---- a/dist/modes/interactive/components/user-message-selector.d.ts
-+++ b/dist/modes/interactive/components/user-message-selector.d.ts
-@@ -16,6 +16,7 @@ declare class UserMessageList implements Component {
-     constructor(messages: UserMessageItem[], initialSelectedId?: string);
-     invalidate(): void;
-     render(width: number): string[];
-+    setMaxVisible(maxVisible: number): void;
-     handleInput(keyData: string): void;
+ class TreeHelp implements Component {
++	private visible = true;
+ 	invalidate(): void {}
++	setVisible(visible: boolean): void {
++		this.visible = visible;
++	}
+ 
+ 	render(width: number): string[] {
++		if (!this.visible) return [];
+ 		const items = TREE_HELP_ITEMS.map(({ keys, label, labelFirst }) => {
+ 			const text = formatHelpKeys(keys);
+ 			if (!text) return label;
+@@ -1338,6 +1347,8 @@
+ 	private labelInput: LabelInput | null = null;
+ 	private labelInputContainer: Container;
+ 	private treeContainer: Container;
++	private treeHelp: TreeHelp;
++	private readonly getViewportHeight?: () => number;
+ 	private onLabelChangeCallback?: (entryId: string, label: string | undefined) => void;
+ 	public onCopy?: (text: string | undefined) => void;
+ 
+@@ -1363,10 +1374,12 @@
+ 		onLabelChange?: (entryId: string, label: string | undefined) => void,
+ 		initialSelectedId?: string,
+ 		initialFilterMode?: FilterMode,
++		getViewportHeight?: () => number,
+ 	) {
+ 		super();
+ 
+ 		this.onLabelChangeCallback = onLabelChange;
++		this.getViewportHeight = getViewportHeight;
+ 		const maxVisibleLines = Math.max(5, Math.floor(terminalHeight / 2));
+ 
+ 		this.treeList = new TreeList(tree, currentLeafId, maxVisibleLines, initialSelectedId, initialFilterMode);
+@@ -1383,7 +1396,8 @@
+ 		this.addChild(new Spacer(1));
+ 		this.addChild(new DynamicBorder());
+ 		this.addChild(new Text(theme.bold("  Session Tree"), 1, 0));
+-		this.addChild(new TreeHelp());
++		this.treeHelp = new TreeHelp();
++		this.addChild(this.treeHelp);
+ 		this.addChild(new SearchLine(this.treeList));
+ 		this.addChild(new DynamicBorder());
+ 		this.addChild(new Spacer(1));
+@@ -1395,6 +1409,41 @@
+ 		if (tree.length === 0) {
+ 			setTimeout(() => onCancel(), 100);
+ 		}
++	}
++
++	render(width: number): string[] {
++		if (!this.getViewportHeight) return super.render(width);
++		const viewportHeight = this.getViewportHeight();
++		this.treeHelp.setVisible(true);
++		let initialLines = super.render(width);
++		if (this.labelInput && initialLines.length > viewportHeight) {
++			this.treeHelp.setVisible(false);
++			initialLines = super.render(width);
++		}
++		if (this.labelInput)
++			return initialLines.length <= viewportHeight
++				? initialLines
++				: this.labelInput.render(width).slice(0, viewportHeight);
++		let chromeRows = initialLines.length - this.treeList.render(width).length;
++		if (chromeRows >= viewportHeight) {
++			this.treeHelp.setVisible(false);
++			initialLines = super.render(width);
++			chromeRows = initialLines.length - this.treeList.render(width).length;
++		}
++		if (chromeRows >= viewportHeight) {
++			this.treeList.setMaxVisibleLines(1);
++			return this.treeList.render(width).slice(0, viewportHeight);
++		}
++		let maxVisibleLines = viewportHeight - chromeRows;
++		let rendered = initialLines;
++		for (let attempt = 0; attempt < 2; attempt++) {
++			this.treeList.setMaxVisibleLines(maxVisibleLines);
++			rendered = super.render(width);
++			const overflow = rendered.length - viewportHeight;
++			if (overflow <= 0) return rendered;
++			maxVisibleLines -= overflow;
++		}
++		return rendered;
+ 	}
+ 
+ 	private showLabelInput(entryId: string, currentLabel: string | undefined): void {
+diff --git a/packages/coding-agent/src/modes/interactive/components/user-message-selector.ts b/packages/coding-agent/src/modes/interactive/components/user-message-selector.ts
+--- a/packages/coding-agent/src/modes/interactive/components/user-message-selector.ts
++++ b/packages/coding-agent/src/modes/interactive/components/user-message-selector.ts
+@@ -8,6 +8,9 @@
+ 	timestamp?: string; // Optional timestamp if available
  }
- /**
-@@ -23,7 +24,9 @@ declare class UserMessageList implements Component {
-  */
- export declare class UserMessageSelectorComponent extends Container {
-     private messageList;
--    constructor(messages: UserMessageItem[], onSelect: (entryId: string) => void, onCancel: () => void, initialSelectedId?: string);
-+    private readonly getViewportHeight?;
-+    constructor(messages: UserMessageItem[], onSelect: (entryId: string) => void, onCancel: () => void, initialSelectedId?: string, getViewportHeight?: () => number);
-+    render(width: number): string[];
-     getMessageList(): UserMessageList;
- }
- export {};
-diff --git a/dist/modes/interactive/components/user-message-selector.js b/dist/modes/interactive/components/user-message-selector.js
-index 7f26882..aacae23 100644
---- a/dist/modes/interactive/components/user-message-selector.js
-+++ b/dist/modes/interactive/components/user-message-selector.js
-@@ -1,6 +1,8 @@
- import { Container, getKeybindings, Spacer, Text, truncateToWidth } from "@earendil-works/pi-tui";
- import { theme } from "../theme/theme.js";
- import { DynamicBorder } from "./dynamic-border.js";
+ 
 +const DEFAULT_MAX_VISIBLE_MESSAGES = 10;
 +const MESSAGE_ROWS = 3;
++
  /**
   * Custom user message list component with selection
   */
-@@ -9,7 +11,7 @@ class UserMessageList {
-     selectedIndex = 0;
-     onSelect;
-     onCancel;
--    maxVisible = 10; // Max messages visible
-+    maxVisible = DEFAULT_MAX_VISIBLE_MESSAGES;
-     constructor(messages, initialSelectedId) {
-         // Store messages in chronological order (oldest to newest)
-         this.messages = messages;
-@@ -22,13 +24,14 @@ class UserMessageList {
-     }
-     render(width) {
-         const lines = [];
-+        const maxVisible = this.maxVisible;
-         if (this.messages.length === 0) {
-             lines.push(theme.fg("muted", "  No user messages found"));
-             return lines;
-         }
-         // Calculate visible range with scrolling
--        const startIndex = Math.max(0, Math.min(this.selectedIndex - Math.floor(this.maxVisible / 2), this.messages.length - this.maxVisible));
--        const endIndex = Math.min(startIndex + this.maxVisible, this.messages.length);
-+        const startIndex = Math.max(0, Math.min(this.selectedIndex - Math.floor(maxVisible / 2), this.messages.length - maxVisible));
-+        const endIndex = Math.min(startIndex + maxVisible, this.messages.length);
-         // Render visible messages (2 lines per message + blank line)
-         for (let i = startIndex; i < endIndex; i++) {
-             const message = this.messages[i];
-@@ -55,6 +58,9 @@ class UserMessageList {
-         }
-         return lines;
-     }
-+    setMaxVisible(maxVisible) {
-+        this.maxVisible = Math.max(1, Math.min(DEFAULT_MAX_VISIBLE_MESSAGES, maxVisible));
-+    }
-     handleInput(keyData) {
-         const kb = getKeybindings();
-         // Up arrow - go to previous (older) message, wrap to bottom when at top
-@@ -85,8 +91,10 @@ class UserMessageList {
+@@ -16,7 +19,7 @@
+ 	private selectedIndex: number = 0;
+ 	public onSelect?: (entryId: string) => void;
+ 	public onCancel?: () => void;
+-	private maxVisible: number = 10; // Max messages visible
++	private maxVisible = DEFAULT_MAX_VISIBLE_MESSAGES;
+ 
+ 	constructor(messages: UserMessageItem[], initialSelectedId?: string) {
+ 		// Store messages in chronological order (oldest to newest)
+@@ -39,11 +42,12 @@
+ 		}
+ 
+ 		// Calculate visible range with scrolling
++		const maxVisible = this.maxVisible;
+ 		const startIndex = Math.max(
+ 			0,
+-			Math.min(this.selectedIndex - Math.floor(this.maxVisible / 2), this.messages.length - this.maxVisible),
++			Math.min(this.selectedIndex - Math.floor(maxVisible / 2), this.messages.length - maxVisible),
+ 		);
+-		const endIndex = Math.min(startIndex + this.maxVisible, this.messages.length);
++		const endIndex = Math.min(startIndex + maxVisible, this.messages.length);
+ 
+ 		// Render visible messages (2 lines per message + blank line)
+ 		for (let i = startIndex; i < endIndex; i++) {
+@@ -78,6 +82,10 @@
+ 		return lines;
+ 	}
+ 
++	setMaxVisible(maxVisible: number): void {
++		this.maxVisible = Math.max(1, Math.min(DEFAULT_MAX_VISIBLE_MESSAGES, maxVisible));
++	}
++
+ 	handleInput(keyData: string): void {
+ 		const kb = getKeybindings();
+ 		// Up arrow - go to previous (older) message, wrap to bottom when at top
+@@ -109,14 +117,17 @@
   */
  export class UserMessageSelectorComponent extends Container {
-     messageList;
--    constructor(messages, onSelect, onCancel, initialSelectedId) {
-+    getViewportHeight;
-+    constructor(messages, onSelect, onCancel, initialSelectedId, getViewportHeight) {
-         super();
-+        this.getViewportHeight = getViewportHeight;
-         // Add header
-         this.addChild(new Spacer(1));
-         this.addChild(new Text(theme.bold("Fork from Message"), 1, 0));
-@@ -107,6 +115,29 @@ export class UserMessageSelectorComponent extends Container {
-             setTimeout(() => onCancel(), 100);
-         }
-     }
-+    render(width) {
-+        if (!this.getViewportHeight)
-+            return super.render(width);
-+        const viewportHeight = this.getViewportHeight();
-+        this.messageList.setMaxVisible(DEFAULT_MAX_VISIBLE_MESSAGES);
-+        let rendered = super.render(width);
-+        if (rendered.length <= viewportHeight)
-+            return rendered;
-+        const listRows = this.messageList.render(width).length;
-+        const chromeRows = rendered.length - listRows;
-+        const availableListRows = viewportHeight - chromeRows;
-+        let maxVisible = Math.floor(availableListRows / MESSAGE_ROWS);
-+        for (let attempt = 0; attempt < 2 && maxVisible > 0; attempt++) {
-+            this.messageList.setMaxVisible(maxVisible);
-+            rendered = super.render(width);
-+            if (rendered.length <= viewportHeight)
-+                return rendered;
-+            maxVisible--;
-+        }
-+        // On extremely short terminals, prioritize the focused list over optional modal chrome.
-+        this.messageList.setMaxVisible(1);
-+        return this.messageList.render(width).slice(0, viewportHeight);
-+    }
-     getMessageList() {
-         return this.messageList;
-     }
-diff --git a/dist/modes/interactive/interactive-mode.js b/dist/modes/interactive/interactive-mode.js
-index 421255a..7688688 100644
---- a/dist/modes/interactive/interactive-mode.js
-+++ b/dist/modes/interactive/interactive-mode.js
-@@ -8,7 +8,7 @@ import * as os from "node:os";
- import * as path from "node:path";
- import { isRetryableAssistantError, } from "@earendil-works/pi-ai/compat";
- import * as TuiLayouts from "@earendil-works/pi-tui";
--import { CombinedAutocompleteProvider, Container, fuzzyFilter, getCapabilities, hyperlink, Markdown, matchesKey, Spacer, setCapabilityOverrides, setKeybindings, Text, TruncatedText, TuiAltScreen, TuiMainScreen, visibleWidth, } from "@earendil-works/pi-tui";
-+import { CombinedAutocompleteProvider, Container, fuzzyFilter, getCapabilities, hyperlink, isFocusable, Markdown, matchesKey, Spacer, setCapabilityOverrides, setKeybindings, Text, TruncatedText, TuiAltScreen, TuiMainScreen, visibleWidth, } from "@earendil-works/pi-tui";
- import chalk from "chalk";
- import { spawn } from "child_process";
- import { APP_NAME, APP_TITLE, CONFIG_DIR_NAME, detectInstallChange, getAgentDir, getAuthPath, getDebugLogPath, getDocsPath, VERSION, } from "../../config.js";
-@@ -99,6 +99,66 @@ function isWorkingStatusEditor(editor) {
- function isExpandable(obj) {
-     return typeof obj === "object" && obj !== null && "setExpanded" in obj && typeof obj.setExpanded === "function";
+ 	private messageList: UserMessageList;
++	private readonly getViewportHeight?: () => number;
+ 
+ 	constructor(
+ 		messages: UserMessageItem[],
+ 		onSelect: (entryId: string) => void,
+ 		onCancel: () => void,
+ 		initialSelectedId?: string,
++		getViewportHeight?: () => number,
+ 	) {
+ 		super();
++		this.getViewportHeight = getViewportHeight;
+ 
+ 		// Add header
+ 		this.addChild(new Spacer(1));
+@@ -149,6 +160,24 @@
+ 		}
+ 	}
+ 
++	render(width: number): string[] {
++		if (!this.getViewportHeight) return super.render(width);
++		const viewportHeight = this.getViewportHeight();
++		this.messageList.setMaxVisible(DEFAULT_MAX_VISIBLE_MESSAGES);
++		let rendered = super.render(width);
++		if (rendered.length <= viewportHeight) return rendered;
++		const chromeRows = rendered.length - this.messageList.render(width).length;
++		let maxVisible = Math.floor((viewportHeight - chromeRows) / MESSAGE_ROWS);
++		for (let attempt = 0; attempt < 2 && maxVisible > 0; attempt++) {
++			this.messageList.setMaxVisible(maxVisible);
++			rendered = super.render(width);
++			if (rendered.length <= viewportHeight) return rendered;
++			maxVisible--;
++		}
++		this.messageList.setMaxVisible(1);
++		return this.messageList.render(width).slice(0, viewportHeight);
++	}
++
+ 	getMessageList(): UserMessageList {
+ 		return this.messageList;
+ 	}
+diff --git a/packages/coding-agent/src/modes/interactive/components/login-dialog.ts b/packages/coding-agent/src/modes/interactive/components/login-dialog.ts
+--- a/packages/coding-agent/src/modes/interactive/components/login-dialog.ts
++++ b/packages/coding-agent/src/modes/interactive/components/login-dialog.ts
+@@ -83,7 +83,7 @@
+ 		);
+ 	}
+ 
+-	private cancel(): void {
++	cancel(): void {
+ 		this.abortController.abort();
+ 		if (this.inputRejecter) {
+ 			this.inputRejecter(new Error("Login cancelled"));
+diff --git a/packages/coding-agent/src/modes/interactive/interactive-mode.ts b/packages/coding-agent/src/modes/interactive/interactive-mode.ts
+--- a/packages/coding-agent/src/modes/interactive/interactive-mode.ts
++++ b/packages/coding-agent/src/modes/interactive/interactive-mode.ts
+@@ -33,9 +33,11 @@
+ import {
+ 	CombinedAutocompleteProvider,
+ 	type Component,
++	type Focusable,
+ 	Container,
+ 	fuzzyFilter,
+ 	getCapabilities,
++	isFocusable,
+ 	hyperlink,
+ 	Markdown,
+ 	matchesKey,
+@@ -113,7 +115,7 @@
+ 	sessionEntryToContextMessages,
+ 	type UsageEntry,
+ } from "../../core/session-manager.ts";
+-import type { FullscreenExitOutput, TuiMode } from "../../core/settings-manager.ts";
++import type { FullscreenExitOutput, SelectorOverlayName, TuiMode } from "../../core/settings-manager.ts";
+ import { BUILTIN_SLASH_COMMANDS } from "../../core/slash-commands.ts";
+ import type { SourceInfo } from "../../core/source-info.ts";
+ import { isInstallTelemetryEnabled } from "../../core/telemetry.ts";
+@@ -232,6 +234,64 @@
+ 	return typeof obj === "object" && obj !== null && "setExpanded" in obj && typeof obj.setExpanded === "function";
  }
-+const SELECTOR_OVERLAY_OPTIONS = { anchor: "center", maxHeight: "100%", margin: 1 };
-+const LOGIN_PROMPT_CANCEL = Symbol("loginPromptCancel");
-+class SelectorOverlayComponent {
-+    wantsKeyRelease;
-+    component;
-+    focus;
-+    _focused = false;
-+    constructor(component, focus) {
-+        this.component = component;
-+        this.focus = focus;
-+        this.wantsKeyRelease = focus.wantsKeyRelease ?? false;
-+    }
-+    get focused() {
-+        return this._focused;
-+    }
-+    set focused(value) {
-+        this._focused = value;
-+        if (isFocusable(this.focus))
-+            this.focus.focused = value;
-+    }
-+    render(width) {
-+        const paddingX = width > 2 ? 1 : 0;
-+        const contentWidth = Math.max(1, width - paddingX * 2);
-+        const background = theme.getBgAnsi("customMessageBg");
-+        return this.component.render(contentWidth).map((line) => {
-+            const panelLine = line
-+                .replaceAll("\x1b[0m", `\x1b[0m${background}`)
-+                .replaceAll("\x1b[49m", `\x1b[49m${background}`);
-+            const fillWidth = Math.max(0, contentWidth - visibleWidth(line));
-+            return `${background}${" ".repeat(paddingX)}${panelLine}${" ".repeat(fillWidth + paddingX)}\x1b[49m`;
-+        });
-+    }
-+    handleInput(data) {
-+        this.focus.handleInput?.(data);
-+    }
-+    invalidate() {
-+        this.component.invalidate();
-+    }
+ 
++const SELECTOR_OVERLAY_OPTIONS = { anchor: "center", maxHeight: "100%", margin: 1 } as const;
++const loginPromptCancelCallbacks = new WeakMap<LoginDialogComponent, () => void>();
++
++class SelectorOverlayComponent implements Component, Focusable {
++	wantsKeyRelease = false;
++	private focusedComponent: Component;
++	private focus: Component;
++	private _focused = false;
++	constructor(component: Component, focus: Component) {
++		this.focusedComponent = component;
++		this.focus = focus;
++		this.wantsKeyRelease = "wantsKeyRelease" in focus && focus.wantsKeyRelease === true;
++	}
++	get focused(): boolean {
++		return this._focused;
++	}
++	set focused(value: boolean) {
++		this._focused = value;
++		if (isFocusable(this.focus)) this.focus.focused = value;
++	}
++	render(width: number): string[] {
++		const paddingX = width > 2 ? 1 : 0;
++		const contentWidth = Math.max(1, width - paddingX * 2);
++		const background = theme.getBgAnsi("customMessageBg");
++		return this.focusedComponent.render(contentWidth).map((line) => {
++			const panelLine = line
++				.replaceAll("\x1b[0m", `\x1b[0m${background}`)
++				.replaceAll("\x1b[49m", `\x1b[49m${background}`);
++			const fillWidth = Math.max(0, contentWidth - visibleWidth(line));
++			return `${background}${" ".repeat(paddingX)}${panelLine}${" ".repeat(fillWidth + paddingX)}\x1b[49m`;
++		});
++	}
++	handleInput(data: string): void {
++		this.focus.handleInput?.(data);
++	}
++	invalidate(): void {
++		this.focusedComponent.invalidate();
++	}
 +}
-+const SELECTOR_OVERLAY_NAMES = new Map([
-+    [SettingsSelectorComponent, "settings"],
-+    [ThinkingSelectorComponent, "thinking"],
-+    [TrustSelectorComponent, "trust"],
-+    [ModelSelectorComponent, "model"],
-+    [ScopedModelsSelectorComponent, "scoped-models"],
-+    [UserMessageSelectorComponent, "fork"],
-+    [TreeSelectorComponent, "tree"],
-+    [SessionSelectorComponent, "session"],
-+    // Built-in showSelector uses this generic component for auth method selection.
-+    [ExtensionSelectorComponent, "auth"],
-+    [LoginDialogComponent, "auth"],
-+    [OAuthSelectorComponent, "auth"],
-+]);
-+function getSelectorOverlayName(component) {
-+    for (const [ComponentType, name] of SELECTOR_OVERLAY_NAMES) {
-+        if (component instanceof ComponentType)
-+            return name;
-+    }
-+    return undefined;
++
++function getSelectorOverlayName(component: Component): SelectorOverlayName | undefined {
++	if (component instanceof SettingsSelectorComponent) return "settings";
++	if (component instanceof ThinkingSelectorComponent) return "thinking";
++	if (component instanceof TrustSelectorComponent) return "trust";
++	if (component instanceof ModelSelectorComponent) return "model";
++	if (component instanceof ScopedModelsSelectorComponent) return "scoped-models";
++	if (component instanceof UserMessageSelectorComponent) return "fork";
++	if (component instanceof TreeSelectorComponent) return "tree";
++	if (component instanceof SessionSelectorComponent) return "session";
++	if (
++		component instanceof ExtensionSelectorComponent ||
++		component instanceof LoginDialogComponent ||
++		component instanceof OAuthSelectorComponent
++	)
++		return "auth";
++	return undefined;
 +}
- class ExpandableText extends ThemedText {
-     state;
-     constructor(getCollapsedText, getExpandedText, expanded = false, paddingX = 0, paddingY = 0) {
-@@ -4006,39 +4066,79 @@ export class InteractiveMode {
-         dispose?.();
-     }
-     /**
--     * Shows a selector component in place of the editor.
-+     * Shows a selector component as a modal overlay.
-      * @param create Factory that receives a `done` callback and returns the component and focus target
-      */
-     showSelector(create) {
-         const token = {};
-         let dispose;
-+        let closeOverlay = () => { };
-+        let disposed = false;
-+        const teardown = () => {
-+            if (disposed)
-+                return;
-+            disposed = true;
-+            dispose?.();
-+            closeOverlay();
-+        };
-         const done = () => {
--            dispose?.();
-+            teardown();
-             if (this.activeSelectorToken !== token)
-                 return;
-             this.activeSelectorToken = undefined;
-             this.activeSelectorDispose = undefined;
--            this.editorContainer.clear();
--            this.editorContainer.addChild(this.editor);
--            this.ui.setFocus(this.editor);
-         };
-         const created = create(done);
-         dispose = created.dispose;
-+        if (disposed) {
-+            dispose?.();
-+            return;
-+        }
-         this.disposeActiveSelector();
-         this.activeSelectorToken = token;
--        this.activeSelectorDispose = dispose;
--        this.editorContainer.clear();
--        this.editorContainer.addChild(created.component);
--        this.ui.setFocus(created.focus);
--        this.ui.requestRender();
-+        this.activeSelectorDispose = teardown;
-+        const handle = this.showComponentOverlay(created.component, created.focus);
-+        closeOverlay = () => handle.hide();
-+    }
-+    showComponentOverlay(component, focus, selectorName = getSelectorOverlayName(component)) {
-+        const overlay = new SelectorOverlayComponent(component, focus);
-+        return this.ui.showOverlay(overlay, {
-+            ...SELECTOR_OVERLAY_OPTIONS,
-+            width: this.settingsManager.getSelectorOverlayWidth(selectorName),
-+        });
-+    }
-+    showModalComponent(component, focus = component, onDismiss) {
-+        let close = () => { };
-+        let closing = false;
-+        this.showSelector((done) => {
-+            close = () => {
-+                closing = true;
-+                done();
-+            };
-+            return {
-+                component,
-+                focus,
-+                dispose: () => {
-+                    component.dispose?.();
-+                    if (!closing)
-+                        onDismiss?.();
-+                },
-+            };
-+        });
-+        return () => close();
-+    }
-+    showLoginDialogModal(dialog) {
-+        return this.showModalComponent(dialog, dialog, () => {
-+            dialog[LOGIN_PROMPT_CANCEL]?.();
-+            dialog.cancel();
-+        });
-     }
-     showSettingsSelector() {
-         this.showSelector((done) => {
--            let selector;
-             const defaultProvider = this.settingsManager.getDefaultProvider();
-             const defaultModelId = this.settingsManager.getDefaultModel();
-             const defaultModel = defaultProvider && defaultModelId ? `${defaultProvider}/${defaultModelId}` : "not set";
--            selector = new SettingsSelectorComponent({
-+            const selector = new SettingsSelectorComponent({
-                 autoCompact: this.session.autoCompactionEnabled,
-                 defaultModel,
-                 currentModel: this.session.model,
-@@ -4071,6 +4171,7 @@ export class InteractiveMode {
-                 editorPaddingX: this.settingsManager.getEditorPaddingX(),
-                 outputPad: this.settingsManager.getOutputPad(),
-                 autocompleteMaxVisible: this.settingsManager.getAutocompleteMaxVisible(),
-+                selectorOverlayWidth: this.settingsManager.getSelectorOverlayWidth(),
-                 quietStartup: this.settingsManager.getQuietStartup(),
-                 clearOnShrink: this.settingsManager.getClearOnShrink(),
-                 showTerminalProgress: this.settingsManager.getShowTerminalProgress(),
-@@ -4218,6 +4319,9 @@ export class InteractiveMode {
-                         this.editor.setAutocompleteMaxVisible(maxVisible);
-                     }
-                 },
-+                onSelectorOverlayWidthChange: (width) => {
-+                    this.settingsManager.setSelectorOverlayWidth(width);
-+                },
-                 onClearOnShrinkChange: (enabled) => {
-                     this.settingsManager.setClearOnShrink(enabled);
-                     this.ui.setClearOnShrink(enabled);
-@@ -4229,8 +4333,8 @@ export class InteractiveMode {
-                     this.settingsManager.setShowTerminalProgress(enabled);
-                 },
-                 onTuiModeChange: (mode) => {
-+                    done();
-                     if (!this.switchTuiMode(mode)) {
--                        selector?.getSettingsList().updateValue("tui-mode", this.ui.mode);
-                         this.showStatus("Close active overlays before changing TUI mode");
-                         return;
-                     }
-@@ -4603,7 +4707,7 @@ export class InteractiveMode {
-             }, () => {
-                 done();
-                 this.ui.requestRender();
--            }, initialSelectedId);
-+            }, initialSelectedId, () => Math.max(1, this.ui.terminal.rows - 2));
-             return { component: selector, focus: selector.getMessageList() };
-         });
-     }
-@@ -4733,7 +4837,7 @@ export class InteractiveMode {
-             }, (entryId, label) => {
-                 this.sessionManager.appendLabelChange(entryId, label);
-                 this.ui.requestRender();
--            }, initialSelectedId, initialFilterMode);
-+            }, initialSelectedId, initialFilterMode, () => Math.max(1, this.ui.terminal.rows - 2));
-             selector.onCopy = async (text) => {
-                 if (!text) {
-                     this.showError("Selected entry has no text to copy");
-@@ -5133,21 +5237,13 @@ export class InteractiveMode {
-             .finally(() => clearTimeout(timeout));
-     }
-     showAmbientAuthDialog(providerOption, onBack) {
--        const restoreEditor = () => {
--            this.editorContainer.clear();
--            this.editorContainer.addChild(this.editor);
--            this.ui.setFocus(this.editor);
--            this.ui.requestRender();
--        };
-+        let closeDialog = () => { };
-         const dialog = new LoginDialogComponent(this.ui, providerOption.id, () => {
--            restoreEditor();
-+            closeDialog();
-             onBack?.();
-         }, providerOption.name, `${providerOption.name} setup`);
-         dialog.showInfo(`${providerOption.method?.name ?? "Authentication"} is configured outside ${APP_NAME}.`, [], true);
--        this.editorContainer.clear();
--        this.editorContainer.addChild(dialog);
--        this.ui.setFocus(dialog);
--        this.ui.requestRender();
-+        closeDialog = this.showLoginDialogModal(dialog);
-     }
-     async showApiKeyLoginDialog(providerId, providerName, onBack) {
-         const previousModel = this.session.model;
-@@ -5161,16 +5257,7 @@ export class InteractiveMode {
-                 theme.fg("accent", `  ${path.join(getDocsPath(), "providers.md")}`),
-             ]);
-         }
--        this.editorContainer.clear();
--        this.editorContainer.addChild(dialog);
--        this.ui.setFocus(dialog);
--        this.ui.requestRender();
--        const restoreEditor = () => {
--            this.editorContainer.clear();
--            this.editorContainer.addChild(this.editor);
--            this.ui.setFocus(this.editor);
--            this.ui.requestRender();
--        };
-+        const restoreEditor = this.showLoginDialogModal(dialog);
-         try {
-             await this.loginProvider(dialog, providerId, providerName, "api_key");
-             restoreEditor();
-@@ -5192,28 +5279,31 @@ export class InteractiveMode {
-     }
-     showAuthSelect(dialog, prompt, providerId) {
-         return new Promise((resolve, reject) => {
--            const restoreDialog = () => {
--                this.editorContainer.clear();
--                this.editorContainer.addChild(dialog);
--                this.ui.setFocus(dialog);
--                this.ui.requestRender();
-+            let handle;
-+            const closeSelector = () => {
-+                prompt.signal?.removeEventListener("abort", onAbort);
-+                handle?.hide();
-+                dialog[LOGIN_PROMPT_CANCEL] = undefined;
-+            };
-+            const onAbort = () => {
-+                closeSelector();
-+                reject(new Error("Login cancelled"));
-             };
-             const labels = prompt.options.map((option) => option.label);
-             const selector = new ExtensionSelectorComponent(prompt.message, labels, (optionLabel) => {
--                restoreDialog();
-+                closeSelector();
-                 const id = prompt.options.find((option) => option.label === optionLabel)?.id;
-                 if (id)
-                     resolve(id);
-                 else
-                     reject(new Error("Login cancelled"));
-             }, () => {
--                restoreDialog();
-+                closeSelector();
-                 reject(new Error("Login cancelled"));
-             }, { description: providerId === RADIUS_PROVIDER_ID ? RADIUS_LOGIN_INTRO : undefined });
--            this.editorContainer.clear();
--            this.editorContainer.addChild(selector);
--            this.ui.setFocus(selector);
--            this.ui.requestRender();
-+            prompt.signal?.addEventListener("abort", onAbort, { once: true });
-+            dialog[LOGIN_PROMPT_CANCEL] = onAbort;
-+            handle = this.showComponentOverlay(selector, selector, "auth");
-         });
-     }
-     async showAuthPrompt(dialog, prompt, providerId) {
-@@ -5276,16 +5366,7 @@ export class InteractiveMode {
-     async showLoginDialog(providerId, providerName, onBack) {
-         const previousModel = this.session.model;
-         const dialog = new LoginDialogComponent(this.ui, providerId, (_success, _message) => { }, providerName);
--        this.editorContainer.clear();
--        this.editorContainer.addChild(dialog);
--        this.ui.setFocus(dialog);
--        this.ui.requestRender();
--        const restoreEditor = () => {
--            this.editorContainer.clear();
--            this.editorContainer.addChild(this.editor);
--            this.ui.setFocus(this.editor);
--            this.ui.requestRender();
--        };
-+        const restoreEditor = this.showLoginDialogModal(dialog);
-         try {
-             await this.loginProvider(dialog, providerId, providerName, "oauth");
-             restoreEditor();
-diff --git a/docs/settings.md b/docs/settings.md
-index e706317..3b8ed12 100644
---- a/docs/settings.md
-+++ b/docs/settings.md
-@@ -99,6 +99,8 @@ See [Compaction Reference](compaction.md) for trigger, summarization, and valida
++
+ class ExpandableText extends ThemedText implements Expandable {
+ 	private readonly state: { expanded: boolean };
+ 
+@@ -4878,7 +4938,7 @@
+ 	}
+ 
+ 	/**
+-	 * Shows a selector component in place of the editor.
++	 * Shows a selector component as a modal overlay.
+ 	 * @param create Factory that receives a `done` callback and returns the component and focus target
+ 	 */
+ 	private showSelector(
+@@ -4886,33 +4946,81 @@
+ 	): void {
+ 		const token = {};
+ 		let dispose: (() => void) | undefined;
++		let closeOverlay = () => {};
++		let disposed = false;
++		const teardown = () => {
++			if (disposed) return;
++			disposed = true;
++			dispose?.();
++			closeOverlay();
++		};
+ 		const done = () => {
+-			dispose?.();
++			teardown();
+ 			if (this.activeSelectorToken !== token) return;
+ 			this.activeSelectorToken = undefined;
+ 			this.activeSelectorDispose = undefined;
+-			this.editorContainer.clear();
+-			this.editorContainer.addChild(this.editor);
+-			this.ui.setFocus(this.editor);
+ 		};
+ 		const created = create(done);
+ 		dispose = created.dispose;
++		if (disposed) {
++			dispose?.();
++			return;
++		}
+ 		this.disposeActiveSelector();
+ 		this.activeSelectorToken = token;
+-		this.activeSelectorDispose = dispose;
+-		this.editorContainer.clear();
+-		this.editorContainer.addChild(created.component);
+-		this.ui.setFocus(created.focus);
+-		this.ui.requestRender();
++		this.activeSelectorDispose = teardown;
++		const handle = this.showComponentOverlay(created.component, created.focus);
++		closeOverlay = () => handle.hide();
++	}
++
++	private showComponentOverlay(
++		component: Component,
++		focus: Component,
++		selectorName = getSelectorOverlayName(component),
++	): OverlayHandle {
++		return this.ui.showOverlay(new SelectorOverlayComponent(component, focus), {
++			...SELECTOR_OVERLAY_OPTIONS,
++			width: this.settingsManager.getSelectorOverlayWidth(selectorName),
++		});
++	}
++
++	private showModalComponent(
++		component: Component & { dispose?: () => void },
++		focus: Component = component,
++		onDismiss?: () => void,
++	): () => void {
++		let close = () => {};
++		let closing = false;
++		this.showSelector((done) => {
++			close = () => {
++				closing = true;
++				done();
++			};
++			return {
++				component,
++				focus,
++				dispose: () => {
++					component.dispose?.();
++					if (!closing) onDismiss?.();
++				},
++			};
++		});
++		return () => close();
++	}
++
++	private showLoginDialogModal(dialog: LoginDialogComponent): () => void {
++		return this.showModalComponent(dialog, dialog, () => {
++			loginPromptCancelCallbacks.get(dialog)?.();
++			dialog.cancel();
++		});
+ 	}
+ 
+ 	private showSettingsSelector(): void {
+ 		this.showSelector((done) => {
+-			let selector: SettingsSelectorComponent | undefined;
+ 			const defaultProvider = this.settingsManager.getDefaultProvider();
+ 			const defaultModelId = this.settingsManager.getDefaultModel();
+ 			const defaultModel = defaultProvider && defaultModelId ? `${defaultProvider}/${defaultModelId}` : "not set";
+-			selector = new SettingsSelectorComponent(
++			const selector = new SettingsSelectorComponent(
+ 				{
+ 					autoCompact: this.session.autoCompactionEnabled,
+ 					defaultModel,
+@@ -4946,6 +5054,7 @@
+ 					editorPaddingX: this.settingsManager.getEditorPaddingX(),
+ 					outputPad: this.settingsManager.getOutputPad(),
+ 					autocompleteMaxVisible: this.settingsManager.getAutocompleteMaxVisible(),
++					selectorOverlayWidth: this.settingsManager.getSelectorOverlayWidth(),
+ 					quietStartup: this.settingsManager.getQuietStartup(),
+ 					clearOnShrink: this.settingsManager.getClearOnShrink(),
+ 					showTerminalProgress: this.settingsManager.getShowTerminalProgress(),
+@@ -5094,6 +5203,7 @@
+ 							this.editor.setAutocompleteMaxVisible(maxVisible);
+ 						}
+ 					},
++					onSelectorOverlayWidthChange: (width) => this.settingsManager.setSelectorOverlayWidth(width),
+ 					onClearOnShrinkChange: (enabled) => {
+ 						this.settingsManager.setClearOnShrink(enabled);
+ 						this.ui.setClearOnShrink(enabled);
+@@ -5105,8 +5215,8 @@
+ 						this.settingsManager.setShowTerminalProgress(enabled);
+ 					},
+ 					onTuiModeChange: (mode) => {
++						done();
+ 						if (!this.switchTuiMode(mode)) {
+-							selector?.getSettingsList().updateValue("tui-mode", this.ui.mode);
+ 							this.showStatus("Close active overlays before changing TUI mode");
+ 							return;
+ 						}
+@@ -5530,6 +5640,7 @@
+ 					this.ui.requestRender();
+ 				},
+ 				initialSelectedId,
++				() => Math.max(1, this.ui.terminal.rows - 2),
+ 			);
+ 			return { component: selector, focus: selector.getMessageList() };
+ 		});
+@@ -5688,6 +5799,7 @@
+ 				},
+ 				initialSelectedId,
+ 				initialFilterMode,
++				() => Math.max(1, this.ui.terminal.rows - 2),
+ 			);
+ 			selector.onCopy = async (text) => {
+ 				if (!text) {
+@@ -6160,18 +6272,13 @@
+ 	}
+ 
+ 	private showAmbientAuthDialog(providerOption: AuthSelectorProvider, onBack?: () => void): void {
+-		const restoreEditor = () => {
+-			this.editorContainer.clear();
+-			this.editorContainer.addChild(this.editor);
+-			this.ui.setFocus(this.editor);
+-			this.ui.requestRender();
+-		};
++		let closeDialog = () => {};
+ 
+ 		const dialog = new LoginDialogComponent(
+ 			this.ui,
+ 			providerOption.id,
+ 			() => {
+-				restoreEditor();
++				closeDialog();
+ 				onBack?.();
+ 			},
+ 			providerOption.name,
+@@ -6183,10 +6290,7 @@
+ 			true,
+ 		);
+ 
+-		this.editorContainer.clear();
+-		this.editorContainer.addChild(dialog);
+-		this.ui.setFocus(dialog);
+-		this.ui.requestRender();
++		closeDialog = this.showLoginDialogModal(dialog);
+ 	}
+ 
+ 	private async showApiKeyLoginDialog(providerId: string, providerName: string, onBack?: () => void): Promise<void> {
+@@ -6209,17 +6313,7 @@
+ 			]);
+ 		}
+ 
+-		this.editorContainer.clear();
+-		this.editorContainer.addChild(dialog);
+-		this.ui.setFocus(dialog);
+-		this.ui.requestRender();
+-
+-		const restoreEditor = () => {
+-			this.editorContainer.clear();
+-			this.editorContainer.addChild(this.editor);
+-			this.ui.setFocus(this.editor);
+-			this.ui.requestRender();
+-		};
++		const restoreEditor = this.showLoginDialogModal(dialog);
+ 
+ 		try {
+ 			await this.loginProvider(dialog, providerId, providerName, "api_key");
+@@ -6246,32 +6340,35 @@
+ 		providerId: string,
+ 	): Promise<string> {
+ 		return new Promise((resolve, reject) => {
+-			const restoreDialog = () => {
+-				this.editorContainer.clear();
+-				this.editorContainer.addChild(dialog);
+-				this.ui.setFocus(dialog);
+-				this.ui.requestRender();
++			let handle: OverlayHandle | undefined;
++			const closeSelector = () => {
++				prompt.signal?.removeEventListener("abort", onAbort);
++				handle?.hide();
++				loginPromptCancelCallbacks.delete(dialog);
++			};
++			const onAbort = () => {
++				closeSelector();
++				reject(new Error("Login cancelled"));
+ 			};
+ 			const labels = prompt.options.map((option) => option.label);
+ 			const selector = new ExtensionSelectorComponent(
+ 				prompt.message,
+ 				labels,
+ 				(optionLabel) => {
+-					restoreDialog();
++					closeSelector();
+ 					const id = prompt.options.find((option) => option.label === optionLabel)?.id;
+ 					if (id) resolve(id);
+ 					else reject(new Error("Login cancelled"));
+ 				},
+ 				() => {
+-					restoreDialog();
++					closeSelector();
+ 					reject(new Error("Login cancelled"));
+ 				},
+ 				{ description: providerId === RADIUS_PROVIDER_ID ? RADIUS_LOGIN_INTRO : undefined },
+ 			);
+-			this.editorContainer.clear();
+-			this.editorContainer.addChild(selector);
+-			this.ui.setFocus(selector);
+-			this.ui.requestRender();
++			prompt.signal?.addEventListener("abort", onAbort, { once: true });
++			loginPromptCancelCallbacks.set(dialog, onAbort);
++			handle = this.showComponentOverlay(selector, selector, "auth");
+ 		});
+ 	}
+ 
+@@ -6338,17 +6435,7 @@
+ 	private async showLoginDialog(providerId: string, providerName: string, onBack?: () => void): Promise<void> {
+ 		const previousModel = this.session.model;
+ 		const dialog = new LoginDialogComponent(this.ui, providerId, (_success, _message) => {}, providerName);
+-		this.editorContainer.clear();
+-		this.editorContainer.addChild(dialog);
+-		this.ui.setFocus(dialog);
+-		this.ui.requestRender();
+-
+-		const restoreEditor = () => {
+-			this.editorContainer.clear();
+-			this.editorContainer.addChild(this.editor);
+-			this.ui.setFocus(this.editor);
+-			this.ui.requestRender();
+-		};
++		const restoreEditor = this.showLoginDialogModal(dialog);
+ 
+ 		try {
+ 			await this.loginProvider(dialog, providerId, providerName, "oauth");
+diff --git a/packages/coding-agent/docs/settings.md b/packages/coding-agent/docs/settings.md
+--- a/packages/coding-agent/docs/settings.md
++++ b/packages/coding-agent/docs/settings.md
+@@ -99,6 +99,8 @@
  | `editorPaddingX` | number | `0` | Horizontal editor padding from 0 to 3 cells. |
  | `outputPad` | `0 \| 1` | `1` | Horizontal transcript padding for messages, tool output, `!` command output, and summary blocks. |
  | `autocompleteMaxVisible` | number | `5` | Visible autocomplete entries, from 3 to 20. |

@@ -6,12 +6,11 @@ import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { launchArguments, launchCommand, prepareJitiCache, prepareNpmCache } from "../scripts/launcher.mjs";
 
-test("profile grants Jiti cache reads without allowing reads throughout tmp", () => {
+test("profile grants temporary-file reads without adding temporary-directory write grants", () => {
   const profile = JSON.parse(readFileSync(new URL("../scripts/profile.json", import.meta.url), "utf8"));
-  assert.ok(profile.filesystem.read.includes("$TMPDIR/jiti"));
-  for (const paths of [profile.filesystem.read, profile.filesystem.allow]) {
-    assert.ok(!paths.includes("/tmp"));
-    assert.ok(!paths.includes("$TMPDIR"));
+  for (const path of ["/tmp", "$TMPDIR"]) {
+    assert.ok(profile.filesystem.read.includes(path));
+    assert.ok(!profile.filesystem.allow.includes(path));
   }
 });
 
@@ -70,15 +69,17 @@ test("Jiti cache preparation does not change Darwin runtime directories", () => 
   assert.equal(existsSync(temporary), false);
 });
 
-test("Linux profile permits Jiti cache write/read cycles but denies unrelated temporary-file reads", {
+test("Linux profile permits Jiti cache write/read cycles and clipboard/image temporary-file reads", {
   skip: process.platform !== "linux" || !process.env.NONO_TEST_BINARY,
 }, () => {
-  const { root, cwd } = fixture();
+  const { root, cwd, home } = fixture();
   const temporary = join(root, "temporary");
   prepareJitiCache(temporary, "linux");
   const cache = join(temporary, "jiti", "extension.mjs");
-  const outside = join(temporary, "unrelated");
-  writeFileSync(outside, "private fixture");
+  const clipboard = join(temporary, "clipboard.txt");
+  const image = join(temporary, "picture.png");
+  writeFileSync(clipboard, "clipboard fixture");
+  writeFileSync(image, Buffer.from([0x89, 0x50, 0x4e, 0x47]));
   const child = spawnSync(process.env.NONO_TEST_BINARY, [
     "run", "--profile", new URL("../scripts/profile.json", import.meta.url).pathname, "--allow-cwd", "--",
     process.execPath, "-e", `
@@ -86,9 +87,10 @@ test("Linux profile permits Jiti cache write/read cycles but denies unrelated te
       const assert = require("node:assert/strict");
       fs.writeFileSync(process.argv[1], "compiled extension");
       assert.equal(fs.readFileSync(process.argv[1], "utf8"), "compiled extension");
-      assert.throws(() => fs.readFileSync(process.argv[2]), { code: "EACCES" });
-    `, cache, outside,
-  ], { cwd, env: { ...process.env, TMPDIR: temporary }, encoding: "utf8" });
+      assert.equal(fs.readFileSync(process.argv[2], "utf8"), "clipboard fixture");
+      assert.deepEqual([...fs.readFileSync(process.argv[3])], [0x89, 0x50, 0x4e, 0x47]);
+    `, cache, clipboard, image,
+  ], { cwd, env: { ...process.env, HOME: home, XDG_STATE_HOME: join(root, "state"), TMPDIR: temporary }, encoding: "utf8" });
   assert.ifError(child.error);
   assert.equal(child.status, 0, child.stderr);
 });
