@@ -51,6 +51,9 @@ let
     in
     pi;
   mkLauncher = pkgs: rawPi:
+    assert pkgs.lib.assertMsg
+      (!pkgs.stdenv.hostPlatform.isDarwin || pkgs.lib.versionAtLeast pkgs.nono.version "0.79.0")
+      "Pi shell startup protection requires nono >= 0.79.0 on macOS";
     let
       profile = pkgs.writeText "pi-nono-profile.json" (
         builtins.toJSON (builtins.fromJSON (builtins.readFile ../nono/scripts/profile.json))
@@ -69,8 +72,10 @@ let
         makeBinaryWrapper ${pkgs.nodejs}/bin/node "$out/bin/pi" \
           --unset NODE_OPTIONS --unset NODE_PATH \
           --prefix PATH : "$out/bin" \
-          --add-flags "${../nono/scripts/launcher.mjs} ${pkgs.nono}/bin/nono ${rawPi}/bin/pi ${profile}"
-        PI_TEST_BINARY="$out/bin/pi" ${pkgs.nodejs}/bin/node --test ${../nono}/__tests__/launcher.test.mjs
+          --add-flags "${../nono/scripts}/launcher.mjs ${pkgs.nono}/bin/nono ${rawPi}/bin/pi ${profile}"
+        PI_TEST_BINARY="$out/bin/pi" ${pkgs.nodejs}/bin/node --test \
+          ${../nono}/__tests__/launcher.test.mjs \
+          ${../nono}/__tests__/shell-protection.test.mjs
       '';
   systemPackages = { pkgs, ... }: {
     environment = {

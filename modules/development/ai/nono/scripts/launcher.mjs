@@ -3,6 +3,7 @@ import { homedir, tmpdir } from "node:os";
 import { delimiter, dirname, isAbsolute, join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
+import { withProtectedShellProfile } from "./shell-protection.mjs";
 
 function record(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -200,11 +201,18 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
       managedBin,
     ].join(delimiter);
     const command = launchCommand(args, process.cwd(), agentDir, homedir(), environment, nono, rawPi, profile);
+    const run = (selectedProfile) => {
+      if (command[0] === nono) command[command.indexOf("--profile") + 1] = selectedProfile;
+      return spawnSync(command[0], command.slice(1), { stdio: "inherit", env: environment });
+    };
+    let child;
     if (command[0] === nono) {
       prepareJitiCache();
       prepareNpmCache();
+      child = withProtectedShellProfile(profile, home, environment, run);
+    } else {
+      child = run(profile);
     }
-    const child = spawnSync(command[0], command.slice(1), { stdio: "inherit", env: environment });
     if (child.error) throw child.error;
     if (child.signal) process.kill(process.pid, child.signal);
     process.exit(child.status ?? 1);

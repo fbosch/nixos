@@ -1,19 +1,61 @@
 # Nono selective protection for Pi
 
-Status: the initial Nix-owned Pi wrapper was activated on `rvn-mac`. Follow-up fixes for marker linkage and child-process PATH ordering are implemented and built, but await reactivation. Fish stays Stow-managed. Live sandbox enforcement remains unverified.
+Status: the Nix-owned wrapper is active on `rvn-mac`. The current change adds macOS shell-startup write protection, but it has not been activated. Fresh-session kernel enforcement remains unverified. Fish stays Stow-managed; Linux retains its existing policy without this protection.
 
 ## Current approved scope
 
-The latest approval covers a `pi` command wrapper in `~/nixos`, including immutable pre-sandbox code and dependencies. It does not cover moving Fish configuration into Nix.
+The latest approval adds macOS write protection for live shell startup inputs in normal Pi sessions. It retains first-position `pi --no-sandbox` for deliberate edits from a normal terminal. It does not move Fish configuration into Nix or require deployment after ordinary Fish edits.
 
 - Nix owns the installed `pi` wrapper and its nono profile. Changes to its source require a rebuild and activation.
 - Fish configuration and `.shinit` remain editable Stow files. They remove the old Pi PATH override after `/run/current-system/sw/share/pi/nono-wrapper` appears. Existing hosts retain their legacy sandbox launcher until Nix activation.
 - Stow stops deploying `.pi/agent/bin`. Unknown files and symlinks must not be overwritten during the handoff.
-- Writable shell startup files and mutable reference/grant settings remain separate risks. This wrapper change does not close every next-launch persistence route.
+- Mutable reference/grant settings, unrestricted networking, and reachable host services remain separate risks. This change does not close every persistence or data-exfiltration route.
+
+## macOS shell startup protection
+
+The store-backed launcher imports `scripts/shell-protection.mjs`. Both files are packaged together, with no mutable pre-sandbox imports. Before a normal macOS launch, the helper resolves the current startup paths and appends write-deny Seatbelt rules to the immutable base profile. Nono must be at least version `0.79.0`, whose platform rules follow broad write grants.
+
+The protected inputs are:
+
+- The live and conventional `~/dotfiles/.config/fish` trees, including functions, completions, `conf.d`, and Fish variables.
+- Live `~/.shinit` and its `~/dotfiles/.shinit` source.
+- Sourced `~/.cache/fish` scripts, `~/.inshellisense/key-bindings.fish`, and Starship configuration files, which can contain shell commands.
+- Fish vendor startup, function, and completion directories under the user data directory.
+- The equivalent configured XDG locations and discovered symlink targets.
+
+Rules cover absent protected inputs, intermediate symlink hops, and ancestor replacement without making ordinary sibling files read-only. Startup reads remain available. Symlink loops, unsupported file types, hard-linked mutable startup files, relative XDG directories, and path-resolution errors stop startup rather than falling back to an unprotected launch.
+
+Generated profiles live in private session directories under `~/.local/state/nono/pi-profiles`. The launcher rejects symlinked, foreign-owned, or group/world-writable state ancestors. Each generated policy also protects this profile directory and its replacement paths. The parent removes its session profile after the child exits. A forcibly killed parent may leave a stale profile; it is not reused on later launches.
+
+This protects the listed inputs, not every program or configuration a shell might execute. Review existing startup files before the first protected launch. Other unsandboxed processes can still change them intentionally. Interactive Fish inside nono cannot persist universal variables or regenerate protected initialization caches.
+
+### Editing protected files
+
+1. Start `pi --no-sandbox` from a normal terminal when you intentionally want agent edits to these files.
+2. Review the edits before opening another normal shell.
+3. Exit that session and use ordinary `pi` for sandboxed work.
+
+This disables all nono restrictions for that session. Running the same command inside an existing sandbox cannot remove inherited restrictions. Files remain live Stow files; these edits need no rebuild. Installing the new launcher itself still requires a reviewed Nix activation.
+
+### Verification and rollout gate
+
+Unit tests exercise path resolution, write-rule generation, policy preservation, private-state validation, cleanup, launcher integration, and the explicit bypass. The launcher derivation runs these tests during its build.
+
+Current local verification: 25 tests passed and four were skipped in the unit/profile-validation run. The scoped Darwin launcher derivation evaluated, and Nix formatting, Statix, Deadnix, syntax, prose, and diff checks passed. The opt-in runtime test reached the supervised child's Seatbelt setup, which failed with `Operation not permitted` under inherited confinement. The package has not been rebuilt or activated. Active LSP checks were unavailable because no matching servers were configured.
+
+The opt-in kernel regression uses only disposable homes and startup fixtures:
+
+```sh
+NONO_TEST_BINARY="$(command -v nono)" node --test modules/development/ai/nono/__tests__/shell-protection.test.mjs
+```
+
+It checks reads, overwrite/append/truncation, metadata changes, unlink, rename-over, ancestor moves, missing inputs, symlink substitution, hard-link writes, inherited restrictions, and ordinary atomic edits. It must pass from a fresh unsandboxed macOS session before activation. Nested Seatbelt setup in this agent session is denied with `Operation not permitted`; schema validation and unit tests do not prove kernel enforcement.
+
+Linux continues using the existing profile. This change makes no Linux selective-protection claim. No host activation is part of this change.
 
 ## Wrapper implementation and verification
 
-`modules/development/ai/pi/default.nix` installs a binary `pi` wrapper. It starts store-backed Node and `modules/development/ai/nono/scripts/launcher.mjs`, which imports only Node builtins. The wrapper clears Node preload variables and cannot source `BASH_ENV` before confinement. Nono, the profile, and the patched raw Pi executable use absolute store paths. First-position `--no-sandbox` remains an explicit bypass; `NONO_CAP_FILE` never selects it.
+`modules/development/ai/pi/default.nix` installs a binary `pi` wrapper. It starts store-backed Node and `modules/development/ai/nono/scripts/launcher.mjs`, which imports only Node builtins and the store-backed shell protection helper. The wrapper clears Node preload variables and cannot source `BASH_ENV` before confinement. Nono, the profile, and the patched raw Pi executable use absolute store paths. First-position `--no-sandbox` remains an explicit bypass; `NONO_CAP_FILE` never selects it.
 
 `modules/development/ai/nono/default.nix` replaces the old `nono.nix` declaration. Its `scripts/profile.json` is the common source for the packaged policy and `/etc/nono/pi.json`. Runtime grants retain the existing reference, Stow-target, direnv, FFF, hashline, and Podman behavior. Settings and trust files remain mutable JSON inputs.
 
