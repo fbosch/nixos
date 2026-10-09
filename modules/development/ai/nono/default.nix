@@ -5,9 +5,7 @@ let
     {
       environment = {
         systemPackages = [ pkgs.nono ];
-        etc."nono/pi.json".source = pkgs.writeText "pi-nono-profile.json" (
-          builtins.toJSON piProfile
-        );
+        etc."nono/pi.json".source = pkgs.writeText "pi-nono-profile.json" (builtins.toJSON piProfile);
       };
     };
 in
@@ -67,10 +65,17 @@ in
           };
           expected = {
             filesystem = {
-              allow = [ "$HOME/.pi" ];
+              allow = [
+                "$HOME/.pi"
+                "$HOME/.npm/_cacache"
+                "$HOME/.npm/_logs"
+              ];
               read = [
                 "$HOME/.agents/skills"
                 "$HOME/.nvm"
+                "$HOME/.config/gh/hosts.yml"
+                "/tmp"
+                "$TMPDIR"
               ];
               suppress_save_prompt = [ "/" ];
             };

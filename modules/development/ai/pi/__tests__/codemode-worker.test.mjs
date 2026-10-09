@@ -1,17 +1,21 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import { test } from "node:test";
 
 const binary = process.env.PI_TEST_BINARY;
 assert.ok(binary, "PI_TEST_BINARY must point to the compiled Pi executable");
+const packageRoot = process.env.PI_TEST_PACKAGE;
+assert.ok(packageRoot, "PI_TEST_PACKAGE must point to the installed Pi package");
+const packageEntry = JSON.stringify(pathToFileURL(join(packageRoot, "dist/index.js")).href);
 
 // Extension imports resolve to the compiled SDK, including its embedded worker URL.
 const extension = `
 import assert from "node:assert/strict";
-import { createCodemodeExtension } from "@earendil-works/pi-coding-agent";
+import { createCodemodeExtension } from ${packageEntry};
 export default async function () {
   let tool;
   createCodemodeExtension({ models: false })({
@@ -53,7 +57,11 @@ export default async function () {
 `;
 
 test("compiled codemode worker evaluates scripts and bridges nested calls offline", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "pi-codemode-worker-"));
+  const root = await mkdtemp(join(tmpdir(), "pi-codemode-worker-"));
+  const dir = join(root, "project");
+  const home = join(root, "home");
+  await mkdir(dir, { recursive: true });
+  await mkdir(home, { recursive: true });
   try {
     const path = join(dir, "smoke.mjs");
     await writeFile(path, extension);
@@ -63,7 +71,7 @@ test("compiled codemode worker evaluates scripts and bridges nested calls offlin
     ], {
       cwd: dir,
       env: {
-        HOME: dir,
+        HOME: home,
         PATH: process.env.PATH,
         PI_CODING_AGENT_DIR: join(dir, "agent"),
         PI_OFFLINE: "1",
@@ -80,6 +88,6 @@ test("compiled codemode worker evaluates scripts and bridges nested calls offlin
     assert.match(output, /PI_CODEMODE_COMPILED_WORKER_OK/, output);
     assert.doesNotMatch(output, /Script sandbox failed|Cannot find module/, output);
   } finally {
-    await rm(dir, { recursive: true, force: true });
+    await rm(root, { recursive: true, force: true });
   }
 });

@@ -2,11 +2,16 @@
     "extends": "default",
     "filesystem": {
         "allow": [
-            "$HOME/.pi"
+            "$HOME/.pi",
+            "$HOME/.npm/_cacache",
+            "$HOME/.npm/_logs"
         ],
         "read": [
             "$HOME/.agents/skills",
-            "$HOME/.nvm"
+            "$HOME/.nvm",
+            "$HOME/.config/gh/hosts.yml",
+            "/tmp",
+            "$TMPDIR"
         ],
         "suppress_save_prompt": [
             "/"

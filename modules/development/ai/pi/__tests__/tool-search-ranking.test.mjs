@@ -3,10 +3,14 @@ import { spawnSync } from "node:child_process";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import { test } from "node:test";
 
 const binary = process.env.PI_TEST_BINARY;
 assert.ok(binary, "PI_TEST_BINARY must point to the compiled Pi executable");
+const packageRoot = process.env.PI_TEST_PACKAGE;
+assert.ok(packageRoot, "PI_TEST_PACKAGE must point to the installed Pi package");
+const packageEntry = JSON.stringify(pathToFileURL(join(packageRoot, "dist/index.js")).href);
 
 const extension = `
 import assert from "node:assert/strict";
@@ -14,7 +18,7 @@ import {
   createCodemodeExtension,
   createToolSearchExtension,
   installToolSearchRanker,
-} from "@earendil-works/pi-coding-agent";
+} from ${packageEntry};
 
 const parameterSchema = { type: "object", properties: {} };
 const initialTools = [

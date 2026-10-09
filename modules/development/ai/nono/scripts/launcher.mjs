@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { delimiter, dirname, isAbsolute, join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -142,14 +142,6 @@ export function launchArguments(cwd, agentDir, home, environment, profile, rawPi
   for (const path of [join(configHome, "fbb", "data", "typos.abolish"), join(configHome, "nix", "git", "config")]) {
     if (existingFile(path)) extra.push("--read-file", path);
   }
-  const connections = join(configHome, "containers", "podman-connections.json");
-  if (existingFile(connections)) {
-    for (const path of [connections, join(dataHome, "containers", "podman", "machine", "machine")]) {
-      if (existingFile(path)) extra.push("--read-file", path);
-    }
-    const knownHosts = join(home, ".ssh", "known_hosts");
-    if (existingFile(knownHosts)) extra.push("--read-file", knownHosts, "--bypass-protection", knownHosts);
-  }
   const direnvAllow = join(dataHome, "direnv", "allow");
   return [
     "run", "--profile", profile, "--allow-cwd", "--suppress-save-prompt", "/",
@@ -158,6 +150,18 @@ export function launchArguments(cwd, agentDir, home, environment, profile, rawPi
     ...[...grants].flatMap((path) => ["--allow", path]),
     "--", rawPi,
   ];
+}
+
+export function prepareJitiCache(temporaryDirectory = tmpdir(), platform = process.platform) {
+  // Landlock grants bind existing paths; create the cache before nono resolves the profile.
+  if (platform === "linux") mkdirSync(join(temporaryDirectory, "jiti"), { recursive: true, mode: 0o700 });
+}
+
+export function prepareNpmCache(home = homedir()) {
+  // Like Jiti's cache, these narrow profile paths must exist before Landlock grants are built.
+  for (const directory of ["_cacache", "_logs"]) {
+    mkdirSync(join(home, ".npm", directory), { recursive: true, mode: 0o700 });
+  }
 }
 
 export function launchCommand(args, cwd, agentDir, home, environment, nono, rawPi, profile) {
@@ -196,6 +200,10 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
       managedBin,
     ].join(delimiter);
     const command = launchCommand(args, process.cwd(), agentDir, homedir(), environment, nono, rawPi, profile);
+    if (command[0] === nono) {
+      prepareJitiCache();
+      prepareNpmCache();
+    }
     const child = spawnSync(command[0], command.slice(1), { stdio: "inherit", env: environment });
     if (child.error) throw child.error;
     if (child.signal) process.kill(process.pid, child.signal);

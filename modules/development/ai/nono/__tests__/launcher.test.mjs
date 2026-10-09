@@ -1,10 +1,23 @@
 import { afterEach, test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
-import { launchArguments, launchCommand } from "../scripts/launcher.mjs";
+import { launchArguments, launchCommand, prepareJitiCache, prepareNpmCache } from "../scripts/launcher.mjs";
+
+test("profile grants temporary-file reads without adding temporary-directory write grants", () => {
+  const profile = JSON.parse(readFileSync(new URL("../scripts/profile.json", import.meta.url), "utf8"));
+  for (const path of ["/tmp", "$TMPDIR"]) {
+    assert.ok(profile.filesystem.read.includes(path));
+    assert.ok(!profile.filesystem.allow.includes(path));
+  }
+});
+
+test("profile grants npm cache and log writes without making all npm state writable", () => {
+  const profile = JSON.parse(readFileSync(new URL("../scripts/profile.json", import.meta.url), "utf8"));
+  assert.deepEqual(profile.filesystem.allow, ["$HOME/.pi", "$HOME/.npm/_cacache", "$HOME/.npm/_logs"]);
+});
 
 const created = [];
 function fixture() {
@@ -26,6 +39,97 @@ afterEach(() => { for (const path of created.splice(0)) rmSync(path, { recursive
 function values(args, flag) {
   return args.flatMap((part, index) => part === flag ? [args[index + 1]] : []);
 }
+
+test("prepares missing npm cache and log directories without replacing existing contents", () => {
+  const { home } = fixture();
+  prepareNpmCache(home);
+  const cached = join(home, ".npm", "_cacache", "package");
+  assert.ok(existsSync(join(home, ".npm", "_logs")));
+  writeFileSync(cached, "cached");
+  prepareNpmCache(home);
+  assert.equal(readFileSync(cached, "utf8"), "cached");
+});
+
+test("Linux prepares a missing Jiti cache before sandboxing and preserves an existing cache", () => {
+  const { root } = fixture();
+  const temporary = join(root, "temporary");
+  const cache = join(temporary, "jiti");
+  prepareJitiCache(temporary, "linux");
+  assert.ok(existsSync(cache));
+  const cached = join(cache, "extension.mjs");
+  writeFileSync(cached, "cached");
+  prepareJitiCache(temporary, "linux");
+  assert.equal(readFileSync(cached, "utf8"), "cached");
+});
+
+test("Jiti cache preparation does not change Darwin runtime directories", () => {
+  const { root } = fixture();
+  const temporary = join(root, "temporary");
+  prepareJitiCache(temporary, "darwin");
+  assert.equal(existsSync(temporary), false);
+});
+
+test("Linux profile permits Jiti cache write/read cycles and clipboard/image temporary-file reads", {
+  skip: process.platform !== "linux" || !process.env.NONO_TEST_BINARY,
+}, () => {
+  const { root, cwd, home } = fixture();
+  const temporary = join(root, "temporary");
+  prepareJitiCache(temporary, "linux");
+  const cache = join(temporary, "jiti", "extension.mjs");
+  const clipboard = join(temporary, "clipboard.txt");
+  const image = join(temporary, "picture.png");
+  writeFileSync(clipboard, "clipboard fixture");
+  writeFileSync(image, Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+  const child = spawnSync(process.env.NONO_TEST_BINARY, [
+    "run", "--profile", new URL("../scripts/profile.json", import.meta.url).pathname, "--allow-cwd", "--",
+    process.execPath, "-e", `
+      const fs = require("node:fs");
+      const assert = require("node:assert/strict");
+      fs.writeFileSync(process.argv[1], "compiled extension");
+      assert.equal(fs.readFileSync(process.argv[1], "utf8"), "compiled extension");
+      assert.equal(fs.readFileSync(process.argv[2], "utf8"), "clipboard fixture");
+      assert.deepEqual([...fs.readFileSync(process.argv[3])], [0x89, 0x50, 0x4e, 0x47]);
+    `, cache, clipboard, image,
+  ], { cwd, env: { ...process.env, HOME: home, XDG_STATE_HOME: join(root, "state"), TMPDIR: temporary }, encoding: "utf8" });
+  assert.ifError(child.error);
+  assert.equal(child.status, 0, child.stderr);
+});
+
+test("Linux profile permits npm cache and log writes but denies other npm state writes", {
+  skip: process.platform !== "linux" || !process.env.NONO_TEST_BINARY,
+}, () => {
+  // The default profile permits /tmp writes; place the denied-write fixture outside /tmp.
+  const root = mkdtempSync(join(homedir(), "pi-npm-profile-test-"));
+  created.push(root);
+  const home = join(root, "home");
+  const cwd = join(root, "project");
+  const cache = join(home, ".npm", "_cacache");
+  const logs = join(home, ".npm", "_logs");
+  prepareNpmCache(home);
+  mkdirSync(cwd);
+  const outside = join(home, ".npm", "unrelated");
+  writeFileSync(outside, "unchanged");
+  const child = spawnSync(process.env.NONO_TEST_BINARY, [
+    "run", "--profile", new URL("../scripts/profile.json", import.meta.url).pathname, "--allow-cwd", "--",
+    process.execPath, "-e", `
+      const fs = require("node:fs");
+      const path = require("node:path");
+      const assert = require("node:assert/strict");
+      const temporary = path.join(process.argv[1], "tmp");
+      fs.mkdirSync(temporary);
+      const cached = path.join(temporary, "package");
+      fs.writeFileSync(cached, "cache fixture");
+      assert.equal(fs.readFileSync(cached, "utf8"), "cache fixture");
+      const log = path.join(process.argv[2], "npm.log");
+      fs.writeFileSync(log, "log fixture");
+      assert.equal(fs.readFileSync(log, "utf8"), "log fixture");
+      assert.throws(() => fs.writeFileSync(process.argv[3], "changed"), { code: "EACCES" });
+    `, cache, logs, outside,
+  ], { cwd, env: { ...process.env, HOME: home }, encoding: "utf8" });
+  assert.ifError(child.error);
+  assert.equal(child.status, 0, child.stderr);
+  assert.equal(readFileSync(outside, "utf8"), "unchanged");
+});
 
 test("always selects absolute nono, immutable profile and distinct raw Pi, preserving argv", () => {
   const { launch, nono, raw, profile } = fixture();
@@ -78,7 +182,7 @@ test("global, trusted project and docs-cache references retain canonical writabl
   assert.ok(!grants().includes(home));
 });
 
-test("retains direnv, FFF, hashline, read-only aliases and Podman narrow grants", () => {
+test("retains narrow grants without Podman or SSH host-file access", () => {
   const { root, home, cwd, agent, raw, profile } = fixture();
   const config = join(root, "config");
   const data = join(root, "data");
@@ -88,15 +192,16 @@ test("retains direnv, FFF, hashline, read-only aliases and Podman narrow grants"
   const hashline = join(config, "pi-hashline-edit-pro");
   const known = join(home, ".ssh", "known_hosts");
   const connection = join(config, "containers", "podman-connections.json");
+  const machine = join(data, "containers", "podman", "machine", "machine");
   const typo = join(config, "fbb", "data", "typos.abolish");
-  for (const path of [allow, fff, hashline, join(home, ".ssh"), join(config, "containers"), join(config, "fbb", "data")]) mkdirSync(path, { recursive: true });
-  for (const path of [known, connection, typo]) writeFileSync(path, "fixture");
+  for (const path of [allow, fff, hashline, join(home, ".ssh"), join(config, "containers"), join(data, "containers", "podman", "machine"), join(config, "fbb", "data")]) mkdirSync(path, { recursive: true });
+  for (const path of [known, connection, machine, typo]) writeFileSync(path, "fixture");
   const args = launchArguments(cwd, agent, home, { XDG_CONFIG_HOME: config, XDG_DATA_HOME: data, XDG_CACHE_HOME: cache }, profile, raw);
   assert.ok(values(args, "--allow").includes(fff));
   assert.ok(values(args, "--allow").includes(hashline));
   assert.deepEqual(values(args, "--read"), [allow]);
-  for (const path of [connection, known, typo]) assert.ok(values(args, "--read-file").includes(path));
-  assert.deepEqual(values(args, "--bypass-protection"), [known]);
+  assert.deepEqual(values(args, "--read-file"), [typo]);
+  assert.deepEqual(values(args, "--bypass-protection"), []);
   assert.ok(!values(args, "--allow").includes(config));
 });
 
