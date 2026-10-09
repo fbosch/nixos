@@ -74,6 +74,10 @@ in
                 "$HOME/.agents/skills"
                 "$HOME/.nvm"
                 "$HOME/.config/gh/hosts.yml"
+                {
+                  path = "$HOME/Library/Application Support/CleanShot/media";
+                  when = "macos";
+                }
                 "/tmp"
                 "$TMPDIR"
               ];

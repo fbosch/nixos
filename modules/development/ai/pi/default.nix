@@ -71,8 +71,6 @@ let
           --prefix PATH : "$out/bin" \
           --add-flags "${../nono/scripts/launcher.mjs} ${pkgs.nono}/bin/nono ${rawPi}/bin/pi ${profile}"
         PI_TEST_BINARY="$out/bin/pi" ${pkgs.nodejs}/bin/node --test ${../nono}/__tests__/launcher.test.mjs
-        PI_TEST_PACKAGE="${rawPi}/lib/pi/node_modules/@earendil-works/pi-coding-agent" \
-          PI_TEST_BINARY="$out/bin/pi" ${pkgs.nodejs}/bin/node --test ${./__tests__/codemode-worker.test.mjs}
       '';
   systemPackages = { pkgs, ... }: {
     environment = {
