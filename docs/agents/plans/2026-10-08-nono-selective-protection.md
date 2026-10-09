@@ -4,12 +4,36 @@ Status: the Nix-owned wrapper is active on `rvn-mac`. The current change adds ma
 
 ## Current approved scope
 
-The latest approval adds macOS write protection for live shell startup inputs in normal Pi sessions. It retains first-position `pi --no-sandbox` for deliberate edits from a normal terminal. It does not move Fish configuration into Nix or require deployment after ordinary Fish edits.
+The shell-startup approval adds macOS write protection for live shell startup inputs in normal Pi sessions. It retains first-position `pi --no-sandbox` for deliberate edits from a normal terminal. It does not move Fish configuration into Nix or require deployment after ordinary Fish edits.
 
 - Nix owns the installed `pi` wrapper and its nono profile. Changes to its source require a rebuild and activation.
 - Fish configuration and `.shinit` remain editable Stow files. They remove the old Pi PATH override after `/run/current-system/sw/share/pi/nono-wrapper` appears. Existing hosts retain their legacy sandbox launcher until Nix activation.
 - Stow stops deploying `.pi/agent/bin`. Unknown files and symlinks must not be overwritten during the handoff.
 - Mutable reference/grant settings, unrestricted networking, and reachable host services remain separate risks. This change does not close every persistence or data-exfiltration route.
+
+## Reference access policy
+
+The new reference policy is implemented in the Nix-owned launcher but has not been activated. Reference definitions remain in Pi's global and trusted project settings; this change adds no approval registry or new configuration format.
+
+- References receive read-only grants by default, including references discovered through docs-cache.
+- The current working directory remains writable.
+- When Pi starts inside `~/dotfiles` or `~/nixos`, references resolving inside either repository receive write access. This includes launches from subdirectories and aliases that resolve to those repositories.
+- Names such as `nixos`, extra settings fields, and similarly named sibling directories cannot authorize writes. The exception uses actual resolved paths and is packaged with the launcher.
+- Existing Pi state and cache grants remain writable. Read-only references do not cancel those grants or writes inherited from the current project. In particular, the writable agent directory may be inside the dotfiles reference.
+
+Adding a reference needs no rebuild. Changing the write exception requires rebuilding and activating the launcher. macOS shell-startup denials still take precedence over the paired repository grants.
+
+The Linux enforcement test passed on `rvn-pc` with nono `0.79.0` using disposable fixture homes and repositories. External references allowed reads but rejected overwrite, append, file and directory creation, rename, and unlink. The current project and paired repositories allowed creation, atomic replacement, and deletion in both repository launch contexts. No production reference files were mutated. macOS runtime enforcement of this reference policy has not been tested.
+
+The Linux launcher package build passed, including the built-entry tests. All 15 reference tests passed with installed nono. The separate `pi-launcher-routing` check failed because its probe could not load `install-lock/dist/utils/shell.js`. Two optional Linux cache tests also failed in this session because their fixtures overlap protected nono state or require writes outside the sandbox. Those tests were not changed. Scoped syntax, Statix, deadnix, and diff checks passed. Biome's control-character regex errors and nixfmt's existing formatting finding remain unfixed.
+
+Run the focused fixture test with:
+
+```sh
+NONO_TEST_BINARY="$(command -v nono)" node --test modules/development/ai/nono/__tests__/reference-access.test.mjs
+```
+
+This changes which filesystem grants references request. It does not protect all grant inputs, pin nono profile inheritance, restrict host-service IPC, or add Linux shell-startup protection.
 
 ## macOS shell startup protection
 
@@ -57,7 +81,7 @@ Linux continues using the existing profile. This change makes no Linux selective
 
 `modules/development/ai/pi/default.nix` installs a binary `pi` wrapper. It starts store-backed Node and `modules/development/ai/nono/scripts/launcher.mjs`, which imports only Node builtins and the store-backed shell protection helper. The wrapper clears Node preload variables and cannot source `BASH_ENV` before confinement. Nono, the profile, and the patched raw Pi executable use absolute store paths. First-position `--no-sandbox` remains an explicit bypass; `NONO_CAP_FILE` never selects it.
 
-`modules/development/ai/nono/default.nix` replaces the old `nono.nix` declaration. Its `scripts/profile.json` is the common source for the packaged policy and `/etc/nono/pi.json`. Runtime grants retain the existing reference, Stow-target, direnv, FFF, hashline, and Podman behavior. Settings and trust files remain mutable JSON inputs.
+`modules/development/ai/nono/default.nix` replaces the old `nono.nix` declaration. Its `scripts/profile.json` is the common source for the packaged policy and `/etc/nono/pi.json`. Reference grants follow the policy above. Other runtime grants are unchanged by this reference update. Settings and trust files remain mutable JSON inputs.
 
 - The offline Darwin package build passed. Its 9 launcher tests also passed against the built binary, including shell/Node preload injection fixtures.
 - All 17 isolated module assertions passed for each of Darwin and Linux. These are not full host evaluations or Linux runtime tests.

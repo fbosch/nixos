@@ -164,7 +164,7 @@ test("only leading explicit --no-sandbox bypasses policy; other placements reach
   assert.notEqual(nono, raw);
 });
 
-test("global, trusted project and docs-cache references retain canonical writable grants", () => {
+test("global, trusted project and docs-cache references receive canonical read-only grants", () => {
   const { root, home, cwd, agent, raw, profile } = fixture();
   const target = join(root, "target");
   mkdirSync(target);
@@ -174,12 +174,14 @@ test("global, trusted project and docs-cache references retain canonical writabl
   writeFileSync(join(cwd, ".pi", "settings.json"), JSON.stringify({ references: { project: { path: target, description: "project" } } }));
   mkdirSync(join(cwd, ".docs", "api"), { recursive: true });
   writeFileSync(join(cwd, "docs-lock.json"), JSON.stringify({ version: 1, sources: { api: { repo: "owner/api" } } }));
-  const grants = () => values(launchArguments(cwd, agent, home, {}, profile, raw), "--allow");
-  assert.ok(grants().includes(realpathSync(target)));
-  assert.ok(!grants().includes(realpathSync(join(cwd, ".docs", "api"))));
+  const args = () => launchArguments(cwd, agent, home, {}, profile, raw);
+  assert.ok(values(args(), "--read").includes(realpathSync(target)));
+  assert.ok(!values(args(), "--read").includes(realpathSync(join(cwd, ".docs", "api"))));
   writeFileSync(join(agent, "trust.json"), JSON.stringify({ [realpathSync(cwd)]: true }));
-  assert.ok(grants().includes(realpathSync(join(cwd, ".docs", "api"))));
-  assert.ok(!grants().includes(home));
+  assert.ok(values(args(), "--read").includes(realpathSync(join(cwd, ".docs", "api"))));
+  assert.ok(!values(args(), "--allow").includes(realpathSync(target)));
+  assert.ok(!values(args(), "--allow").includes(realpathSync(join(cwd, ".docs", "api"))));
+  assert.ok(!values(args(), "--allow").includes(home));
 });
 
 test("retains narrow grants without Podman or SSH host-file access", () => {
@@ -212,7 +214,7 @@ test("global user skills do not require project trust", () => {
   mkdirSync(join(home, ".agents", "skills"), { recursive: true });
   mkdirSync(docs, { recursive: true });
   writeFileSync(join(cwd, "docs-lock.json"), JSON.stringify({ version: 1, sources: { api: { repo: "owner/api" } } }));
-  assert.ok(values(launchArguments(cwd, agent, home, {}, profile, raw), "--allow").includes(realpathSync(docs)));
+  assert.ok(values(launchArguments(cwd, agent, home, {}, profile, raw), "--read").includes(realpathSync(docs)));
 });
 
 test("nearest trust decisions win and invalid trust data fails closed", () => {
@@ -224,9 +226,9 @@ test("nearest trust decisions win and invalid trust data fails closed", () => {
   writeFileSync(join(cwd, "docs-lock.json"), JSON.stringify({ version: 1, sources: { api: { repo: "owner/api" } } }));
   const trust = join(agent, "trust.json");
   writeFileSync(trust, JSON.stringify({ [realpathSync(root)]: true, [realpathSync(cwd)]: false }));
-  assert.ok(!values(launch(), "--allow").includes(realpathSync(docs)));
+  assert.ok(!values(launch(), "--read").includes(realpathSync(docs)));
   writeFileSync(trust, `\uFEFF${JSON.stringify({ [realpathSync(root)]: true, [realpathSync(cwd)]: null })}`);
-  assert.ok(values(launch(), "--allow").includes(realpathSync(docs)));
+  assert.ok(values(launch(), "--read").includes(realpathSync(docs)));
   for (const invalid of [[], null, { [realpathSync(root)]: true, [realpathSync(cwd)]: "yes" }]) {
     writeFileSync(trust, JSON.stringify(invalid));
     assert.throws(() => launch(), /Invalid project trust store/);
@@ -239,7 +241,7 @@ test("current-directory references are removed before collision checks", () => {
   mkdirSync(docs, { recursive: true });
   writeFileSync(join(agent, "settings.json"), JSON.stringify({ references: { api: { path: cwd, description: "current project" } } }));
   writeFileSync(join(cwd, "docs-lock.json"), JSON.stringify({ version: 1, sources: { api: { repo: "owner/api" } } }));
-  assert.ok(values(launch(), "--allow").includes(realpathSync(docs)));
+  assert.ok(values(launch(), "--read").includes(realpathSync(docs)));
 });
 
 test("built entry cannot source shell or Node preload code before confinement", { skip: !process.env.PI_TEST_BINARY }, () => {

@@ -75,6 +75,7 @@ let
           --add-flags "${../nono/scripts}/launcher.mjs ${pkgs.nono}/bin/nono ${rawPi}/bin/pi ${profile}"
         PI_TEST_BINARY="$out/bin/pi" ${pkgs.nodejs}/bin/node --test \
           ${../nono}/__tests__/launcher.test.mjs \
+          ${../nono}/__tests__/reference-access.test.mjs \
           ${../nono}/__tests__/shell-protection.test.mjs
       '';
   systemPackages = { pkgs, ... }: {

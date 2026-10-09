@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
-import { delimiter, dirname, isAbsolute, join, resolve } from "node:path";
+import { delimiter, dirname, isAbsolute, join, resolve, sep } from "node:path";
 import { spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 import { withProtectedShellProfile } from "./shell-protection.mjs";
@@ -116,12 +116,32 @@ function existingFile(path) {
   return existsSync(path) && statSync(path).isFile();
 }
 
+function within(path, root) {
+  return root === sep || path === root || path.startsWith(`${root}${sep}`);
+}
+
+function writableReferenceRoots(cwd, home) {
+  // These exceptions are packaged by Nix, never selected by mutable reference names or settings.
+  const roots = ["dotfiles", "nixos"].map((name) => existingDirectory(join(home, name))).filter(Boolean);
+  if (roots.length === 0) return [];
+  const canonicalHome = realpathSync(home);
+  if (roots.some((root) => within(canonicalHome, root))) {
+    throw new Error("Paired repository paths must not resolve to the home directory or an ancestor.");
+  }
+  const canonicalCwd = realpathSync(cwd);
+  return roots.some((root) => within(canonicalCwd, root)) ? roots : [];
+}
+
 export function launchArguments(cwd, agentDir, home, environment, profile, rawPi) {
   if (!isAbsolute(profile) || !existingFile(profile)) throw new Error(`Nix nono profile missing: ${profile}`);
   const grants = new Set();
+  const reads = new Set();
+  const writableRoots = writableReferenceRoots(cwd, home);
   for (const reference of references(cwd, agentDir, home)) {
     const path = existingDirectory(reference.path);
-    if (path !== undefined) grants.add(path);
+    if (path === undefined) continue;
+    const destinations = writableRoots.some((root) => within(path, root)) ? grants : reads;
+    destinations.add(path);
   }
   // Stow links extension resources into the repo; only grant their actual targets.
   for (const path of [agentDir, join(home, ".agents", "skills"), join(home, ".cache", "pi")]) {
@@ -148,6 +168,7 @@ export function launchArguments(cwd, agentDir, home, environment, profile, rawPi
     "run", "--profile", profile, "--allow-cwd", "--suppress-save-prompt", "/",
     ...extra,
     ...(existingDirectory(direnvAllow) !== undefined ? ["--read", direnvAllow] : []),
+    ...[...reads].filter((path) => !grants.has(path)).flatMap((path) => ["--read", path]),
     ...[...grants].flatMap((path) => ["--allow", path]),
     "--", rawPi,
   ];
