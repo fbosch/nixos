@@ -70,9 +70,8 @@ let
       );
     in
     pi;
-  mkLauncher = pkgs:
+  mkLauncher = pkgs: rawPi:
     let
-      rawPi = mkPi pkgs;
       profile = pkgs.writeText "pi-nono-profile.json" (builtins.toJSON (builtins.fromJSON (builtins.readFile ../nono/scripts/profile.json)));
     in
     pkgs.runCommand "pi"
@@ -87,11 +86,15 @@ let
         # A binary entry avoids sourcing BASH_ENV before nono applies confinement.
         makeBinaryWrapper ${pkgs.nodejs}/bin/node "$out/bin/pi" \
           --unset NODE_OPTIONS --unset NODE_PATH \
+          --prefix PATH : "$out/bin" \
           --add-flags "${../nono/scripts/launcher.mjs} ${pkgs.nono}/bin/nono ${rawPi}/bin/pi ${profile}"
         PI_TEST_BINARY="$out/bin/pi" ${pkgs.nodejs}/bin/node --test ${../nono}/__tests__/launcher.test.mjs
       '';
   systemPackages = { pkgs, ... }: {
-    environment.systemPackages = [ (mkLauncher pkgs) ];
+    environment = {
+      systemPackages = [ (mkLauncher pkgs (mkPi pkgs)) ];
+      pathsToLink = [ "/share/pi" ];
+    };
   };
   homeManagerPi =
     { lib, pkgs, ... }:
@@ -137,6 +140,23 @@ in
   perSystem =
     { lib, pkgs, ... }:
     let
+      launcher = mkLauncher pkgs (mkPi pkgs);
+      evaluateSystem =
+        if pkgs.stdenv.hostPlatform.isDarwin then inputs.nix-darwin.lib.darwinSystem
+        else inputs.nixpkgs.lib.nixosSystem;
+      profileConfig = evaluateSystem {
+        system = pkgs.stdenv.hostPlatform.system;
+        modules = [ systemPackages { nixpkgs.pkgs = pkgs; } ];
+      };
+      launcherProfile = pkgs.buildEnv {
+        name = "pi-profile-check";
+        paths = [ launcher ];
+        inherit (profileConfig.config.environment) pathsToLink;
+      };
+      shellProbe = pkgs.writeShellScriptBin "pi" ''
+        exec ${pkgs.nodejs}/bin/node ${../nono/__tests__/fixtures/shell-path-probe.mjs} \
+          ${(mkPi pkgs).src}/dist/utils/shell.js ${pkgs.bash}/bin/bash "$@"
+      '';
       piHomeConfig =
         (inputs.home-manager.lib.homeManagerConfiguration {
           inherit pkgs;
@@ -154,8 +174,18 @@ in
       securePiAgentDirectory = piHomeConfig.home.activation.securePiAgentDirectory;
     in
     {
-      packages.pi-sandbox = mkLauncher pkgs;
+      packages.pi-sandbox = launcher;
       packages.pi-raw = mkPi pkgs;
+      checks.pi-launcher-routing = pkgs.runCommand "pi-launcher-routing"
+        {
+          PI_TEST_PROFILE = launcherProfile;
+          PI_TEST_PROBE = "${mkLauncher pkgs shellProbe}/bin/pi";
+          PI_TEST_FISH = "${pkgs.fish}/bin/fish";
+        }
+        ''
+          ${pkgs.nodejs}/bin/node --test ${../nono}/__tests__/routing.test.mjs
+          touch "$out"
+        '';
       nix-unit.tests.piActivation = {
         testSecuresPiAgentDirectory = {
           expr = lib.hasInfix ''/bin/install -d -m 0700 "$HOME/.pi/agent"'' securePiAgentDirectory.data;

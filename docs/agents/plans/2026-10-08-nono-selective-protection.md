@@ -1,6 +1,6 @@
 # Nono selective protection for Pi
 
-Status: the Nix-owned Pi command wrapper is implemented and built locally, but not activated. Fish configuration stays Stow-managed. Full host evaluation and platform enforcement checks remain pending.
+Status: the initial Nix-owned Pi wrapper was activated on `rvn-mac`. Follow-up fixes for marker linkage and child-process PATH ordering are implemented and built, but await reactivation. Fish stays Stow-managed. Live sandbox enforcement remains unverified.
 
 ## Current approved scope
 
@@ -24,6 +24,17 @@ The latest approval covers a `pi` command wrapper in `~/nixos`, including immuta
 - Fish/POSIX syntax, scoped nixpkgs-fmt, Statix, Deadnix, prose checks, and diff checks passed.
 - The built wrapper returned Pi `1.1.0` with `--no-sandbox --version`. Normal launch reached nono but failed to create its audit session under `~/.local/state/nono/audit` with `Operation not permitted` in this already-confined session. Live confinement is unverified.
 - `devenv test` remains blocked by `failed to create devenv home directory: /Users/fbb/.local/share/devenv/: File exists (os error 17)`.
+
+## Activation follow-up
+
+The first activated Darwin profile contained the wrapper but omitted `share/pi/nono-wrapper`. Fish therefore kept the legacy PATH branch. Pi's shell helper also prepended its writable agent-bin directory, selecting the old source launcher inside tool processes.
+
+- The Pi module now adds `/share/pi` to `environment.pathsToLink`. Evaluation of `rvn-mac` confirms that the merged host value includes it.
+- The binary wrapper prepends its own immutable `bin`. The launcher moves inherited agent-bin paths behind other entries and keeps the selected managed bin last. Pi then sees that directory already present and does not prepend it. Unrelated PATH entries remain available.
+- `checks.pi-launcher-routing` assembles a profile using the platform's evaluated linkage settings and tests fake legacy launchers through the same wrapper factory. Its probe executes the pinned upstream shell helper with an injected `getBinDir`, without loading unrelated package dependencies. This is a routing test, not a confinement test.
+- Both new regression tests failed on the original implementation and passed after the fixes. The 9 existing launcher tests also passed. The check evaluates for Darwin and Linux; it has only been built and executed on Darwin.
+
+No host activation was performed for these follow-up fixes. Rebuild and activate, then restart shells and Pi before checking normal sandbox startup outside the existing session.
 
 ## Operator handoff
 

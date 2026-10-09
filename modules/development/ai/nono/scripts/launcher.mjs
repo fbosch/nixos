@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
-import { dirname, isAbsolute, join, resolve } from "node:path";
+import { delimiter, dirname, isAbsolute, join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 
@@ -177,7 +177,24 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     if (process.platform === "darwin" && !environment.XDG_RUNTIME_DIR) {
       environment.XDG_RUNTIME_DIR = environment.TMPDIR || tmpdir();
     }
-    const agentDir = environment.PI_CODING_AGENT_DIR || join(homedir(), ".pi", "agent");
+    const home = homedir();
+    const configuredAgent = environment.PI_CODING_AGENT_DIR || join(home, ".pi", "agent");
+    const agentDir = resolve(configuredAgent === "~" ? home : configuredAgent.startsWith("~/") ? join(home, configuredAgent.slice(2)) : configuredAgent);
+    environment.PI_CODING_AGENT_DIR = agentDir;
+    const managedBin = join(agentDir, "bin");
+    const legacyBins = new Set([
+      managedBin,
+      join(home, ".pi", "agent", "bin"),
+      join(home, "dotfiles", ".pi", "agent", "bin"),
+    ]);
+    const pathEntries = (environment.PATH || "").split(delimiter).filter(Boolean);
+    // Keep Pi's managed bin present at the end so getShellEnv cannot prepend it.
+    // The binary entry has already placed its immutable bin first.
+    environment.PATH = [
+      ...pathEntries.filter((path) => !legacyBins.has(resolve(path))),
+      ...new Set(pathEntries.filter((path) => legacyBins.has(resolve(path)) && resolve(path) !== managedBin)),
+      managedBin,
+    ].join(delimiter);
     const command = launchCommand(args, process.cwd(), agentDir, homedir(), environment, nono, rawPi, profile);
     const child = spawnSync(command[0], command.slice(1), { stdio: "inherit", env: environment });
     if (child.error) throw child.error;
