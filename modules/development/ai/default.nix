@@ -24,8 +24,8 @@ let
               in
               assert pkgs.lib.assertMsg
                 (
-                  previous.version == "0.38.2"
-                ) "Review the agent-browser wrapper before upgrading from 0.38.2";
+                  previous.version == "0.39.0"
+                ) "Review the agent-browser wrapper before upgrading from 0.39.0";
               {
                 # Avoid the generic executable path: agent-browser applies it to every engine.
                 postInstall = ''
