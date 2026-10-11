@@ -46,9 +46,8 @@ in
       profile = builtins.fromJSON evaluated.environment.etc."nono/pi.json".source.text;
     in
     {
-      # Landlock file grants alone do not restrict pathname sockets.
-      # shortcut: seccomp-notify mediation is not race-proof; adversarial isolation
-      # requires an outer boundary rather than treating this check as escape-proof.
+      # Desktop and development services need pathname socket access. Filesystem
+      # confinement does not constrain actions delegated to those services.
       checks = lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
         nono-pi-socket-isolation =
           pkgs.runCommand "nono-pi-socket-isolation"
@@ -197,9 +196,9 @@ in
             workdir.access = "readwrite";
           };
         };
-        testRequiresPathnameSocketMediation = {
+        testKeepsSocketCompatibility = {
           expr = profile.linux;
-          expected.af_unix_mediation = "pathname";
+          expected.af_unix_mediation = "off";
         };
         testKeepsSignalIsolationAndDisablesElevation = {
           expr = profile.security;

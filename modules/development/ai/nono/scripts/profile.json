@@ -50,7 +50,7 @@
         ]
     },
     "linux": {
-        "af_unix_mediation": "pathname"
+        "af_unix_mediation": "off"
     },
     "meta": {
         "description": "Pi with project reference grants and macOS LMDB semaphore support",

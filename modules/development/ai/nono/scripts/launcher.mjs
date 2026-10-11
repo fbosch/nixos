@@ -163,11 +163,18 @@ export function launchArguments(cwd, agentDir, home, environment, profile, rawPi
   for (const path of [join(configHome, "fbb", "data", "typos.abolish"), join(configHome, "nix", "git", "config")]) {
     if (existingFile(path)) extra.push("--read-file", path);
   }
-  const direnvAllow = join(dataHome, "direnv", "allow");
+  const direnvAllow = existingDirectory(join(dataHome, "direnv", "allow"));
+  // Approval is user-owned authorization; the sandbox may only consume existing decisions.
+  if (direnvAllow !== undefined) reads.add(direnvAllow);
+  // Explicitly permit devenv's dynamically named directories in the desktop runtime root.
+  if (environment.XDG_RUNTIME_DIR) {
+    const runtime = existingDirectory(environment.XDG_RUNTIME_DIR);
+    if (runtime === undefined) throw new Error("XDG_RUNTIME_DIR must be an existing directory");
+    extra.push("--allow", runtime);
+  }
   return [
     "run", "--profile", profile, "--allow-cwd", "--suppress-save-prompt", "/",
     ...extra,
-    ...(existingDirectory(direnvAllow) !== undefined ? ["--read", direnvAllow] : []),
     ...[...reads].filter((path) => !grants.has(path)).flatMap((path) => ["--read", path]),
     ...[...grants].flatMap((path) => ["--allow", path]),
     "--", rawPi,

@@ -13,7 +13,7 @@ const probe = fileURLToPath(new URL("./fixtures/socket-isolation-probe.mjs", imp
 
 test("Pi permits only the normal Nix daemon as an explicit socket grant", () => {
   const profile = JSON.parse(readFileSync(profilePath, "utf8"));
-  assert.equal(profile.linux?.af_unix_mediation, "pathname");
+  assert.equal(profile.linux?.af_unix_mediation, "off");
   assert.deepEqual(profile.filesystem.unix_socket, [{ path: "/nix/var/nix/daemon-socket/socket", when: "linux" }]);
   for (const [key, value] of Object.entries(profile.filesystem)) {
     if (key.startsWith("unix_socket") && key !== "unix_socket") assert.deepEqual(value, [], key);
@@ -65,7 +65,7 @@ test("probe timeout terminates a process group retaining output pipes", { timeou
   `], {}, { signal: t.signal, timeoutMs: 500 }), /Sandbox probe timed out/);
 });
 
-test("nono denies host-style sockets and aliases while stdio and HTTP MCP initialize", {
+test("nono permits pathname sockets and aliases while stdio and HTTP MCP initialize", {
   skip: process.platform !== "linux" || !process.env.NONO_TEST_BINARY,
   timeout: 45000,
 }, async (t) => {
@@ -141,10 +141,10 @@ test("nono denies host-style sockets and aliases while stdio and HTTP MCP initia
     assert.equal(result.signal, null, result.stderr);
     assert.equal(result.code, 0, result.stderr || result.stdout);
     const report = JSON.parse(result.stdout.trim());
-    assert.deepEqual(report.denied, sockets);
+    assert.deepEqual(report.connected, sockets);
     assert.equal(report.stdio, "stdio-fixture");
     assert.equal(report.http, "http-fixture");
-    assert.equal(accepted, 4, "sandbox must not reach any fixture control socket");
+    assert.equal(accepted, 9, "socket compatibility must permit all fixture connections");
   } finally {
     for (const socket of connections) socket.destroy();
     for (const server of servers) server.closeAllConnections?.();

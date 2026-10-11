@@ -201,10 +201,37 @@ test("retains narrow grants without Podman or SSH host-file access", () => {
   const args = launchArguments(cwd, agent, home, { XDG_CONFIG_HOME: config, XDG_DATA_HOME: data, XDG_CACHE_HOME: cache }, profile, raw);
   assert.ok(values(args, "--allow").includes(fff));
   assert.ok(values(args, "--allow").includes(hashline));
-  assert.deepEqual(values(args, "--read"), [allow]);
+  assert.deepEqual(values(args, "--read"), [realpathSync(allow)]);
+  assert.ok(!values(args, "--allow").includes(realpathSync(join(data, "direnv"))));
+  assert.ok(!values(args, "--allow").includes(realpathSync(allow)));
   assert.deepEqual(values(args, "--read-file"), [typo]);
   assert.deepEqual(values(args, "--bypass-protection"), []);
   assert.ok(!values(args, "--allow").includes(config));
+});
+
+test("does not create or grant writable direnv trust state while permitting the selected runtime root", () => {
+  const { root, home, cwd, agent, raw, profile } = fixture();
+  const data = join(root, "data");
+  const runtime = join(root, "runtime");
+  mkdirSync(runtime);
+  const environment = { XDG_DATA_HOME: data, XDG_RUNTIME_DIR: runtime };
+  const args = launchArguments(cwd, agent, home, environment, profile, raw);
+  const state = join(data, "direnv");
+  assert.equal(existsSync(state), false);
+  assert.ok(!values(args, "--allow").includes(state));
+  assert.ok(values(args, "--allow").includes(realpathSync(runtime)));
+  assert.ok(!values(args, "--allow").includes(data));
+  assert.ok(!values(args, "--allow").includes(home));
+
+  const approvals = join(state, "allow");
+  mkdirSync(approvals, { recursive: true });
+  const approvedArgs = launchArguments(cwd, agent, home, environment, profile, raw);
+  assert.ok(values(approvedArgs, "--read").includes(realpathSync(approvals)));
+  assert.ok(!values(approvedArgs, "--allow").includes(realpathSync(approvals)));
+  assert.ok(!values(approvedArgs, "--allow").includes(realpathSync(state)));
+  assert.throws(() => launchArguments(cwd, agent, home, {
+    XDG_RUNTIME_DIR: join(root, "missing-runtime"),
+  }, profile, raw), /XDG_RUNTIME_DIR must be an existing directory/);
 });
 
 test("global user skills do not require project trust", () => {

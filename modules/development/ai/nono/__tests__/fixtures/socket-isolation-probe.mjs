@@ -23,17 +23,16 @@ if (process.argv[2] === "--stdio-server") {
   });
 } else {
   const { sockets, url } = JSON.parse(process.argv[2]);
-  const denied = [];
+  const connected = [];
   for (const path of sockets) {
     const socket = createConnection(path);
     try {
-      const error = await new Promise((resolve, reject) => {
-        socket.once("connect", () => reject(new Error(`Host socket is reachable: ${path}`)));
-        socket.once("error", resolve);
+      await new Promise((resolve, reject) => {
+        socket.once("connect", resolve);
+        socket.once("error", reject);
         socket.setTimeout(3000, () => reject(new Error(`Socket check timed out: ${path}`)));
       });
-      assert.ok(["EACCES", "EPERM"].includes(error.code), `${path}: ${error.code}`);
-      denied.push(path);
+      connected.push(path);
     } finally {
       socket.destroy();
     }
@@ -62,5 +61,5 @@ if (process.argv[2] === "--stdio-server") {
   assert.equal(response.status, 200);
   const http = await response.json();
   assert.equal(http.id, initialize.id);
-  console.log(JSON.stringify({ denied, stdio: stdio.result.serverInfo.name, http: http.result.serverInfo.name }));
+  console.log(JSON.stringify({ connected, stdio: stdio.result.serverInfo.name, http: http.result.serverInfo.name }));
 }
