@@ -23,37 +23,35 @@ let
       upstreamPi = inputs.pi.packages.${system}.default.override { inherit source; };
       pi = upstreamPi.overrideAttrs (
         previous:
-          assert pkgs.lib.assertMsg
-            (pkgs.lib.hasInfix "/bin/node" (
-              previous.installPhase or ""
-            )) "Review Pi Node runtime installation: upstream's package entry changed";
-          assert pkgs.lib.assertMsg
-            (pkgs.lib.hasInfix "dist/bundle/cli.js" (
-              previous.installPhase or ""
-            )) "Review Pi Node CLI packaging: upstream's bundle entry changed";
-          {
-            # Match llm-agents.nix's explicit defaults for the wrapped CLI.
-            postInstall = (previous.postInstall or "") + ''
-              wrapProgram "$out/bin/pi" \
-                --set PI_SKIP_VERSION_CHECK 1 \
-                --set PI_TELEMETRY 0
-            '';
-            postInstallCheck = (previous.postInstallCheck or "") + ''
-              package="$out/lib/pi/node_modules/@earendil-works/pi-coding-agent"
-              PI_TEST_PACKAGE="$package" PI_TEST_BINARY="$out/bin/pi" ${pkgs.nodejs_22}/bin/node --test \
-                ${./__tests__/auth-startup.test.mjs} \
-                ${./__tests__/codemode-worker.test.mjs} \
-                ${./__tests__/mcp-background.test.mjs} \
-                ${./__tests__/tool-search-ranking.test.mjs}
-            '';
-          }
+        assert pkgs.lib.assertMsg (pkgs.lib.hasInfix "/bin/node" (
+          previous.installPhase or ""
+        )) "Review Pi Node runtime installation: upstream's package entry changed";
+        assert pkgs.lib.assertMsg (pkgs.lib.hasInfix "dist/bundle/cli.js" (
+          previous.installPhase or ""
+        )) "Review Pi Node CLI packaging: upstream's bundle entry changed";
+        {
+          # Match llm-agents.nix's explicit defaults for the wrapped CLI.
+          postInstall = (previous.postInstall or "") + ''
+            wrapProgram "$out/bin/pi" \
+              --set PI_SKIP_VERSION_CHECK 1 \
+              --set PI_TELEMETRY 0
+          '';
+          postInstallCheck = (previous.postInstallCheck or "") + ''
+            package="$out/lib/pi/node_modules/@earendil-works/pi-coding-agent"
+            PI_TEST_PACKAGE="$package" PI_TEST_BINARY="$out/bin/pi" ${pkgs.nodejs_22}/bin/node --test \
+              ${./__tests__/auth-startup.test.mjs} \
+              ${./__tests__/codemode-worker.test.mjs} \
+              ${./__tests__/mcp-background.test.mjs} \
+              ${./__tests__/tool-search-ranking.test.mjs}
+          '';
+        }
       );
     in
     pi;
-  mkLauncher = pkgs: rawPi:
-    assert pkgs.lib.assertMsg
-      (!pkgs.stdenv.hostPlatform.isDarwin || pkgs.lib.versionAtLeast pkgs.nono.version "0.79.0")
-      "Pi shell startup protection requires nono >= 0.79.0 on macOS";
+  mkLauncher =
+    pkgs: rawPi:
+    assert pkgs.lib.assertMsg (pkgs.lib.versionAtLeast pkgs.nono.version "0.79.0")
+      "Pi socket and shell startup protection require nono >= 0.79.0";
     let
       profile = pkgs.writeText "pi-nono-profile.json" (
         builtins.toJSON (builtins.fromJSON (builtins.readFile ../nono/scripts/profile.json))
@@ -76,7 +74,8 @@ let
         PI_TEST_BINARY="$out/bin/pi" ${pkgs.nodejs}/bin/node --test \
           ${../nono}/__tests__/launcher.test.mjs \
           ${../nono}/__tests__/reference-access.test.mjs \
-          ${../nono}/__tests__/shell-protection.test.mjs
+          ${../nono}/__tests__/shell-protection.test.mjs \
+          ${../nono}/__tests__/socket-isolation.test.mjs
       '';
   systemPackages = { pkgs, ... }: {
     environment = {
@@ -130,11 +129,16 @@ in
     let
       launcher = mkLauncher pkgs (mkPi pkgs);
       evaluateSystem =
-        if pkgs.stdenv.hostPlatform.isDarwin then inputs.nix-darwin.lib.darwinSystem
-        else inputs.nixpkgs.lib.nixosSystem;
+        if pkgs.stdenv.hostPlatform.isDarwin then
+          inputs.nix-darwin.lib.darwinSystem
+        else
+          inputs.nixpkgs.lib.nixosSystem;
       profileConfig = evaluateSystem {
         system = pkgs.stdenv.hostPlatform.system;
-        modules = [ systemPackages { nixpkgs.pkgs = pkgs; } ];
+        modules = [
+          systemPackages
+          { nixpkgs.pkgs = pkgs; }
+        ];
       };
       launcherProfile = pkgs.buildEnv {
         name = "pi-profile-check";
@@ -164,16 +168,17 @@ in
     {
       packages.pi-sandbox = launcher;
       packages.pi-raw = mkPi pkgs;
-      checks.pi-launcher-routing = pkgs.runCommand "pi-launcher-routing"
-        {
-          PI_TEST_PROFILE = launcherProfile;
-          PI_TEST_PROBE = "${mkLauncher pkgs shellProbe}/bin/pi";
-          PI_TEST_FISH = "${pkgs.fish}/bin/fish";
-        }
-        ''
-          ${pkgs.nodejs}/bin/node --test ${../nono/__tests__/routing.test.mjs}
-          touch "$out"
-        '';
+      checks.pi-launcher-routing =
+        pkgs.runCommand "pi-launcher-routing"
+          {
+            PI_TEST_PROFILE = launcherProfile;
+            PI_TEST_PROBE = "${mkLauncher pkgs shellProbe}/bin/pi";
+            PI_TEST_FISH = "${pkgs.fish}/bin/fish";
+          }
+          ''
+            ${pkgs.nodejs}/bin/node --test ${../nono/__tests__/routing.test.mjs}
+            touch "$out"
+          '';
       nix-unit.tests.piActivation = {
         testSecuresPiAgentDirectory = {
           expr = lib.hasInfix ''/bin/install -d -m 0700 "$HOME/.pi/agent"'' securePiAgentDirectory.data;

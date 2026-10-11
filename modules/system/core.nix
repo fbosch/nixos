@@ -1,7 +1,8 @@
-{ inputs
-, lib
-, config
-, ...
+{
+  inputs,
+  lib,
+  config,
+  ...
 }:
 let
   mkCachixConfig =
@@ -88,10 +89,8 @@ in
             "@wheel"
           ];
 
-          trusted-users = [
-            "root"
-            "@wheel"
-          ];
+          # Trusted daemon clients have root-equivalent store access, including outside Pi.
+          trusted-users = [ "root" ];
         }
       ];
 

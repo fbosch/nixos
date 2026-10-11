@@ -17,6 +17,12 @@
             "/tmp",
             "$TMPDIR"
         ],
+        "unix_socket": [
+            {
+                "path": "/nix/var/nix/daemon-socket/socket",
+                "when": "linux"
+            }
+        ],
         "suppress_save_prompt": [
             "/"
         ]
@@ -42,6 +48,9 @@
             "git_config",
             "unlink_protection"
         ]
+    },
+    "linux": {
+        "af_unix_mediation": "pathname"
     },
     "meta": {
         "description": "Pi with project reference grants and macOS LMDB semaphore support",
