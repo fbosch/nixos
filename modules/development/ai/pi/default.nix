@@ -145,9 +145,10 @@ in
         paths = [ launcher ];
         inherit (profileConfig.config.environment) pathsToLink;
       };
+      # Upstream src is the dependency-lock directory; probe the installed helper.
       shellProbe = pkgs.writeShellScriptBin "pi" ''
         exec ${pkgs.nodejs}/bin/node ${../nono/__tests__/fixtures/shell-path-probe.mjs} \
-          ${(mkPi pkgs).src}/dist/utils/shell.js ${pkgs.bash}/bin/bash "$@"
+          ${mkPi pkgs}/lib/pi/node_modules/@earendil-works/pi-coding-agent/dist/utils/shell.js ${pkgs.bash}/bin/bash "$@"
       '';
       piHomeConfig =
         (inputs.home-manager.lib.homeManagerConfiguration {
