@@ -200,13 +200,64 @@ export function launchCommand(args, cwd, agentDir, home, environment, nono, rawP
   return [nono, ...launchArguments(cwd, agentDir, home, environment, profile, rawPi), ...args];
 }
 
+export function loadProjectEnvironment(cwd, environment, direnv, run = spawnSync) {
+  const envrc = join(cwd, ".envrc");
+  let entry;
+  try {
+    entry = statSync(envrc);
+  } catch (error) {
+    if (error.code === "ENOENT") return { ...environment };
+    throw error;
+  }
+  if (!entry.isFile()) throw new Error("Project .envrc must be a file");
+  if (!isAbsolute(direnv) || !existsSync(direnv) || !statSync(direnv).isFile()) {
+    throw new Error("Packaged direnv executable missing");
+  }
+
+  // Collect the diff before confinement so exit-zero evaluation failures cannot launch Pi.
+  // Caller-controlled shell/Node preloads must not execute in this trusted bootstrap.
+  const loaderEnvironment = { ...environment };
+  for (const name of ["BASH_ENV", "ENV", "NODE_OPTIONS", "NODE_PATH"]) delete loaderEnvironment[name];
+  const result = run(direnv, ["export", "json"], {
+    cwd,
+    env: loaderEnvironment,
+    encoding: "utf8",
+    timeout: 120_000,
+    maxBuffer: 16 * 1024 * 1024,
+  });
+  if (result.error || result.status !== 0 ||
+      /\b(?:error|failed|failure|cannot|unable)\b|is blocked|permission denied|no such file or directory/i.test(result.stderr || "")) {
+    throw new Error("Project direnv environment load failed; Pi was not launched");
+  }
+
+  let exported;
+  try {
+    exported = result.stdout.trim() === "" ? {} : JSON.parse(result.stdout);
+  } catch {
+    throw new Error("Project direnv export is not valid JSON; Pi was not launched");
+  }
+  if (!record(exported)) throw new Error("Project direnv export must be an object");
+
+  const loaded = { ...environment };
+  for (const [name, value] of Object.entries(exported)) {
+    if (value === null) delete loaded[name];
+    else if (typeof value === "string") loaded[name] = value;
+    else throw new Error("Project direnv export contains an invalid environment value");
+  }
+  delete loaded.NODE_OPTIONS;
+  delete loaded.NODE_PATH;
+  return loaded;
+}
+
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   try {
-    const [nono, rawPi, profile, ...args] = process.argv.slice(2);
-    const environment = { ...process.env };
+    const [nono, rawPi, profile, direnv, ...args] = process.argv.slice(2);
+    let environment = { ...process.env };
     // No mutable JS preload or module path may run in this pre-sandbox process.
     delete environment.NODE_OPTIONS;
     delete environment.NODE_PATH;
+    const entryBin = (environment.PATH || "").split(delimiter)[0];
+    environment = loadProjectEnvironment(process.cwd(), environment, direnv);
     if (process.platform === "darwin" && !environment.XDG_RUNTIME_DIR) {
       environment.XDG_RUNTIME_DIR = environment.TMPDIR || tmpdir();
     }
@@ -224,7 +275,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     // Keep Pi's managed bin present at the end so getShellEnv cannot prepend it.
     // The binary entry has already placed its immutable bin first.
     environment.PATH = [
-      ...pathEntries.filter((path) => !legacyBins.has(resolve(path))),
+      ...(entryBin ? [entryBin] : []),
+      ...pathEntries.filter((path) => path !== entryBin && !legacyBins.has(resolve(path))),
       ...new Set(pathEntries.filter((path) => legacyBins.has(resolve(path)) && resolve(path) !== managedBin)),
       managedBin,
     ].join(delimiter);
