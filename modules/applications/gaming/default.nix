@@ -41,6 +41,7 @@
         # sgdboop - disabled due to build error in nixpkgs (function signature mismatch)
         nvitop
         prismlauncher # Minecraft launcher
+        ruffle
         inputs.hytale-launcher.packages.${pkgs.stdenv.hostPlatform.system}.hytale-launcher
       ];
 
