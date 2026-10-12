@@ -287,6 +287,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     };
     let child;
     if (command[0] === nono) {
+      // Herdr sees the foreground nono wrapper, not Pi's isolated process group.
+      if (environment.HERDR_ENV === "1") environment.HERDR_AGENT = "pi";
       prepareJitiCache();
       prepareNpmCache();
       child = withProtectedShellProfile(profile, home, environment, run);
