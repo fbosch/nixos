@@ -7,7 +7,7 @@ This directory contains ten local Hyprland plugin packages used by this NixOS co
 | [`adaptive-soft-shadow`](adaptive-soft-shadow/)         | 0.3.0   | Draw backdrop-adaptive window shadows.                           |
 | [`anr-tag-ignore`](anr-tag-ignore/)                     | 0.1.0   | Reset ANR state for clients whose windows carry configured tags. |
 | [`cursor-outline`](cursor-outline/)                     | 0.1.0   | Draw a configurable outline around the cursor silhouette.        |
-| [`custom-layout-resize`](custom-layout-resize/)         | 0.3.1   | Drive custom tiled-layout resizing from native pointer motion.   |
+| [`custom-layout-resize`](custom-layout-resize/)         | 0.4.0   | Drive custom tiled-layout resizing from native pointer motion.   |
 | [`focus-animation`](focus-animation/)                   | 0.1.10  | Add a scale-based `windowsFocus` animation leaf.                 |
 | [`inset-border`](inset-border/)                         | 0.3.0   | Draw focus-aware keylines inside window content.                 |
 | [`persistent-position`](persistent-position/)           | 0.2.0   | Save opt-in floating positions and restore before initial layout. |
@@ -240,10 +240,10 @@ The plugin writes a position expression during `window.openEarly`. Hyprland eval
 
 ### `custom-layout-resize`
 
-[`custom-layout-resize/main.cpp`](custom-layout-resize/main.cpp) converts native
-pointer movement into resize commands for selected tiled custom layouts. It can
-retarget and focus another eligible tiled window under the pointer during a
-resize session.
+[`custom-layout-resize/main.cpp`](custom-layout-resize/main.cpp) sends native
+pointer updates directly to the captured window's workspace layout. The target
+stays fixed until release, even if focus changes or the pointer crosses another
+window. Lua still owns ratio adjustment, minimum sizes, and persistence.
 
 Lua API under `hl.plugin.custom_layout_resize`:
 
@@ -251,7 +251,7 @@ Lua API under `hl.plugin.custom_layout_resize`:
 | --------------------------------------------------------------------- | ------------------------------------------------------------------------- |
 | `start(ultrawideLayout, portraitLayout, portraitMonitor, blockedTag)` | Returns `started, handled`.                                               |
 | `stop()`                                                              | Returns whether a resize session was active.                              |
-| `rebind()`                                                            | Re-registers the custom event and returns whether registration succeeded. |
+| `supports_direct_updates()`                                           | Returns `true` for native workspace-scoped update delivery.              |
 
 All four `start()` arguments are strings. The plugin resizes vertically for the
 named portrait layout. For the named ultrawide layout, it resizes vertically on
@@ -266,8 +266,8 @@ layouts, and windows carrying `blockedTag` are ineligible.
 | `false, true`  | The compositor is ready, but the target is ineligible. |
 | `true, true`   | The resize session started.                            |
 
-The plugin emits `custom_layout_resize.command` with one string payload. During
-pointer movement, the value has one of these forms:
+The plugin calls the captured workspace's layout message handler with one of
+these addressed commands. No Lua event subscription or dispatcher relay is needed:
 
 ```text
 resize-x-at address:0x<window> <left|right> <coordinate>
@@ -276,12 +276,13 @@ resize-y-at address:0x<window> <up|down> <coordinate>
 
 Updates are rate-limited to the target monitor's refresh interval, clamped
 between 6 and 17 milliseconds, and deduplicated by rounded coordinate. `stop()`
-emits the final position followed by `save-resize`. A configuration reload
-stops the current session without saving.
+sends the final position before `save-resize`. The plugin cancels a session if
+its target closes, floats, changes workspace, or loses its captured layout.
+Configuration reload and plugin unload cancel without saving.
 
-Call `rebind()` after a config reload. Hyprland replaces Lua event handlers
-without notifying an already-loaded plugin, so the custom event must be
-re-registered for the new Lua state.
+The Lua adapter requires `supports_direct_updates()` before starting a session.
+Update the native plugin and Lua adapter together. Hyprland restores the plugin's
+Lua functions after config reload, so this version needs no event rebind.
 
 ### `pointer-edge-hooks`
 

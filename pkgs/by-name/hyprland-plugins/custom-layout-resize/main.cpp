@@ -48,15 +48,21 @@ namespace {
         std::string                                          targetId;
         std::string                                          edge;
         int                                                  intervalMs = DEFAULT_INTERVAL_MS;
+        uint64_t                                             generation = 0;
+        PHLWINDOWREF                                         target;
+        PHLWORKSPACEREF                                      workspace;
+        WP<Layout::CSpace>                                   space;
+        WP<Layout::CAlgorithm>                               algorithm;
+        const Layout::ITiledAlgorithm*                       tiledAlgorithm = nullptr;
         std::optional<int>                                   lastPosition;
         std::optional<std::chrono::steady_clock::time_point> lastEmission;
     };
 
-    HANDLE                             g_handle = nullptr;
-    SP<Event::CEventBus::CCustomEvent> g_commandEvent;
-    CHyprSignalListener                g_mouseMoveListener;
-    CHyprSignalListener                g_preReloadListener;
-    SResizeSession                     g_session;
+    HANDLE              g_handle = nullptr;
+    CHyprSignalListener g_mouseMoveListener;
+    CHyprSignalListener g_preReloadListener;
+    SResizeSession      g_session;
+    uint64_t            g_sessionGeneration = 0;
 
     int returnStartStatus(lua_State* state, bool started, bool handled) {
         lua_pushboolean(state, started);
@@ -65,20 +71,8 @@ namespace {
     }
 
     void clearSession() {
+        ++g_sessionGeneration;
         g_session = {};
-    }
-
-    bool emitCommand(std::string command) {
-        if (!g_commandEvent)
-            return false;
-
-        const auto emitted = g_commandEvent->emit({std::move(command)});
-        if (!emitted) {
-            clearSession();
-            return false;
-        }
-
-        return true;
     }
 
     CBox windowGeometry(PHLWINDOW window) {
@@ -162,12 +156,31 @@ namespace {
     }
 
     struct SResizePlan {
-        char        axis;
-        std::string command;
-        std::string targetId;
-        std::string edge;
-        int         intervalMs;
+        char                           axis;
+        std::string                    command;
+        std::string                    targetId;
+        std::string                    edge;
+        int                            intervalMs;
+        PHLWORKSPACE                   workspace;
+        SP<Layout::CSpace>             space;
+        SP<Layout::CAlgorithm>         algorithm;
+        const Layout::ITiledAlgorithm* tiledAlgorithm;
     };
+
+    void applyPlan(const SResizePlan& plan, PHLWINDOW target) {
+        g_session.axis           = plan.axis;
+        g_session.command        = plan.command;
+        g_session.targetId       = plan.targetId;
+        g_session.edge           = plan.edge;
+        g_session.intervalMs     = plan.intervalMs;
+        g_session.target         = target;
+        g_session.workspace      = plan.workspace;
+        g_session.space          = plan.space;
+        g_session.algorithm      = plan.algorithm;
+        g_session.tiledAlgorithm = plan.tiledAlgorithm;
+        g_session.lastPosition.reset();
+        g_session.lastEmission.reset();
+    }
 
     std::optional<SResizePlan> resizePlan(PHLWINDOW target, const SResizeConfig& config, const Vector2D& cursor) {
         const auto axis = resizeAxis(target, config);
@@ -178,47 +191,51 @@ namespace {
         const auto coordinate = *axis == 'x' ? cursor.x : cursor.y;
         const auto midpoint   = *axis == 'x' ? geometry.x + geometry.width / 2.0 : geometry.y + geometry.height / 2.0;
 
+        const auto workspace = target->m_workspace;
+        const auto space     = workspace ? workspace->space() : nullptr;
+        const auto algorithm = space ? space->algorithm() : nullptr;
+        if (!workspace || !space || !algorithm || !algorithm->tiledAlgo())
+            return std::nullopt;
+
         return SResizePlan{
-            .axis       = *axis,
-            .command    = *axis == 'x' ? "resize-x-at" : "resize-y-at",
-            .targetId   = std::format("address:0x{:x}", reinterpret_cast<uintptr_t>(target.get())),
-            .edge       = *axis == 'x' ? (coordinate < midpoint ? "left" : "right") : (coordinate < midpoint ? "up" : "down"),
-            .intervalMs = pointerInterval(target),
+            .axis           = *axis,
+            .command        = *axis == 'x' ? "resize-x-at" : "resize-y-at",
+            .targetId       = std::format("address:0x{:x}", reinterpret_cast<uintptr_t>(target.get())),
+            .edge           = *axis == 'x' ? (coordinate < midpoint ? "left" : "right") : (coordinate < midpoint ? "up" : "down"),
+            .intervalMs     = pointerInterval(target),
+            .workspace      = workspace,
+            .space          = space,
+            .algorithm      = algorithm,
+            .tiledAlgorithm = algorithm->tiledAlgo().get(),
         };
     }
 
-    void retargetSession(const Vector2D& cursor) {
-        if (!g_session.active || !Desktop::viewState())
-            return;
-
-        const auto active = Desktop::focusState()->window();
-        auto candidate = Desktop::viewState()->hitTest().windowAt(cursor, ALLOW_FLOATING);
-        if (!candidate || candidate == active || !eligibleTarget(candidate, g_session.config))
-            return;
-
-        const auto plan = resizePlan(candidate, g_session.config, cursor);
-        if (!plan)
-            return;
-
-        Desktop::focusState()->fullWindowFocus(candidate, Desktop::FOCUS_REASON_CLICK);
-
-        g_session.axis       = plan->axis;
-        g_session.command    = plan->command;
-        g_session.targetId   = plan->targetId;
-        g_session.edge       = plan->edge;
-        g_session.intervalMs = plan->intervalMs;
-        g_session.lastPosition.reset();
-        g_session.lastEmission.reset();
+    bool validSessionRoute(PHLWINDOW& target, SP<Layout::CSpace>& space) {
+        target               = g_session.target.lock();
+        const auto workspace = g_session.workspace.lock();
+        space                = g_session.space.lock();
+        const auto algorithm = g_session.algorithm.lock();
+        if (!target || !target->mapped() || !workspace || !space || !algorithm || target->m_workspace != workspace || workspace->space() != space ||
+            space->algorithm() != algorithm || !algorithm->tiledAlgo() || algorithm->tiledAlgo().get() != g_session.tiledAlgorithm || !eligibleTarget(target, g_session.config) ||
+            resizeAxis(target, g_session.config) != g_session.axis)
+            return false;
+        return true;
     }
 
     bool emitPosition(bool force) {
         if (!g_session.active || !g_pInputManager)
             return false;
 
-        const auto cursor = g_pInputManager->getMouseCoordsInternal();
-        retargetSession(cursor);
+        const auto         cursor = g_pInputManager->getMouseCoordsInternal();
+        PHLWINDOW          target;
+        SP<Layout::CSpace> space;
+        if (!validSessionRoute(target, space)) {
+            clearSession();
+            return false;
+        }
 
-        const auto now = std::chrono::steady_clock::now();
+        const auto generation = g_session.generation;
+        const auto now        = std::chrono::steady_clock::now();
         if (!force && g_session.lastEmission && now - *g_session.lastEmission < std::chrono::milliseconds(g_session.intervalMs))
             return true;
 
@@ -227,9 +244,14 @@ namespace {
         if (g_session.lastPosition && *g_session.lastPosition == current)
             return true;
 
-        if (!emitCommand(std::format("{} {} {} {}", g_session.command, g_session.targetId, g_session.edge, current)))
+        if (!space->layoutMsg(std::format("{} {} {} {}", g_session.command, g_session.targetId, g_session.edge, current))) {
+            if (g_session.active && g_session.generation == generation)
+                clearSession();
             return false;
+        }
 
+        if (!g_session.active || g_session.generation != generation)
+            return false;
         g_session.lastPosition = current;
         g_session.lastEmission = now;
         return true;
@@ -241,13 +263,19 @@ namespace {
             return;
         }
 
-        if (save) {
-            emitPosition(true);
-            if (g_session.active)
-                emitCommand("save-resize");
+        const auto generation = g_session.generation;
+        if (save && emitPosition(true) && g_session.active && g_session.generation == generation) {
+            PHLWINDOW          target;
+            SP<Layout::CSpace> space;
+            if (validSessionRoute(target, space) && !space->layoutMsg("save-resize")) {
+                if (g_session.active && g_session.generation == generation)
+                    clearSession();
+                return;
+            }
         }
 
-        clearSession();
+        if (g_session.active && g_session.generation == generation)
+            clearSession();
     }
 
     int startResize(lua_State* state) {
@@ -259,7 +287,7 @@ namespace {
         };
 
         stopResize(false);
-        if (!g_commandEvent || !g_pInputManager || !Desktop::viewState())
+        if (!g_pInputManager || !Desktop::viewState())
             return returnStartStatus(state, false, false);
 
         const auto cursor = g_pInputManager->getMouseCoordsInternal();
@@ -268,14 +296,13 @@ namespace {
             return returnStartStatus(state, false, true);
 
         const auto plan = resizePlan(target, config, cursor);
+        if (!plan)
+            return returnStartStatus(state, false, true);
 
         g_session.active     = true;
+        g_session.generation = ++g_sessionGeneration;
         g_session.config     = config;
-        g_session.axis       = plan->axis;
-        g_session.command    = plan->command;
-        g_session.targetId   = plan->targetId;
-        g_session.edge       = plan->edge;
-        g_session.intervalMs = plan->intervalMs;
+        applyPlan(*plan, target);
 
         return returnStartStatus(state, true, true);
     }
@@ -287,17 +314,8 @@ namespace {
         return 1;
     }
 
-    // Re-fires pluginEventAdded so the active Lua config state re-bridges the
-    // command event; config reloads replace the Lua handler without notifying
-    // already-loaded plugins.
-    int rebindCommandEvent(lua_State* state) {
-        if (!g_handle || !g_commandEvent) {
-            lua_pushboolean(state, false);
-            return 1;
-        }
-
-        HyprlandAPI::removeEvent(g_handle, g_commandEvent->m_name);
-        lua_pushboolean(state, HyprlandAPI::addEvent(g_handle, g_commandEvent));
+    int supportsDirectUpdates(lua_State* state) {
+        lua_pushboolean(state, true);
         return 1;
     }
 
@@ -309,20 +327,10 @@ APICALL EXPORT std::string PLUGIN_API_VERSION() {
 
 APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     g_handle = handle;
-    g_commandEvent = makeShared<Event::CEventBus::CCustomEvent>(
-        "custom_layout_resize.command",
-        std::vector{Event::CEventBus::CCustomEvent::TYPE_STRING});
 
-    if (!HyprlandAPI::addEvent(handle, g_commandEvent))
-        throw std::runtime_error("custom-layout-resize: failed to register command event");
-
-    if (!HyprlandAPI::addLuaFunction(handle, "custom_layout_resize", "start", startResize) ||
-        !HyprlandAPI::addLuaFunction(handle, "custom_layout_resize", "stop", stopResizeLua) ||
-        !HyprlandAPI::addLuaFunction(handle, "custom_layout_resize", "rebind", rebindCommandEvent)) {
-        HyprlandAPI::removeEvent(handle, g_commandEvent->m_name);
-        g_commandEvent.reset();
+    if (!HyprlandAPI::addLuaFunction(handle, "custom_layout_resize", "start", startResize) || !HyprlandAPI::addLuaFunction(handle, "custom_layout_resize", "stop", stopResizeLua) ||
+        !HyprlandAPI::addLuaFunction(handle, "custom_layout_resize", "supports_direct_updates", supportsDirectUpdates))
         throw std::runtime_error("custom-layout-resize: failed to register Lua functions");
-    }
 
     g_mouseMoveListener = Event::bus()->m_events.input.mouse.move.listen([](const auto&, auto&) { emitPosition(false); });
     g_preReloadListener = Event::bus()->m_events.config.preReload.listen([] { stopResize(false); });
@@ -331,7 +339,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
         "custom-layout-resize",
         "Drive custom-layout drag resize from native Hyprland pointer state",
         "local",
-        "0.3.1",
+        "0.4.0",
     };
 }
 
@@ -340,9 +348,5 @@ APICALL EXPORT void PLUGIN_EXIT() {
     g_mouseMoveListener.reset();
     g_preReloadListener.reset();
 
-    if (g_handle && g_commandEvent)
-        HyprlandAPI::removeEvent(g_handle, g_commandEvent->m_name);
-
-    g_commandEvent.reset();
     g_handle = nullptr;
 }
