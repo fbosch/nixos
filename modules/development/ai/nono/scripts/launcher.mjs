@@ -281,6 +281,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
       managedBin,
     ].join(delimiter);
     const command = launchCommand(args, process.cwd(), agentDir, homedir(), environment, nono, rawPi, profile);
+    // Herdr must identify the host-visible bootstrap even when nono hides the child process.
+    process.title = "pi";
     const run = (selectedProfile) => {
       if (command[0] === nono) command[command.indexOf("--profile") + 1] = selectedProfile;
       return spawnSync(command[0], command.slice(1), { stdio: "inherit", env: environment });

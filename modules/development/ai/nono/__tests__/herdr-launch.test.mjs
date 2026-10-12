@@ -23,7 +23,11 @@ function launch(environment, args = []) {
   const nono = join(root, "nono");
   const rawPi = join(root, "raw-pi");
   for (const [path, kind] of [[nono, "nono"], [rawPi, "pi"]]) {
-    writeFileSync(path, `#!${process.execPath}\nconsole.log(JSON.stringify({kind:${JSON.stringify(kind)},hint:process.env.HERDR_AGENT ?? null,pane:process.env.HERDR_PANE_ID ?? null,socket:process.env.HERDR_SOCKET_PATH ?? null,args:process.argv.slice(2)}));\n`, { mode: 0o700 });
+    writeFileSync(path, `#!${process.execPath}
+import { readFileSync } from "node:fs";
+const parentName = process.platform === "linux" ? readFileSync("/proc/" + process.ppid + "/comm", "utf8").trim() : null;
+console.log(JSON.stringify({kind:${JSON.stringify(kind)},parentName,hint:process.env.HERDR_AGENT ?? null,pane:process.env.HERDR_PANE_ID ?? null,socket:process.env.HERDR_SOCKET_PATH ?? null,args:process.argv.slice(2)}));
+`, { mode: 0o700 });
   }
   const env = {
     ...process.env,
@@ -46,6 +50,13 @@ function launch(environment, args = []) {
   assert.ifError(child.error);
   assert.equal(child.status, 0, child.stderr);
   return JSON.parse(child.stdout);
+}
+
+for (const args of [[], ["--no-sandbox", "--version"]]) {
+  test(`host-visible bootstrap identifies as pi for ${args.length === 0 ? "sandboxed" : "direct"} launches`, { skip: process.platform !== "linux" }, () => {
+    const actual = launch({ HERDR_ENV: "1" }, args);
+    assert.equal(actual.parentName, "pi");
+  });
 }
 
 for (const hint of [undefined, "", "claude"]) {
