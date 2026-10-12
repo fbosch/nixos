@@ -172,6 +172,10 @@ in
                 "$HOME/.pi"
                 "$HOME/.npm/_cacache"
                 "$HOME/.npm/_logs"
+                {
+                  path = "/dev/dri";
+                  when = "linux";
+                }
               ];
               read = [
                 "$HOME/.agents/skills"

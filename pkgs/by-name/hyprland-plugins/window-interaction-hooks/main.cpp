@@ -1,6 +1,8 @@
 #include <hyprland/src/config/ConfigValue.hpp>
 #include <hyprland/src/desktop/view/window/Window.hpp>
 #include <hyprland/src/event/EventBus.hpp>
+#include <hyprland/src/managers/input/InputManager.hpp>
+#include <hyprland/src/workspace/HLWorkspace.hpp>
 #include <hyprland/src/ipc/s2/S2.hpp>
 #include <hyprland/src/layout/LayoutManager.hpp>
 #include <hyprland/src/layout/target/Target.hpp>
@@ -41,6 +43,8 @@ namespace {
     struct SInteraction {
         PHLWINDOWREF                  window;
         std::string                   kind;
+        bool                          sourceWasTiled = false;
+        std::optional<Vector2D>       releasePosition;
         std::optional<CBox>           lastGeometry;
         std::optional<SPendingUpdate> pendingUpdate;
     };
@@ -48,6 +52,7 @@ namespace {
     HANDLE                             g_handle = nullptr;
     SP<Event::CEventBus::CCustomEvent> g_finishedEvent;
     SP<Event::CEventBus::CCustomEvent> g_updatedEvent;
+    SP<Event::CEventBus::CCustomEvent> g_droppedEvent;
     CHyprSignalListener                g_mouseMoveListener;
     CHyprSignalListener                g_mouseButtonListener;
     CHyprSignalListener                g_keyListener;
@@ -153,7 +158,11 @@ namespace {
         const auto captured = g_interaction ? g_interaction->window.lock() : nullptr;
         if (!g_interaction || captured != window || g_interaction->kind != *kind) {
             cancelPendingDelivery();
-            g_interaction = SInteraction{.window = window, .kind = std::string{*kind}};
+            g_interaction = SInteraction{
+                .window         = window,
+                .kind           = std::string{*kind},
+                .sourceWasTiled = controller->draggingTiled(),
+            };
         }
 
         return true;
@@ -194,6 +203,23 @@ namespace {
         deliverPendingUpdate();
     }
 
+    void emitDropped(const SInteraction& interaction) {
+        if (!interaction.sourceWasTiled || interaction.kind != "move" || !interaction.releasePosition || !g_droppedEvent)
+            return;
+
+        const auto window = interaction.window.lock();
+        if (!Desktop::View::validMapped(window))
+            return;
+
+        const auto workspace = window->m_workspace;
+        if (!workspace)
+            return;
+
+        g_droppedEvent->emit({window, workspace, interaction.releasePosition->x, interaction.releasePosition->y});
+        if (const auto monitor = workspace->m_monitor.lock(); monitor && g_layoutManager)
+            g_layoutManager->recalculateMonitor(monitor);
+    }
+
     void emitFinished(SInteraction interaction) {
         if (!g_finishedEvent)
             return;
@@ -221,7 +247,8 @@ namespace {
 
         auto finished = std::move(*g_interaction);
         g_interaction.reset();
-        emitFinished(std::move(finished));
+        emitFinished(finished);
+        emitDropped(finished);
     }
 
     void syncInteraction() {
@@ -242,12 +269,14 @@ namespace {
             finishInteraction();
     }
 
-    void scheduleSync(bool captureCurrent) {
+    void scheduleSync(bool captureCurrent, bool captureRelease = false) {
         // Input events are emitted before Hyprland mutates the drag controller.
         // Preserve the active target before button/key release, then observe the
         // resulting lifecycle state from idle. Geometry delivery is frame-driven.
         if (captureCurrent)
             syncInteraction();
+        if (captureRelease && g_interaction)
+            g_interaction->releasePosition = g_pInputManager->getMouseCoordsInternal();
 
         if (g_syncSequence || !g_pEventLoopManager)
             return;
@@ -274,9 +303,12 @@ namespace {
             HyprlandAPI::removeEvent(g_handle, g_finishedEvent->m_name);
         if (g_handle && g_updatedEvent)
             HyprlandAPI::removeEvent(g_handle, g_updatedEvent->m_name);
+        if (g_handle && g_droppedEvent)
+            HyprlandAPI::removeEvent(g_handle, g_droppedEvent->m_name);
 
         g_finishedEvent.reset();
         g_updatedEvent.reset();
+        g_droppedEvent.reset();
         g_handle = nullptr;
     }
 
@@ -305,24 +337,28 @@ namespace {
     // Config reloads replace Lua handlers without notifying already-loaded
     // plugins. Re-registering the custom events exposes them to the new Lua state.
     int rebindEvents(lua_State* state) {
-        if (!g_handle || !g_finishedEvent || !g_updatedEvent) {
+        if (!g_handle || !g_finishedEvent || !g_updatedEvent || !g_droppedEvent) {
             lua_pushboolean(state, false);
             return 1;
         }
 
         HyprlandAPI::removeEvent(g_handle, g_finishedEvent->m_name);
         HyprlandAPI::removeEvent(g_handle, g_updatedEvent->m_name);
+        HyprlandAPI::removeEvent(g_handle, g_droppedEvent->m_name);
 
         const bool finished = HyprlandAPI::addEvent(g_handle, g_finishedEvent);
         const bool updated  = HyprlandAPI::addEvent(g_handle, g_updatedEvent);
-        if (!finished || !updated) {
+        const bool dropped  = HyprlandAPI::addEvent(g_handle, g_droppedEvent);
+        if (!finished || !updated || !dropped) {
             if (finished)
                 HyprlandAPI::removeEvent(g_handle, g_finishedEvent->m_name);
             if (updated)
                 HyprlandAPI::removeEvent(g_handle, g_updatedEvent->m_name);
+            if (dropped)
+                HyprlandAPI::removeEvent(g_handle, g_droppedEvent->m_name);
         }
 
-        lua_pushboolean(state, finished && updated);
+        lua_pushboolean(state, finished && updated && dropped);
         return 1;
     }
 
@@ -359,9 +395,17 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
             Event::CEventBus::CCustomEvent::TYPE_DOUBLE,
             Event::CEventBus::CCustomEvent::TYPE_DOUBLE,
         });
+    g_droppedEvent = makeShared<Event::CEventBus::CCustomEvent>(
+        "window_interaction_hooks.dropped",
+        std::vector{
+            Event::CEventBus::CCustomEvent::TYPE_WINDOW,
+            Event::CEventBus::CCustomEvent::TYPE_WORKSPACE,
+            Event::CEventBus::CCustomEvent::TYPE_DOUBLE,
+            Event::CEventBus::CCustomEvent::TYPE_DOUBLE,
+        });
 
     CPluginInitializationGuard cleanup;
-    if (!HyprlandAPI::addEvent(handle, g_finishedEvent) || !HyprlandAPI::addEvent(handle, g_updatedEvent))
+    if (!HyprlandAPI::addEvent(handle, g_finishedEvent) || !HyprlandAPI::addEvent(handle, g_updatedEvent) || !HyprlandAPI::addEvent(handle, g_droppedEvent))
         throw std::runtime_error("window-interaction-hooks: failed to register interaction events");
 
     if (!HyprlandAPI::addLuaFunction(handle, "window_interaction_hooks", "rebind", rebindEvents) ||
@@ -370,8 +414,12 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     }
 
     g_mouseMoveListener   = Event::bus()->m_events.input.mouse.move.listen([](const auto&, auto&) { scheduleSync(false); });
-    g_mouseButtonListener = Event::bus()->m_events.input.mouse.button.listen([](const auto&, auto&) { scheduleSync(true); });
-    g_keyListener         = Event::bus()->m_events.input.keyboard.key.listen([](const auto&, auto&) { scheduleSync(true); });
+    g_mouseButtonListener = Event::bus()->m_events.input.mouse.button.listen([](const auto& event, auto&) {
+        scheduleSync(true, event.state == WL_POINTER_BUTTON_STATE_RELEASED);
+    });
+    g_keyListener         = Event::bus()->m_events.input.keyboard.key.listen([](const auto& event, auto&) {
+        scheduleSync(true, event.state == WL_KEYBOARD_KEY_STATE_RELEASED);
+    });
     g_renderPreListener   = Event::bus()->m_events.render.pre.listen([](PHLMONITOR monitor) { captureFrameUpdate(monitor); });
 
     const auto description = PLUGIN_DESCRIPTION_INFO{

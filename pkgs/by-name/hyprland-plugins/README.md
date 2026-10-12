@@ -329,7 +329,7 @@ Lua API under `hl.plugin.window_interaction_hooks`:
 
 | Function             | Result                                                                      |
 | -------------------- | --------------------------------------------------------------------------- |
-| `rebind()`           | Re-registers both custom events and returns whether registration succeeded. |
+| `rebind()`           | Re-registers all three custom events and returns whether registration succeeded. |
 | `supports_updates()` | Returns `true` when live update delivery is available.                      |
 
 The plugin emits `window_interaction_hooks.updated` and
@@ -354,6 +354,18 @@ scheduling instead of applying a hardcoded or calculated millisecond interval.
 When an interaction ends, any pending or newer final geometry is delivered
 before `window_interaction_hooks.finished`, preserving update-before-finish
 ordering even when the release occurs before an idle delivery.
+
+After a native move ends, `window_interaction_hooks.dropped` emits only for a
+mapped window that began as tiled and crossed the native drag threshold. Resizes,
+originally floating windows, and interactions that end before the threshold do not
+emit this event. The callback receives `(window, destination_workspace, x, y)`;
+`x` and `y` are the captured release coordinates, and the workspace comes from
+the affected window after the native interaction settles. Lua consumers own
+layout policy and target the supplied window/workspace rather than current focus;
+the native hook recalculates that workspace after listeners record their request.
+
+`rebind()` re-registers the updated, finished, and dropped events after config
+reload. The existing Socket2 update event and its payload are unchanged.
 
 The same update is mirrored to Socket2 for long-lived external consumers:
 

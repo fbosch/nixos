@@ -16,7 +16,12 @@ test("profile grants temporary-file reads without adding temporary-directory wri
 
 test("profile grants npm cache and log writes without making all npm state writable", () => {
   const profile = JSON.parse(readFileSync(new URL("../scripts/profile.json", import.meta.url), "utf8"));
-  assert.deepEqual(profile.filesystem.allow, ["$HOME/.pi", "$HOME/.npm/_cacache", "$HOME/.npm/_logs"]);
+  assert.deepEqual(profile.filesystem.allow, [
+    "$HOME/.pi",
+    "$HOME/.npm/_cacache",
+    "$HOME/.npm/_logs",
+    { path: "/dev/dri", when: "linux" },
+  ]);
 });
 
 const created = [];
