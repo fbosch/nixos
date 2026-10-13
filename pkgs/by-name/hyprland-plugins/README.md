@@ -332,6 +332,17 @@ Lua API under `hl.plugin.window_interaction_hooks`:
 | -------------------- | --------------------------------------------------------------------------- |
 | `rebind()`           | Re-registers all three custom events and returns whether registration succeeded. |
 | `supports_updates()` | Returns `true` when live update delivery is available.                      |
+| `supports_target_handles()` | Returns `true` when native target capture and resolution are available. |
+| `capture_at_cursor()` | Returns a core weak-window userdata and opaque epoch string, or `nil` when no mapped window is hit. |
+| `capture_window(window)` | Captures a supplied core window userdata with the current epoch, or returns `nil` for an absent/unmapped window. |
+| `resolve_target(window, epoch)` | Returns the same mapped core window, or `nil` after closure or generation invalidation. |
+
+Cursor capture uses Hyprland's native hit-tester, including stacking, floating
+windows, pinned windows, and the current workspace. It never falls back to the
+active window; Lua chooses that fallback explicitly. Handles retain core weak
+window references rather than plugin-owned userdata or numeric-address lookups.
+Config reload and plugin teardown invalidate the epoch. Lua still chooses the
+action and owns PiP behavior, restrictions, geometry, and layout policy.
 
 The plugin emits `window_interaction_hooks.updated` and
 `window_interaction_hooks.finished` with the same fields in order:
