@@ -7,7 +7,7 @@ This directory contains ten local Hyprland plugin packages used by this NixOS co
 | [`adaptive-soft-shadow`](adaptive-soft-shadow/)         | 0.3.0   | Draw backdrop-adaptive window shadows.                           |
 | [`anr-tag-ignore`](anr-tag-ignore/)                     | 0.1.0   | Reset ANR state for clients whose windows carry configured tags. |
 | [`cursor-outline`](cursor-outline/)                     | 0.1.0   | Draw a configurable outline around the cursor silhouette.        |
-| [`custom-layout-resize`](custom-layout-resize/)         | 0.4.0   | Drive custom tiled-layout resizing from native pointer motion.   |
+| [`custom-layout-resize`](custom-layout-resize/)         | 0.5.0   | Drive custom tiled-layout resizing from native pointer motion.   |
 | [`focus-animation`](focus-animation/)                   | 0.1.10  | Add a scale-based `windowsFocus` animation leaf.                 |
 | [`inset-border`](inset-border/)                         | 0.3.0   | Draw focus-aware keylines inside window content.                 |
 | [`persistent-position`](persistent-position/)           | 0.2.0   | Save opt-in floating positions and restore before initial layout. |
@@ -274,11 +274,19 @@ resize-x-at address:0x<window> <left|right> <coordinate>
 resize-y-at address:0x<window> <up|down> <coordinate>
 ```
 
-Updates are rate-limited to the target monitor's refresh interval, clamped
-between 6 and 17 milliseconds, and deduplicated by rounded coordinate. `stop()`
-sends the final position before `save-resize`. The plugin cancels a session if
-its target closes, floats, changes workspace, or loses its captured layout.
-Configuration reload and plugin unload cancel without saving.
+Pointer motion queues the latest position; delivery runs on the captured target
+monitor's next eligible frame. Updates retain the rounded refresh-derived rate
+limit, clamped between 6 and 17 milliseconds, and coordinate deduplication. An
+armed one-shot deadline delivers pending motion after at most two rate-limit
+intervals, including when the output stops rendering. Further motion does not
+postpone that deadline. These are scheduling deadlines, not hard real-time bounds
+when the compositor's event loop is blocked.
+
+Frame coalescing can deliver fewer intermediate updates than pointer-driven
+routing, including skipped frames when the rounded rate limit has not elapsed.
+`stop()` sends the final position before `save-resize`. Closing, floating, moving
+workspace, or changing the captured layout cancels delivery. Configuration reload
+and plugin unload cancel without saving and disarm the deadline.
 
 The Lua adapter requires `supports_direct_updates()` before starting a session.
 Update the native plugin and Lua adapter together. Hyprland restores the plugin's
