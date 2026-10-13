@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, realpathSync, statSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { delimiter, dirname, isAbsolute, join, resolve, sep } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -120,6 +120,57 @@ function within(path, root) {
   return root === sep || path === root || path.startsWith(`${root}${sep}`);
 }
 
+function gitMetadataRoots(cwd, home) {
+  const canonicalCwd = realpathSync(cwd);
+  const canonicalHome = existingDirectory(home) ?? resolve(home);
+  for (let root = canonicalCwd; ; root = dirname(root)) {
+    const marker = join(root, ".git");
+    let entry;
+    try {
+      entry = lstatSync(marker);
+    } catch (error) {
+      if (error.code !== "ENOENT") throw new Error(`Cannot inspect Git metadata at ${marker}: ${error.message}`);
+      if (root === dirname(root)) return [];
+      continue;
+    }
+    try {
+      let metadata;
+      if (entry.isDirectory()) {
+        metadata = realpathSync(marker);
+      } else if (entry.isFile()) {
+        const pointer = /^gitdir: ([^\r\n\x00]+)\r?\n?$/.exec(readFileSync(marker, "utf8"));
+        if (!pointer) throw new Error("Invalid .git worktree pointer");
+        const gitDir = realpathSync(resolve(root, pointer[1]));
+        if (!statSync(gitDir).isDirectory()) throw new Error("Worktree Git path is not a directory");
+        const readPath = (name) => {
+          const path = readFileSync(join(gitDir, name), "utf8").replace(/\r?\n$/, "");
+          if (!path || /[\x00-\x1f\x7f]/.test(path)) throw new Error(`Invalid worktree ${name} path`);
+          return resolve(gitDir, path);
+        };
+        metadata = realpathSync(readPath("commondir"));
+        if (!statSync(metadata).isDirectory()) throw new Error("Shared Git path is not a directory");
+        // A mutable .git pointer must not authorize arbitrary directories or another checkout's metadata.
+        if (dirname(gitDir) !== join(metadata, "worktrees") || realpathSync(readPath("gitdir")) !== marker) {
+          throw new Error("Git worktree registration does not match this checkout");
+        }
+        if (!statSync(join(metadata, "HEAD")).isFile() ||
+            !statSync(join(metadata, "objects")).isDirectory() || !statSync(join(metadata, "refs")).isDirectory()) {
+          throw new Error("Shared directory is not Git repository metadata");
+        }
+      } else {
+        throw new Error(".git must be a directory or a regular worktree pointer file");
+      }
+      if (within(canonicalHome, metadata) || within(root, metadata)) {
+        throw new Error("Git metadata must not resolve to the home directory or a checkout ancestor");
+      }
+      // Indexes, locks, refs and objects need writes; granting only worktrees/<name> is insufficient.
+      return within(metadata, canonicalCwd) ? [] : [metadata];
+    } catch (error) {
+      throw new Error(`Cannot resolve Git metadata from ${marker}: ${error.message}`);
+    }
+  }
+}
+
 function writableReferenceRoots(cwd, home) {
   // These exceptions are packaged by Nix, never selected by mutable reference names or settings.
   const roots = ["dotfiles", "nixos"].map((name) => existingDirectory(join(home, name))).filter(Boolean);
@@ -134,7 +185,7 @@ function writableReferenceRoots(cwd, home) {
 
 export function launchArguments(cwd, agentDir, home, environment, profile, rawPi) {
   if (!isAbsolute(profile) || !existingFile(profile)) throw new Error(`Nix nono profile missing: ${profile}`);
-  const grants = new Set();
+  const grants = new Set(gitMetadataRoots(cwd, home));
   const reads = new Set();
   const writableRoots = writableReferenceRoots(cwd, home);
   for (const reference of references(cwd, agentDir, home)) {

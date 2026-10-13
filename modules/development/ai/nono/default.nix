@@ -49,6 +49,18 @@ in
       # Desktop and development services need pathname socket access. Filesystem
       # confinement does not constrain actions delegated to those services.
       checks = lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
+        nono-pi-git-worktree =
+          pkgs.runCommand "nono-pi-git-worktree"
+            {
+              nativeBuildInputs = [ pkgs.git ];
+              NONO_TEST_BINARY = lib.getExe pkgs.nono;
+              GIT_TEST_BINARY = lib.getExe pkgs.git;
+              WT_TEST_BINARY = "${pkgs.worktrunk}/bin/wt";
+            }
+            ''
+              ${pkgs.nodejs}/bin/node --test ${./.}/__tests__/git-worktree.test.mjs
+              touch "$out"
+            '';
         nono-pi-socket-isolation =
           pkgs.runCommand "nono-pi-socket-isolation"
             {

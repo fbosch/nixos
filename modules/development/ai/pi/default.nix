@@ -23,62 +23,66 @@ let
       upstreamPi = inputs.pi.packages.${system}.default.override { inherit source; };
       pi = upstreamPi.overrideAttrs (
         previous:
-        assert pkgs.lib.assertMsg (pkgs.lib.hasInfix "/bin/node" (
-          previous.installPhase or ""
-        )) "Review Pi Node runtime installation: upstream's package entry changed";
-        assert pkgs.lib.assertMsg (pkgs.lib.hasInfix "dist/bundle/cli.js" (
-          previous.installPhase or ""
-        )) "Review Pi Node CLI packaging: upstream's bundle entry changed";
-        {
-          # Match llm-agents.nix's explicit defaults for the wrapped CLI.
-          postInstall = (previous.postInstall or "") + ''
-            wrapProgram "$out/bin/pi" \
-              --set PI_SKIP_VERSION_CHECK 1 \
-              --set PI_TELEMETRY 0
-          '';
-          postInstallCheck = (previous.postInstallCheck or "") + ''
-            package="$out/lib/pi/node_modules/@earendil-works/pi-coding-agent"
-            PI_TEST_PACKAGE="$package" PI_TEST_BINARY="$out/bin/pi" ${pkgs.nodejs_22}/bin/node --test \
-              ${./__tests__/auth-startup.test.mjs} \
-              ${./__tests__/codemode-worker.test.mjs} \
-              ${./__tests__/mcp-background.test.mjs} \
-              ${./__tests__/tool-search-ranking.test.mjs}
-          '';
-        }
+          assert pkgs.lib.assertMsg
+            (pkgs.lib.hasInfix "/bin/node" (
+              previous.installPhase or ""
+            )) "Review Pi Node runtime installation: upstream's package entry changed";
+          assert pkgs.lib.assertMsg
+            (pkgs.lib.hasInfix "dist/bundle/cli.js" (
+              previous.installPhase or ""
+            )) "Review Pi Node CLI packaging: upstream's bundle entry changed";
+          {
+            # Match llm-agents.nix's explicit defaults for the wrapped CLI.
+            postInstall = (previous.postInstall or "") + ''
+              wrapProgram "$out/bin/pi" \
+                --set PI_SKIP_VERSION_CHECK 1 \
+                --set PI_TELEMETRY 0
+            '';
+            postInstallCheck = (previous.postInstallCheck or "") + ''
+              package="$out/lib/pi/node_modules/@earendil-works/pi-coding-agent"
+              PI_TEST_PACKAGE="$package" PI_TEST_BINARY="$out/bin/pi" ${pkgs.nodejs_22}/bin/node --test \
+                ${./__tests__/auth-startup.test.mjs} \
+                ${./__tests__/codemode-worker.test.mjs} \
+                ${./__tests__/mcp-background.test.mjs} \
+                ${./__tests__/tool-search-ranking.test.mjs}
+            '';
+          }
       );
     in
     pi;
   mkLauncher =
     pkgs: rawPi:
-    assert pkgs.lib.assertMsg (pkgs.lib.versionAtLeast pkgs.nono.version "0.79.0")
-      "Pi socket and shell startup protection require nono >= 0.79.0";
-    let
-      profile = pkgs.writeText "pi-nono-profile.json" (
-        builtins.toJSON (builtins.fromJSON (builtins.readFile ../nono/scripts/profile.json))
-      );
-    in
-    pkgs.runCommand "pi"
-      {
-        nativeBuildInputs = [ pkgs.makeBinaryWrapper ];
-        meta.mainProgram = "pi";
-      }
-      ''
-        mkdir -p "$out/bin"
-        mkdir -p "$out/share/pi"
-        touch "$out/share/pi/nono-wrapper"
-        # A binary entry avoids sourcing BASH_ENV before nono applies confinement.
-        makeBinaryWrapper ${pkgs.nodejs}/bin/node "$out/bin/pi" \
-          --unset NODE_OPTIONS --unset NODE_PATH \
-          --prefix PATH : "$out/bin" \
-          --add-flags "${../nono/scripts}/launcher.mjs ${pkgs.nono}/bin/nono ${rawPi}/bin/pi ${profile} ${pkgs.direnv}/bin/direnv"
-        PI_TEST_BINARY="$out/bin/pi" PI_TEST_DIRENV="${pkgs.direnv}/bin/direnv" ${pkgs.nodejs}/bin/node --test \
-          ${../nono}/__tests__/direnv-bootstrap.test.mjs \
-          ${../nono}/__tests__/herdr-launch.test.mjs \
-          ${../nono}/__tests__/launcher.test.mjs \
-          ${../nono}/__tests__/reference-access.test.mjs \
-          ${../nono}/__tests__/shell-protection.test.mjs \
-          ${../nono}/__tests__/socket-isolation.test.mjs
-      '';
+      assert pkgs.lib.assertMsg (pkgs.lib.versionAtLeast pkgs.nono.version "0.79.0")
+        "Pi socket and shell startup protection require nono >= 0.79.0";
+      let
+        profile = pkgs.writeText "pi-nono-profile.json" (
+          builtins.toJSON (builtins.fromJSON (builtins.readFile ../nono/scripts/profile.json))
+        );
+      in
+      pkgs.runCommand "pi"
+        {
+          nativeBuildInputs = [ pkgs.makeBinaryWrapper ];
+          meta.mainProgram = "pi";
+        }
+        ''
+          mkdir -p "$out/bin"
+          mkdir -p "$out/share/pi"
+          touch "$out/share/pi/nono-wrapper"
+          # A binary entry avoids sourcing BASH_ENV before nono applies confinement.
+          makeBinaryWrapper ${pkgs.nodejs}/bin/node "$out/bin/pi" \
+            --unset NODE_OPTIONS --unset NODE_PATH \
+            --prefix PATH : "$out/bin" \
+            --add-flags "${../nono/scripts}/launcher.mjs ${pkgs.nono}/bin/nono ${rawPi}/bin/pi ${profile} ${pkgs.direnv}/bin/direnv"
+          PI_TEST_BINARY="$out/bin/pi" PI_TEST_DIRENV="${pkgs.direnv}/bin/direnv" \
+            GIT_TEST_BINARY="${pkgs.git}/bin/git" ${pkgs.nodejs}/bin/node --test \
+            ${../nono}/__tests__/direnv-bootstrap.test.mjs \
+            ${../nono}/__tests__/git-worktree.test.mjs \
+            ${../nono}/__tests__/herdr-launch.test.mjs \
+            ${../nono}/__tests__/launcher.test.mjs \
+            ${../nono}/__tests__/reference-access.test.mjs \
+            ${../nono}/__tests__/shell-protection.test.mjs \
+            ${../nono}/__tests__/socket-isolation.test.mjs
+        '';
   systemPackages = { pkgs, ... }: {
     environment = {
       systemPackages = [ (mkLauncher pkgs (mkPi pkgs)) ];
