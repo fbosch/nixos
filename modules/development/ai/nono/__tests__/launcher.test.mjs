@@ -189,7 +189,7 @@ test("global, trusted project and docs-cache references receive canonical read-o
   assert.ok(!values(args(), "--allow").includes(home));
 });
 
-test("retains narrow grants without Podman or SSH host-file access", () => {
+test("retains narrow grants without Podman or SSH private-key access", () => {
   const { root, home, cwd, agent, raw, profile } = fixture();
   const config = join(root, "config");
   const data = join(root, "data");
@@ -209,8 +209,10 @@ test("retains narrow grants without Podman or SSH host-file access", () => {
   assert.deepEqual(values(args, "--read"), [realpathSync(allow)]);
   assert.ok(!values(args, "--allow").includes(realpathSync(join(data, "direnv"))));
   assert.ok(!values(args, "--allow").includes(realpathSync(allow)));
-  assert.deepEqual(values(args, "--read-file"), [typo]);
-  assert.deepEqual(values(args, "--bypass-protection"), []);
+  assert.deepEqual(values(args, "--read-file"), [known, typo]);
+  assert.deepEqual(values(args, "--bypass-protection"), [known]);
+  assert.ok(!values(args, "--read").includes(join(home, ".ssh")));
+  assert.ok(!values(args, "--allow").includes(join(home, ".ssh")));
   assert.ok(!values(args, "--allow").includes(config));
 });
 

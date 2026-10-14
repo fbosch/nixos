@@ -81,6 +81,7 @@ let
             ${../nono}/__tests__/launcher.test.mjs \
             ${../nono}/__tests__/reference-access.test.mjs \
             ${../nono}/__tests__/shell-protection.test.mjs \
+            ${../nono}/__tests__/ssh-access.test.mjs \
             ${../nono}/__tests__/socket-isolation.test.mjs
         '';
   systemPackages = { pkgs, ... }: {

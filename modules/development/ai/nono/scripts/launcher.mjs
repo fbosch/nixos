@@ -4,6 +4,7 @@ import { delimiter, dirname, isAbsolute, join, resolve, sep } from "node:path";
 import { spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 import { withProtectedShellProfile } from "./shell-protection.mjs";
+import { assertReadOnlySshGrants, sshClientArguments } from "./ssh-access.mjs";
 
 function record(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -202,7 +203,7 @@ export function launchArguments(cwd, agentDir, home, environment, profile, rawPi
   const configHome = environment.XDG_CONFIG_HOME || join(home, ".config");
   const dataHome = environment.XDG_DATA_HOME || join(home, ".local", "share");
   const cacheHome = environment.XDG_CACHE_HOME || join(home, ".cache");
-  const extra = [];
+  const extra = sshClientArguments(home, environment);
   for (const path of [
     join(home, ".pi-lens"),
     environment.PI_HASHLINE_DIR || join(configHome, "pi-hashline-edit-pro"),
@@ -223,13 +224,15 @@ export function launchArguments(cwd, agentDir, home, environment, profile, rawPi
     if (runtime === undefined) throw new Error("XDG_RUNTIME_DIR must be an existing directory");
     extra.push("--allow", runtime);
   }
-  return [
+  const args = [
     "run", "--profile", profile, "--allow-cwd", "--suppress-save-prompt", "/",
     ...extra,
     ...[...reads].filter((path) => !grants.has(path)).flatMap((path) => ["--read", path]),
     ...[...grants].flatMap((path) => ["--allow", path]),
     "--", rawPi,
   ];
+  assertReadOnlySshGrants(args, cwd);
+  return args;
 }
 
 export function prepareJitiCache(temporaryDirectory = tmpdir(), platform = process.platform) {

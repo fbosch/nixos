@@ -49,6 +49,17 @@ in
       # Desktop and development services need pathname socket access. Filesystem
       # confinement does not constrain actions delegated to those services.
       checks = lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
+        nono-pi-ssh-access =
+          pkgs.runCommand "nono-pi-ssh-access"
+            {
+              NONO_TEST_BINARY = lib.getExe pkgs.nono;
+              SSH_KEYGEN_TEST_BINARY = lib.getExe' pkgs.openssh "ssh-keygen";
+              SSH_ADD_TEST_BINARY = lib.getExe' pkgs.openssh "ssh-add";
+            }
+            ''
+              ${pkgs.nodejs}/bin/node --test ${./.}/__tests__/ssh-access.test.mjs
+              touch "$out"
+            '';
         nono-pi-git-worktree =
           pkgs.runCommand "nono-pi-git-worktree"
             {
