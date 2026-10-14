@@ -30,6 +30,12 @@
             doCheck = false;
           });
 
+          # shortcut: Atuin 18.23.0's output-capture test times out on rvn-mac.
+          # Re-enable checks when its upstream shell-test harness is fixed.
+          atuin = prev.atuin.overrideAttrs (_: {
+            doCheck = false;
+          });
+
           _1password-gui = prev._1password-gui.overrideAttrs (
             old:
             lib.optionalAttrs (old.version or null == "8.12.21") {
