@@ -2114,16 +2114,15 @@
         "nixpkgs-darwin-x64": "nixpkgs-darwin-x64"
       },
       "locked": {
-        "lastModified": 1791408813,
-        "narHash": "sha256-lwjspkMGrW+8Fl/yBEDEFsHZJA57OKOhmVQmi6zfej4=",
+        "lastModified": 1791976396,
+        "narHash": "sha256-4pLDkN1Zn/8ewXHmKe09/teZx14Tjn3PiapgdNKat84=",
         "owner": "earendil-works",
         "repo": "pi",
-        "rev": "abe508e1b89912adde45528136c3221eb69acdd7",
+        "rev": "6374c2baf432419ccb4541a99ce4958ecd03dae0",
         "type": "github"
       },
       "original": {
         "owner": "earendil-works",
-        "ref": "stable",
         "repo": "pi",
         "type": "github"
       }

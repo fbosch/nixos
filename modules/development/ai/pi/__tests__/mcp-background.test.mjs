@@ -10,14 +10,13 @@ const source = await readFile(join(root, "dist/extensions/mcp/index.js"), "utf8"
 
 assert.match(
   source,
-  /import \{ CODEMODE_TOOL_NAME, isCodemodeTool \} from "\.\.\/codemode\/tool\.js";/,
-  "MCP session startup must import the codemode predicate used by discovery activation",
+  /import \{ CODEMODE_TOOL_NAME \} from "\.\.\/codemode\/tool\.js";/,
+  "MCP discovery activation must keep the codemode tool name import",
 );
-
 assert.match(
   source,
-  /import \{ isToolSearchTool, TOOL_SEARCH_TOOL_NAME \} from "\.\.\/tool-search\/tool\.js";/,
-  "MCP session startup must import the tool-search predicate used by discovery activation",
+  /import \{ TOOL_SEARCH_TOOL_NAME \} from "\.\.\/tool-search\/tool\.js";/,
+  "MCP discovery activation must keep the tool-search name import",
 );
 
 function fixture(exposure = "codemode", errors = []) {
@@ -26,7 +25,10 @@ function fixture(exposure = "codemode", errors = []) {
   const statuses = new Map();
   const notices = [];
   const connections = [];
-  const tools = [{ name: "codemode" }, { name: "tool_search" }];
+  const tools = [
+    { name: "codemode", reachesTools: () => "all" },
+    { name: "tool_search", reachesTools: () => "all" },
+  ];
   class Connection {
     state = "connecting";
     tools = [];
@@ -52,8 +54,6 @@ function fixture(exposure = "codemode", errors = []) {
       LIST_MCP_RESOURCES_TOOL: "list_mcp_resources",
       LIST_MCP_RESOURCE_TEMPLATES_TOOL: "list_mcp_resource_templates",
       READ_MCP_RESOURCE_TOOL: "read_mcp_resource",
-      isCodemodeTool: (tool) => tool.name === "codemode",
-      isToolSearchTool: (tool) => tool.name === "tool_search",
       loadMcpRuntime: async () => ({
         McpServerConnection: Connection,
         McpOAuthCredentialStore: class {}, McpServerLog: class {},

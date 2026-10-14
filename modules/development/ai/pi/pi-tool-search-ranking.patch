@@ -39,7 +39,7 @@ diff --git a/packages/coding-agent/src/extensions/codemode/execute.ts b/packages
  				if (typeof query !== "string") throw new Error("searchTools() expects a query string");
  				const limit = searchOptions?.limit ?? DEFAULT_TOOL_SEARCH_LIMIT;
 @@ -578,7 +580,19 @@
- 					if (namespace && (!toolNamespace || !isNamespaceName(toolNamespace.name, namespace))) return [];
+ 					if (namespace && (!toolNamespace || !isNamespaceName(toolNamespace, namespace))) return [];
  					return [createToolSearchDocument(tool, toolNamespace)];
  				});
 -				return ranker.rank(query, documents, limit).map((match) => entry(match.name));
@@ -279,10 +279,12 @@ diff --git a/packages/coding-agent/src/extensions/tool-search/tool.ts b/packages
  
  export function createToolSearchToolDefinition(
  	options: ToolSearchToolOptions = {},
-@@ -230,18 +375,40 @@
+@@ -225,20 +370,42 @@
  		parameters: toolSearchSchema,
  		// Searching is not something scripts need; it changes what the model sees.
  		exposure: "model-only",
+ 		// A query can match any tool that is not declared yet.
+ 		reachesTools: () => "all",
 -		async execute(_toolCallId, { query, limit }) {
 +		async execute(_toolCallId, { query, limit }, signal, _onUpdate, context) {
  			if (query.trim() === "") throw new Error("query must not be empty");

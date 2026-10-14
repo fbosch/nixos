@@ -71,17 +71,18 @@ diff --git a/packages/coding-agent/src/extensions/mcp/index.ts b/packages/coding
  }
  
  /** Whether some of the server's tools are reached through codemode or tool_search. */
-@@ -220,15 +197,6 @@
+@@ -220,16 +197,6 @@
  	return [intro, ...lines, ...omitted(listed.length - kept)].join("\n");
  }
  
 -/**
-- * Whether a codemode script needs the server: it names the server's namespace, or searches,
-- * enumerates, or describes tools or namespaces, which may name the server in other forms.
+- * Whether a call that reaches `reach` (see `ToolDefinition.reachesTools`) needs the server: it
+- * reaches every tool, or one of its words contains the server's namespace.
 - */
--function scriptNeedsServer(code: string, server: string): boolean {
--	if (/\b(searchTools|describeNamespace|describeTool|ALL_TOOLS)\b/.test(code)) return true;
--	return code.includes(mcpNamespace(server));
+-function reachesServer(reach: "all" | readonly string[], server: string): boolean {
+-	if (reach === "all") return true;
+-	const namespace = mcpNamespace(server);
+-	return reach.some((word) => word.includes(namespace));
 -}
 -
  /** Short state for lists and the startup report. `withError` appends the first line of a failure. */
@@ -246,10 +247,11 @@ diff --git a/packages/coding-agent/src/extensions/mcp/index.ts b/packages/coding
  			else delete sections[MCP_SERVERS_SECTION];
 -		});
 -
--		// A codemode script waits for the servers it names, or for every server when it searches or
--		// enumerates tools, so their tools are registered before the script runs. tool_search and the
--		// resource tools reach every server, so they wait for all of them. Direct MCP calls wait only
--		// for their own server, including a reconnect still closing its old transport.
+-		// A tool that reaches other tools (`reachesTools`) waits for the servers it may reach, so their
+-		// tools are registered before it runs: a codemode script for the servers it names, or for every
+-		// server when it searches or enumerates tools, and tool_search for every server. The resource
+-		// tools reach every server, so they wait for all of them. Direct MCP calls wait only for their
+-		// own server, including a reconnect still closing its old transport.
 -		pi.on("tool_call", async (event, ctx) => {
 -			const tool = pi.getAllTools().find((candidate) => candidate.name === event.toolName);
 -			if (!tool) return;
@@ -258,11 +260,10 @@ diff --git a/packages/coding-agent/src/extensions/mcp/index.ts b/packages/coding
 -			const readyServers = servers.filter((server) => isEnabled(server) && server.ready);
 -			if (readyServers.length === 0) return;
 -			let waiting: McpServer[] = [];
--			if (isCodemodeTool(tool)) {
--				const { code } = event.input as { code?: unknown };
--				const source = typeof code === "string" ? code : "";
--				waiting = readyServers.filter((server) => scriptNeedsServer(source, server.entry.name));
--			} else if (isToolSearchTool(tool) || RESOURCE_TOOL_NAMES.has(tool.name)) {
+-			const reach = tool.reachesTools?.(event.input);
+-			if (reach !== undefined) {
+-				waiting = readyServers.filter((server) => reachesServer(reach, server.entry.name));
+-			} else if (RESOURCE_TOOL_NAMES.has(tool.name)) {
 -				waiting = readyServers;
 -			} else {
 -				const owner = toolOwners.get(event.toolName)?.split("\0", 1)[0];

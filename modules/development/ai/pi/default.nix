@@ -12,6 +12,7 @@ let
           ./pi-auth-startup.patch
           ./pi-tool-search-ranking.patch
           ./pi-mcp-background.patch
+          ./pi-install-esbuild.patch
         ];
         patchFlags = [
           "--batch"

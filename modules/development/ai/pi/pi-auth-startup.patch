@@ -163,7 +163,7 @@ diff --git a/packages/coding-agent/src/core/agent-session.ts b/packages/coding-a
 @@ -113,6 +113,7 @@
  	wrapRegisteredTools,
  } from "./extensions/index.ts";
- import { emitSessionShutdownEvent } from "./extensions/runner.ts";
+ import { type BeforeAgentStartTrigger, emitSessionShutdownEvent } from "./extensions/runner.ts";
 +import { emitBeforeModelAvailability } from "./extensions/model-availability.ts";
  import { createToolNameMatcher, isMcpToolName } from "./mcp-servers.ts";
  import { type BashExecutionMessage, type CustomMessage, convertToLlm } from "./messages.ts";
@@ -183,12 +183,14 @@ diff --git a/packages/coding-agent/src/core/agent-session.ts b/packages/coding-a
 diff --git a/packages/coding-agent/src/core/extensions/index.ts b/packages/coding-agent/src/core/extensions/index.ts
 --- a/packages/coding-agent/src/core/extensions/index.ts
 +++ b/packages/coding-agent/src/core/extensions/index.ts
-@@ -38,6 +38,7 @@
+@@ -38,8 +38,9 @@
  	BashToolCallEvent,
  	BashToolResultEvent,
+ 	BeforeAgentStartCustomEvent,
  	BeforeAgentStartEvent,
 +	BeforeModelAvailabilityEvent,
  	BeforeAgentStartEventResult,
+ 	BeforeAgentStartUserEvent,
  	BeforeProviderHeadersEvent,
  	BeforeProviderRequestEvent,
 diff --git a/packages/coding-agent/src/core/extensions/runner.ts b/packages/coding-agent/src/core/extensions/runner.ts

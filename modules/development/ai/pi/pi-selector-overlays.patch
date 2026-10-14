@@ -1,47 +1,19 @@
 diff --git a/packages/coding-agent/src/core/settings-manager.ts b/packages/coding-agent/src/core/settings-manager.ts
 --- a/packages/coding-agent/src/core/settings-manager.ts
 +++ b/packages/coding-agent/src/core/settings-manager.ts
-@@ -53,6 +53,18 @@
- 
- export type TuiMode = RendererTuiMode;
- export type FullscreenExitOutput = "transcript" | "resume-hint";
-+export type SelectorOverlayName =
-+	| "settings"
-+	| "thinking"
-+	| "trust"
-+	| "model"
-+	| "scoped-models"
-+	| "fork"
-+	| "tree"
-+	| "session"
-+	| "auth";
+@@ -50,2 +50,11 @@
+ } from "./settings-schema.ts";
++export type SelectorOverlayName = keyof NonNullable<Settings["selectorOverlayWidths"]>;
 +export const DEFAULT_SELECTOR_OVERLAY_WIDTH = 72;
 +export const MIN_SELECTOR_OVERLAY_WIDTH = 40;
- 
- export interface TerminalSettings {
- 	showImages?: boolean; // default: true (only relevant if terminal supports images)
-@@ -172,6 +184,8 @@
- 	editorPaddingX?: number; // Horizontal padding for input editor (default: 0)
- 	outputPad?: 0 | 1; // Horizontal padding for transcript content (default: 1)
- 	autocompleteMaxVisible?: number; // Max visible items in autocomplete dropdown (default: 5)
-+	selectorOverlayWidth?: number;
-+	selectorOverlayWidths?: Partial<Record<SelectorOverlayName, number>>;
- 	showHardwareCursor?: boolean; // Show terminal cursor while still positioning it for IME
- 	markdown?: MarkdownSettings;
- 	warnings?: WarningSettings;
-@@ -186,6 +200,11 @@
- 	fullscreenScrollbar?: ScrollViewScrollbar; // default: "auto"; no effect in regular TUI mode
- 	fullscreenCopyOnSelect?: boolean; // default: true; no effect in regular TUI mode
- 	fullscreenWheelScrollLines?: WheelScrollLines; // default: "auto"; lines per wheel event, 1-100
-+}
 +
 +function normalizeSelectorOverlayWidth(width: unknown): number {
 +	if (typeof width !== "number" || !Number.isFinite(width)) return DEFAULT_SELECTOR_OVERLAY_WIDTH;
 +	return Math.max(MIN_SELECTOR_OVERLAY_WIDTH, Math.floor(width));
- }
- 
- function isMergeableObject(value: unknown): value is Record<string, unknown> {
-@@ -1528,6 +1547,18 @@
++}
++
+ /** Cache-warming profile. "idle" also warms between agent runs. */
+@@ -1415,6 +1424,18 @@
  		this.save();
  	}
  
@@ -58,13 +30,41 @@ diff --git a/packages/coding-agent/src/core/settings-manager.ts b/packages/codin
 +	}
 +
  	getCodeBlockIndent(): string {
- 		return this.settings.markdown?.codeBlockIndent ?? "  ";
+ 		return this.settings.markdown?.codeBlockIndent ?? SETTINGS_DEFAULTS.markdown.codeBlockIndent;
  	}
-diff --git a/packages/coding-agent/src/modes/interactive/components/settings-selector.ts b/packages/coding-agent/src/modes/interactive/components/settings-selector.ts
+diff --git a/packages/coding-agent/src/core/settings-schema.ts b/packages/coding-agent/src/core/settings-schema.ts
+--- a/packages/coding-agent/src/core/settings-schema.ts
++++ b/packages/coding-agent/src/core/settings-schema.ts
+@@ -380,6 +380,25 @@
+ 				default: SETTINGS_DEFAULTS.autocompleteMaxVisible,
+ 			}),
+ 		),
++		selectorOverlayWidth: Type.Optional(
++			Type.Number({ description: "Default selector overlay width in terminal columns." }),
++		),
++		selectorOverlayWidths: Type.Optional(
++			Type.Object(
++				{
++					settings: Type.Optional(Type.Number()),
++					thinking: Type.Optional(Type.Number()),
++					trust: Type.Optional(Type.Number()),
++					model: Type.Optional(Type.Number()),
++					"scoped-models": Type.Optional(Type.Number()),
++					fork: Type.Optional(Type.Number()),
++					tree: Type.Optional(Type.Number()),
++					session: Type.Optional(Type.Number()),
++					auth: Type.Optional(Type.Number()),
++				},
++				{ additionalProperties: false },
++			),
++		),
+ 		showHardwareCursor: Type.Optional(
+ 			Type.Boolean({ description: "Show the terminal cursor while still positioning it for IME." }),
+ 		),
 --- a/packages/coding-agent/src/modes/interactive/components/settings-selector.ts
 +++ b/packages/coding-agent/src/modes/interactive/components/settings-selector.ts
-@@ -15,6 +15,7 @@
- import { formatHttpIdleTimeoutMs, HTTP_IDLE_TIMEOUT_CHOICES } from "../../../core/http-dispatcher.ts";
+@@ -16,6 +16,7 @@
+ import { SETTINGS_DEFAULTS } from "../../../core/settings-defaults.ts";
  import {
  	CACHE_WARMING_MODES,
 +	DEFAULT_SELECTOR_OVERLAY_WIDTH,
@@ -676,12 +676,10 @@ diff --git a/packages/coding-agent/src/modes/interactive/interactive-mode.ts b/p
 diff --git a/packages/coding-agent/docs/settings.md b/packages/coding-agent/docs/settings.md
 --- a/packages/coding-agent/docs/settings.md
 +++ b/packages/coding-agent/docs/settings.md
-@@ -99,6 +99,8 @@
- | `editorPaddingX` | number | `0` | Horizontal editor padding from 0 to 3 cells. |
- | `outputPad` | `0 \| 1` | `1` | Horizontal transcript padding for messages, tool output, `!` command output, and summary blocks. |
+@@ -103,4 +103,6 @@
  | `autocompleteMaxVisible` | number | `5` | Visible autocomplete entries, from 3 to 20. |
 +| `selectorOverlayWidth` | number | `72` | Default selector modal width in terminal columns (minimum 40). Clamped to the terminal width. |
 +| `selectorOverlayWidths` | object | `{}` | Per-selector width overrides for `settings`, `thinking`, `trust`, `model`, `scoped-models`, `fork`, `tree`, `session`, and `auth`. |
- | `showHardwareCursor` | boolean | `false` | Show the terminal cursor while Pi positions it for input methods. |
+ | `showHardwareCursor` | boolean | `false` | Use the terminal cursor instead of Pi's drawn cursor. Pi still positions it for input methods. |
  | `terminal.showImages` | boolean | `true` | Display inline images when supported. |
  | `terminal.imageWidthCells` | number | `60` | Preferred inline image width in terminal cells. |
