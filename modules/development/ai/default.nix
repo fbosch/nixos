@@ -24,8 +24,9 @@ let
               in
               assert pkgs.lib.assertMsg
                 (
-                  previous.version == "0.39.0"
-                ) "Review the agent-browser wrapper before upgrading from 0.39.0";
+                  builtins.hashFile "sha256" "${inputs.llm-agents.outPath}/packages/agent-browser/package.nix"
+                  == "8e6505687dbda7f78ac1f3f99b743422c049bf2d21c7f91b407062fcdfb89d93"
+                ) "Review the agent-browser wrapper: upstream postInstall changed";
               {
                 # Avoid the generic executable path: agent-browser applies it to every engine.
                 postInstall = ''

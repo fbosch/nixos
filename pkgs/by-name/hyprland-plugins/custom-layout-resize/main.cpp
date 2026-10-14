@@ -6,6 +6,7 @@
 #include <hyprland/src/layout/space/Space.hpp>
 #include <hyprland/src/layout/supplementary/WorkspaceAlgoMatcher.hpp>
 #include <hyprland/src/managers/input/InputManager.hpp>
+#include <hyprland/src/managers/eventLoop/EventLoopManager.hpp>
 #include <hyprland/src/output/Monitor.hpp>
 #include <hyprland/src/plugins/PluginAPI.hpp>
 
@@ -20,6 +21,8 @@
 #include <utility>
 #include <vector>
 
+#include "resize_delivery_timing.h"
+
 extern "C" {
 #include <lauxlib.h>
 #include <lua.h>
@@ -30,8 +33,6 @@ using namespace Desktop::View;
 namespace {
 
     constexpr int  DEFAULT_INTERVAL_MS       = 8;
-    constexpr int  MINIMUM_INTERVAL_MS       = 6;
-    constexpr int  MAXIMUM_INTERVAL_MS       = 17;
 
     struct SResizeConfig {
         std::string ultrawideLayout;
@@ -56,11 +57,16 @@ namespace {
         const Layout::ITiledAlgorithm*                       tiledAlgorithm = nullptr;
         std::optional<int>                                   lastPosition;
         std::optional<std::chrono::steady_clock::time_point> lastEmission;
+        std::optional<std::chrono::steady_clock::time_point> pendingSince;
+        bool                                                 pending = false;
+        uint64_t                                             pendingSequence = 0;
     };
 
     HANDLE              g_handle = nullptr;
     CHyprSignalListener g_mouseMoveListener;
     CHyprSignalListener g_preReloadListener;
+    CHyprSignalListener g_renderPreListener;
+    SP<CEventLoopTimer> g_deliveryDeadline;
     SResizeSession      g_session;
     uint64_t            g_sessionGeneration = 0;
 
@@ -71,6 +77,8 @@ namespace {
     }
 
     void clearSession() {
+        if (g_deliveryDeadline && g_deliveryDeadline->armed())
+            g_deliveryDeadline->updateTimeout(std::nullopt);
         ++g_sessionGeneration;
         g_session = {};
     }
@@ -152,7 +160,7 @@ namespace {
     int pointerInterval(PHLWINDOW window) {
         const auto monitor = window ? window->m_monitor.lock() : nullptr;
         const auto refresh = monitor && monitor->m_refreshRate > 0 ? monitor->m_refreshRate : 60.0;
-        return std::clamp(static_cast<int>(std::lround(1000.0 / refresh)), MINIMUM_INTERVAL_MS, MAXIMUM_INTERVAL_MS);
+        return CustomLayoutResize::pointerInterval(refresh);
     }
 
     struct SResizePlan {
@@ -222,7 +230,9 @@ namespace {
         return true;
     }
 
-    bool emitPosition(bool force) {
+    bool emitPosition(bool force, bool* consumed = nullptr) {
+        if (consumed)
+            *consumed = false;
         if (!g_session.active || !g_pInputManager)
             return false;
 
@@ -241,8 +251,11 @@ namespace {
 
         const auto raw     = g_session.axis == 'x' ? cursor.x : cursor.y;
         const auto current = static_cast<int>(std::lround(raw));
-        if (g_session.lastPosition && *g_session.lastPosition == current)
+        if (g_session.lastPosition && *g_session.lastPosition == current) {
+            if (consumed)
+                *consumed = true;
             return true;
+        }
 
         if (!space->layoutMsg(std::format("{} {} {} {}", g_session.command, g_session.targetId, g_session.edge, current))) {
             if (g_session.active && g_session.generation == generation)
@@ -254,7 +267,65 @@ namespace {
             return false;
         g_session.lastPosition = current;
         g_session.lastEmission = now;
+        if (consumed)
+            *consumed = true;
         return true;
+    }
+
+    void armDeliveryDeadline() {
+        if (!g_session.active || !g_session.pending || !g_deliveryDeadline || g_deliveryDeadline->armed())
+            return;
+        const auto now = std::chrono::steady_clock::now();
+        const auto origin = g_session.lastEmission.value_or(*g_session.pendingSince);
+        // One shot per pending batch: subsequent mouse motion must not push the deadline back.
+        g_deliveryDeadline->updateTimeout(CustomLayoutResize::deliveryDelay(now, origin, g_session.intervalMs));
+    }
+
+    void deliverPendingPosition() {
+        if (!g_session.active || !g_session.pending)
+            return;
+        const auto generation = g_session.generation;
+        const auto sequence = g_session.pendingSequence;
+        bool consumed = false;
+        if (!emitPosition(false, &consumed) || !g_session.active || g_session.generation != generation)
+            return;
+        if (consumed) {
+            if (g_deliveryDeadline->armed())
+                g_deliveryDeadline->updateTimeout(std::nullopt);
+            // A layout callback may have queued newer motion; do not consume that batch.
+            if (g_session.pendingSequence == sequence) {
+                g_session.pending = false;
+                g_session.pendingSince.reset();
+            }
+        }
+        armDeliveryDeadline();
+    }
+
+    void queuePointerPosition() {
+        if (!g_session.active)
+            return;
+        if (!g_session.pending)
+            g_session.pendingSince = std::chrono::steady_clock::now();
+        g_session.pending = true;
+        ++g_session.pendingSequence;
+        armDeliveryDeadline();
+    }
+
+    void deliverOnFrame(PHLMONITOR monitor) {
+        if (!g_session.active || !g_session.pending)
+            return;
+        const auto target = g_session.target.lock();
+        if (!target || !target->mapped()) {
+            clearSession();
+            return;
+        }
+        const auto targetMonitor = target->m_monitor.lock();
+        if (!targetMonitor) {
+            clearSession();
+            return;
+        }
+        if (monitor == targetMonitor)
+            deliverPendingPosition();
     }
 
     void stopResize(bool save) {
@@ -332,14 +403,20 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
         !HyprlandAPI::addLuaFunction(handle, "custom_layout_resize", "supports_direct_updates", supportsDirectUpdates))
         throw std::runtime_error("custom-layout-resize: failed to register Lua functions");
 
-    g_mouseMoveListener = Event::bus()->m_events.input.mouse.move.listen([](const auto&, auto&) { emitPosition(false); });
+    if (!g_pEventLoopManager)
+        throw std::runtime_error("custom-layout-resize: event loop unavailable");
+    // Frame callbacks can stop on undamaged outputs; this one-shot deadline keeps pending delivery bounded.
+    g_deliveryDeadline = makeShared<CEventLoopTimer>(std::nullopt, [](SP<CEventLoopTimer>, void*) { deliverPendingPosition(); }, nullptr);
+    g_pEventLoopManager->addTimer(g_deliveryDeadline);
+    g_mouseMoveListener = Event::bus()->m_events.input.mouse.move.listen([](const auto&, auto&) { queuePointerPosition(); });
+    g_renderPreListener = Event::bus()->m_events.render.pre.listen([](PHLMONITOR monitor) { deliverOnFrame(monitor); });
     g_preReloadListener = Event::bus()->m_events.config.preReload.listen([] { stopResize(false); });
 
     return {
         "custom-layout-resize",
         "Drive custom-layout drag resize from native Hyprland pointer state",
         "local",
-        "0.4.0",
+        "0.5.0",
     };
 }
 
@@ -347,6 +424,14 @@ APICALL EXPORT void PLUGIN_EXIT() {
     stopResize(false);
     g_mouseMoveListener.reset();
     g_preReloadListener.reset();
+    g_renderPreListener.reset();
+    if (g_deliveryDeadline) {
+        // The event loop may retain a timer snapshot across unload; clear its plugin-owned callback first.
+        *g_deliveryDeadline = CEventLoopTimer(std::nullopt, {}, nullptr);
+        g_deliveryDeadline->cancel();
+        g_pEventLoopManager->removeTimer(g_deliveryDeadline);
+        g_deliveryDeadline.reset();
+    }
 
     g_handle = nullptr;
 }

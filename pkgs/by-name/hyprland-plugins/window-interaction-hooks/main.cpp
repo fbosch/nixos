@@ -1,4 +1,6 @@
 #include <hyprland/src/config/ConfigValue.hpp>
+#include <hyprland/src/config/lua/objects/LuaWindow.hpp>
+#include <hyprland/src/desktop/state/ViewState.hpp>
 #include <hyprland/src/desktop/view/window/Window.hpp>
 #include <hyprland/src/event/EventBus.hpp>
 #include <hyprland/src/managers/input/InputManager.hpp>
@@ -11,8 +13,10 @@
 #include <hyprland/src/plugins/PluginAPI.hpp>
 
 #include <cstdint>
+#include <chrono>
 #include <format>
 #include <optional>
+#include <random>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -50,6 +54,7 @@ namespace {
     };
 
     HANDLE                             g_handle = nullptr;
+    CHyprSignalListener                g_configPreReloadListener;
     SP<Event::CEventBus::CCustomEvent> g_finishedEvent;
     SP<Event::CEventBus::CCustomEvent> g_updatedEvent;
     SP<Event::CEventBus::CCustomEvent> g_droppedEvent;
@@ -60,6 +65,73 @@ namespace {
     std::optional<SInteraction>        g_interaction;
     uint64_t                           g_syncSequence = 0;
     uint64_t                           g_deliverySequence = 0;
+    std::string                        g_targetEpoch;
+
+    std::string makeTargetEpoch() {
+        const auto now = std::chrono::steady_clock::now().time_since_epoch().count();
+        std::random_device random;
+        return std::format("{}-{:08x}-{:08x}", now, random(), random());
+    }
+
+    void pushCapturedTarget(lua_State* state, PHLWINDOW window) {
+        if (!window || !Desktop::View::validMapped(window) || g_targetEpoch.empty()) {
+            lua_pushnil(state);
+            return;
+        }
+
+        Config::Lua::Objects::CLuaWindow::push(state, window);
+        lua_pushlstring(state, g_targetEpoch.data(), g_targetEpoch.size());
+    }
+
+    PHLWINDOW checkedWindowArgument(lua_State* state, int index, const char* functionName) {
+        auto* reference = static_cast<PHLWINDOWREF*>(luaL_testudata(state, index, "HL.Window"));
+        if (!reference) {
+            luaL_error(state, "%s: expected an HL.Window object", functionName);
+            return nullptr;
+        }
+
+        return reference->lock();
+    }
+
+    int captureAtCursor(lua_State* state) {
+        if (!g_pInputManager) {
+            lua_pushnil(state);
+            return 1;
+        }
+        const auto window = Desktop::viewState()->hitTest().windowAt(
+            g_pInputManager->getMouseCoordsInternal(),
+            Desktop::View::RESERVED_EXTENTS | Desktop::View::INPUT_EXTENTS | Desktop::View::ALLOW_FLOATING);
+        pushCapturedTarget(state, window);
+        return window && Desktop::View::validMapped(window) && !g_targetEpoch.empty() ? 2 : 1;
+    }
+
+    int captureWindow(lua_State* state) {
+        if (lua_isnil(state, 1)) {
+            lua_pushnil(state);
+            return 1;
+        }
+
+        const auto window = checkedWindowArgument(state, 1, "capture_window");
+        pushCapturedTarget(state, window);
+        return window && Desktop::View::validMapped(window) && !g_targetEpoch.empty() ? 2 : 1;
+    }
+
+    int resolveTarget(lua_State* state) {
+        // Lua errors longjmp, so validate before acquiring a strong window reference.
+        if (lua_type(state, 2) != LUA_TSTRING)
+            return luaL_error(state, "resolve_target: expected an epoch string");
+        const auto window = checkedWindowArgument(state, 1, "resolve_target");
+
+        size_t      epochLength = 0;
+        const char* epoch       = lua_tolstring(state, 2, &epochLength);
+        if (!window || g_targetEpoch.empty() || std::string_view{epoch, epochLength} != g_targetEpoch || !Desktop::View::validMapped(window)) {
+            lua_pushnil(state);
+            return 1;
+        }
+
+        Config::Lua::Objects::CLuaWindow::push(state, window);
+        return 1;
+    }
 
     std::optional<std::string_view> interactionKind(eMouseBindMode mode) {
         switch (mode) {
@@ -297,7 +369,9 @@ namespace {
         g_mouseButtonListener.reset();
         g_keyListener.reset();
         g_renderPreListener.reset();
+        g_configPreReloadListener.reset();
         g_interaction.reset();
+        g_targetEpoch.clear();
 
         if (g_handle && g_finishedEvent)
             HyprlandAPI::removeEvent(g_handle, g_finishedEvent->m_name);
@@ -367,6 +441,11 @@ namespace {
         return 1;
     }
 
+    int supportsTargetHandles(lua_State* state) {
+        lua_pushboolean(state, true);
+        return 1;
+    }
+
 } // namespace
 
 APICALL EXPORT std::string PLUGIN_API_VERSION() {
@@ -375,6 +454,7 @@ APICALL EXPORT std::string PLUGIN_API_VERSION() {
 
 APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     g_handle        = handle;
+    g_targetEpoch   = makeTargetEpoch();
     g_finishedEvent = makeShared<Event::CEventBus::CCustomEvent>(
         "window_interaction_hooks.finished",
         std::vector{
@@ -409,10 +489,15 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
         throw std::runtime_error("window-interaction-hooks: failed to register interaction events");
 
     if (!HyprlandAPI::addLuaFunction(handle, "window_interaction_hooks", "rebind", rebindEvents) ||
-        !HyprlandAPI::addLuaFunction(handle, "window_interaction_hooks", "supports_updates", supportsUpdates)) {
+        !HyprlandAPI::addLuaFunction(handle, "window_interaction_hooks", "supports_updates", supportsUpdates) ||
+        !HyprlandAPI::addLuaFunction(handle, "window_interaction_hooks", "supports_target_handles", supportsTargetHandles) ||
+        !HyprlandAPI::addLuaFunction(handle, "window_interaction_hooks", "capture_at_cursor", captureAtCursor) ||
+        !HyprlandAPI::addLuaFunction(handle, "window_interaction_hooks", "capture_window", captureWindow) ||
+        !HyprlandAPI::addLuaFunction(handle, "window_interaction_hooks", "resolve_target", resolveTarget)) {
         throw std::runtime_error("window-interaction-hooks: failed to register Lua functions");
     }
 
+    g_configPreReloadListener = Event::bus()->m_events.config.preReload.listen([] { g_targetEpoch = makeTargetEpoch(); });
     g_mouseMoveListener   = Event::bus()->m_events.input.mouse.move.listen([](const auto&, auto&) { scheduleSync(false); });
     g_mouseButtonListener = Event::bus()->m_events.input.mouse.button.listen([](const auto& event, auto&) {
         scheduleSync(true, event.state == WL_POINTER_BUTTON_STATE_RELEASED);
@@ -426,7 +511,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
         "window-interaction-hooks",
         "Emit frame-coalesced and completed interactive window move and resize events",
         "local",
-        "0.2.0",
+        "0.3.0",
     };
     cleanup.release();
     return description;
