@@ -139,7 +139,6 @@ in
         ];
 
         mode.main.binding = {
-          alt-backtick = exec "open 'cleanshot://record-screen'";
           ctrl-alt-v = "layout floating tiling";
           ctrl-alt-f = "layout accordion tiles";
           cmd-shift-f = "macos-native-fullscreen";
