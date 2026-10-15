@@ -203,7 +203,6 @@ in
               read = [
                 "$HOME/.agents/skills"
                 "$HOME/.nvm"
-                "$HOME/.config"
                 "/tmp"
                 "$TMPDIR"
               ];

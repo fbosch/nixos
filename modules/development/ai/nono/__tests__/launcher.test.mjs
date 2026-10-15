@@ -6,9 +6,9 @@ import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { launchArguments, launchCommand, prepareJitiCache, prepareNpmCache } from "../scripts/launcher.mjs";
 
-test("profile grants config-directory reads without making all config writable", () => {
+test("profile avoids broad config-directory access", () => {
   const profile = JSON.parse(readFileSync(new URL("../scripts/profile.json", import.meta.url), "utf8"));
-  assert.ok(profile.filesystem.read.includes("$HOME/.config"));
+  assert.ok(!profile.filesystem.read.includes("$HOME/.config"));
   assert.ok(!profile.filesystem.allow.includes("$HOME/.config"));
 });
 
@@ -207,15 +207,16 @@ test("retains narrow grants without Podman or SSH private-key access", () => {
   const connection = join(config, "containers", "podman-connections.json");
   const machine = join(data, "containers", "podman", "machine", "machine");
   const typo = join(config, "fbb", "data", "typos.abolish");
-  for (const path of [allow, fff, hashline, join(home, ".ssh"), join(config, "containers"), join(data, "containers", "podman", "machine"), join(config, "fbb", "data")]) mkdirSync(path, { recursive: true });
-  for (const path of [known, connection, machine, typo]) writeFileSync(path, "fixture");
+  const gitConfig = join(config, "nix", "git", "config");
+  for (const path of [allow, fff, hashline, join(home, ".ssh"), join(config, "containers"), join(data, "containers", "podman", "machine"), join(config, "fbb", "data"), join(config, "nix", "git")]) mkdirSync(path, { recursive: true });
+  for (const path of [known, connection, machine, typo, gitConfig]) writeFileSync(path, "fixture");
   const args = launchArguments(cwd, agent, home, { XDG_CONFIG_HOME: config, XDG_DATA_HOME: data, XDG_CACHE_HOME: cache }, profile, raw);
   assert.ok(values(args, "--allow").includes(fff));
   assert.ok(values(args, "--allow").includes(hashline));
   assert.deepEqual(values(args, "--read"), [realpathSync(allow)]);
   assert.ok(!values(args, "--allow").includes(realpathSync(join(data, "direnv"))));
   assert.ok(!values(args, "--allow").includes(realpathSync(allow)));
-  assert.deepEqual(values(args, "--read-file"), [known, typo]);
+  assert.deepEqual(values(args, "--read-file"), [known, typo, gitConfig]);
   assert.deepEqual(values(args, "--bypass-protection"), [known]);
   assert.ok(!values(args, "--read").includes(join(home, ".ssh")));
   assert.ok(!values(args, "--allow").includes(join(home, ".ssh")));
