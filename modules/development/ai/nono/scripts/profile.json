@@ -64,7 +64,9 @@
         "signal_mode": "isolated"
     },
     "unsafe_macos_seatbelt_rules": [
-        "(allow ipc-sysv-sem)"
+        "(allow ipc-sysv-sem)",
+        "(allow iokit-open (iokit-user-client-class \"RootDomainUserClient\"))",
+        "(allow mach-register (global-name-regex #\"^(org[.]chromium[.]Chromium|com[.]google[.]Chrome|com[.]google[.]chrome[.]for[.]testing)[.]MachPortRendezvousServer[.][0-9]+$\"))"
     ],
     "workdir": {
         "access": "readwrite"

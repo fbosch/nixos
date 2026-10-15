@@ -230,9 +230,15 @@ in
             capability_elevation = false;
           };
         };
-        testKeepsMacosLmdbSupport = {
+        # Chromium's power monitor needs RootDomainUserClient; its children exchange
+        # ports through bundle-specific, PID-suffixed Mach rendezvous services.
+        testKeepsMacosRuntimeRulesScoped = {
           expr = profile.unsafe_macos_seatbelt_rules;
-          expected = [ "(allow ipc-sysv-sem)" ];
+          expected = [
+            "(allow ipc-sysv-sem)"
+            ''(allow iokit-open (iokit-user-client-class "RootDomainUserClient"))''
+            ''(allow mach-register (global-name-regex #"^(org[.]chromium[.]Chromium|com[.]google[.]Chrome|com[.]google[.]chrome[.]for[.]testing)[.]MachPortRendezvousServer[.][0-9]+$"))''
+          ];
         };
       };
     };

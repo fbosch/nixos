@@ -80,6 +80,7 @@ let
             ${../nono}/__tests__/git-worktree.test.mjs \
             ${../nono}/__tests__/herdr-launch.test.mjs \
             ${../nono}/__tests__/launcher.test.mjs \
+            ${../nono}/__tests__/macos-browser-startup.test.mjs \
             ${../nono}/__tests__/reference-access.test.mjs \
             ${../nono}/__tests__/shell-protection.test.mjs \
             ${../nono}/__tests__/ssh-access.test.mjs \
