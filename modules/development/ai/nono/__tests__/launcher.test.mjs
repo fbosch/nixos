@@ -6,6 +6,12 @@ import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { launchArguments, launchCommand, prepareJitiCache, prepareNpmCache } from "../scripts/launcher.mjs";
 
+test("profile grants config-directory reads without making all config writable", () => {
+  const profile = JSON.parse(readFileSync(new URL("../scripts/profile.json", import.meta.url), "utf8"));
+  assert.ok(profile.filesystem.read.includes("$HOME/.config"));
+  assert.ok(!profile.filesystem.allow.includes("$HOME/.config"));
+});
+
 test("profile grants temporary-file reads without adding temporary-directory write grants", () => {
   const profile = JSON.parse(readFileSync(new URL("../scripts/profile.json", import.meta.url), "utf8"));
   for (const path of ["/tmp", "$TMPDIR"]) {
