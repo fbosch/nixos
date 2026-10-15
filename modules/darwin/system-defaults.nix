@@ -1,5 +1,5 @@
-{
-  flake.modules.darwin."system-defaults" = {
+let
+  systemDefaults = {
     system.defaults = {
       dock = {
         autohide = true;
@@ -56,15 +56,16 @@
           DisableAllAnimations = true;
         };
 
-        # Disable the built-in screenshot shortcuts.
-        "com.apple.symbolichotkeys".AppleSymbolicHotKeys."2".enabled = false;
-        "com.apple.symbolichotkeys".AppleSymbolicHotKeys."3".enabled = false;
-        "com.apple.symbolichotkeys".AppleSymbolicHotKeys."4".enabled = false;
-        "com.apple.symbolichotkeys".AppleSymbolicHotKeys."5".enabled = false;
-        "com.apple.symbolichotkeys".AppleSymbolicHotKeys."6".enabled = false;
+        "com.apple.symbolichotkeys".AppleSymbolicHotKeys = {
+          "28".enabled = false; # Command-Shift-3: save screen
+          "29".enabled = false; # Control-Command-Shift-3: copy screen
+          "30".enabled = false; # Command-Shift-4: save selection
+          "31".enabled = false; # Control-Command-Shift-4: copy selection
+          "184".enabled = false; # Command-Shift-5: screenshot toolbar
 
-        # Release Command-Space from Spotlight for Vicinae's global shortcut.
-        "com.apple.symbolichotkeys".AppleSymbolicHotKeys."64".enabled = false;
+          # Release Command-Space from Spotlight for Vicinae's global shortcut.
+          "64".enabled = false;
+        };
 
         "com.apple.dock" = {
           springboard-hide-duration = 0.0;
@@ -76,6 +77,22 @@
         };
 
       };
+    };
+  };
+  symbolicHotkeys = systemDefaults.system.defaults.CustomUserPreferences."com.apple.symbolichotkeys".AppleSymbolicHotKeys;
+in
+{
+  flake.modules.darwin."system-defaults" = systemDefaults;
+
+  perSystem.nix-unit.tests.darwinSystemDefaults = {
+    testNativeScreenshotShortcutsAreDisabled = {
+      expr = map (id: symbolicHotkeys.${id}.enabled or true) [ "28" "29" "30" "31" "184" ];
+      expected = [ false false false false false ];
+    };
+
+    testOnlyIntendedSymbolicHotkeysAreManaged = {
+      expr = builtins.attrNames symbolicHotkeys;
+      expected = [ "184" "28" "29" "30" "31" "64" ];
     };
   };
 }
