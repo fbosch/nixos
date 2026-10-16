@@ -79,7 +79,7 @@ let
               IdentityFile = "~/.ssh/id_rsa";
               IdentitiesOnly = true;
               HostkeyAlgorithms = "+ssh-rsa";
-              PubkeyAcceptedKeyTypes = "ssh-rsa";
+              PubkeyAcceptedAlgorithms = "rsa-sha2-512,rsa-sha2-256";
               ServerAliveInterval = 30;
               ServerAliveCountMax = 3;
               TCPKeepAlive = "yes";
@@ -165,6 +165,20 @@ in
             "gpg"
           ];
           expected = [ true false ];
+        };
+        testAzureDevOpsUsesRsaSha2Signatures = {
+          expr =
+            let
+              sshConfig = (sshHomeConfig "ssh-agent").home.file.".ssh/config".text;
+            in
+            {
+              usesRsaSha2 = lib.hasInfix "PubkeyAcceptedAlgorithms rsa-sha2-512,rsa-sha2-256" sshConfig;
+              forcesSha1 = lib.hasInfix "PubkeyAcceptedKeyTypes ssh-rsa" sshConfig;
+            };
+          expected = {
+            usesRsaSha2 = true;
+            forcesSha1 = false;
+          };
         };
       };
     };
