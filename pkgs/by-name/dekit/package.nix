@@ -7,20 +7,20 @@
 
 rustPlatform.buildRustPackage rec {
   pname = "dekit";
-  version = "0.10.0";
+  version = "0.10.2";
 
   src = fetchFromGitHub {
     owner = "pvolok";
     repo = "dekit";
     rev = "v${version}";
-    hash = "sha256-Kj+iWiRyRavCHgpZLPUPWqeItlD079OTO0lkaS3qpsc=";
+    hash = "sha256-4EcWcYnL9Ua9pQ0K8hIRLVOcHfK3V9T9LS0LDVpH0dw=";
   };
 
-  cargoHash = "sha256-g7RJa3wOv4tr7IW3SWHie78t3qTqHV3HMHobgQW2jS8=";
+  cargoHash = "sha256-0fLXXJouIOy/8fcKhneEYIuGj3EzTL+owSVEEsxGNRg=";
 
   nativeBuildInputs = [ curl ];
 
-  # v0.10.0's API-doc test expects std.tui, which upstream registers only in debug builds.
+  # v0.10.2's API-doc test expects std.tui, which upstream registers only in debug builds.
   checkType = "debug";
 
   # shortcut: This upstream integration test passes outside the build sandbox but

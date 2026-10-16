@@ -15,7 +15,7 @@
 
 stdenv.mkDerivation {
   pname = "nemo-image-converter";
-  version = "6.7.0-unstable";
+  version = "6.7.3-unstable";
 
   src = fetchFromGitHub {
     owner = "linuxmint";
