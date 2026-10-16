@@ -1,0 +1,93 @@
+--- a/pkg/ui/common/styles.go
++++ b/pkg/ui/common/styles.go
+@@ -34,6 +34,9 @@
+ 
+ 	selectionFg := lipgloss.Darken(t.Blue, 0.3)
+ 	selectionBg := lipgloss.Darken(t.Blue, 0.6)
++	if t.ID == tintZenwrittenDark.ID {
++		selectionBg = t.SelectionBg
++	}
+ 	colors := Colors{
+ 		SelectionFg:       selectionFg,
+ 		SelectionBg:       selectionBg,
+@@ -50,6 +53,7 @@
+ }
+ 
+ var SupportedThemeToDeltaSyntax = map[string]string{
++	tintZenwrittenDark.ID:             "Zenwritten Dark",
+ 	tint.TintCatppuccinFrappe.ID:      "Catppuccin Frappe",
+ 	tint.TintCatppuccinMacchiato.ID:   "Catppuccin Macchiato",
+ 	tint.TintCatppuccinMocha.ID:       "Catppuccin Mocha",
+@@ -75,6 +79,7 @@
+ func RegisterSupportedTints() {
+ 	Themes = tint.NewRegistry(
+ 		tint.TintTokyoNight,
++		tintZenwrittenDark,
+ 		tint.TintCatppuccinFrappe,
+ 		tint.TintCatppuccinMacchiato,
+ 		tint.TintCatppuccinMocha,
+--- /dev/null
++++ b/pkg/ui/common/zenwritten_dark.go
+@@ -0,0 +1,30 @@
++package common
++
++import tint "github.com/lrstanley/bubbletint/v2"
++
++// Matches dotfiles/.config/fbb/data/palette.json, zenwritten.dark.
++var tintZenwrittenDark = &tint.Tint{
++	DisplayName:  "Zenwritten Dark",
++	ID:           "zenwritten_dark",
++	Dark:         true,
++	Fg:           tint.FromHex("#BBBBBB"),
++	Bg:           tint.FromHex("#191919"),
++	SelectionBg:  tint.FromHex("#404040"),
++	Cursor:       tint.FromHex("#C9C9C9"),
++	Black:        tint.FromHex("#191919"),
++	Red:          tint.FromHex("#DE6E7C"),
++	Green:        tint.FromHex("#819B69"),
++	Yellow:       tint.FromHex("#B77E64"),
++	Blue:         tint.FromHex("#6099C0"),
++	Purple:       tint.FromHex("#B279A7"),
++	Cyan:         tint.FromHex("#66A5AD"),
++	White:        tint.FromHex("#BBBBBB"),
++	BrightBlack:  tint.FromHex("#3D3839"),
++	BrightRed:    tint.FromHex("#E8838F"),
++	BrightGreen:  tint.FromHex("#8BAE68"),
++	BrightYellow: tint.FromHex("#D68C67"),
++	BrightBlue:   tint.FromHex("#61ABDA"),
++	BrightPurple: tint.FromHex("#CF86C1"),
++	BrightCyan:   tint.FromHex("#65B8C1"),
++	BrightWhite:  tint.FromHex("#8E8E8E"),
++}
+--- /dev/null
++++ b/pkg/ui/common/zenwritten_dark_test.go
+@@ -0,0 +1,29 @@
++package common
++
++import "testing"
++
++func TestZenwrittenDark(t *testing.T) {
++	previous := Themes
++	t.Cleanup(func() { Themes = previous })
++	RegisterSupportedTints()
++	if !Themes.SetTintID("zenwritten_dark") {
++		t.Fatal("Zenwritten Dark is not registered")
++	}
++	theme := Themes.Current()
++	if theme.ID != "zenwritten_dark" || !theme.Dark {
++		t.Fatal("Zenwritten Dark did not activate as a dark theme")
++	}
++	if got := SupportedThemeToDeltaSyntax[theme.ID]; got != "Zenwritten Dark" {
++		t.Fatalf("delta syntax theme = %q, want Zenwritten Dark", got)
++	}
++	if got := LipglossColorToHex(theme.Bg); got != "#191919" {
++		t.Fatalf("background = %s, want #191919", got)
++	}
++	if got := LipglossColorToHex(theme.Fg); got != "#bbbbbb" {
++		t.Fatalf("foreground = %s, want #bbbbbb", got)
++	}
++	styles := MakeStyles()
++	if got := LipglossColorToHex(styles.Colors.SelectionBg); got != "#404040" {
++		t.Fatalf("selection background = %s, want #404040", got)
++	}
++}

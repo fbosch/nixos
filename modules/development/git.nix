@@ -5,7 +5,6 @@ let
       lazygit
       delta
       difftastic
-      diffnav
       gitui
       ghgrab
     ];

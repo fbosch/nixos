@@ -235,9 +235,14 @@ in
           expr = profile.unsafe_macos_seatbelt_rules;
           expected = [
             "(allow ipc-sysv-sem)"
+            "(allow lsopen)"
             ''(allow iokit-open (iokit-user-client-class "RootDomainUserClient"))''
             ''(allow mach-register (global-name-regex #"^(org[.]chromium[.]Chromium|com[.]google[.]Chrome|com[.]google[.]chrome[.]for[.]testing)[.]MachPortRendezvousServer[.][0-9]+$"))''
           ];
+        };
+        testAllowsImageViewerLaunchServices = {
+          expr = builtins.elem "(allow lsopen)" profile.unsafe_macos_seatbelt_rules;
+          expected = true;
         };
       };
     };

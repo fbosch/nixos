@@ -8,10 +8,11 @@ import { fileURLToPath } from "node:url";
 const profilePath = process.env.NONO_TEST_PROFILE ?? fileURLToPath(new URL("../scripts/profile.json", import.meta.url));
 const probePath = fileURLToPath(new URL("./fixtures/macos-browser-startup-probe.py", import.meta.url));
 
-test("macOS browser permissions allow only power notifications and Chromium rendezvous names", () => {
+test("macOS browser permissions allow LaunchServices, power notifications, and Chromium rendezvous names", () => {
   const profile = JSON.parse(readFileSync(profilePath, "utf8"));
   assert.deepEqual(profile.unsafe_macos_seatbelt_rules, [
     "(allow ipc-sysv-sem)",
+    "(allow lsopen)",
     '(allow iokit-open (iokit-user-client-class "RootDomainUserClient"))',
     '(allow mach-register (global-name-regex #"^(org[.]chromium[.]Chromium|com[.]google[.]Chrome|com[.]google[.]chrome[.]for[.]testing)[.]MachPortRendezvousServer[.][0-9]+$"))',
   ]);
