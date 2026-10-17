@@ -96,7 +96,7 @@ in
 
           imageTag = lib.mkOption {
             type = lib.types.str;
-            default = "1.19.5";
+            default = "2.3.3";
             description = "Komodo Core Docker image tag";
           };
         };
@@ -189,7 +189,7 @@ in
 
                 [Container]
                 ContainerName=komodo-mongo
-                Image=mongo:8.3.7
+                Image=mongo:9.0.2
                 Exec=--quiet --wiredTigerCacheSizeGB 0.25
                 Network=komodo.network
                 EnvironmentFile=${composeEnvPath}
