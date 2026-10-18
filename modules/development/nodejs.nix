@@ -28,20 +28,19 @@ let
           pkgs.playwright-test;
     in
     {
-      environment.systemPackages =
-        (with pkgs; [
-          fnm
-          bun
-          nodejs_24
-          yarn
-          typescript
-          prettier
-          eslint
-          npm-check-updates
-          prettierd
-          playwrightTest
-        ])
-        ++ [ (pkgs.local.pnpm or pkgs.pnpm) ];
+      environment.systemPackages = with pkgs; [
+        fnm
+        bun
+        nodejs_24
+        yarn
+        typescript
+        prettier
+        eslint
+        npm-check-updates
+        prettierd
+        playwrightTest
+        pnpm
+      ];
     };
 in
 {

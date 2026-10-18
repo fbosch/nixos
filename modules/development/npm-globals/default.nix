@@ -7,7 +7,6 @@
     }:
     let
       npmGlobalsRepoDir = "$HOME/nixos/modules/development/npm-globals";
-      pnpmPackage = pkgs.local.pnpm or pkgs.pnpm;
       pnpmHome =
         if pkgs.stdenv.hostPlatform.isDarwin then "$HOME/Library/pnpm" else "$HOME/.local/share/pnpm";
       pnpmStoreDir = "${pnpmHome}/store";
@@ -18,7 +17,7 @@
         name = "install-npm-global-packages";
         runtimeInputs = [
           pkgs.coreutils
-          pnpmPackage
+          pkgs.pnpm
           pkgs.nodejs_24
           pkgs.bun
         ];
@@ -30,9 +29,9 @@
         export PNPM_STORE_DIR_VALUE="${pnpmStoreDir}"
         export STATE_DIR_VALUE="${stateDir}"
         export NPM_REGISTRY_HOST="registry.npmjs.org"
-        export PNPM_BIN="${pnpmPackage}/bin/pnpm"
+        export PNPM_BIN="${pkgs.pnpm}/bin/pnpm"
         export NODE_BIN_DIR="${pkgs.nodejs_24}/bin"
-        export PNPM_BIN_DIR="${pnpmPackage}/bin"
+        export PNPM_BIN_DIR="${pkgs.pnpm}/bin"
         export BUN_BIN_DIR="${pkgs.bun}/bin"
         export LOCKFILE_PATH="${lockfilePath}"
       '';
@@ -49,14 +48,14 @@
           inherit name;
           runtimeInputs = [
             pkgs.coreutils
-            pnpmPackage
+            pkgs.pnpm
             pkgs.nodejs_24
             pkgs.bun
           ];
           text = ''
             export PNPM_HOME="${pnpmHome}"
             export PNPM_STORE_DIR="${pnpmStoreDir}"
-            export PATH="${pkgs.nodejs_24}/bin:${pnpmPackage}/bin:${pkgs.bun}/bin:${pnpmGlobalBinDir}:$PATH"
+            export PATH="${pkgs.nodejs_24}/bin:${pkgs.pnpm}/bin:${pkgs.bun}/bin:${pnpmGlobalBinDir}:$PATH"
             state_dir="${stateDir}"
             npm_globals_dir="''${NPM_GLOBALS_DIR:-''${1:-${npmGlobalsRepoDir}}}"
 

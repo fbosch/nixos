@@ -12,6 +12,7 @@
         ],
         "read": [
             "$HOME/.agents/skills",
+            "$HOME/.config/gh",
             "$HOME/.nvm",
             "/tmp",
             "$TMPDIR"

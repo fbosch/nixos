@@ -72,6 +72,17 @@ in
               ${pkgs.nodejs}/bin/node --test ${./.}/__tests__/git-worktree.test.mjs
               touch "$out"
             '';
+        nono-pi-github-access =
+          pkgs.runCommand "nono-pi-github-access"
+            {
+              NONO_TEST_BINARY = lib.getExe pkgs.nono;
+              NONO_TEST_PROFILE = evaluated.environment.etc."nono/pi.json".source;
+              GH_TEST_BINARY = lib.getExe pkgs.gh;
+            }
+            ''
+              ${pkgs.nodejs}/bin/node --test ${./__tests__}/github-access.test.mjs
+              touch "$out"
+            '';
         nono-pi-socket-isolation =
           pkgs.runCommand "nono-pi-socket-isolation"
             {
@@ -202,6 +213,7 @@ in
               ];
               read = [
                 "$HOME/.agents/skills"
+                "$HOME/.config/gh"
                 "$HOME/.nvm"
                 "/tmp"
                 "$TMPDIR"
