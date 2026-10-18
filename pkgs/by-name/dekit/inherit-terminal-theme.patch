@@ -1,0 +1,658 @@
+--- a/src/console/theme.rs
++++ b/src/console/theme.rs
+@@ -1,69 +1,103 @@
+ use crate::term::{
+-  Grid, Palette, Rgb,
++  Color, Grid, Palette, Rgb,
+   attrs::Attrs,
+   grid::{Block, BorderType, Rect},
+ };
+ 
+-/// The console paints every color itself, so it reads the same on light and
+-/// dark terminals.
++/// Terminal colors stay symbolic so every attachment uses its own palette.
+ pub struct Theme {
+   pub dark: bool,
+   /// For the task screens; its default colors are the blocks' `text` and
+   /// `bg`.
+-  pub palette: Palette,
++  pub palette: Option<Palette>,
+   pub block: BlockTheme,
+   pub tasks: TaskListTheme,
+ }
+ 
+ pub struct BlockTheme {
+-  pub bg: Rgb,
+-  pub modal_bg: Rgb,
++  pub bg: Color,
++  pub modal_bg: Color,
+   /// The header bar across the top: lighter than the blocks under it.
+-  pub header_bg: Rgb,
++  pub header_bg: Color,
+   /// The `dekit` badge at the bar's left end.
+-  pub logo_bg: Rgb,
+-  pub logo_fg: Rgb,
++  pub logo_bg: Color,
++  pub logo_fg: Color,
+   /// The runner's name in the bar.
+-  pub header_project: Rgb,
++  pub header_project: Color,
+   /// Everything under an open modal moves `shade_amount`/255 toward
+   /// `shade`.
+   pub shade: Rgb,
+   pub shade_amount: u8,
+   /// The selected row of a list.
+-  pub selected_bg: Rgb,
+-  pub text: Rgb,
++  pub selected_bg: Color,
++  pub text: Color,
+   /// Secondary text, like the terminal's own title.
+-  pub dim: Rgb,
++  pub dim: Color,
+   /// Key names in help and menus.
+-  pub key: Rgb,
+-  pub border: Rgb,
+-  pub border_focused: Rgb,
+-  pub title: Rgb,
+-  pub title_focused: Rgb,
++  pub key: Color,
++  pub border: Color,
++  pub border_focused: Color,
++  pub title: Color,
++  pub title_focused: Color,
+   /// A title badge that needs attention: QUITTING.
+-  pub alert: Rgb,
+-  pub alert_bg: Rgb,
++  pub alert: Color,
++  pub alert_bg: Color,
+ }
+ 
+ /// Group counts: `failed` if any failed, `up` if all are up, else `down`.
+ pub struct TaskListTheme {
+   /// The `/` or `/…` after a group name.
+-  pub mark: Rgb,
+-  pub up: Rgb,
+-  pub down: Rgb,
++  pub mark: Color,
++  pub up: Color,
++  pub down: Color,
+   /// Ended with code 0: DONE, DOWN (0).
+-  pub done: Rgb,
++  pub done: Color,
+   /// FAILED, DOWN (code), NOT READY.
+-  pub failed: Rgb,
++  pub failed: Color,
+ }
+ 
+ impl Theme {
++  pub fn terminal() -> Self {
++    Theme {
++      dark: true,
++      palette: None,
++      block: BlockTheme {
++        bg: Color::Default,
++        modal_bg: Color::Default,
++        header_bg: Color::Default,
++        logo_bg: Color::Default,
++        logo_fg: Color::Idx(6),
++        header_project: Color::Idx(6),
++        shade: Rgb(0, 0, 0),
++        // RGB blending would replace colors owned by the attaching terminal.
++        shade_amount: 0,
++        selected_bg: Color::Default,
++        text: Color::Default,
++        dim: Color::Idx(8),
++        key: Color::Idx(3),
++        border: Color::Idx(8),
++        border_focused: Color::Idx(6),
++        title: Color::Idx(8),
++        title_focused: Color::Default,
++        alert: Color::Idx(1),
++        alert_bg: Color::Default,
++      },
++      tasks: TaskListTheme {
++        mark: Color::Idx(8),
++        up: Color::Idx(2),
++        down: Color::Idx(8),
++        done: Color::Idx(4),
++        failed: Color::Idx(1),
++      },
++    }
++  }
++
+   pub fn dark() -> Self {
+     let bg = Rgb(0x16, 0x1b, 0x22);
+     let text = Rgb(0xd1, 0xd7, 0xe0);
+     Theme {
+       dark: true,
+-      palette: Palette {
++      palette: Some(Palette {
+         fg: text,
+         bg,
+         ansi: [
+@@ -84,33 +118,33 @@
+           Rgb(0x56, 0xd4, 0xdd),
+           Rgb(0xff, 0xff, 0xff),
+         ],
+-      },
++      }),
+       block: BlockTheme {
+-        bg,
+-        modal_bg: Rgb(0x21, 0x28, 0x30),
+-        header_bg: Rgb(0x2b, 0x33, 0x3d),
+-        logo_bg: Rgb(0x27, 0x51, 0x93),
+-        logo_fg: Rgb(0xff, 0xff, 0xff),
+-        header_project: Rgb(0x56, 0xd4, 0xdd),
++        bg: bg.into(),
++        modal_bg: Rgb(0x21, 0x28, 0x30).into(),
++        header_bg: Rgb(0x2b, 0x33, 0x3d).into(),
++        logo_bg: Rgb(0x27, 0x51, 0x93).into(),
++        logo_fg: Rgb(0xff, 0xff, 0xff).into(),
++        header_project: Rgb(0x56, 0xd4, 0xdd).into(),
+         shade: Rgb(0x00, 0x00, 0x00),
+         shade_amount: 128,
+-        selected_bg: Rgb(0x42, 0x4a, 0x57),
+-        text,
+-        dim: Rgb(0x91, 0x98, 0xa1),
+-        key: Rgb(0xe3, 0xb3, 0x41),
+-        border: Rgb(0x3d, 0x44, 0x4d),
+-        border_focused: Rgb(0x6c, 0xae, 0xff),
+-        title: Rgb(0x91, 0x98, 0xa1),
+-        title_focused: Rgb(0xf0, 0xf6, 0xfc),
+-        alert: Rgb(0xff, 0xff, 0xff),
+-        alert_bg: Rgb(0xda, 0x36, 0x33),
++        selected_bg: Rgb(0x42, 0x4a, 0x57).into(),
++        text: text.into(),
++        dim: Rgb(0x91, 0x98, 0xa1).into(),
++        key: Rgb(0xe3, 0xb3, 0x41).into(),
++        border: Rgb(0x3d, 0x44, 0x4d).into(),
++        border_focused: Rgb(0x6c, 0xae, 0xff).into(),
++        title: Rgb(0x91, 0x98, 0xa1).into(),
++        title_focused: Rgb(0xf0, 0xf6, 0xfc).into(),
++        alert: Rgb(0xff, 0xff, 0xff).into(),
++        alert_bg: Rgb(0xda, 0x36, 0x33).into(),
+       },
+       tasks: TaskListTheme {
+-        mark: Rgb(0x91, 0x98, 0xa1),
+-        up: Rgb(0x56, 0xd3, 0x64),
+-        down: Rgb(0xa3, 0xac, 0xb8),
+-        done: Rgb(0x79, 0xc0, 0xff),
+-        failed: Rgb(0xff, 0xa1, 0x98),
++        mark: Rgb(0x91, 0x98, 0xa1).into(),
++        up: Rgb(0x56, 0xd3, 0x64).into(),
++        down: Rgb(0xa3, 0xac, 0xb8).into(),
++        done: Rgb(0x79, 0xc0, 0xff).into(),
++        failed: Rgb(0xff, 0xa1, 0x98).into(),
+       },
+     }
+   }
+@@ -120,7 +154,7 @@
+     let text = Rgb(0x1f, 0x23, 0x28);
+     Theme {
+       dark: false,
+-      palette: Palette {
++      palette: Some(Palette {
+         fg: text,
+         bg,
+         ansi: [
+@@ -141,33 +175,33 @@
+           Rgb(0x31, 0x92, 0xaa),
+           Rgb(0x8c, 0x95, 0x9f),
+         ],
+-      },
++      }),
+       block: BlockTheme {
+-        bg,
+-        modal_bg: Rgb(0xff, 0xff, 0xff),
+-        header_bg: Rgb(0xe1, 0xe7, 0xee),
+-        logo_bg: Rgb(0x4a, 0x80, 0xc8),
+-        logo_fg: Rgb(0xff, 0xff, 0xff),
+-        header_project: Rgb(0x1b, 0x7c, 0x83),
++        bg: bg.into(),
++        modal_bg: Rgb(0xff, 0xff, 0xff).into(),
++        header_bg: Rgb(0xe1, 0xe7, 0xee).into(),
++        logo_bg: Rgb(0x4a, 0x80, 0xc8).into(),
++        logo_fg: Rgb(0xff, 0xff, 0xff).into(),
++        header_project: Rgb(0x1b, 0x7c, 0x83).into(),
+         shade: Rgb(0x1f, 0x23, 0x28),
+         shade_amount: 77,
+-        selected_bg: Rgb(0xdd, 0xe4, 0xec),
+-        text,
+-        dim: Rgb(0x59, 0x63, 0x6e),
+-        key: Rgb(0x9a, 0x67, 0x00),
+-        border: Rgb(0xb8, 0xc2, 0xcc),
+-        border_focused: Rgb(0x05, 0x50, 0xae),
+-        title: Rgb(0x59, 0x63, 0x6e),
+-        title_focused: Rgb(0x1f, 0x23, 0x28),
+-        alert: Rgb(0xff, 0xff, 0xff),
+-        alert_bg: Rgb(0xcf, 0x22, 0x2e),
++        selected_bg: Rgb(0xdd, 0xe4, 0xec).into(),
++        text: text.into(),
++        dim: Rgb(0x59, 0x63, 0x6e).into(),
++        key: Rgb(0x9a, 0x67, 0x00).into(),
++        border: Rgb(0xb8, 0xc2, 0xcc).into(),
++        border_focused: Rgb(0x05, 0x50, 0xae).into(),
++        title: Rgb(0x59, 0x63, 0x6e).into(),
++        title_focused: Rgb(0x1f, 0x23, 0x28).into(),
++        alert: Rgb(0xff, 0xff, 0xff).into(),
++        alert_bg: Rgb(0xcf, 0x22, 0x2e).into(),
+       },
+       tasks: TaskListTheme {
+-        mark: Rgb(0x59, 0x63, 0x6e),
+-        up: Rgb(0x1a, 0x7f, 0x37),
+-        down: Rgb(0x59, 0x63, 0x6e),
+-        done: Rgb(0x09, 0x69, 0xda),
+-        failed: Rgb(0xd1, 0x24, 0x2f),
++        mark: Rgb(0x59, 0x63, 0x6e).into(),
++        up: Rgb(0x1a, 0x7f, 0x37).into(),
++        down: Rgb(0x59, 0x63, 0x6e).into(),
++        done: Rgb(0x09, 0x69, 0xda).into(),
++        failed: Rgb(0xd1, 0x24, 0x2f).into(),
+       },
+     }
+   }
+@@ -204,8 +238,8 @@
+     }
+   }
+ 
+-  fn style(&self, bg: Rgb, focused: bool) -> BlockStyle {
+-    let on_bg = |fg: Rgb| Attrs::default().bg(bg.into()).fg(fg.into());
++  fn style(&self, bg: Color, focused: bool) -> BlockStyle {
++    let on_bg = |fg: Color| Attrs::default().bg(bg.into()).fg(fg.into());
+     let (border, title) = if focused {
+       (self.border_focused, self.title_focused)
+     } else {
+@@ -227,11 +261,10 @@
+ 
+ impl BlockStyle {
+   /// The same attrs on another background: a list row that is selected.
+-  pub fn on_bg(self, bg: Rgb) -> BlockStyle {
+-    let on_bg = |attrs: Attrs| Attrs {
+-      bgcolor: bg.into(),
+-      ..attrs
+-    };
++  pub fn on_bg(self, bg: Color) -> BlockStyle {
++    // Reverse default colors instead of guessing a contrasting RGB background.
++    let on_bg =
++      |mut attrs: Attrs| attrs.bg(bg).set_inverse(bg == Color::Default);
+     BlockStyle {
+       border: on_bg(self.border),
+       title: on_bg(self.title),
+@@ -248,3 +281,44 @@
+     grid.block(area, BorderType::Plain, self.border)
+   }
+ }
++
++#[cfg(test)]
++mod tests {
++  use super::*;
++
++  #[test]
++  fn terminal_theme_keeps_default_and_indexed_colors() {
++    let theme = Theme::terminal();
++    assert!(theme.palette.is_none());
++    let panel = theme.block.panel(true);
++    assert_eq!(panel.text.fgcolor, Color::Default);
++    assert_eq!(panel.text.bgcolor, Color::Default);
++    assert_eq!(panel.border.fgcolor, Color::Idx(6));
++    assert_eq!(theme.tasks.up, Color::Idx(2));
++    assert_eq!(theme.tasks.failed, Color::Idx(1));
++  }
++
++  #[test]
++  fn terminal_selection_reverses_the_terminals_own_colors() {
++    let theme = Theme::terminal();
++    let normal = theme.block.modal();
++    let selected = theme.block.modal_row(normal, true);
++    assert!(!normal.text.inverse());
++    assert!(selected.text.inverse());
++    assert_eq!(selected.text.fgcolor, Color::Default);
++    assert_eq!(selected.text.bgcolor, Color::Default);
++  }
++
++  #[test]
++  fn attachments_resolve_the_same_symbolic_color_independently() {
++    let theme = Theme::terminal();
++    let mut first = Theme::dark().palette.unwrap();
++    let mut second = Theme::light().palette.unwrap();
++    first.ansi[2] = Rgb(129, 155, 105);
++    second.ansi[2] = Rgb(0, 128, 0);
++    assert_eq!(first.fg(theme.tasks.up), Rgb(129, 155, 105));
++    assert_eq!(second.fg(theme.tasks.up), Rgb(0, 128, 0));
++    assert_eq!(first.fg(theme.block.text), first.fg);
++    assert_eq!(second.bg(theme.block.bg), second.bg);
++  }
++}
+--- a/src/console/app.rs
++++ b/src/console/app.rs
+@@ -157,7 +157,7 @@
+       },
+       config,
+       keymap,
+-      theme: Theme::dark(),
++      theme: Theme::terminal(),
+       modal: None,
+       receiver,
+       screen: TaskScreen::new(pc.task_id, vt.clone(), 1),
+@@ -658,10 +658,12 @@
+         self.state.hide_keymap_window = !self.state.hide_keymap_window;
+       }
+       Action::ToggleTheme => {
+-        self.theme = if self.theme.dark {
++        self.theme = if self.theme.palette.is_none() {
++          Theme::dark()
++        } else if self.theme.dark {
+           Theme::light()
+         } else {
+-          Theme::dark()
++          Theme::terminal()
+         };
+       }
+ 
+@@ -901,6 +903,9 @@
+ 
+ /// Dims everything but `keep`.
+ fn shade(grid: &mut Grid, theme: &BlockTheme, keep: Option<Rect>) {
++  if theme.shade_amount == 0 {
++    return;
++  }
+   let area = grid.area();
+   for row in area.y..area.bottom() {
+     for col in area.x..area.right() {
+@@ -918,3 +923,27 @@
+     }
+   }
+ }
++
++#[cfg(test)]
++mod tests {
++  use super::*;
++
++  #[test]
++  fn terminal_modal_keeps_symbolic_colors_and_task_truecolor() {
++    let theme = Theme::terminal();
++    let area = Rect::new(0, 0, 3, 1);
++    let mut grid = crate::term::Grid::new(area.size(), 0);
++    let attrs = Attrs::default()
++      .fg(crate::term::Color::Idx(2))
++      .bg(crate::term::Color::Rgb(18, 52, 86));
++    grid.fill_area(area, 'x', attrs);
++    shade(&mut grid, &theme.block, None);
++    assert_eq!(
++      grid
++        .drawing_cell_mut(Pos { col: 0, row: 0 })
++        .unwrap()
++        .attrs(),
++      &attrs
++    );
++  }
++}
+--- a/src/console/ui_tasks.rs
++++ b/src/console/ui_tasks.rs
+@@ -8,7 +8,7 @@
+ use crate::console::task_view::TaskView;
+ use crate::console::theme::{TaskListTheme, Theme};
+ use crate::kernel::task::{ExitInfo, TaskKind, TaskState};
+-use crate::term::{Grid, Rgb, attrs::Attrs, grid::Rect};
++use crate::term::{Color, Grid, attrs::Attrs, grid::Rect};
+ 
+ /// Blank cells between the border and each row.
+ const PAD: u16 = 1;
+@@ -40,7 +40,12 @@
+     } else {
+       theme.block.bg
+     };
+-    let paint = |color: Rgb| Attrs::default().bg(bg.into()).fg(color.into());
++    let paint = |color: Color| {
++      Attrs::default()
++        .bg(bg)
++        .fg(color)
++        .set_inverse(list_row.selected && bg == Color::Default)
++    };
+     let (status_text, status_color) = match node {
+       Node::Task(task) => task_status(task, &theme.tasks),
+       Node::Group(group) => group_status(group, &theme.tasks),
+@@ -76,7 +81,7 @@
+ fn task_status(
+   task: &TaskView,
+   theme: &TaskListTheme,
+-) -> (Cow<'static, str>, Rgb) {
++) -> (Cow<'static, str>, Color) {
+   if task.is_up() {
+     return (Cow::from(" UP "), theme.up);
+   }
+@@ -112,7 +117,7 @@
+ fn group_status(
+   group: &Group,
+   theme: &TaskListTheme,
+-) -> (Cow<'static, str>, Rgb) {
++) -> (Cow<'static, str>, Color) {
+   let color = if group.failed > 0 {
+     theme.failed
+   } else if group.up == group.len() {
+--- a/src/console/ui_term.rs
++++ b/src/console/ui_term.rs
+@@ -45,7 +45,7 @@
+   }
+ 
+   let inner = block.inner();
+-  render_screen(screen, inner, grid, &theme.palette);
++  render_screen(screen, inner, grid, theme.palette.as_ref());
+ 
+   if active && !screen.hide_cursor() {
+     let (row, col) = screen.cursor_position();
+@@ -99,7 +99,7 @@
+   screen: &Screen,
+   area: Rect,
+   grid: &mut Grid,
+-  palette: &Palette,
++  palette: Option<&Palette>,
+ ) {
+   for row in 0..area.height {
+     for col in 0..area.width {
+@@ -114,13 +114,53 @@
+         if !cell.has_contents() {
+           to_cell.set_str(" ");
+         }
+-        let attrs = cell.attrs();
+-        to_cell.set_attrs(Attrs {
+-          fgcolor: palette.fg(attrs.fgcolor).into(),
+-          bgcolor: palette.bg(attrs.bgcolor).into(),
+-          ..*attrs
+-        });
++        if let Some(palette) = palette {
++          let attrs = cell.attrs();
++          to_cell.set_attrs(Attrs {
++            fgcolor: palette.fg(attrs.fgcolor).into(),
++            bgcolor: palette.bg(attrs.bgcolor).into(),
++            ..*attrs
++          });
++        }
+       }
+     }
+   }
+ }
++
++#[cfg(test)]
++mod tests {
++  use super::*;
++  use crate::term::{Color, Size};
++
++  #[test]
++  fn terminal_theme_preserves_task_colors_and_attributes() {
++    let size = Size {
++      width: 14,
++      height: 1,
++    };
++    let mut screen = Screen::new(size, 0);
++    screen.process(
++      b"D\x1b[31mR\x1b[94mB\x1b[38;5;196mX\x1b[38;2;18;52;86;48;2;8;16;24mT\x1b[0;1;7mV\x1b[0m\xe7\x95\x8c",
++      &mut Vec::new(),
++    );
++    let mut grid = Grid::new(size, 0);
++    render_screen(&screen, Rect::new(0, 0, size.width, 1), &mut grid, None);
++    for col in 0..size.width {
++      let original = screen.cell(0, col).unwrap();
++      let rendered = grid.drawing_cell_mut(Pos { col, row: 0 }).unwrap();
++      assert_eq!(rendered.attrs(), original.attrs());
++      if original.has_contents() {
++        assert_eq!(rendered.contents(), original.contents());
++      }
++    }
++    assert_eq!(screen.cell(0, 0).unwrap().attrs().fgcolor, Color::Default);
++    assert_eq!(screen.cell(0, 1).unwrap().attrs().fgcolor, Color::Idx(1));
++    assert_eq!(screen.cell(0, 2).unwrap().attrs().fgcolor, Color::Idx(12));
++    assert_eq!(screen.cell(0, 3).unwrap().attrs().fgcolor, Color::Idx(196));
++    assert_eq!(
++      screen.cell(0, 4).unwrap().attrs().fgcolor,
++      Color::Rgb(18, 52, 86)
++    );
++    assert!(screen.cell(0, 5).unwrap().attrs().inverse());
++  }
++}
+--- a/src/console/ui_header.rs
++++ b/src/console/ui_header.rs
+@@ -2,7 +2,7 @@
+ 
+ use crate::console::theme::Theme;
+ use crate::runner::{RunnerKind, RunnerSpec};
+-use crate::term::{Grid, Rgb, attrs::Attrs, grid::Rect};
++use crate::term::{Color, Grid, attrs::Attrs, grid::Rect};
+ 
+ /// The badge at the bar's left end. `≡` is in every monospace font and
+ /// reads as "menu".
+@@ -64,7 +64,7 @@
+       || info.held.is_some_and(|held| hit.contains(held.x, held.y))
+   };
+   let bg = block.header_bg.into();
+-  let on_bg = |fg: Rgb| Attrs::default().bg(bg).fg(fg.into());
++  let on_bg = |fg: Color| Attrs::default().bg(bg).fg(fg.into());
+   let text = on_bg(block.text);
+   let dim = on_bg(block.dim);
+   grid.fill_area(area, ' ', text);
+@@ -108,7 +108,8 @@
+     Attrs::default()
+       .bg(logo_bg.into())
+       .fg(block.logo_fg.into())
+-      .set_bold(true),
++      .set_bold(true)
++      .set_inverse(theme.palette.is_none() && hovered(logo)),
+   );
+   hits.logo = Some(logo);
+ 
+@@ -128,7 +129,8 @@
+   let project = Attrs::default()
+     .bg(project_bg.into())
+     .fg(block.header_project.into())
+-    .set_bold(true);
++    .set_bold(true)
++    .set_inverse(theme.palette.is_none() && hovered(hit));
+   grid.fill_area(hit, ' ', project);
+   let mut cells = hit;
+   cells.take_left(1);
+@@ -250,6 +252,27 @@
+   }
+ 
+   #[test]
++  fn terminal_header_uses_native_colors_and_reverse_video_on_hover() {
++    let theme = Theme::terminal();
++    let runner = spec(RunnerKind::Project, "/home/me/app");
++    for hover in [Some((3, 0)), Some((10, 0))] {
++      let mut grid = grid(40);
++      render_header(
++        grid.area(),
++        &mut grid,
++        &app_info(Some(&runner), hover),
++        &theme,
++      );
++      let col = hover.unwrap().0;
++      let attrs = grid.drawing_cell(Pos { col, row: 0 }).unwrap().attrs();
++      assert_eq!(attrs.fgcolor, Color::Idx(6));
++      assert_eq!(attrs.bgcolor, Color::Default);
++      assert!(attrs.inverse());
++      assert_eq!(bg_at(&grid, 20), Color::Default);
++    }
++  }
++
++  #[test]
+   fn flags_clients_on_another_version() {
+     let mut grid = grid(70);
+     let runner = spec(RunnerKind::Host, "/home/me/.config/dekit/host");
+--- a/src/console/modal/runner_select.rs
++++ b/src/console/modal/runner_select.rs
+@@ -746,7 +746,11 @@
+         .is_some_and(|(x, y)| self.tab_hits[i].contains(x, y))
+       {
+         Attrs {
+-          fgcolor: faint.blend(block_theme.text, HOVER).into(),
++          fgcolor: if theme.palette.is_none() {
++            block_theme.text
++          } else {
++            faint.blend(block_theme.text, HOVER)
++          },
+           ..style.dim
+         }
+       } else {
+--- a/src/term/color.rs
++++ b/src/term/color.rs
+@@ -59,11 +59,13 @@
+ }
+ 
+ impl Color {
+-  /// Only RGB colors move; the others have no value to move from.
+-  pub fn blend(self, to: Rgb, amount: u8) -> Self {
+-    match self {
+-      Color::Rgb(r, g, b) => Rgb(r, g, b).blend(to, amount).into(),
+-      Color::Default | Color::Idx(_) => self,
++  /// Blend only explicit RGB values; symbolic colors belong to the terminal.
++  pub fn blend(self, to: impl Into<Color>, amount: u8) -> Self {
++    match (self, to.into()) {
++      (Color::Rgb(r, g, b), Color::Rgb(tr, tg, tb)) => {
++        Rgb(r, g, b).blend(Rgb(tr, tg, tb), amount).into()
++      }
++      _ => self,
+     }
+   }
+ }
+@@ -93,3 +95,22 @@
+     Self::Default
+   }
+ }
++
++#[cfg(test)]
++mod tests {
++  use super::*;
++
++  #[test]
++  fn blends_only_when_both_colors_have_explicit_rgb_values() {
++    assert_eq!(Color::Default.blend(Color::Idx(8), 128), Color::Default);
++    assert_eq!(Color::Idx(2).blend(Rgb(0, 0, 0), 128), Color::Idx(2));
++    assert_eq!(
++      Color::Rgb(18, 52, 86).blend(Color::Default, 128),
++      Color::Rgb(18, 52, 86)
++    );
++    assert_eq!(
++      Color::Rgb(0, 0, 0).blend(Color::Rgb(255, 255, 255), 128),
++      Color::Rgb(128, 128, 128)
++    );
++  }
++}
+--- a/src/docs/config/user.md
++++ b/src/docs/config/user.md
+@@ -23,6 +23,16 @@
+     <e>: null
+ ```
+ 
++## Terminal colors
++
++The console uses the attaching terminal's default foreground, background,
++and ANSI palette. Configure the terminal's theme rather than a dekit color
++file. Each attachment resolves those colors independently.
++
++Task output keeps its original default, indexed, and truecolor attributes.
++Selected rows use reverse video. Modal backgrounds do not apply RGB shading
++because that would replace the terminal's own colors.
++
+ ## TUI
+ 
+ :::fields kind=config
