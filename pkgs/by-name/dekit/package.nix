@@ -16,6 +16,7 @@ rustPlatform.buildRustPackage rec {
     hash = "sha256-4EcWcYnL9Ua9pQ0K8hIRLVOcHfK3V9T9LS0LDVpH0dw=";
   };
 
+  patches = [ ./register-idle-tasks.patch ];
   cargoHash = "sha256-0fLXXJouIOy/8fcKhneEYIuGj3EzTL+owSVEEsxGNRg=";
 
   nativeBuildInputs = [ curl ];

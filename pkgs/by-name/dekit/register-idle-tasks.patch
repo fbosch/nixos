@@ -1,0 +1,603 @@
+diff --git a/src/kernel/task.rs b/src/kernel/task.rs
+index 0949c9a..b39191e 100644
+--- a/src/kernel/task.rs
++++ b/src/kernel/task.rs
+@@ -337,6 +337,7 @@ pub struct TaskHandle {
+   pub path: Option<TaskPath>,
+   pub label: Option<String>,
+   pub vt: Option<SharedVt>,
++  pub process_spec: Option<crate::process::process_spec::ProcessSpec>,
+   pub tags: Vec<String>,
+ }
+ 
+@@ -398,6 +399,7 @@ pub struct TaskDef {
+   /// in one space; otherwise last under its parent.
+   pub after: Option<TaskId>,
+   pub vt: Option<SharedVt>,
++  pub process_spec: Option<crate::process::process_spec::ProcessSpec>,
+   pub tags: Vec<String>,
+ }
+ 
+@@ -416,6 +418,7 @@ impl Default for TaskDef {
+       label: None,
+       after: None,
+       vt: None,
++      process_spec: None,
+       tags: Vec::new(),
+     }
+   }
+diff --git a/src/task/process_task.rs b/src/task/process_task.rs
+index 4171ce4..f240585 100644
+--- a/src/task/process_task.rs
++++ b/src/task/process_task.rs
+@@ -346,6 +346,7 @@ fn registration(
+     None => (Default::default(), None),
+   };
+   let mut config = config;
++  let process_spec = config.spec.clone();
+   TaskRegistration::async_task(
+     task_id,
+     TaskDef {
+@@ -364,6 +365,7 @@ fn registration(
+       label: config.label.take(),
+       after: None,
+       vt: Some(vt),
++      process_spec: Some(process_spec),
+       tags: std::mem::take(&mut config.tags),
+       pinned: config.pinned,
+       saved_pin: false,
+diff --git a/src/kernel/kernel_message.rs b/src/kernel/kernel_message.rs
+index 0e0e7a1..fd93936 100644
+--- a/src/kernel/kernel_message.rs
++++ b/src/kernel/kernel_message.rs
+@@ -79,6 +79,13 @@ pub enum KernelCommand {
+     tokio::sync::oneshot::Sender<Result<(), RegisterError>>,
+   ),
+ 
++  /// Compare the process definition and register or start in one dispatch.
++  RegisterIdleTask(
++    TaskRegistration,
++    bool,
++    tokio::sync::oneshot::Sender<Result<(), RegisterError>>,
++  ),
++
+   /// Registers each task as `RegisterTask` does, all in one dispatch.
+   /// They are listed in the order given, whatever order their
+   /// dependencies make the kernel register them in. Answers with one
+@@ -207,6 +214,7 @@ pub enum RegisterError {
+   IdTaken,
+   ReservedSpace(TaskSpaceId),
+   PathTaken(TaskKey),
++  DefinitionConflict(TaskKey),
+   /// A task is above the path, or under it: the path, then the other task.
+   PathNested(TaskKey, TaskKey),
+   /// A dep selector matched no task.
+@@ -223,6 +231,13 @@ impl fmt::Display for RegisterError {
+       RegisterError::PathTaken(key) => {
+         write!(f, "a task already exists at '{}'", key)
+       }
++      RegisterError::DefinitionConflict(key) => {
++        write!(
++          f,
++          "task '{}' has a different command or working directory",
++          key
++        )
++      }
+       RegisterError::PathNested(key, other) => {
+         let (above, below) = if other.path.depth() < key.path.depth() {
+           (other, key)
+@@ -441,6 +456,16 @@ impl TaskContext {
+     ack_rx
+   }
+ 
++  pub fn register_idle_task(
++    &self,
++    registration: TaskRegistration,
++    start: bool,
++  ) -> tokio::sync::oneshot::Receiver<Result<(), RegisterError>> {
++    let (ack_tx, ack_rx) = tokio::sync::oneshot::channel();
++    self.send(KernelCommand::RegisterIdleTask(registration, start, ack_tx));
++    ack_rx
++  }
++
+   pub fn register_tasks(
+     &self,
+     registrations: Vec<TaskRegistration>,
+diff --git a/src/kernel/kernel.rs b/src/kernel/kernel.rs
+index 2c88748..d6a116d 100644
+--- a/src/kernel/kernel.rs
++++ b/src/kernel/kernel.rs
+@@ -9,6 +9,7 @@ use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
+ use tokio_util::time::{DelayQueue, delay_queue};
+ 
+ use crate::kernel::kernel_message::{KernelSnapshot, TaskContext};
++use crate::process::process_spec::ProcessSpec;
+ use crate::upgrade::snapshot as snap;
+ 
+ use super::{
+@@ -250,6 +251,7 @@ impl Graph {
+       path: path.clone(),
+       label: def.label,
+       vt: def.vt,
++      process_spec: def.process_spec,
+       tags: def.tags,
+     };
+     if let Some(saved) = saved {
+@@ -360,6 +362,46 @@ impl Graph {
+     Ok(())
+   }
+ 
++  /// Verify and optionally start in one dispatch, without changing an existing
++  /// task's label, pin or child when only registering.
++  fn register_idle_task(
++    &mut self,
++    registration: TaskRegistration,
++    start: bool,
++  ) -> Result<(), RegisterError> {
++    let TaskRegistration {
++      task_id,
++      def,
++      factory,
++    } = registration;
++    let path = def.path.as_ref().expect("register requires an exact path");
++    let key = TaskKey::new(def.space.clone(), path.clone());
++    let existing = self.matching_ids(&TaskSelector::Glob(
++      SpaceSelector::One(def.space.clone()),
++      path.as_str().to_string(),
++    ));
++    if let Some(id) = existing.into_iter().find(|id| {
++      self
++        .tasks
++        .get(id)
++        .is_some_and(|task| task.path.as_ref() == Some(path))
++    }) {
++      let old = self.tasks[&id].process_spec.as_ref();
++      let new = def.process_spec.as_ref();
++      if !old
++        .zip(new)
++        .is_some_and(|(old, new)| same_process(old, new))
++      {
++        return Err(RegisterError::DefinitionConflict(key));
++      }
++      if start {
++        self.cmd_start(id);
++      }
++      return Ok(());
++    }
++    self.register_task_with_id(task_id, def, factory, None)
++  }
++
+   /// Registers the tasks, listed in the order given, each after the ones
+   /// among them it depends on. A place is held for every path before the
+   /// first task is registered, and dropped again if its task is refused.
+@@ -2102,6 +2144,7 @@ impl Kernel {
+       | KernelCommand::QuitWithoutSave
+       | KernelCommand::QuitWithin { .. }
+       | KernelCommand::RegisterTask(..)
++      | KernelCommand::RegisterIdleTask(..)
+       | KernelCommand::RegisterTasks(..)
+       | KernelCommand::Start(..)
+       | KernelCommand::Stop(..)
+@@ -2198,6 +2241,17 @@ impl Kernel {
+           };
+         let _ = ack.send(registered);
+       }
++      KernelCommand::RegisterIdleTask(registration, start, ack) => {
++        let registered =
++          if self.graph.can_register(msg.from, &registration.def.space)
++            && registration.def.space.is_default()
++          {
++            self.graph.register_idle_task(registration, start)
++          } else {
++            Err(RegisterError::ReservedSpace(registration.def.space))
++          };
++        let _ = ack.send(registered);
++      }
+       KernelCommand::RegisterTasks(registrations, ack) => {
+         let mut refused = Vec::with_capacity(registrations.len());
+         let mut allowed = Vec::with_capacity(registrations.len());
+@@ -2397,6 +2451,23 @@ impl Kernel {
+   }
+ }
+ 
++fn same_process(old: &ProcessSpec, new: &ProcessSpec) -> bool {
++  fn canonical_cwd(spec: &ProcessSpec) -> Option<std::path::PathBuf> {
++    let cwd = spec.cwd.as_deref().map(std::path::Path::new);
++    match cwd {
++      Some(cwd) => dunce::canonicalize(cwd).ok(),
++      None => std::env::current_dir()
++        .ok()
++        .and_then(|cwd| dunce::canonicalize(cwd).ok()),
++    }
++  }
++  old.prog == new.prog
++    && old.args == new.args
++    && canonical_cwd(old)
++      .zip(canonical_cwd(new))
++      .is_some_and(|(a, b)| a == b)
++}
++
+ #[cfg(test)]
+ #[path = "kernel_tests.rs"]
+ mod tests;
+diff --git a/src/kernel/kernel_prop.rs b/src/kernel/kernel_prop.rs
+index a2cbabf..1188ffd 100644
+--- a/src/kernel/kernel_prop.rs
++++ b/src/kernel/kernel_prop.rs
+@@ -403,6 +403,7 @@ impl Run {
+       label: None,
+       after: None,
+       vt: None,
++      process_spec: None,
+       tags: vec![tag_name(i).to_string()],
+     };
+     let script = task.script;
+diff --git a/src/kernel/kernel_tests.rs b/src/kernel/kernel_tests.rs
+index 9657fe5..b681e8c 100644
+--- a/src/kernel/kernel_tests.rs
++++ b/src/kernel/kernel_tests.rs
+@@ -227,6 +227,159 @@ fn path_def(path: &str) -> TaskDef {
+   }
+ }
+ 
++fn idle_registration(
++  fx: &Fixture,
++  argv: &[&str],
++  cwd: &std::path::Path,
++  label: &str,
++  start: bool,
++) -> TaskRegistration {
++  let mut spec =
++    ProcessSpec::from_argv(argv.iter().map(|s| s.to_string()).collect());
++  spec.cwd(cwd.to_string_lossy().into_owned());
++  let tx = fx.tx.clone();
++  TaskRegistration {
++    task_id: fx.pc.alloc_id(),
++    def: TaskDef {
++      process_spec: Some(spec),
++      pinned: start,
++      label: Some(label.to_string()),
++      ..path_def("registered")
++    },
++    factory: Box::new(move |ctx| {
++      Box::new(RecordingTask {
++        name: "registered",
++        tx,
++        ctx,
++      })
++    }),
++  }
++}
++
++async fn idle_registration_info(fx: &Fixture) -> TaskInfo {
++  let response = fx
++    .pc
++    .query(KernelQuery::ListTasks(TaskSelector::Glob(
++      SpaceSelector::One(TaskSpaceId::default_space()),
++      "registered".to_string(),
++    )))
++    .await
++    .unwrap();
++  let KernelQueryResponse::TaskList(mut tasks) = response else {
++    panic!("expected task list")
++  };
++  assert_eq!(tasks.len(), 1);
++  tasks.pop().unwrap()
++}
++
++#[tokio::test]
++async fn register_idle_preserves_identity_label_and_running_child() {
++  let mut fx = Fixture::new();
++  let cwd = std::env::current_dir().unwrap();
++  let handle = fx.run();
++  fx.pc
++    .register_idle_task(
++      idle_registration(&fx, &["tool", "a b"], &cwd, "original", false),
++      false,
++    )
++    .await
++    .unwrap()
++    .unwrap();
++  fx.flush().await;
++  fx.assert_no_cmd();
++  let first = idle_registration_info(&fx).await;
++  assert_eq!(first.state, TaskState::Idle);
++  assert_eq!(first.label.as_deref(), Some("original"));
++
++  fx.pc
++    .register_idle_task(
++      idle_registration(
++        &fx,
++        &["tool", "a b"],
++        &cwd.join("."),
++        "renamed request",
++        false,
++      ),
++      false,
++    )
++    .await
++    .unwrap()
++    .unwrap();
++  fx.flush().await;
++  fx.assert_no_cmd();
++  assert_eq!(idle_registration_info(&fx).await.id, first.id);
++
++  fx.pc
++    .register_idle_task(
++      idle_registration(&fx, &["tool", "a b"], &cwd, "ignored", true),
++      true,
++    )
++    .await
++    .unwrap()
++    .unwrap();
++  assert_eq!(fx.recv().await, ("registered", RecordedCmd::Start));
++  fx.flush().await;
++  let running = idle_registration_info(&fx).await;
++  assert_eq!(running.id, first.id);
++  assert_eq!(running.state, TaskState::Ready);
++  for start in [false, true] {
++    fx.pc
++      .register_idle_task(
++        idle_registration(&fx, &["tool", "a b"], &cwd, "ignored", start),
++        start,
++      )
++      .await
++      .unwrap()
++      .unwrap();
++    fx.flush().await;
++    fx.assert_no_cmd();
++    let current = idle_registration_info(&fx).await;
++    assert_eq!(current.id, first.id);
++    assert_eq!(current.state, TaskState::Ready);
++    assert_eq!(current.label.as_deref(), Some("original"));
++  }
++  fx.quit(handle).await;
++}
++
++#[tokio::test]
++async fn register_idle_conflicts_never_start_or_replace_task() {
++  let mut fx = Fixture::new();
++  let cwd = std::env::current_dir().unwrap();
++  let handle = fx.run();
++  fx.pc
++    .register_idle_task(
++      idle_registration(&fx, &["tool", "one"], &cwd, "original", false),
++      false,
++    )
++    .await
++    .unwrap()
++    .unwrap();
++  let first = idle_registration_info(&fx).await;
++  for start in [false, true] {
++    for (argv, directory) in [
++      (vec!["tool", "different"], cwd.clone()),
++      (vec!["tool", "one"], cwd.join("src")),
++    ] {
++      let result = fx
++        .pc
++        .register_idle_task(
++          idle_registration(&fx, &argv, &directory, "conflict", start),
++          start,
++        )
++        .await
++        .unwrap();
++      assert!(matches!(result, Err(RegisterError::DefinitionConflict(_))));
++      fx.flush().await;
++      fx.assert_no_cmd();
++      let current = idle_registration_info(&fx).await;
++      assert_eq!(current.id, first.id);
++      assert_eq!(current.state, TaskState::Idle);
++      assert_eq!(current.label.as_deref(), Some("original"));
++    }
++  }
++  fx.quit(handle).await;
++}
++
+ #[tokio::test]
+ async fn start_starts_and_unpin_stops() {
+   let mut fx = Fixture::new();
+diff --git a/src/command.rs b/src/command.rs
+index 648cd99..3382337 100644
+--- a/src/command.rs
++++ b/src/command.rs
+@@ -52,6 +52,16 @@ pub enum Command {
+   ForceRestart {
+     target: Target,
+   },
++  /// Register a process task without executing it, or verify and start it.
++  Register {
++    target: Target,
++    label: Option<String>,
++    #[serde(flatten)]
++    cmd: CmdConfig,
++    cwd: String,
++    #[serde(default)]
++    start: bool,
++  },
+   /// Register a process task at an exact path and start it.
+   Add {
+     target: Target,
+@@ -140,6 +150,7 @@ pub async fn execute(
+     | Command::Veto { .. }
+     | Command::Restart { .. }
+     | Command::ForceRestart { .. }
++    | Command::Register { .. }
+     | Command::Add { .. }
+     | Command::Remove { .. }
+     | Command::Rename { .. }
+@@ -271,6 +282,69 @@ fn dispatch(
+         acks,
+       )?
+     }
++    Command::Register {
++      target,
++      label,
++      cmd,
++      cwd,
++      start,
++    } => {
++      let key = target.key().map_err(invalid_target)?;
++      if !key.space.is_default() {
++        return Err(CommandError::InvalidTarget(
++          "register requires a project task path".to_string(),
++        ));
++      }
++      let CmdConfig::Cmd { cmd } = cmd else {
++        return Err(CommandError::InvalidCommand(
++          "register requires a command argv".to_string(),
++        ));
++      };
++      if cmd.is_empty() {
++        return Err(CommandError::InvalidCommand(
++          "cmd must not be empty".to_string(),
++        ));
++      }
++      let cwd_path = std::path::Path::new(cwd);
++      let cwd_path = if cwd_path.is_absolute() {
++        cwd_path.to_path_buf()
++      } else if let Some(runner) = &config.runner {
++        runner.root.join(cwd_path)
++      } else {
++        std::env::current_dir()
++          .map_err(|err| CommandError::InvalidCommand(err.to_string()))?
++          .join(cwd_path)
++      };
++      let cwd = dunce::canonicalize(&cwd_path)
++        .map_err(|err| {
++          CommandError::InvalidCommand(format!(
++            "invalid cwd '{}': {err}",
++            cwd_path.display()
++          ))
++        })?
++        .to_string_lossy()
++        .into_owned();
++      let task = TaskConfig {
++        path: key.path.to_string(),
++        label: label.clone(),
++        cmd: Some(CmdConfig::Cmd { cmd: cmd.clone() }),
++        cwd: Some(cwd.into()),
++        tags: vec![DYNAMIC_TAG.to_string()],
++        autorestart: Some(RestartMode::Never),
++        ..TaskConfig::default()
++      };
++      let registration = crate::task::config_tasks::config_task_registration(
++        config,
++        key.space,
++        task,
++        pc.alloc_id(),
++        Vec::new(),
++        *start,
++      );
++      pending.push(Pending::Registered(
++        pc.register_idle_task(registration, *start),
++      ));
++    }
+     Command::Add {
+       target,
+       label,
+diff --git a/src/dekit/main.rs b/src/dekit/main.rs
+index 0b1e877..bb58b2d 100644
+--- a/src/dekit/main.rs
++++ b/src/dekit/main.rs
+@@ -793,6 +793,16 @@ pub fn cli() -> ClapCommand {
+       task_args(
+         ClapCommand::new("spawn").about("Add a task at a path and start it"),
+       ),
++      ClapCommand::new("register")
++        .about("Register an idle task at an exact path, or verify and start it")
++        .arg(Arg::new("target").required(true).help("Exact task path"))
++        .arg(Arg::new("cwd").long("cwd").required(true).help("Working directory"))
++        .arg(Arg::new("label").long("label").help("Display label on creation"))
++        .arg(Arg::new("start").long("start")
++          .action(clap::ArgAction::SetTrue)
++          .help("Start after verifying the task definition"))
++        .arg(Arg::new("cmd").required(true).num_args(1..).last(true)
++          .help("Command argv; never interpreted by a shell")),
+       task_args(ClapCommand::new("run").about(
+         "Run a command as a task in the foreground; removed when it exits",
+       )),
+@@ -933,6 +943,34 @@ pub async fn dekit_main() -> anyhow::Result<()> {
+         println!("Spawned {}.", name);
+       }
+     }
++    Some(("register", sub_m)) => {
++      let target = arg_target(sub_m)?.expect("clap requires target");
++      // Do not strip a foreign runner qualifier: registration belongs to -C.
++      target.key()?;
++      let runner = resolve_runner(&matches)?;
++      let command = Command::Register {
++        target: target.clone(),
++        label: sub_m.get_one::<String>("label").cloned(),
++        cmd: CmdConfig::Cmd {
++          cmd: sub_m
++            .get_many::<String>("cmd")
++            .expect("required")
++            .cloned()
++            .collect(),
++        },
++        cwd: sub_m.get_one::<String>("cwd").expect("required").clone(),
++        start: sub_m.get_flag("start"),
++      };
++      let result =
++        rpc_request(&runner, RpcRequest::Command(command), true).await?;
++      if json {
++        println!("{}", serde_json::to_string(&result)?);
++      } else if sub_m.get_flag("start") {
++        println!("Started {}.", target);
++      } else {
++        println!("Registered {}.", target);
++      }
++    }
+     Some(("run", sub_m)) => {
+       let target = arg_target(sub_m)?.expect("clap requires target");
+       let (runner, target) = resolve_target(&matches, target)?;
+diff --git a/src/dekit/server.rs b/src/dekit/server.rs
+index 894d4eb..521ad1d 100644
+--- a/src/dekit/server.rs
++++ b/src/dekit/server.rs
+@@ -805,7 +805,9 @@ async fn handle_rpc(
+             codes::NO_MATCH
+           }
+           CommandError::Register(
+-            RegisterError::PathTaken(_) | RegisterError::PathNested(..),
++            RegisterError::PathTaken(_)
++            | RegisterError::PathNested(..)
++            | RegisterError::DefinitionConflict(_),
+           ) => codes::PATH_TAKEN,
+           CommandError::Register(RegisterError::ReservedSpace(_)) => {
+             codes::BAD_TARGET
+diff --git b/src/docs/cli/register.md b/src/docs/cli/register.md
+new file mode 100644
+index 0000000..0c57cb1
+--- /dev/null
++++ b/src/docs/cli/register.md
+@@ -0,0 +1,29 @@
++---
++title: dekit register
++cli: dekit register
++order: 13
++related: [cli/spawn, cli/start, start/runners]
++---
++
++Registers a process task without starting its command or writing
++`dekit.yaml`. The task takes the project's defaults except `autorestart`,
++which is always `never`, and gets the `dynamic` tag.
++
++The target must be an exact project task path. `--cwd` is required and
++must resolve to an existing working directory. `--label` sets the display
++label only when creating the task.
++
++Repeated registration succeeds only when the stored command arguments and
++canonical working directory match. It preserves the task ID, current state,
++pinning, and display label. A conflicting definition fails instead of
++replacing the task.
++
++`--start` verifies the definition and starts the task in the same kernel
++operation. It starts an idle task without restarting an already active one.
++
++:::usage
++
++```sh
++dekit register scripts/test --cwd "$PWD" --label test -- npm run test
++dekit register scripts/test --cwd "$PWD" --start -- npm run test
++```
