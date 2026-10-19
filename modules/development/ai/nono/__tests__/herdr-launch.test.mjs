@@ -18,6 +18,10 @@ function launch(environment, args = []) {
   const root = mkdtempSync(join(tmpdir(), "pi-herdr-launch-"));
   roots.push(root);
   const home = join(root, "home");
+  const cwd = join(root, "cwd");
+  const runtime = join(root, "runtime");
+  const temporary = join(root, "tmp");
+  for (const path of [cwd, runtime, temporary]) mkdirSync(path);
   const agent = join(home, ".pi", "agent");
   mkdirSync(agent, { recursive: true });
   const nono = join(root, "nono");
@@ -37,13 +41,13 @@ console.log(JSON.stringify({kind:${JSON.stringify(kind)},parentName,hint:process
     XDG_CACHE_HOME: join(home, ".cache"),
     XDG_DATA_HOME: join(home, ".local", "share"),
     XDG_STATE_HOME: join(home, ".local", "state"),
-    XDG_RUNTIME_DIR: root,
-    TMPDIR: root,
+    XDG_RUNTIME_DIR: runtime,
+    TMPDIR: temporary,
   };
   for (const name of ["HERDR_ENV", "HERDR_AGENT", "HERDR_PANE_ID", "HERDR_SOCKET_PATH", "NODE_OPTIONS", "NODE_PATH"]) delete env[name];
   Object.assign(env, environment);
-  const child = spawnSync(process.execPath, [launcher, nono, rawPi, profile, "/missing-direnv", "/missing-gh", ...args], {
-    cwd: root,
+  const child = spawnSync(process.execPath, [launcher, nono, rawPi, profile, "/missing-direnv", ...args], {
+    cwd,
     env,
     encoding: "utf8",
   });
