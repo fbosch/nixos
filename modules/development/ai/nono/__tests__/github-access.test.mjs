@@ -96,3 +96,61 @@ test("GitHub CLI and MCP caches work while credentials and neighboring secrets s
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test("Linux permits direct web ports alongside the isolated GitHub credential proxy", {
+  skip: process.platform !== "linux" || !process.env.NONO_TEST_BINARY,
+  timeout: 15000,
+}, () => {
+  const root = mkdtempSync(join(process.cwd(), ".pi-web-"));
+  const home = join(root, "home");
+  const work = join(root, "work");
+  const agent = join(home, ".pi", "agent");
+  try {
+    for (const directory of [agent, work, join(root, "tmp"), join(root, "state"), join(root, "cache"), join(home, ".config")]) {
+      mkdirSync(directory, { recursive: true });
+    }
+    prepareSandboxRuntime(home);
+    const profile = JSON.parse(readFileSync(profilePath, "utf8"));
+    profile.credential_capture.github.command = [process.execPath, "-e", 'console.log("synthetic-github-credential")'];
+    const webProfile = join(root, "profile.json");
+    writeFileSync(webProfile, JSON.stringify(profile));
+    const environment = {
+      PATH: process.env.PATH, HOME: home, TMPDIR: join(root, "tmp"),
+      XDG_CONFIG_HOME: join(home, ".config"), XDG_STATE_HOME: join(root, "state"),
+      XDG_CACHE_HOME: join(root, "cache"), XDG_DATA_HOME: join(home, ".local", "share"),
+      NO_COLOR: "1",
+    };
+    const args = launchArguments(work, agent, home, environment, webProfile, process.execPath);
+    args.splice(args.indexOf("--"), 0, "--no-audit", "--no-rollback", "--read", fileURLToPath(new URL("../scripts", import.meta.url)));
+    const probe = `
+      const assert = require("node:assert/strict");
+      const { createConnection } = require("node:net");
+      const proxy = new URL(process.env.HTTP_PROXY);
+      assert.equal(proxy.hostname, "127.0.0.1");
+      assert.equal(process.env.HTTPS_PROXY, process.env.HTTP_PROXY);
+      assert.equal(typeof process.env.GH_TOKEN, "string");
+      assert.notEqual(process.env.GH_TOKEN, "synthetic-github-credential");
+      const connect = (port) => new Promise((resolve) => {
+        const socket = createConnection({ host: "127.0.0.1", port });
+        socket.setTimeout(2000, () => { socket.destroy(); resolve("timeout"); });
+        socket.once("connect", () => { socket.destroy(); resolve("connected"); });
+        socket.once("error", (error) => resolve(error.code));
+      });
+      (async () => {
+        // Refusal from an empty loopback port proves connect reached the network stack.
+        for (const port of [80, 443]) assert.match(await connect(port), /^(connected|ECONNREFUSED)$/);
+        assert.match(await connect(22), /^(EACCES|EPERM)$/);
+        assert.equal(await connect(Number(proxy.port)), "connected");
+      })().catch((error) => { console.error(error); process.exitCode = 1; });
+    `;
+    const result = spawnSync(process.env.NONO_TEST_BINARY, [...args, "-e", probe], {
+      cwd: work, env: environment, encoding: "utf8", timeout: 10000,
+    });
+    assert.ifError(result.error);
+    assert.equal(result.signal, null, result.stderr);
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.doesNotMatch(result.stdout + result.stderr, /synthetic-github-credential/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

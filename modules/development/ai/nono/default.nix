@@ -54,7 +54,9 @@ in
     { lib, pkgs, ... }:
     let
       evaluated = systemConfiguration { inherit pkgs; };
-      profile = builtins.fromJSON evaluated.environment.etc."nono/pi.json".source.text;
+      profile = builtins.fromJSON (
+        builtins.unsafeDiscardStringContext evaluated.environment.etc."nono/pi.json".source.text
+      );
     in
     {
       # Desktop and development services need pathname socket access. Filesystem
@@ -91,7 +93,7 @@ in
               GH_TEST_BINARY = lib.getExe pkgs.gh;
             }
             ''
-              ${pkgs.nodejs}/bin/node --test ${./__tests__}/github-access.test.mjs
+              ${pkgs.nodejs}/bin/node --test ${./.}/__tests__/github-access.test.mjs
               touch "$out"
             '';
         nono-pi-azure-access =
@@ -271,9 +273,12 @@ in
             cache_ttl_secs = 300;
           };
         };
-        testKeepsSocketCompatibility = {
+        testKeepsSocketCompatibilityAndLandlockNetworkPolicy = {
           expr = profile.linux;
-          expected.af_unix_mediation = "off";
+          expected = {
+            af_unix_mediation = "off";
+            sandbox_policy = "landlock";
+          };
         };
         testKeepsSignalIsolationAndDisablesElevation = {
           expr = profile.security;

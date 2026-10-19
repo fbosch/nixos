@@ -411,7 +411,7 @@ test("sandbox startup suppresses only the proxy-agent warning and preserves prox
   }
 });
 
-test("proxy flags and browser exceptions are scoped across OS paths", () => {
+test("direct web exceptions and proxy flags are scoped across OS paths", () => {
   const { cwd, agent, home, raw, profile } = fixture();
   const policy = JSON.parse(readFileSync(new URL("../scripts/profile.json", import.meta.url), "utf8"));
   assert.deepEqual(policy.network.open_port, [9222, 2828]);
@@ -422,8 +422,13 @@ test("proxy flags and browser exceptions are scoped across OS paths", () => {
   assert.deepEqual(policy.credential_capture.github.command, ["@GH_CAPTURE_BIN@", "auth", "token", "--hostname", "github.com"]);
   assert.ok(!policy.filesystem.read.includes("$HOME/.config/gh"));
   assert.ok(policy.filesystem.read.includes("$HOME/.local/share/gh/extensions"));
-  assert.ok(launchArguments(cwd, agent, home, {}, profile, raw, "darwin").includes("--trust-proxy-ca"));
-  assert.ok(!launchArguments(cwd, agent, home, {}, profile, raw, "linux").includes("--trust-proxy-ca"));
+  const darwin = launchArguments(cwd, agent, home, {}, profile, raw, "darwin");
+  const linux = launchArguments(cwd, agent, home, {}, profile, raw, "linux");
+  assert.ok(darwin.includes("--trust-proxy-ca"));
+  assert.ok(!linux.includes("--trust-proxy-ca"));
+  assert.equal(policy.linux.sandbox_policy, "landlock");
+  assert.deepEqual(values(linux, "--allow-connect-port"), ["80", "443"]);
+  assert.deepEqual(values(darwin, "--allow-connect-port"), []);
   assert.deepEqual(policy.network.allow_domain ?? [], []);
 });
 
