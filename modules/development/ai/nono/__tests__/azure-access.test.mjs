@@ -17,6 +17,8 @@ function withFixture(check) {
   const home = join(root, "home");
   const work = join(root, "work");
   const azure = join(home, ".azure");
+  const devops = join(home, ".azure-devops");
+  const devopsCache = join(devops, "python-sdk", "cache");
   const environment = {
     PATH: process.env.PATH, HOME: home, NO_COLOR: "1",
     XDG_CONFIG_HOME: join(root, "config"), XDG_STATE_HOME: join(root, "state"),
@@ -28,10 +30,13 @@ function withFixture(check) {
   };
   try {
     for (const directory of [
-      work, azure, join(home, ".ssh"), join(home, ".aws"),
+      work, azure, devopsCache, join(home, ".ssh"), join(home, ".aws"),
       ...["XDG_CONFIG_HOME", "XDG_STATE_HOME", "XDG_CACHE_HOME", "XDG_DATA_HOME", "TMPDIR"].map(key => environment[key]),
     ]) mkdirSync(directory, { recursive: true });
     writeFileSync(join(azure, "azureProfile.json"), '{"subscriptions":[]}', { mode: 0o600 });
+    writeFileSync(join(devopsCache, "existing.json"), "{}", { mode: 0o600 });
+    writeFileSync(join(devops, "credentials"), "credential fixture", { mode: 0o600 });
+    writeFileSync(join(devops, "python-sdk", "outside-cache.json"), "{}", { mode: 0o600 });
     writeFileSync(join(home, ".ssh", "id_ed25519"), "private key fixture", { mode: 0o600 });
     writeFileSync(join(home, ".aws", "credentials"), "credential fixture", { mode: 0o600 });
     const run = args => {
@@ -41,7 +46,7 @@ function withFixture(check) {
       assert.equal(result.status, 0, result.stderr || result.stdout);
       return result.stdout;
     };
-    check({ home, azure, run });
+    check({ home, azure, devops, devopsCache, run });
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -51,11 +56,19 @@ function sandbox(program, ...args) {
   return ["run", "--profile", profile, "--allow-cwd", "--no-audit", "--no-rollback", "--block-net", "--", program, ...args];
 }
 
-test("Nono resolves Azure state read/write access without lifting other credential protections", { skip: !binary }, () => {
-  withFixture(({ home, azure, run }) => {
+test("Nono grants Azure state and only the DevOps SDK cache without lifting credential protections", { skip: !binary }, () => {
+  withFixture(({ home, azure, devops, devopsCache, run }) => {
     for (const [path, operation, expected] of [
       [join(azure, "azureProfile.json"), "read", "allowed"],
       [join(azure, "azureProfile.json"), "write", "allowed"],
+      [devopsCache, "read", "allowed"],
+      [devopsCache, "write", "allowed"],
+      [join(devopsCache, "existing.json"), "read", "allowed"],
+      [join(devopsCache, "new.json"), "write", "allowed"],
+      [join(devops, "credentials"), "read", "denied"],
+      [join(devops, "credentials"), "write", "denied"],
+      [join(devops, "python-sdk", "outside-cache.json"), "read", "denied"],
+      [join(devops, "python-sdk", "outside-cache.json"), "write", "denied"],
       [join(home, ".ssh", "id_ed25519"), "read", "denied"],
       [join(home, ".aws", "credentials"), "read", "denied"],
     ]) {
@@ -82,6 +95,18 @@ test("sandbox permits Azure state reads and new cache files while denying neighb
       fs.writeFileSync(log, "command fixture");
       assert.equal(fs.readFileSync(log, "utf8"), "command fixture");
       fs.unlinkSync(log);
+      const devops = path.join(home, ".azure-devops");
+      const devopsCache = path.join(devops, "python-sdk", "cache");
+      assert.equal(fs.statSync(devopsCache).isDirectory(), true);
+      assert.deepEqual(JSON.parse(fs.readFileSync(path.join(devopsCache, "existing.json"), "utf8")), {});
+      const cacheEntry = path.join(devopsCache, "new.json");
+      fs.writeFileSync(cacheEntry, "{}");
+      assert.deepEqual(JSON.parse(fs.readFileSync(cacheEntry, "utf8")), {});
+      fs.unlinkSync(cacheEntry);
+      for (const denied of [path.join(devops, "credentials"), path.join(devops, "python-sdk", "outside-cache.json")]) {
+        assert.throws(() => fs.readFileSync(denied), error => ["EACCES", "EPERM"].includes(error.code));
+        assert.throws(() => fs.writeFileSync(denied, "{}"), error => ["EACCES", "EPERM"].includes(error.code));
+      }
       for (const secret of [path.join(home, ".ssh", "id_ed25519"), path.join(home, ".aws", "credentials")]) {
         assert.throws(() => fs.readFileSync(secret), error => ["EACCES", "EPERM"].includes(error.code));
       }

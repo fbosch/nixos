@@ -217,6 +217,7 @@ in
                 "$HOME/.npm/_cacache"
                 "$HOME/.npm/_logs"
                 "$HOME/.azure"
+                "$HOME/.azure-devops/python-sdk/cache"
                 {
                   path = "/dev/dri";
                   when = "linux";

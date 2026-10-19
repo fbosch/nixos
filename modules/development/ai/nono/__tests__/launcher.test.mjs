@@ -29,6 +29,7 @@ test("profile grants npm cache and log writes without making all npm state writa
     "$HOME/.npm/_cacache",
     "$HOME/.npm/_logs",
     "$HOME/.azure",
+    "$HOME/.azure-devops/python-sdk/cache",
     { path: "/dev/dri", when: "linux" },
   ]);
 });
