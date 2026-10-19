@@ -56,8 +56,19 @@ let
       assert pkgs.lib.assertMsg (pkgs.lib.versionAtLeast pkgs.nono.version "0.79.0")
         "Pi socket and shell startup protection require nono >= 0.79.0";
       let
+        profileTemplate = builtins.fromJSON (builtins.readFile ../nono/scripts/profile.json);
+        githubCapture = profileTemplate.credential_capture.github;
         profile = pkgs.writeText "pi-nono-profile.json" (
-          builtins.toJSON (builtins.fromJSON (builtins.replaceStrings [ "@GH_CAPTURE_BIN@" ] [ "${pkgs.gh}/bin/gh" ] (builtins.readFile ../nono/scripts/profile.json)))
+          builtins.toJSON (
+            profileTemplate
+            // {
+              credential_capture = profileTemplate.credential_capture // {
+                github = githubCapture // {
+                  command = [ "${pkgs.gh}/bin/gh" ] ++ builtins.tail githubCapture.command;
+                };
+              };
+            }
+          )
         );
       in
       pkgs.runCommand "pi"

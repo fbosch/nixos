@@ -1,5 +1,16 @@
 let
-  piProfile = pkgs: builtins.fromJSON (builtins.replaceStrings [ "@GH_CAPTURE_BIN@" ] [ "${pkgs.gh}/bin/gh" ] (builtins.readFile ./scripts/profile.json));
+  piProfile = pkgs:
+    let
+      profile = builtins.fromJSON (builtins.readFile ./scripts/profile.json);
+      github = profile.credential_capture.github;
+    in
+    profile // {
+      credential_capture = profile.credential_capture // {
+        github = github // {
+          command = [ "${pkgs.gh}/bin/gh" ] ++ builtins.tail github.command;
+        };
+      };
+    };
   nixBuildAssertions =
     { config, lib, ... }:
     {
@@ -25,7 +36,7 @@ let
     { pkgs, ... }:
     {
       environment = {
-        systemPackages = [ pkgs.nono ];
+        systemPackages = [ pkgs.nono pkgs.gh ];
         etc."nono/pi.json".source = pkgs.writeText "pi-nono-profile.json" (builtins.toJSON (piProfile pkgs));
       };
     };
@@ -170,9 +181,9 @@ in
         };
       };
       nix-unit.tests.nonoProfile = {
-        testInstallsNono = {
+        testInstallsNonoAndGithubCli = {
           expr = map lib.getName evaluated.environment.systemPackages;
-          expected = [ "nono" ];
+          expected = [ "nono" "gh" ];
         };
         testUsesSystemOwnedProfile = {
           expr = builtins.attrNames evaluated.environment.etc;
