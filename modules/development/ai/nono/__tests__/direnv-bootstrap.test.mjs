@@ -95,10 +95,10 @@ for (const blocked of [false, true]) {
     chmodSync(direnv, 0o700);
     const nono = join(root, "nono");
     writeFileSync(nono, `#!${process.execPath}\nimport {writeFileSync} from "node:fs";writeFileSync(${JSON.stringify(observed)},JSON.stringify({path:process.env.PATH,sample:process.env.SAMPLE,removed:process.env.REMOVE,args:process.argv.slice(2)}));\n`, { mode: 0o700 });
-    const env = { ...process.env, HOME: home, SAMPLE: "old", REMOVE: "old", PI_CODING_AGENT_DIR: join(home, ".pi", "agent"), XDG_STATE_HOME: join(home, ".local", "state") };
+    const env = { ...process.env, HOME: home, XDG_CONFIG_HOME: join(home, ".config"), XDG_CACHE_HOME: join(home, ".cache"), XDG_DATA_HOME: join(home, ".local", "share"), SAMPLE: "old", REMOVE: "old", PI_CODING_AGENT_DIR: join(home, ".pi", "agent"), XDG_STATE_HOME: join(home, ".local", "state") };
     delete env.NODE_OPTIONS;
     delete env.NODE_PATH;
-    const result = spawnSync(process.execPath, [launcher, nono, process.execPath, profile, direnv, "--print", "hello"], { cwd, env, encoding: "utf8" });
+    const result = spawnSync(process.execPath, [launcher, nono, process.execPath, profile, direnv, "/missing-gh", "--print", "hello"], { cwd, env, encoding: "utf8" });
     if (blocked) {
       assert.equal(result.status, 1, result.stderr);
       assert.equal(existsSync(observed), false);

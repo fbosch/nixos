@@ -225,6 +225,7 @@ in
               read = [
                 "$HOME/.agents/skills"
                 "$HOME/.config/gh"
+                "$HOME/.local/share/gh/extensions"
                 "$HOME/.nvm"
                 "/tmp"
                 "$TMPDIR"

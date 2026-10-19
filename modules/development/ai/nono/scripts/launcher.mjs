@@ -5,6 +5,7 @@ import { spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 import { withProtectedShellProfile } from "./shell-protection.mjs";
 import { assertReadOnlySshGrants, sshClientArguments } from "./ssh-access.mjs";
+import { loadGithubEnvironment } from "./github-auth.mjs";
 
 function record(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -305,13 +306,15 @@ export function loadProjectEnvironment(cwd, environment, direnv, run = spawnSync
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   try {
-    const [nono, rawPi, profile, direnv, ...args] = process.argv.slice(2);
+    const [nono, rawPi, profile, direnv, gh, ...args] = process.argv.slice(2);
     let environment = { ...process.env };
     // No mutable JS preload or module path may run in this pre-sandbox process.
     delete environment.NODE_OPTIONS;
     delete environment.NODE_PATH;
     const entryBin = (environment.PATH || "").split(delimiter)[0];
+    const credentialEnvironment = { ...environment };
     environment = loadProjectEnvironment(process.cwd(), environment, direnv);
+    environment = loadGithubEnvironment(environment, gh, { credentialEnvironment });
     if (process.platform === "darwin" && !environment.XDG_RUNTIME_DIR) {
       environment.XDG_RUNTIME_DIR = environment.TMPDIR || tmpdir();
     }
