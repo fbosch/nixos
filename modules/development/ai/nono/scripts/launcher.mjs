@@ -351,6 +351,9 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     };
     let child;
     if (command[0] === nono) {
+      // Nono enables Node's env proxy support; Node 22 emits this notice before Pi starts.
+      // Reintroduce only this fixed flag after stripping caller/project Node options.
+      environment.NODE_OPTIONS = "--disable-warning=UNDICI-EHPA";
       // Herdr sees the foreground nono wrapper, not Pi's isolated process group.
       if (environment.HERDR_ENV === "1") environment.HERDR_AGENT = "pi";
       prepareJitiCache();

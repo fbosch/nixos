@@ -6,11 +6,11 @@
     "@fbb.sh/pkdx": "0.7.1",
     "cf": "1.0.0-beta.18",
     "docs-cache": "0.7.1",
-    "fallow": "3.25.0",
+    "fallow": "3.34.1",
     "jiti": "2.7.0",
     "neovim": "5.5.0",
     "pokemonshow": "4.0.0",
     "typescript": "7.0.2",
-    "vercel": "59.17.0"
+    "vercel": "64.5.0"
   }
 }

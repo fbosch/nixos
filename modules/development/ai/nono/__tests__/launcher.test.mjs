@@ -1,7 +1,7 @@
 import { afterEach, test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { launchArguments, launchCommand, prepareJitiCache, prepareNpmCache } from "../scripts/launcher.mjs";
@@ -308,6 +308,54 @@ test("built entry cannot source shell or Node preload code before confinement", 
   assert.equal(existsSync(marker), false);
 });
 
+test("sandbox startup suppresses only the proxy-agent warning and preserves proxy settings", () => {
+  const { root, home, cwd, agent, nono, profile } = fixture();
+  const runtime = join(root, "runtime");
+  mkdirSync(runtime);
+  const launcher = new URL("../scripts/launcher.mjs", import.meta.url).pathname;
+  writeFileSync(profile, readFileSync(new URL("../scripts/profile.json", import.meta.url)));
+  writeFileSync(nono, `#!${process.execPath}
+    const { spawnSync } = require("node:child_process");
+    const command = process.argv.slice(process.argv.indexOf("--") + 1);
+    const child = spawnSync(command[0], command.slice(1), {
+      stdio: "inherit",
+      env: { ...process.env, NODE_USE_ENV_PROXY: "1", HTTPS_PROXY: "http://127.0.0.1:1" },
+    });
+    if (child.error) throw child.error;
+    process.exit(child.status ?? 1);
+  `);
+  chmodSync(nono, 0o700);
+  const probe = `
+    process.emitWarning("proxy-agent notice", { code: "UNDICI-EHPA" });
+    process.emitWarning("other warning", { code: "PI_TEST_OTHER_WARNING" });
+    console.log(JSON.stringify({
+      useEnvProxy: process.env.NODE_USE_ENV_PROXY,
+      httpsProxy: process.env.HTTPS_PROXY,
+      nodeOptions: process.env.NODE_OPTIONS,
+      nodePath: process.env.NODE_PATH,
+    }));
+  `;
+  for (const sandboxed of [true, false]) {
+    const child = spawnSync(process.execPath, [
+      launcher, nono, process.execPath, profile, "/missing-direnv",
+      ...(sandboxed ? [] : ["--no-sandbox"]), "-e", probe,
+    ], {
+      cwd,
+      env: { HOME: home, PATH: process.env.PATH, TMPDIR: runtime, XDG_RUNTIME_DIR: runtime, PI_CODING_AGENT_DIR: agent, NODE_OPTIONS: "--trace-warnings", NODE_PATH: root },
+      encoding: "utf8",
+      timeout: 15000,
+    });
+    assert.ifError(child.error);
+    assert.equal(child.status, 0, child.stderr);
+    assert.equal(child.stderr.includes("UNDICI-EHPA"), !sandboxed, child.stderr);
+    assert.match(child.stderr, /PI_TEST_OTHER_WARNING/);
+    assert.deepEqual(JSON.parse(child.stdout), sandboxed ? {
+      useEnvProxy: "1",
+      httpsProxy: "http://127.0.0.1:1",
+      nodeOptions: "--disable-warning=UNDICI-EHPA",
+    } : {});
+  }
+});
 
 test("proxy flags and browser exceptions are scoped across OS paths", () => {
   const { cwd, agent, home, raw, profile } = fixture();

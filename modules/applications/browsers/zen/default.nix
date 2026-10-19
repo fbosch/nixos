@@ -6,12 +6,14 @@ in
   flake.modules.homeManager.applications =
     { config
     , lib
+    , osConfig
     , pkgs
     , ...
     }:
     let
       zenwritten = flakeConfig.flake.lib.themes.zenwritten;
       inherit (zenwritten.css) base bright;
+      nvidiaFlatpakVersion = lib.replaceStrings [ "." ] [ "-" ] osConfig.hardware.nvidia.package.version;
 
       zenUserChrome = pkgs.replaceVars ./userChrome.css.in {
         baseBackground = base.background;
@@ -115,6 +117,9 @@ in
 
       services.flatpak.packages = [
         "app.zen_browser.zen"
+      ] ++ lib.optionals (lib.elem "nvidia" osConfig.services.xserver.videoDrivers) [
+        # Flatpak needs NVIDIA userspace libraries matching the host kernel driver.
+        "org.freedesktop.Platform.GL.nvidia-${nvidiaFlatpakVersion}//1.4"
       ];
 
       home.packages = [
