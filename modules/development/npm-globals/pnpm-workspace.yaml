@@ -5,6 +5,7 @@ allowBuilds:
   agent-browser: true
   esbuild: true
   opencode-ai: true
+  workerd: true
 minimumReleaseAge: 1440
 minimumReleaseAgeExclude:
   - basic-ftp
