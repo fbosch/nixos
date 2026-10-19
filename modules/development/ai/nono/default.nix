@@ -83,6 +83,16 @@ in
               ${pkgs.nodejs}/bin/node --test ${./__tests__}/github-access.test.mjs
               touch "$out"
             '';
+        nono-pi-azure-access =
+          pkgs.runCommand "nono-pi-azure-access"
+            {
+              NONO_TEST_BINARY = lib.getExe pkgs.nono;
+              NONO_TEST_PROFILE = evaluated.environment.etc."nono/pi.json".source;
+            }
+            ''
+              ${pkgs.nodejs}/bin/node --test ${./__tests__}/azure-access.test.mjs
+              touch "$out"
+            '';
         nono-pi-socket-isolation =
           pkgs.runCommand "nono-pi-socket-isolation"
             {
@@ -206,6 +216,7 @@ in
                 "$HOME/.pi"
                 "$HOME/.npm/_cacache"
                 "$HOME/.npm/_logs"
+                "$HOME/.azure"
                 {
                   path = "/dev/dri";
                   when = "linux";
@@ -215,10 +226,10 @@ in
                 "$HOME/.agents/skills"
                 "$HOME/.config/gh"
                 "$HOME/.nvm"
-                "$HOME/.azure"
                 "/tmp"
                 "$TMPDIR"
               ];
+              bypass_protection = [ "$HOME/.azure" ];
               unix_socket = [
                 {
                   path = "/nix/var/nix/daemon-socket/socket";

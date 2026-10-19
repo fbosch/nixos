@@ -6,12 +6,12 @@ import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { launchArguments, launchCommand, prepareJitiCache, prepareNpmCache } from "../scripts/launcher.mjs";
 
-test("profile keeps config access narrow and Azure CLI state read-only", () => {
+test("profile keeps config access narrow and Azure CLI state writable", () => {
   const profile = JSON.parse(readFileSync(new URL("../scripts/profile.json", import.meta.url), "utf8"));
   assert.ok(!profile.filesystem.read.includes("$HOME/.config"));
   assert.ok(!profile.filesystem.allow.includes("$HOME/.config"));
-  assert.ok(profile.filesystem.read.includes("$HOME/.azure"));
-  assert.ok(!profile.filesystem.allow.includes("$HOME/.azure"));
+  assert.ok(profile.filesystem.allow.includes("$HOME/.azure"));
+  assert.deepEqual(profile.filesystem.bypass_protection, ["$HOME/.azure"]);
 });
 
 test("profile grants temporary-file reads without adding temporary-directory write grants", () => {
@@ -28,6 +28,7 @@ test("profile grants npm cache and log writes without making all npm state writa
     "$HOME/.pi",
     "$HOME/.npm/_cacache",
     "$HOME/.npm/_logs",
+    "$HOME/.azure",
     { path: "/dev/dri", when: "linux" },
   ]);
 });

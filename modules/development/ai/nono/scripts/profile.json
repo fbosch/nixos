@@ -5,6 +5,7 @@
             "$HOME/.pi",
             "$HOME/.npm/_cacache",
             "$HOME/.npm/_logs",
+            "$HOME/.azure",
             {
                 "path": "/dev/dri",
                 "when": "linux"
@@ -14,9 +15,11 @@
             "$HOME/.agents/skills",
             "$HOME/.config/gh",
             "$HOME/.nvm",
-            "$HOME/.azure",
             "/tmp",
             "$TMPDIR"
+        ],
+        "bypass_protection": [
+            "$HOME/.azure"
         ],
         "unix_socket": [
             {
