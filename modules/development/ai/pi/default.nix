@@ -57,7 +57,7 @@ let
         "Pi socket and shell startup protection require nono >= 0.79.0";
       let
         profile = pkgs.writeText "pi-nono-profile.json" (
-          builtins.toJSON (builtins.fromJSON (builtins.readFile ../nono/scripts/profile.json))
+          builtins.toJSON (builtins.fromJSON (builtins.replaceStrings [ "@GH_CAPTURE_BIN@" ] [ "${pkgs.gh}/bin/gh" ] (builtins.readFile ../nono/scripts/profile.json)))
         );
       in
       pkgs.runCommand "pi"
@@ -73,7 +73,7 @@ let
           makeBinaryWrapper ${pkgs.nodejs}/bin/node "$out/bin/pi" \
             --unset NODE_OPTIONS --unset NODE_PATH \
             --prefix PATH : "$out/bin" \
-            --add-flags "${../nono/scripts}/launcher.mjs ${pkgs.nono}/bin/nono ${rawPi}/bin/pi ${profile} ${pkgs.direnv}/bin/direnv ${pkgs.gh}/bin/gh"
+            --add-flags "${../nono/scripts}/launcher.mjs ${pkgs.nono}/bin/nono ${rawPi}/bin/pi ${profile} ${pkgs.direnv}/bin/direnv"
           PI_TEST_BINARY="$out/bin/pi" PI_TEST_DIRENV="${pkgs.direnv}/bin/direnv" \
             GIT_TEST_BINARY="${pkgs.git}/bin/git" ${pkgs.nodejs}/bin/node --test \
             ${../nono}/__tests__/github-auth.test.mjs \

@@ -5,7 +5,7 @@ import { spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 import { withProtectedShellProfile } from "./shell-protection.mjs";
 import { assertReadOnlySshGrants, sshClientArguments } from "./ssh-access.mjs";
-import { loadGithubEnvironment } from "./github-auth.mjs";
+import { assertGithubCredentialGrants, direnvGithubEnvironment, prepareGithubEnvironment } from "./github-auth.mjs";
 
 function record(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -185,7 +185,7 @@ function writableReferenceRoots(cwd, home) {
   return roots.some((root) => within(canonicalCwd, root)) ? roots : [];
 }
 
-export function launchArguments(cwd, agentDir, home, environment, profile, rawPi) {
+export function launchArguments(cwd, agentDir, home, environment, profile, rawPi, platform = process.platform) {
   if (!isAbsolute(profile) || !existingFile(profile)) throw new Error(`Nix nono profile missing: ${profile}`);
   const grants = new Set(gitMetadataRoots(cwd, home));
   const reads = new Set();
@@ -227,12 +227,14 @@ export function launchArguments(cwd, agentDir, home, environment, profile, rawPi
   }
   const args = [
     "run", "--profile", profile, "--allow-cwd", "--suppress-save-prompt", "/",
+    ...(platform === "darwin" ? ["--trust-proxy-ca"] : []),
     ...extra,
     ...[...reads].filter((path) => !grants.has(path)).flatMap((path) => ["--read", path]),
     ...[...grants].flatMap((path) => ["--allow", path]),
     "--", rawPi,
   ];
   assertReadOnlySshGrants(args, cwd);
+  assertGithubCredentialGrants(args, cwd, home);
   return args;
 }
 
@@ -306,19 +308,22 @@ export function loadProjectEnvironment(cwd, environment, direnv, run = spawnSync
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   try {
-    const [nono, rawPi, profile, direnv, gh, ...args] = process.argv.slice(2);
+    const [nono, rawPi, profile, direnv, ...args] = process.argv.slice(2);
     let environment = { ...process.env };
     // No mutable JS preload or module path may run in this pre-sandbox process.
     delete environment.NODE_OPTIONS;
     delete environment.NODE_PATH;
     const entryBin = (environment.PATH || "").split(delimiter)[0];
-    const credentialEnvironment = { ...environment };
-    environment = loadProjectEnvironment(process.cwd(), environment, direnv);
-    environment = loadGithubEnvironment(environment, gh, { credentialEnvironment });
+    const home = homedir();
+    const inheritedHome = environment.HOME;
+    const inheritedEnvironment = { ...environment };
+    environment = loadProjectEnvironment(process.cwd(), direnvGithubEnvironment(environment), direnv);
+    environment = prepareGithubEnvironment(inheritedEnvironment, environment, home);
+    if (inheritedHome === undefined) delete environment.HOME;
+    else environment.HOME = inheritedHome;
     if (process.platform === "darwin" && !environment.XDG_RUNTIME_DIR) {
       environment.XDG_RUNTIME_DIR = environment.TMPDIR || tmpdir();
     }
-    const home = homedir();
     const configuredAgent = environment.PI_CODING_AGENT_DIR || join(home, ".pi", "agent");
     const agentDir = resolve(configuredAgent === "~" ? home : configuredAgent.startsWith("~/") ? join(home, configuredAgent.slice(2)) : configuredAgent);
     environment.PI_CODING_AGENT_DIR = agentDir;
@@ -337,7 +342,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
       ...new Set(pathEntries.filter((path) => legacyBins.has(resolve(path)) && resolve(path) !== managedBin)),
       managedBin,
     ].join(delimiter);
-    const command = launchCommand(args, process.cwd(), agentDir, homedir(), environment, nono, rawPi, profile);
+    const command = launchCommand(args, process.cwd(), agentDir, home, environment, nono, rawPi, profile);
     // Herdr must identify the host-visible bootstrap even when nono hides the child process.
     process.title = "pi";
     const run = (selectedProfile) => {

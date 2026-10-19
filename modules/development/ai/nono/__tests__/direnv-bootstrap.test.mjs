@@ -98,7 +98,8 @@ for (const blocked of [false, true]) {
     const env = { ...process.env, HOME: home, XDG_CONFIG_HOME: join(home, ".config"), XDG_CACHE_HOME: join(home, ".cache"), XDG_DATA_HOME: join(home, ".local", "share"), SAMPLE: "old", REMOVE: "old", PI_CODING_AGENT_DIR: join(home, ".pi", "agent"), XDG_STATE_HOME: join(home, ".local", "state") };
     delete env.NODE_OPTIONS;
     delete env.NODE_PATH;
-    const result = spawnSync(process.execPath, [launcher, nono, process.execPath, profile, direnv, "/missing-gh", "--print", "hello"], { cwd, env, encoding: "utf8" });
+    for (const name of ["GH_TOKEN", "GITHUB_TOKEN", "GITHUB_PERSONAL_ACCESS_TOKEN", "GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN"]) delete env[name];
+    const result = spawnSync(process.execPath, [launcher, nono, process.execPath, profile, direnv, "--print", "hello"], { cwd, env, encoding: "utf8" });
     if (blocked) {
       assert.equal(result.status, 1, result.stderr);
       assert.equal(existsSync(observed), false);

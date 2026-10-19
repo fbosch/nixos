@@ -24,6 +24,8 @@ function fixture(name = "home") {
   writeFileSync(join(home, "dotfiles", ".shinit"), "# dash fixture\n");
   symlinkSync(join(home, "dotfiles", ".shinit"), join(home, ".shinit"));
   writeFileSync(join(cache, "atuin-init.fish"), "# cache fixture\n");
+  const runtime = join(root, "runtime");
+  mkdirSync(runtime);
   const environment = {
     ...process.env,
     HOME: home,
@@ -32,7 +34,7 @@ function fixture(name = "home") {
     XDG_CACHE_HOME: join(home, ".cache"),
     XDG_DATA_HOME: join(home, ".local", "share"),
     XDG_STATE_HOME: join(home, ".local", "state"),
-    XDG_RUNTIME_DIR: root,
+    XDG_RUNTIME_DIR: runtime,
     TMPDIR: root,
   };
   return { root, home, source, config, cache, environment };
@@ -190,9 +192,10 @@ test("malformed base policy fails closed and Linux retains its existing profile 
 
 test("launcher supplies the generated policy to nono and --no-sandbox skips protection setup", { skip: process.platform !== "darwin" }, () => {
   const { root, home, environment } = fixture();
+  for (const name of ["GH_TOKEN", "GITHUB_TOKEN", "GITHUB_PERSONAL_ACCESS_TOKEN", "GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN"]) delete environment[name];
   const nono = join(root, "nono-fixture.mjs");
   writeFileSync(nono, `#!${process.execPath}\nimport {readFileSync} from 'node:fs';const p=process.argv[process.argv.indexOf('--profile')+1];console.log(JSON.stringify({path:p,profile:JSON.parse(readFileSync(p,'utf8'))}));\n`, { mode: 0o700 });
-  const child = spawnSync(process.execPath, [launcher, nono, "/usr/bin/true", baseProfile, "/missing-direnv", "/missing-gh"], { cwd: root, env: environment, encoding: "utf8" });
+  const child = spawnSync(process.execPath, [launcher, nono, "/usr/bin/true", baseProfile, "/missing-direnv"], { cwd: root, env: environment, encoding: "utf8" });
   assert.equal(child.status, 0, child.stderr);
   const actual = JSON.parse(child.stdout);
   assert.match(actual.profile.unsafe_macos_seatbelt_rules.at(-1), /^\(deny file-write\*/);
@@ -200,7 +203,7 @@ test("launcher supplies the generated policy to nono and --no-sandbox skips prot
   assert.deepEqual(readdirSync(join(home, ".local", "state", "nono", "pi-profiles")), []);
   rmSync(join(home, ".local"), { recursive: true });
   symlinkSync(root, join(home, ".local"));
-  const direct = spawnSync(process.execPath, [launcher, "/missing-nono", "/usr/bin/true", "/missing-profile", "/missing-direnv", "/missing-gh", "--no-sandbox"], { cwd: root, env: environment, encoding: "utf8" });
+  const direct = spawnSync(process.execPath, [launcher, "/missing-nono", "/usr/bin/true", "/missing-profile", "/missing-direnv", "--no-sandbox"], { cwd: root, env: environment, encoding: "utf8" });
   assert.equal(direct.status, 0, direct.stderr);
   assert.ok(!existsSync(join(root, "state")));
 });

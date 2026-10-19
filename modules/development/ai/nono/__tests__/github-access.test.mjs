@@ -7,7 +7,7 @@ import { test } from "node:test";
 
 const profilePath = process.env.NONO_TEST_PROFILE ?? fileURLToPath(new URL("../scripts/profile.json", import.meta.url));
 
-test("GitHub CLI reads its config while credentials stay read-only and neighboring secrets stay blocked", {
+test("GitHub extension remains discoverable while CLI credentials and neighboring secrets stay blocked", {
   skip: process.platform !== "linux" || !process.env.NONO_TEST_BINARY || !process.env.GH_TEST_BINARY,
   timeout: 15000,
 }, () => {
@@ -25,7 +25,7 @@ test("GitHub CLI reads its config while credentials stay read-only and neighbori
     ]) mkdirSync(directory, { recursive: true });
     mkdirSync(join(extensions, "gh-mcp"), { recursive: true });
     writeFileSync(mcp, "#!/bin/sh\nprintf 'mcp-fixture\\n'\n", { mode: 0o755 });
-    writeFileSync(join(config, "hosts.yml"), "github.com:\n    user: sandbox-fixture\n    git_protocol: https\n", { mode: 0o600 });
+    writeFileSync(join(config, "hosts.yml"), "github.com:\n    oauth_token: synthetic-github-credential\n", { mode: 0o600 });
     writeFileSync(join(config, "config.yml"), "editor: vi\n", { mode: 0o600 });
     writeFileSync(join(home, ".config", "other", "secret"), "neighboring secret", { mode: 0o600 });
     writeFileSync(join(home, ".ssh", "id_ed25519"), "fixture private key", { mode: 0o600 });
@@ -38,18 +38,13 @@ test("GitHub CLI reads its config while credentials stay read-only and neighbori
       const [gh, home] = process.argv.slice(1);
       const config = path.join(home, ".config", "gh");
       const hosts = path.join(config, "hosts.yml");
-      const result = spawnSync(gh, ["config", "get", "git_protocol", "--host", "github.com"], {
-        env: process.env, encoding: "utf8", timeout: 5000,
-      });
-      assert.ifError(result.error);
-      assert.equal(result.status, 0, result.stderr);
-      assert.equal(result.stdout.trim(), "https");
-      assert.equal(fs.readFileSync(path.join(config, "config.yml"), "utf8"), "editor: vi\\n");
+      const denied = (operation) => assert.throws(operation, (error) => ["EACCES", "EPERM"].includes(error.code));
+      denied(() => fs.readFileSync(hosts));
+      denied(() => fs.readFileSync(path.join(config, "config.yml")));
       const extension = spawnSync(gh, ["mcp"], { env: process.env, encoding: "utf8", timeout: 5000 });
       assert.ifError(extension.error);
       assert.equal(extension.status, 0, extension.stderr);
       assert.equal(extension.stdout.trim(), "mcp-fixture");
-      const denied = (operation) => assert.throws(operation, (error) => ["EACCES", "EPERM"].includes(error.code));
       denied(() => fs.appendFileSync(path.join(home, ".local", "share", "gh", "extensions", "gh-mcp", "gh-mcp"), "changed"));
       denied(() => fs.appendFileSync(hosts, "changed"));
       denied(() => fs.writeFileSync(path.join(config, "new.yml"), "changed"));

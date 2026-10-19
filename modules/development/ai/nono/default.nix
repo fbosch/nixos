@@ -1,5 +1,5 @@
 let
-  piProfile = builtins.fromJSON (builtins.readFile ./scripts/profile.json);
+  piProfile = pkgs: builtins.fromJSON (builtins.replaceStrings [ "@GH_CAPTURE_BIN@" ] [ "${pkgs.gh}/bin/gh" ] (builtins.readFile ./scripts/profile.json));
   nixBuildAssertions =
     { config, lib, ... }:
     {
@@ -26,7 +26,7 @@ let
     {
       environment = {
         systemPackages = [ pkgs.nono ];
-        etc."nono/pi.json".source = pkgs.writeText "pi-nono-profile.json" (builtins.toJSON piProfile);
+        etc."nono/pi.json".source = pkgs.writeText "pi-nono-profile.json" (builtins.toJSON (piProfile pkgs));
       };
     };
 in
@@ -225,7 +225,6 @@ in
               ];
               read = [
                 "$HOME/.agents/skills"
-                "$HOME/.config/gh"
                 "$HOME/.local/share/gh/extensions"
                 "$HOME/.nvm"
                 "/tmp"
@@ -240,8 +239,25 @@ in
               ];
               suppress_save_prompt = [ "/" ];
             };
-            network.block = false;
+            network = {
+              block = false;
+              open_port = [ 9222 2828 ];
+              credentials = [ "github" ];
+              custom_credentials.github = {
+                upstream = "https://api.github.com";
+                credential_key = "cmd://github";
+                env_var = "GH_TOKEN";
+              };
+            };
             workdir.access = "readwrite";
+          };
+        };
+        testCapturesGithubWithPackagedCli = {
+          expr = profile.credential_capture.github;
+          expected = {
+            command = [ "${pkgs.gh}/bin/gh" "auth" "token" "--hostname" "github.com" ];
+            timeout_secs = 10;
+            cache_ttl_secs = 300;
           };
         };
         testKeepsSocketCompatibility = {

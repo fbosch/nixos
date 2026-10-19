@@ -307,3 +307,47 @@ test("built entry cannot source shell or Node preload code before confinement", 
   assert.match(child.stderr, /Cannot load project references/);
   assert.equal(existsSync(marker), false);
 });
+
+
+test("proxy flags and browser exceptions are scoped across OS paths", () => {
+  const { cwd, agent, home, raw, profile } = fixture();
+  const policy = JSON.parse(readFileSync(new URL("../scripts/profile.json", import.meta.url), "utf8"));
+  assert.deepEqual(policy.network.open_port, [9222, 2828]);
+  assert.deepEqual(policy.network.credentials, ["github"]);
+  assert.deepEqual(policy.network.custom_credentials.github, {
+    upstream: "https://api.github.com", credential_key: "cmd://github", env_var: "GH_TOKEN",
+  });
+  assert.deepEqual(policy.credential_capture.github.command, ["@GH_CAPTURE_BIN@", "auth", "token", "--hostname", "github.com"]);
+  assert.ok(!policy.filesystem.read.includes("$HOME/.config/gh"));
+  assert.ok(policy.filesystem.read.includes("$HOME/.local/share/gh/extensions"));
+  assert.ok(launchArguments(cwd, agent, home, {}, profile, raw, "darwin").includes("--trust-proxy-ca"));
+  assert.ok(!launchArguments(cwd, agent, home, {}, profile, raw, "linux").includes("--trust-proxy-ca"));
+  assert.deepEqual(policy.network.allow_domain ?? [], []);
+});
+
+test("dynamic grants reject the GitHub store through runtime, reference, cwd, and symlink aliases", () => {
+  const { root, home, agent, cwd, raw, profile } = fixture();
+  const config = join(home, ".config");
+  const store = join(config, "gh");
+  mkdirSync(store, { recursive: true });
+  const args = (directory, env = {}) => launchArguments(directory, agent, home, env, profile, raw);
+  assert.throws(() => args(cwd, { XDG_RUNTIME_DIR: store }), /GitHub credential/);
+  writeFileSync(join(agent, "settings.json"), JSON.stringify({ references: { config: { path: config, description: "fixture" } } }));
+  assert.throws(() => args(cwd), /GitHub credential/);
+  rmSync(join(agent, "settings.json"));
+  assert.throws(() => args(store), /GitHub credential/);
+  const alias = join(root, "config-alias");
+  symlinkSync(config, alias);
+  assert.throws(() => args(cwd, { XDG_RUNTIME_DIR: alias }), /GitHub credential/);
+  const target = join(root, "credential-target");
+  writeFileSync(target, "synthetic");
+  symlinkSync(target, join(store, "hosts.yml"));
+  const targetParent = join(root, "target-parent");
+  mkdirSync(targetParent);
+  const linkedTarget = join(targetParent, "hosts.yml");
+  rmSync(join(store, "hosts.yml"));
+  symlinkSync(linkedTarget, join(store, "hosts.yml"));
+  writeFileSync(linkedTarget, "synthetic");
+  assert.throws(() => args(cwd, { XDG_RUNTIME_DIR: targetParent }), /GitHub credential/);
+  assert.doesNotThrow(() => args(cwd, { XDG_RUNTIME_DIR: join(home, ".pi", "agent") }));
+});
