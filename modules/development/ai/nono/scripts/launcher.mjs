@@ -2,10 +2,11 @@ import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, statSync 
 import { homedir, tmpdir } from "node:os";
 import { delimiter, dirname, isAbsolute, join, resolve, sep } from "node:path";
 import { spawnSync } from "node:child_process";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { withProtectedShellProfile } from "./shell-protection.mjs";
 import { assertReadOnlySshGrants, sshClientArguments } from "./ssh-access.mjs";
 import { assertGithubCredentialGrants, direnvGithubEnvironment, prepareGithubEnvironment } from "./github-auth.mjs";
+import { prepareSandboxRuntime } from "./sandbox-runtime.mjs";
 
 function record(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -231,7 +232,7 @@ export function launchArguments(cwd, agentDir, home, environment, profile, rawPi
     ...extra,
     ...[...reads].filter((path) => !grants.has(path)).flatMap((path) => ["--read", path]),
     ...[...grants].flatMap((path) => ["--allow", path]),
-    "--", rawPi,
+    "--", process.execPath, fileURLToPath(new URL("./sandbox-runtime.mjs", import.meta.url)), rawPi,
   ];
   assertReadOnlySshGrants(args, cwd);
   assertGithubCredentialGrants(args, cwd, home);
@@ -342,6 +343,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
       ...new Set(pathEntries.filter((path) => legacyBins.has(resolve(path)) && resolve(path) !== managedBin)),
       managedBin,
     ].join(delimiter);
+    if (args[0] !== "--no-sandbox") prepareSandboxRuntime(home);
     const command = launchCommand(args, process.cwd(), agentDir, home, environment, nono, rawPi, profile);
     // Herdr must identify the host-visible bootstrap even when nono hides the child process.
     process.title = "pi";
@@ -351,9 +353,6 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     };
     let child;
     if (command[0] === nono) {
-      // Nono enables Node's env proxy support; Node 22 emits this notice before Pi starts.
-      // Reintroduce only this fixed flag after stripping caller/project Node options.
-      environment.NODE_OPTIONS = "--disable-warning=UNDICI-EHPA";
       // Herdr sees the foreground nono wrapper, not Pi's isolated process group.
       if (environment.HERDR_ENV === "1") environment.HERDR_AGENT = "pi";
       prepareJitiCache();

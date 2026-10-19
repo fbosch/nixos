@@ -152,10 +152,61 @@ test("always selects absolute nono, immutable profile and distinct raw Pi, prese
   const command = launch(args, { NONO_CAP_FILE: "/forged/capability.json" });
   assert.equal(command[0], nono);
   assert.deepEqual(command.slice(1, 4), ["run", "--profile", profile]);
-  assert.deepEqual(command.slice(-args.length - 2), ["--", raw, ...args]);
+  assert.deepEqual(command.slice(command.indexOf("--") + 1), [
+    process.execPath, new URL("../scripts/sandbox-runtime.mjs", import.meta.url).pathname, raw, ...args,
+  ]);
   assert.notEqual(command[0], raw);
   assert.ok(command.includes("--allow-cwd"));
   assert.deepEqual(values(command, "--suppress-save-prompt"), ["/"]);
+});
+test("sandbox runtime state is prepared before grants and separated from supervisor credentials", () => {
+  const { root, home, cwd, agent, nono, profile } = fixture();
+  const cache = join(home, ".cache", "pi");
+  const runtime = join(root, "runtime");
+  mkdirSync(runtime);
+  writeFileSync(nono, `#!${process.execPath}
+    const assert = require("node:assert/strict");
+    const fs = require("node:fs");
+    const path = require("node:path");
+    const { spawnSync } = require("node:child_process");
+    assert.equal(process.env.GH_CONFIG_DIR, path.join(process.env.HOME, ".config", "gh"));
+    const cache = path.join(process.env.HOME, ".cache", "pi");
+    assert.ok(fs.statSync(cache).isDirectory());
+    assert.ok(process.argv.some((part, index, args) => part === "--allow" && args[index + 1] === fs.realpathSync(cache)));
+    for (const name of ["gh", "npm", "uv", "uv-python", "uv-tools"]) assert.ok(fs.statSync(path.join(cache, name)).isDirectory());
+    const command = process.argv.slice(process.argv.indexOf("--") + 1);
+    const child = spawnSync(command[0], command.slice(1), { stdio: "inherit", env: { ...process.env, GH_TOKEN: "synthetic-proxy-placeholder" } });
+    if (child.error) throw child.error;
+    process.exit(child.status ?? 1);
+  `, { mode: 0o700 });
+  chmodSync(nono, 0o700);
+  const probe = `
+    const fs = require("node:fs");
+    const path = require("node:path");
+    const names = ["GH_CONFIG_DIR", "npm_config_cache", "UV_CACHE_DIR", "UV_PYTHON_INSTALL_DIR", "UV_TOOL_DIR"];
+    for (const name of names) fs.writeFileSync(path.join(process.env[name], "state"), "preserved");
+    console.log(JSON.stringify({ ...Object.fromEntries(names.map(name => [name, process.env[name]])), token: process.env.GH_TOKEN, other: process.env.OTHER }));
+  `;
+  const args = [new URL("../scripts/launcher.mjs", import.meta.url).pathname, nono, process.execPath, profile, "/missing-direnv", "-e", probe];
+  const environment = {
+    HOME: home, PATH: process.env.PATH, TMPDIR: runtime, XDG_RUNTIME_DIR: runtime, PI_CODING_AGENT_DIR: agent,
+    GH_CONFIG_DIR: "/project/credentials", npm_config_cache: "/host/npm", UV_CACHE_DIR: "/host/uv",
+    UV_PYTHON_INSTALL_DIR: "/host/python", UV_TOOL_DIR: "/host/tools", OTHER: "preserved",
+  };
+  const child = spawnSync(process.execPath, args, { cwd, env: environment, encoding: "utf8", timeout: 15000 });
+  assert.ifError(child.error);
+  assert.equal(child.status, 0, child.stderr);
+  assert.deepEqual(JSON.parse(child.stdout), {
+    GH_CONFIG_DIR: join(cache, "gh"), npm_config_cache: join(cache, "npm"), UV_CACHE_DIR: join(cache, "uv"),
+    UV_PYTHON_INSTALL_DIR: join(cache, "uv-python"), UV_TOOL_DIR: join(cache, "uv-tools"),
+    token: "synthetic-proxy-placeholder", other: "preserved",
+  });
+  const bypass = spawnSync(process.execPath, [...args.slice(0, 5), "--no-sandbox", "-e", "console.log(process.env.UV_TOOL_DIR)"], {
+    cwd, env: environment, encoding: "utf8", timeout: 15000,
+  });
+  assert.equal(bypass.status, 0, bypass.stderr);
+  assert.equal(bypass.stdout.trim(), "/host/tools");
+  assert.equal(readFileSync(join(cache, "uv-tools", "state"), "utf8"), "preserved");
 });
 
 test("forged capability markers cannot bypass config errors", () => {
@@ -290,7 +341,7 @@ test("current-directory references are removed before collision checks", () => {
 });
 
 test("built entry cannot source shell or Node preload code before confinement", { skip: !process.env.PI_TEST_BINARY }, () => {
-  const { root, cwd, agent } = fixture();
+  const { root, home, cwd, agent } = fixture();
   const marker = join(root, "executed");
   const shell = join(root, "preload.sh");
   const preload = join(root, "preload.mjs");
@@ -300,7 +351,7 @@ test("built entry cannot source shell or Node preload code before confinement", 
   const child = spawnSync(process.env.PI_TEST_BINARY, ["--version"], {
     cwd,
     encoding: "utf8",
-    env: { ...process.env, PI_CODING_AGENT_DIR: agent, BASH_ENV: shell, NODE_OPTIONS: `--import=${preload}`, NODE_PATH: root },
+    env: { ...process.env, HOME: home, PI_CODING_AGENT_DIR: agent, BASH_ENV: shell, NODE_OPTIONS: `--import=${preload}`, NODE_PATH: root },
   });
   assert.ifError(child.error);
   assert.equal(child.status, 1);
@@ -317,9 +368,12 @@ test("sandbox startup suppresses only the proxy-agent warning and preserves prox
   writeFileSync(nono, `#!${process.execPath}
     const { spawnSync } = require("node:child_process");
     const command = process.argv.slice(process.argv.indexOf("--") + 1);
+    const environment = { ...process.env, NODE_USE_ENV_PROXY: "1", HTTPS_PROXY: "http://127.0.0.1:1" };
+    delete environment.NODE_OPTIONS;
+    delete environment.NODE_PATH;
     const child = spawnSync(command[0], command.slice(1), {
       stdio: "inherit",
-      env: { ...process.env, NODE_USE_ENV_PROXY: "1", HTTPS_PROXY: "http://127.0.0.1:1" },
+      env: environment,
     });
     if (child.error) throw child.error;
     process.exit(child.status ?? 1);
