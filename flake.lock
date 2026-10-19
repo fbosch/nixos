@@ -2096,11 +2096,11 @@
         "nixpkgs-darwin-x64": "nixpkgs-darwin-x64"
       },
       "locked": {
-        "lastModified": 1792428855,
-        "narHash": "sha256-OJK3PUUuweyeRpYMs+hreg9D+AtLtTEHwrD5WKjmWIY=",
+        "lastModified": 1792433862,
+        "narHash": "sha256-dW6zWumcQfUjFWhxifuW3qEXE+VmVVkTZOXB7Z3jRDI=",
         "owner": "earendil-works",
         "repo": "pi",
-        "rev": "e86b054753b544600693384d3db4e3281ba86b60",
+        "rev": "5c1736f82d201d09664642ab0d88147da94b450e",
         "type": "github"
       },
       "original": {
