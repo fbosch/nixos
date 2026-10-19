@@ -6,10 +6,12 @@ import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { launchArguments, launchCommand, prepareJitiCache, prepareNpmCache } from "../scripts/launcher.mjs";
 
-test("profile avoids broad config-directory access", () => {
+test("profile keeps config access narrow and Azure CLI state read-only", () => {
   const profile = JSON.parse(readFileSync(new URL("../scripts/profile.json", import.meta.url), "utf8"));
   assert.ok(!profile.filesystem.read.includes("$HOME/.config"));
   assert.ok(!profile.filesystem.allow.includes("$HOME/.config"));
+  assert.ok(profile.filesystem.read.includes("$HOME/.azure"));
+  assert.ok(!profile.filesystem.allow.includes("$HOME/.azure"));
 });
 
 test("profile grants temporary-file reads without adding temporary-directory write grants", () => {
