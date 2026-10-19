@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -39,6 +39,12 @@ function withFixture(check) {
     writeFileSync(join(devops, "python-sdk", "outside-cache.json"), "{}", { mode: 0o600 });
     writeFileSync(join(home, ".ssh", "id_ed25519"), "private key fixture", { mode: 0o600 });
     writeFileSync(join(home, ".aws", "credentials"), "credential fixture", { mode: 0o600 });
+    // This filesystem fixture stays offline and does not need credential proxy routes.
+    const offlineProfile = join(root, "profile.json");
+    const policy = JSON.parse(readFileSync(profile, "utf8"));
+    policy.network = { block: true };
+    policy.credential_capture = {};
+    writeFileSync(offlineProfile, JSON.stringify(policy));
     const run = args => {
       const result = spawnSync(binary, args, { cwd: work, env: environment, encoding: "utf8", timeout: 15000 });
       assert.ifError(result.error);
@@ -46,14 +52,14 @@ function withFixture(check) {
       assert.equal(result.status, 0, result.stderr || result.stdout);
       return result.stdout;
     };
-    check({ home, azure, devops, devopsCache, run });
+    check({ home, azure, devops, devopsCache, run, offlineProfile });
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
 }
 
-function sandbox(program, ...args) {
-  return ["run", "--profile", profile, "--allow-cwd", "--no-audit", "--no-rollback", "--block-net", "--", program, ...args];
+function sandbox(profilePath, program, ...args) {
+  return ["run", "--profile", profilePath, "--allow-cwd", "--no-audit", "--no-rollback", "--block-net", "--", program, ...args];
 }
 
 test("Nono grants Azure state and only the DevOps SDK cache without lifting credential protections", { skip: !binary }, () => {
@@ -79,8 +85,8 @@ test("Nono grants Azure state and only the DevOps SDK cache without lifting cred
 });
 
 test("sandbox permits Azure state reads and new cache files while denying neighboring secrets", { skip: runtimeSkip }, () => {
-  withFixture(({ home, run }) => {
-    run(sandbox(process.execPath, "-e", `
+  withFixture(({ home, run, offlineProfile }) => {
+    run(sandbox(offlineProfile, process.execPath, "-e", `
       const assert = require("node:assert/strict");
       const fs = require("node:fs");
       const path = require("node:path");
@@ -117,8 +123,8 @@ test("sandbox permits Azure state reads and new cache files while denying neighb
 test("Azure CLI starts with sandboxed writable state without login or network access", {
   skip: runtimeSkip || !process.env.AZURE_CLI_TEST_BINARY,
 }, () => {
-  withFixture(({ run }) => {
-    const result = JSON.parse(run(sandbox(process.env.AZURE_CLI_TEST_BINARY, "version")));
+  withFixture(({ run, offlineProfile }) => {
+    const result = JSON.parse(run(sandbox(offlineProfile, process.env.AZURE_CLI_TEST_BINARY, "version")));
     assert.equal(typeof result["azure-cli"], "string");
   });
 });

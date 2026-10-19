@@ -127,6 +127,7 @@ test("nono permits pathname sockets and aliases while stdio and HTTP MCP initial
 
     const result = await run(process.env.NONO_TEST_BINARY, [
       "run", "--profile", profilePath, "--allow-cwd", "--read", dirname(probe),
+      "--open-port", String(http.address().port),
       "--no-audit", "--no-rollback", "--suppress-save-prompt", "/", "--",
       process.execPath, probe, JSON.stringify({ sockets, url: `http://127.0.0.1:${http.address().port}` }),
     ], {
