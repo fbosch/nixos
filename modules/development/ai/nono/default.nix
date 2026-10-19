@@ -215,6 +215,7 @@ in
                 "$HOME/.agents/skills"
                 "$HOME/.config/gh"
                 "$HOME/.nvm"
+                "$HOME/.azure"
                 "/tmp"
                 "$TMPDIR"
               ];

@@ -84,8 +84,8 @@ jobs:
       # CUDA packages are not available from cache.nixos.org.
       NIX_CONFIG: |
         extra-experimental-features = nix-command flakes
-        extra-substituters = https://cache.nixos-cuda.org https://comfyui.cachix.org https://hyprland.cachix.org https://cache.numtide.com
-        extra-trusted-public-keys = cache.nixos-cuda.org:74DUi4Ye579gUqzH4ziL9IyiJBlDpMRn9MBN8oNan9M= comfyui.cachix.org-1:33mf9VzoIjzVbp0zwj+fT51HG0y31ZTK3nzYZAX0rec= hyprland.cachix.org-1:a7pgxzMz7+chwVL3/pzj6jIBMioiJM7ypFP8PwtkuGc= niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g=
+        extra-substituters = https://cache.nixos-cuda.org https://comfyui.cachix.org https://hyprland.cachix.org https://cache.numtide.com https://nyx-cache.chaotic.cx/
+        extra-trusted-public-keys = cache.nixos-cuda.org:74DUi4Ye579gUqzH4ziL9IyiJBlDpMRn9MBN8oNan9M= comfyui.cachix.org-1:33mf9VzoIjzVbp0zwj+fT51HG0y31ZTK3nzYZAX0rec= hyprland.cachix.org-1:a7pgxzMz7+chwVL3/pzj6jIBMioiJM7ypFP8PwtkuGc= niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g= nyx-cache.chaotic.cx:dJxTrgMC3V3cFfyIiBQDQorG6k1LsqurH/srpMSq7qk=
     needs: [flake-check, discover-hosts]
     if: needs.discover-hosts.outputs.has-nixos == 'true'
     strategy:

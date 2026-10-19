@@ -88,9 +88,9 @@ in
     ++ [
       inputs.nixos-hardware.nixosModules.common-cpu-intel
       inputs.grub2-themes.nixosModules.default
+      inputs.chaotic.nixosModules.nyx-cache
+      inputs.chaotic.nixosModules.nyx-overlay
       {
-        nixpkgs.overlays = [ inputs.nix-cachyos-kernel.overlays.pinned ];
-
         services.surge.outputDir = "/mnt/storage/Downloads";
 
         nix = {

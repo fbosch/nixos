@@ -9,7 +9,7 @@
         # Stage Hyprland's nested inputs, including xdph, for sandboxed evaluation.
         // (lib.mapAttrs' (name: input: lib.nameValuePair "hyprland/${name}" input.outPath) inputs.hyprland.inputs)
         // {
-          "nix-cachyos-kernel/nixpkgs" = inputs.nix-cachyos-kernel.inputs.nixpkgs.outPath;
+          "chaotic/nixpkgs" = inputs.chaotic.inputs.nixpkgs.outPath;
         };
 
       tests = {
