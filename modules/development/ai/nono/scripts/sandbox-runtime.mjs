@@ -1,7 +1,5 @@
 import { mkdirSync } from "node:fs";
-import { homedir } from "node:os";
 import { join } from "node:path";
-import { pathToFileURL } from "node:url";
 
 function sandboxRuntimeEnvironment(home) {
   const cache = join(home, ".cache", "pi");
@@ -21,11 +19,12 @@ export function prepareSandboxRuntime(home) {
   }
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const [rawPi, ...args] = process.argv.slice(2);
-  // Only the child uses separate CLI config; supervisor-side capture keeps the real store.
-  const environment = { ...process.env, ...sandboxRuntimeEnvironment(homedir()) };
-  // Nono strips Node options; restore only this fixed warning filter after confinement.
-  environment.NODE_OPTIONS = "--disable-warning=UNDICI-EHPA";
-  process.execve(rawPi, [rawPi, ...args], environment);
+export function sandboxRuntimeCommand(home, rawPi, envBinary) {
+  // Set child-only config after confinement; supervisor capture keeps the real store.
+  const environment = {
+    ...sandboxRuntimeEnvironment(home),
+    // Nono strips Node options; restore only this fixed warning filter after confinement.
+    NODE_OPTIONS: "--disable-warning=UNDICI-EHPA",
+  };
+  return [envBinary, "--", ...Object.entries(environment).map(([name, value]) => `${name}=${value}`), rawPi];
 }

@@ -6,6 +6,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+const envBinary = process.env.ENV_TEST_BINARY ?? "/usr/bin/env";
+
 const launcher = fileURLToPath(new URL("../scripts/launcher.mjs", import.meta.url));
 const profile = fileURLToPath(new URL("../scripts/profile.json", import.meta.url));
 const roots = [];
@@ -46,7 +48,7 @@ console.log(JSON.stringify({kind:${JSON.stringify(kind)},parentName,hint:process
   };
   for (const name of ["HERDR_ENV", "HERDR_AGENT", "HERDR_PANE_ID", "HERDR_SOCKET_PATH", "NODE_OPTIONS", "NODE_PATH"]) delete env[name];
   Object.assign(env, environment);
-  const child = spawnSync(process.execPath, [launcher, nono, rawPi, profile, "/missing-direnv", ...args], {
+  const child = spawnSync(process.execPath, [launcher, nono, rawPi, profile, "/missing-direnv", envBinary, ...args], {
     cwd,
     env,
     encoding: "utf8",

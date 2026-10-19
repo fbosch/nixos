@@ -7,6 +7,8 @@ import { afterEach, test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { launchArguments } from "../scripts/launcher.mjs";
 
+const envBinary = process.env.ENV_TEST_BINARY ?? "/usr/bin/env";
+
 const profile = fileURLToPath(new URL("../scripts/profile.json", import.meta.url));
 const created = [];
 
@@ -26,7 +28,7 @@ function fixture(base = tmpdir()) {
     nixos: { path: "~/nixos", description: "NixOS" },
     vault: { path: vault, description: "Vault" },
   } }));
-  const args = (cwd = project, environment = {}) => launchArguments(cwd, agent, home, environment, profile, process.execPath);
+  const args = (cwd = project, environment = {}) => launchArguments(cwd, agent, home, environment, profile, process.execPath, envBinary);
   return { root, home, agent, project, dotfiles, nixos, vault, settings, args };
 }
 
@@ -142,7 +144,7 @@ test("missing paired repositories do not prevent unrelated launches", () => {
 
 test("nonexistent homes do not prevent unrelated launches", () => {
   const f = fixture();
-  const args = launchArguments(f.project, f.agent, join(f.root, "missing-home"), {}, profile, process.execPath);
+  const args = launchArguments(f.project, f.agent, join(f.root, "missing-home"), {}, profile, process.execPath, envBinary);
   assertReadOnly(args, [f.vault]);
 });
 

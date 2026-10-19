@@ -7,6 +7,8 @@ import { test } from "node:test";
 import { launchArguments } from "../scripts/launcher.mjs";
 import { prepareSandboxRuntime } from "../scripts/sandbox-runtime.mjs";
 
+const envBinary = process.env.ENV_TEST_BINARY ?? "/usr/bin/env";
+
 const profilePath = process.env.NONO_TEST_PROFILE ?? fileURLToPath(new URL("../scripts/profile.json", import.meta.url));
 
 test("GitHub CLI and MCP caches work while credentials and neighboring secrets stay blocked", {
@@ -44,7 +46,7 @@ test("GitHub CLI and MCP caches work while credentials and neighboring secrets s
       XDG_CACHE_HOME: join(root, "cache"), XDG_DATA_HOME: join(home, ".local", "share"),
       GH_CONFIG_DIR: config, GH_TOKEN: "synthetic-proxy-placeholder", NO_COLOR: "1",
     };
-    const args = launchArguments(work, agent, home, environment, offlineProfile, process.execPath);
+    const args = launchArguments(work, agent, home, environment, offlineProfile, process.execPath, envBinary);
     args.splice(args.indexOf("--"), 0, "--no-audit", "--no-rollback", "--read", fileURLToPath(new URL("../scripts", import.meta.url)));
 
     const probe = `
@@ -111,16 +113,23 @@ test("Linux permits direct web ports alongside the isolated GitHub credential pr
     }
     prepareSandboxRuntime(home);
     const profile = JSON.parse(readFileSync(profilePath, "utf8"));
-    profile.credential_capture.github.command = [process.execPath, "-e", 'console.log("synthetic-github-credential")'];
+    profile.credential_capture.github.command = [process.execPath, "-e", `
+      const assert = require("node:assert/strict");
+      const path = require("node:path");
+      assert.equal(process.env.GH_CONFIG_DIR, path.join(process.env.HOME, ".config", "gh"));
+      assert.equal(process.env.NODE_OPTIONS, undefined);
+      console.log("synthetic-github-credential");
+    `];
     const webProfile = join(root, "profile.json");
     writeFileSync(webProfile, JSON.stringify(profile));
     const environment = {
       PATH: process.env.PATH, HOME: home, TMPDIR: join(root, "tmp"),
       XDG_CONFIG_HOME: join(home, ".config"), XDG_STATE_HOME: join(root, "state"),
+      GH_CONFIG_DIR: join(home, ".config", "gh"),
       XDG_CACHE_HOME: join(root, "cache"), XDG_DATA_HOME: join(home, ".local", "share"),
       NO_COLOR: "1",
     };
-    const args = launchArguments(work, agent, home, environment, webProfile, process.execPath);
+    const args = launchArguments(work, agent, home, environment, webProfile, process.execPath, envBinary);
     args.splice(args.indexOf("--"), 0, "--no-audit", "--no-rollback", "--read", fileURLToPath(new URL("../scripts", import.meta.url)));
     const probe = `
       const assert = require("node:assert/strict");

@@ -7,6 +7,8 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadProjectEnvironment } from "../scripts/launcher.mjs";
 
+const envBinary = process.env.ENV_TEST_BINARY ?? "/usr/bin/env";
+
 const roots = [];
 const launcher = fileURLToPath(new URL("../scripts/launcher.mjs", import.meta.url));
 const profile = fileURLToPath(new URL("../scripts/profile.json", import.meta.url));
@@ -99,7 +101,7 @@ for (const blocked of [false, true]) {
     delete env.NODE_OPTIONS;
     delete env.NODE_PATH;
     for (const name of ["GH_TOKEN", "GITHUB_TOKEN", "GITHUB_PERSONAL_ACCESS_TOKEN", "GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN"]) delete env[name];
-    const result = spawnSync(process.execPath, [launcher, nono, process.execPath, profile, direnv, "--print", "hello"], { cwd, env, encoding: "utf8" });
+    const result = spawnSync(process.execPath, [launcher, nono, process.execPath, profile, direnv, envBinary, "--print", "hello"], { cwd, env, encoding: "utf8" });
     if (blocked) {
       assert.equal(result.status, 1, result.stderr);
       assert.equal(existsSync(observed), false);

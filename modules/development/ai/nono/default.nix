@@ -66,6 +66,7 @@ in
           pkgs.runCommand "nono-pi-ssh-access"
             {
               NONO_TEST_BINARY = lib.getExe pkgs.nono;
+              ENV_TEST_BINARY = "${pkgs.coreutils}/bin/env";
               SSH_KEYGEN_TEST_BINARY = lib.getExe' pkgs.openssh "ssh-keygen";
               SSH_ADD_TEST_BINARY = lib.getExe' pkgs.openssh "ssh-add";
             }
@@ -78,6 +79,7 @@ in
             {
               nativeBuildInputs = [ pkgs.git ];
               NONO_TEST_BINARY = lib.getExe pkgs.nono;
+              ENV_TEST_BINARY = "${pkgs.coreutils}/bin/env";
               GIT_TEST_BINARY = lib.getExe pkgs.git;
               WT_TEST_BINARY = "${pkgs.worktrunk}/bin/wt";
             }
@@ -89,6 +91,7 @@ in
           pkgs.runCommand "nono-pi-github-access"
             {
               NONO_TEST_BINARY = lib.getExe pkgs.nono;
+              ENV_TEST_BINARY = "${pkgs.coreutils}/bin/env";
               NONO_TEST_PROFILE = evaluated.environment.etc."nono/pi.json".source;
               GH_TEST_BINARY = lib.getExe pkgs.gh;
             }

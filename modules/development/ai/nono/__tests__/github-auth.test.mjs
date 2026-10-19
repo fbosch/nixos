@@ -7,6 +7,8 @@ import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 import { direnvGithubEnvironment, prepareGithubEnvironment } from "../scripts/github-auth.mjs";
 
+const envBinary = process.env.ENV_TEST_BINARY ?? "/usr/bin/env";
+
 const token = "synthetic-github-credential";
 const aliases = ["GH_TOKEN", "GITHUB_TOKEN", "GITHUB_PERSONAL_ACCESS_TOKEN", "GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN"];
 
@@ -43,7 +45,7 @@ test("launcher rejects project token without passing it to direnv, nono or argv"
     writeFileSync(nono, `#!${process.execPath}\nthrow new Error('nono must not run');\n`, { mode: 0o700 });
     const launcher = fileURLToPath(new URL("../scripts/launcher.mjs", import.meta.url));
     const profile = fileURLToPath(new URL("../scripts/profile.json", import.meta.url));
-    const result = spawnSync(process.execPath, [launcher, nono, process.execPath, profile, direnv, "--version"], {
+    const result = spawnSync(process.execPath, [launcher, nono, process.execPath, profile, direnv, envBinary, "--version"], {
       cwd, env: { HOME: home, PATH: process.env.PATH, TMPDIR: root, PI_CODING_AGENT_DIR: agent, GH_TOKEN: token },
       encoding: "utf8", timeout: 15_000,
     });
@@ -70,7 +72,7 @@ test("missing GitHub login does not block unrelated Pi startup or expose supervi
     writeFileSync(nono, `#!${process.execPath}\nimport assert from 'node:assert/strict';for (const name of ${JSON.stringify(aliases)}) assert.equal(process.env[name],undefined);assert.equal(process.env.NONO_ALLOW_NET,undefined);assert.ok(process.argv.includes('--profile'));console.log('started without login');\n`, { mode: 0o700 });
     const launcher = fileURLToPath(new URL("../scripts/launcher.mjs", import.meta.url));
     const profile = fileURLToPath(new URL("../scripts/profile.json", import.meta.url));
-    const child = spawnSync(process.execPath, [launcher, nono, process.execPath, profile, "/missing-direnv", "--version"], {
+    const child = spawnSync(process.execPath, [launcher, nono, process.execPath, profile, "/missing-direnv", envBinary, "--version"], {
       cwd, env: { HOME: home, PATH: process.env.PATH, TMPDIR: runtime, XDG_RUNTIME_DIR: runtime, PI_CODING_AGENT_DIR: agent, NONO_ALLOW_NET: "1" },
       encoding: "utf8", timeout: 15000,
     });
