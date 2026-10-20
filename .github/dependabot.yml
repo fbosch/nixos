@@ -13,3 +13,16 @@ updates:
     labels:
       - "dependencies"
     open-pull-requests-limit: 5
+
+  - package-ecosystem: "npm"
+    directory: "/modules/development/npm-globals"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "02:00"
+      timezone: "Europe/Copenhagen"
+    assignees:
+      - "fbosch"
+    labels:
+      - "dependencies"
+    open-pull-requests-limit: 5
