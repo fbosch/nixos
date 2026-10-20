@@ -241,8 +241,8 @@ export function launchArguments(cwd, agentDir, home, environment, profile, rawPi
   const args = [
     "run", "--profile", profile, "--allow-cwd", "--suppress-save-prompt", "/",
     ...(platform === "darwin" ? ["--trust-proxy-ca"] : []),
-    // With Linux's Landlock-only policy, raw web clients can bypass the credential proxy.
-    ...(platform === "linux" ? ["--allow-connect-port", "80", "--allow-connect-port", "443"] : []),
+    // SSH bypasses the HTTP proxy; Linux also permits raw web clients with Landlock.
+    ...(platform === "linux" ? ["--allow-connect-port", "22", "--allow-connect-port", "80", "--allow-connect-port", "443"] : []),
     ...extra,
     ...[...reads].filter((path) => !grants.has(path)).flatMap((path) => ["--read", path]),
     ...[...grants].flatMap((path) => ["--allow", path]),

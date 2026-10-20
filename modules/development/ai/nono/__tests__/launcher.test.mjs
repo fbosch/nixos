@@ -464,7 +464,7 @@ test("sandbox startup suppresses only the proxy-agent warning and preserves prox
   }
 });
 
-test("direct web exceptions and proxy flags are scoped across OS paths", () => {
+test("direct SSH/web exceptions and proxy flags are scoped across OS paths", () => {
   const { cwd, agent, home, raw, profile } = fixture();
   const policy = JSON.parse(readFileSync(new URL("../scripts/profile.json", import.meta.url), "utf8"));
   assert.deepEqual(policy.network.open_port, [9222, 2828]);
@@ -480,7 +480,7 @@ test("direct web exceptions and proxy flags are scoped across OS paths", () => {
   assert.ok(darwin.includes("--trust-proxy-ca"));
   assert.ok(!linux.includes("--trust-proxy-ca"));
   assert.equal(policy.linux.sandbox_policy, "landlock");
-  assert.deepEqual(values(linux, "--allow-connect-port"), ["80", "443"]);
+  assert.deepEqual(values(linux, "--allow-connect-port"), ["22", "80", "443"]);
   assert.deepEqual(values(darwin, "--allow-connect-port"), []);
   assert.deepEqual(policy.network.allow_domain ?? [], []);
 });

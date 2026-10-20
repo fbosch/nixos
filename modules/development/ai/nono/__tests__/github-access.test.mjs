@@ -99,18 +99,21 @@ test("GitHub CLI and MCP caches work while credentials and neighboring secrets s
   }
 });
 
-test("Linux permits direct web ports alongside the isolated GitHub credential proxy", {
-  skip: process.platform !== "linux" || !process.env.NONO_TEST_BINARY,
+test("direct SSH and platform web exceptions coexist with the isolated GitHub credential proxy", {
+  skip: process.platform === "darwin" && process.env.NONO_CAP_FILE
+    ? "macOS runtime checks require a runner outside Nono"
+    : !process.env.NONO_TEST_BINARY,
   timeout: 15000,
 }, () => {
-  const root = mkdtempSync(join(process.cwd(), ".pi-web-"));
+  const root = mkdtempSync(join(process.cwd(), ".pi-network-"));
   const home = join(root, "home");
   const work = join(root, "work");
   const agent = join(home, ".pi", "agent");
   try {
-    for (const directory of [agent, work, join(root, "tmp"), join(root, "state"), join(root, "cache"), join(home, ".config")]) {
+    for (const directory of [agent, work, join(home, ".ssh"), join(root, "tmp"), join(root, "state"), join(root, "cache"), join(home, ".config")]) {
       mkdirSync(directory, { recursive: true });
     }
+    writeFileSync(join(home, ".ssh", "id_ed25519"), "fixture private key", { mode: 0o600 });
     prepareSandboxRuntime(home);
     const profile = JSON.parse(readFileSync(profilePath, "utf8"));
     profile.credential_capture.github.command = [process.execPath, "-e", `
@@ -120,8 +123,8 @@ test("Linux permits direct web ports alongside the isolated GitHub credential pr
       assert.equal(process.env.NODE_OPTIONS, undefined);
       console.log("synthetic-github-credential");
     `];
-    const webProfile = join(root, "profile.json");
-    writeFileSync(webProfile, JSON.stringify(profile));
+    const networkProfile = join(root, "profile.json");
+    writeFileSync(networkProfile, JSON.stringify(profile));
     const environment = {
       PATH: process.env.PATH, HOME: home, TMPDIR: join(root, "tmp"),
       XDG_CONFIG_HOME: join(home, ".config"), XDG_STATE_HOME: join(root, "state"),
@@ -129,7 +132,9 @@ test("Linux permits direct web ports alongside the isolated GitHub credential pr
       XDG_CACHE_HOME: join(root, "cache"), XDG_DATA_HOME: join(home, ".local", "share"),
       NO_COLOR: "1",
     };
-    const args = launchArguments(work, agent, home, environment, webProfile, process.execPath, envBinary);
+    // The probe uses no TLS; do not modify host CA trust in tests.
+    const args = launchArguments(work, agent, home, environment, networkProfile, process.execPath, envBinary)
+      .filter(arg => arg !== "--trust-proxy-ca");
     args.splice(args.indexOf("--"), 0, "--no-audit", "--no-rollback", "--read", fileURLToPath(new URL("../scripts", import.meta.url)));
     const probe = `
       const assert = require("node:assert/strict");
@@ -147,8 +152,12 @@ test("Linux permits direct web ports alongside the isolated GitHub credential pr
       });
       (async () => {
         // Refusal from an empty loopback port proves connect reached the network stack.
-        for (const port of [80, 443]) assert.match(await connect(port), /^(connected|ECONNREFUSED)$/);
-        assert.match(await connect(22), /^(EACCES|EPERM)$/);
+        const allowedPorts = process.platform === "linux" ? [22, 80, 443] : [22];
+        const deniedPorts = process.platform === "linux" ? [23] : [23, 80, 443];
+        for (const port of allowedPorts) assert.match(await connect(port), /^(connected|ECONNREFUSED)$/, String(port));
+        for (const port of deniedPorts) assert.match(await connect(port), /^(EACCES|EPERM)$/, String(port));
+        const key = require("node:path").join(process.env.HOME, ".ssh", "id_ed25519");
+        assert.throws(() => require("node:fs").readFileSync(key), error => ["EACCES", "EPERM"].includes(error.code));
         assert.equal(await connect(Number(proxy.port)), "connected");
       })().catch((error) => { console.error(error); process.exitCode = 1; });
     `;

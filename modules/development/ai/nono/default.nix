@@ -295,6 +295,7 @@ in
         testKeepsMacosRuntimeRulesScoped = {
           expr = profile.unsafe_macos_seatbelt_rules;
           expected = [
+            ''(allow network-outbound (remote tcp "*:22"))''
             "(allow ipc-sysv-sem)"
             "(allow lsopen)"
             ''(allow iokit-open (iokit-user-client-class "RootDomainUserClient"))''
