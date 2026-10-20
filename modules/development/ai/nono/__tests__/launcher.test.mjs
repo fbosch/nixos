@@ -1,7 +1,9 @@
 import { afterEach, test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { once } from "node:events";
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { createServer } from "node:net";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { launchArguments, launchCommand, prepareJitiCache, prepareNpmCache } from "../scripts/launcher.mjs";
@@ -57,6 +59,48 @@ afterEach(() => { for (const path of created.splice(0)) rmSync(path, { recursive
 function values(args, flag) {
   return args.flatMap((part, index) => part === flag ? [args[index + 1]] : []);
 }
+
+test("PI_NVIM_SOCKET grants only connect access to the inherited Neovim socket", async () => {
+  const { root, cwd, agent, home, raw, profile } = fixture();
+  const socket = join(root, "nvim.sock");
+  const server = createServer(connection => connection.end());
+  server.listen(socket);
+  await once(server, "listening");
+  try {
+    for (const platform of ["darwin", "linux"]) {
+      const args = launchArguments(cwd, agent, home, { PI_NVIM_SOCKET: socket }, profile, raw, envBinary, platform);
+      assert.deepEqual(values(args, "--allow-unix-socket"), [socket]);
+      for (const flag of ["--allow-unix-socket-bind", "--allow-unix-socket-dir", "--allow-unix-socket-dir-bind", "--allow-unix-socket-subtree", "--allow-unix-socket-subtree-bind", "--bypass-protection"]) {
+        assert.deepEqual(values(args, flag), [], flag);
+      }
+      assert.ok(!values(args, "--allow").includes(root));
+      assert.ok(!values(args, "--read").includes(root));
+    }
+  } finally {
+    await new Promise(resolve => server.close(resolve));
+  }
+});
+
+test("launches without PI_NVIM_SOCKET do not grant editor socket access", () => {
+  const { launch } = fixture();
+  for (const value of [undefined, ""]) {
+    assert.deepEqual(values(launch([], { PI_NVIM_SOCKET: value }), "--allow-unix-socket"), []);
+  }
+});
+
+test("invalid PI_NVIM_SOCKET paths fail closed before entering the sandbox", () => {
+  const { root, launch } = fixture();
+  const file = join(root, "not-a-socket");
+  writeFileSync(file, "fixture");
+  for (const [path, message] of [
+    ["relative.sock", /PI_NVIM_SOCKET.*absolute/],
+    [file, /PI_NVIM_SOCKET.*socket/],
+    [root, /PI_NVIM_SOCKET.*socket/],
+    [join(root, "missing.sock"), /PI_NVIM_SOCKET.*ENOENT/],
+  ]) {
+    assert.throws(() => launch([], { PI_NVIM_SOCKET: path }), message);
+  }
+});
 
 test("prepares missing npm cache and log directories without replacing existing contents", () => {
   const { home } = fixture();

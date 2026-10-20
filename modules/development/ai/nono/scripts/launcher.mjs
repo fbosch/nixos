@@ -207,6 +207,17 @@ export function launchArguments(cwd, agentDir, home, environment, profile, rawPi
   const dataHome = environment.XDG_DATA_HOME || join(home, ".local", "share");
   const cacheHome = environment.XDG_CACHE_HOME || join(home, ".cache");
   const extra = sshClientArguments(home, environment);
+  const neovimSocket = environment.PI_NVIM_SOCKET;
+  if (neovimSocket) {
+    try {
+      if (!isAbsolute(neovimSocket)) throw new Error("must be absolute");
+      if (!statSync(neovimSocket).isSocket()) throw new Error("must identify an existing Unix socket");
+      // Neovim RPC can execute host commands; authorize only the caller-selected socket.
+      extra.push("--allow-unix-socket", neovimSocket);
+    } catch (error) {
+      throw new Error(`Cannot grant PI_NVIM_SOCKET access: ${error.message}`);
+    }
+  }
   for (const path of [
     join(home, ".pi-lens"),
     environment.PI_HASHLINE_DIR || join(configHome, "pi-hashline-edit-pro"),
