@@ -14,13 +14,10 @@
         }
       ];
 
-      # Override the generated hardware module's driver selection with Nyx's matching package.
-      hardware.nvidia.package = lib.mkForce pkgs.nvidia_cachyos;
-
       boot = {
         # Hide boot messages for clean splash screen experience
         consoleLogLevel = 3; # Show only errors and critical messages
-        kernelPackages = pkgs.linuxPackages_cachyos;
+        kernelPackages = pkgs.linuxPackages_latest;
         kernelModules = [ "ntsync" ];
         initrd = {
           kernelModules = [
