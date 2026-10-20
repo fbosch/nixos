@@ -6,6 +6,7 @@ import { pathToFileURL } from "node:url";
 import { withProtectedShellProfile } from "./shell-protection.mjs";
 import { assertReadOnlySshGrants, sshClientArguments } from "./ssh-access.mjs";
 import { assertGithubCredentialGrants, direnvGithubEnvironment, prepareGithubEnvironment } from "./github-auth.mjs";
+import { prepareSandboxRuntime, sandboxRuntimeCommand } from "./sandbox-runtime.mjs";
 
 function record(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -185,8 +186,9 @@ function writableReferenceRoots(cwd, home) {
   return roots.some((root) => within(canonicalCwd, root)) ? roots : [];
 }
 
-export function launchArguments(cwd, agentDir, home, environment, profile, rawPi, platform = process.platform) {
+export function launchArguments(cwd, agentDir, home, environment, profile, rawPi, envBinary, platform = process.platform) {
   if (!isAbsolute(profile) || !existingFile(profile)) throw new Error(`Nix nono profile missing: ${profile}`);
+  if (!isAbsolute(envBinary) || !existingFile(envBinary)) throw new Error(`Nix env executable missing: ${envBinary}`);
   const grants = new Set(gitMetadataRoots(cwd, home));
   const reads = new Set();
   const writableRoots = writableReferenceRoots(cwd, home);
@@ -228,10 +230,12 @@ export function launchArguments(cwd, agentDir, home, environment, profile, rawPi
   const args = [
     "run", "--profile", profile, "--allow-cwd", "--suppress-save-prompt", "/",
     ...(platform === "darwin" ? ["--trust-proxy-ca"] : []),
+    // With Linux's Landlock-only policy, raw web clients can bypass the credential proxy.
+    ...(platform === "linux" ? ["--allow-connect-port", "80", "--allow-connect-port", "443"] : []),
     ...extra,
     ...[...reads].filter((path) => !grants.has(path)).flatMap((path) => ["--read", path]),
     ...[...grants].flatMap((path) => ["--allow", path]),
-    "--", rawPi,
+    "--", ...sandboxRuntimeCommand(home, rawPi, envBinary),
   ];
   assertReadOnlySshGrants(args, cwd);
   assertGithubCredentialGrants(args, cwd, home, { ...environment, TMPDIR: environment.TMPDIR || tmpdir() }, readJson(profile, "nono profile"));
@@ -250,11 +254,11 @@ export function prepareNpmCache(home = homedir()) {
   }
 }
 
-export function launchCommand(args, cwd, agentDir, home, environment, nono, rawPi, profile) {
+export function launchCommand(args, cwd, agentDir, home, environment, nono, rawPi, profile, envBinary) {
   if (!isAbsolute(rawPi) || !existsSync(rawPi)) throw new Error(`Raw Pi executable missing: ${rawPi}`);
   if (args[0] === "--no-sandbox") return [rawPi, ...args.slice(1)];
   if (!isAbsolute(nono) || !existsSync(nono)) throw new Error(`nono executable missing: ${nono}`);
-  return [nono, ...launchArguments(cwd, agentDir, home, environment, profile, rawPi), ...args];
+  return [nono, ...launchArguments(cwd, agentDir, home, environment, profile, rawPi, envBinary), ...args];
 }
 
 export function loadProjectEnvironment(cwd, environment, direnv, run = spawnSync) {
@@ -308,7 +312,7 @@ export function loadProjectEnvironment(cwd, environment, direnv, run = spawnSync
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   try {
-    const [nono, rawPi, profile, direnv, ...args] = process.argv.slice(2);
+    const [nono, rawPi, profile, direnv, envBinary, ...args] = process.argv.slice(2);
     let environment = { ...process.env };
     // No mutable JS preload or module path may run in this pre-sandbox process.
     delete environment.NODE_OPTIONS;
@@ -342,7 +346,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
       ...new Set(pathEntries.filter((path) => legacyBins.has(resolve(path)) && resolve(path) !== managedBin)),
       managedBin,
     ].join(delimiter);
-    const command = launchCommand(args, process.cwd(), agentDir, home, environment, nono, rawPi, profile);
+    if (args[0] !== "--no-sandbox") prepareSandboxRuntime(home);
+    const command = launchCommand(args, process.cwd(), agentDir, home, environment, nono, rawPi, profile, envBinary);
     // Herdr must identify the host-visible bootstrap even when nono hides the child process.
     process.title = "pi";
     const run = (selectedProfile) => {

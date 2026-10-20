@@ -39,6 +39,13 @@
 
       home-manager.sharedModules = [
         inputs.steam-config-nix.homeModules.default
+        {
+          # Steam currently distributes its 64-bit Linux client through the public client beta.
+          home.file.".local/share/Steam/package/beta" = {
+            force = true;
+            text = "publicbeta\n";
+          };
+        }
       ];
 
     };

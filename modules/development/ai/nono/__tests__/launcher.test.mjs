@@ -1,10 +1,13 @@
 import { afterEach, test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { launchArguments, launchCommand, prepareJitiCache, prepareNpmCache } from "../scripts/launcher.mjs";
+import { sandboxRuntimeCommand } from "../scripts/sandbox-runtime.mjs";
+
+const envBinary = process.env.ENV_TEST_BINARY ?? "/usr/bin/env";
 
 test("profile keeps config access narrow and Azure CLI state writable", () => {
   const profile = JSON.parse(readFileSync(new URL("../scripts/profile.json", import.meta.url), "utf8"));
@@ -47,7 +50,7 @@ function fixture() {
   const raw = join(root, "raw-pi");
   const profile = join(root, "pi.json");
   for (const path of [nono, raw, profile]) writeFileSync(path, path === profile ? "{}" : "fixture");
-  const launch = (args = [], env = {}) => launchCommand(args, cwd, agent, home, env, nono, raw, profile);
+  const launch = (args = [], env = {}) => launchCommand(args, cwd, agent, home, env, nono, raw, profile, envBinary);
   return { root, home, agent, cwd, nono, raw, profile, launch };
 }
 afterEach(() => { for (const path of created.splice(0)) rmSync(path, { recursive: true, force: true }); });
@@ -147,15 +150,72 @@ test("Linux profile permits npm cache and log writes but denies other npm state 
 });
 
 test("always selects absolute nono, immutable profile and distinct raw Pi, preserving argv", () => {
-  const { launch, nono, raw, profile } = fixture();
+  const { launch, nono, raw, profile, home } = fixture();
   const args = ["--print", "a prompt with spaces", "--", "--no-sandbox"];
   const command = launch(args, { NONO_CAP_FILE: "/forged/capability.json" });
   assert.equal(command[0], nono);
   assert.deepEqual(command.slice(1, 4), ["run", "--profile", profile]);
-  assert.deepEqual(command.slice(-args.length - 2), ["--", raw, ...args]);
+  assert.deepEqual(command.slice(command.indexOf("--") + 1), [
+    envBinary, "--",
+    `GH_CONFIG_DIR=${join(home, ".cache", "pi", "gh")}`,
+    `npm_config_cache=${join(home, ".cache", "pi", "npm")}`,
+    `UV_CACHE_DIR=${join(home, ".cache", "pi", "uv")}`,
+    `UV_PYTHON_INSTALL_DIR=${join(home, ".cache", "pi", "uv-python")}`,
+    `UV_TOOL_DIR=${join(home, ".cache", "pi", "uv-tools")}`,
+    "NODE_OPTIONS=--disable-warning=UNDICI-EHPA", raw, ...args,
+  ]);
   assert.notEqual(command[0], raw);
   assert.ok(command.includes("--allow-cwd"));
   assert.deepEqual(values(command, "--suppress-save-prompt"), ["/"]);
+});
+test("sandbox runtime state is prepared before grants and separated from supervisor credentials", () => {
+  const { root, home, cwd, agent, nono, profile } = fixture();
+  const cache = join(home, ".cache", "pi");
+  const runtime = join(root, "runtime");
+  mkdirSync(runtime);
+  writeFileSync(nono, `#!${process.execPath}
+    const assert = require("node:assert/strict");
+    const fs = require("node:fs");
+    const path = require("node:path");
+    const { spawnSync } = require("node:child_process");
+    assert.equal(process.env.GH_CONFIG_DIR, path.join(process.env.HOME, ".config", "gh"));
+    const cache = path.join(process.env.HOME, ".cache", "pi");
+    assert.ok(fs.statSync(cache).isDirectory());
+    assert.ok(process.argv.some((part, index, args) => part === "--allow" && args[index + 1] === fs.realpathSync(cache)));
+    for (const name of ["gh", "npm", "uv", "uv-python", "uv-tools"]) assert.ok(fs.statSync(path.join(cache, name)).isDirectory());
+    const command = process.argv.slice(process.argv.indexOf("--") + 1);
+    const child = spawnSync(command[0], command.slice(1), { stdio: "inherit", env: { ...process.env, GH_TOKEN: "synthetic-proxy-placeholder" } });
+    if (child.error) throw child.error;
+    process.exit(child.status ?? 1);
+  `, { mode: 0o700 });
+  chmodSync(nono, 0o700);
+  const probe = `
+    const fs = require("node:fs");
+    const path = require("node:path");
+    const names = ["GH_CONFIG_DIR", "npm_config_cache", "UV_CACHE_DIR", "UV_PYTHON_INSTALL_DIR", "UV_TOOL_DIR"];
+    for (const name of names) fs.writeFileSync(path.join(process.env[name], "state"), "preserved");
+    console.log(JSON.stringify({ ...Object.fromEntries(names.map(name => [name, process.env[name]])), token: process.env.GH_TOKEN, other: process.env.OTHER }));
+  `;
+  const args = [new URL("../scripts/launcher.mjs", import.meta.url).pathname, nono, process.execPath, profile, "/missing-direnv", envBinary, "-e", probe];
+  const environment = {
+    HOME: home, PATH: process.env.PATH, TMPDIR: runtime, XDG_RUNTIME_DIR: runtime, PI_CODING_AGENT_DIR: agent,
+    GH_CONFIG_DIR: "/project/credentials", npm_config_cache: "/host/npm", UV_CACHE_DIR: "/host/uv",
+    UV_PYTHON_INSTALL_DIR: "/host/python", UV_TOOL_DIR: "/host/tools", OTHER: "preserved",
+  };
+  const child = spawnSync(process.execPath, args, { cwd, env: environment, encoding: "utf8", timeout: 15000 });
+  assert.ifError(child.error);
+  assert.equal(child.status, 0, child.stderr);
+  assert.deepEqual(JSON.parse(child.stdout), {
+    GH_CONFIG_DIR: join(cache, "gh"), npm_config_cache: join(cache, "npm"), UV_CACHE_DIR: join(cache, "uv"),
+    UV_PYTHON_INSTALL_DIR: join(cache, "uv-python"), UV_TOOL_DIR: join(cache, "uv-tools"),
+    token: "synthetic-proxy-placeholder", other: "preserved",
+  });
+  const bypass = spawnSync(process.execPath, [...args.slice(0, 6), "--no-sandbox", "-e", "console.log(process.env.UV_TOOL_DIR)"], {
+    cwd, env: environment, encoding: "utf8", timeout: 15000,
+  });
+  assert.equal(bypass.status, 0, bypass.stderr);
+  assert.equal(bypass.stdout.trim(), "/host/tools");
+  assert.equal(readFileSync(join(cache, "uv-tools", "state"), "utf8"), "preserved");
 });
 
 test("forged capability markers cannot bypass config errors", () => {
@@ -189,7 +249,7 @@ test("global, trusted project and docs-cache references receive canonical read-o
   writeFileSync(join(cwd, ".pi", "settings.json"), JSON.stringify({ references: { project: { path: target, description: "project" } } }));
   mkdirSync(join(cwd, ".docs", "api"), { recursive: true });
   writeFileSync(join(cwd, "docs-lock.json"), JSON.stringify({ version: 1, sources: { api: { repo: "owner/api" } } }));
-  const args = () => launchArguments(cwd, agent, home, {}, profile, raw);
+  const args = () => launchArguments(cwd, agent, home, {}, profile, raw, envBinary);
   assert.ok(values(args(), "--read").includes(realpathSync(target)));
   assert.ok(!values(args(), "--read").includes(realpathSync(join(cwd, ".docs", "api"))));
   writeFileSync(join(agent, "trust.json"), JSON.stringify({ [realpathSync(cwd)]: true }));
@@ -214,7 +274,7 @@ test("retains narrow grants without Podman or SSH private-key access", () => {
   const gitConfig = join(config, "nix", "git", "config");
   for (const path of [allow, fff, hashline, join(home, ".ssh"), join(config, "containers"), join(data, "containers", "podman", "machine"), join(config, "fbb", "data"), join(config, "nix", "git")]) mkdirSync(path, { recursive: true });
   for (const path of [known, connection, machine, typo, gitConfig]) writeFileSync(path, "fixture");
-  const args = launchArguments(cwd, agent, home, { XDG_CONFIG_HOME: config, XDG_DATA_HOME: data, XDG_CACHE_HOME: cache }, profile, raw);
+  const args = launchArguments(cwd, agent, home, { XDG_CONFIG_HOME: config, XDG_DATA_HOME: data, XDG_CACHE_HOME: cache }, profile, raw, envBinary);
   assert.ok(values(args, "--allow").includes(fff));
   assert.ok(values(args, "--allow").includes(hashline));
   assert.deepEqual(values(args, "--read"), [realpathSync(allow)]);
@@ -233,7 +293,7 @@ test("does not create or grant writable direnv trust state while permitting the 
   const runtime = join(root, "runtime");
   mkdirSync(runtime);
   const environment = { XDG_DATA_HOME: data, XDG_RUNTIME_DIR: runtime };
-  const args = launchArguments(cwd, agent, home, environment, profile, raw);
+  const args = launchArguments(cwd, agent, home, environment, profile, raw, envBinary);
   const state = join(data, "direnv");
   assert.equal(existsSync(state), false);
   assert.ok(!values(args, "--allow").includes(state));
@@ -243,13 +303,13 @@ test("does not create or grant writable direnv trust state while permitting the 
 
   const approvals = join(state, "allow");
   mkdirSync(approvals, { recursive: true });
-  const approvedArgs = launchArguments(cwd, agent, home, environment, profile, raw);
+  const approvedArgs = launchArguments(cwd, agent, home, environment, profile, raw, envBinary);
   assert.ok(values(approvedArgs, "--read").includes(realpathSync(approvals)));
   assert.ok(!values(approvedArgs, "--allow").includes(realpathSync(approvals)));
   assert.ok(!values(approvedArgs, "--allow").includes(realpathSync(state)));
   assert.throws(() => launchArguments(cwd, agent, home, {
     XDG_RUNTIME_DIR: join(root, "missing-runtime"),
-  }, profile, raw), /XDG_RUNTIME_DIR must be an existing directory/);
+  }, profile, raw, envBinary), /XDG_RUNTIME_DIR must be an existing directory/);
 });
 
 test("global user skills do not require project trust", () => {
@@ -259,7 +319,7 @@ test("global user skills do not require project trust", () => {
   mkdirSync(join(home, ".agents", "skills"), { recursive: true });
   mkdirSync(docs, { recursive: true });
   writeFileSync(join(cwd, "docs-lock.json"), JSON.stringify({ version: 1, sources: { api: { repo: "owner/api" } } }));
-  assert.ok(values(launchArguments(cwd, agent, home, {}, profile, raw), "--read").includes(realpathSync(docs)));
+  assert.ok(values(launchArguments(cwd, agent, home, {}, profile, raw, envBinary), "--read").includes(realpathSync(docs)));
 });
 
 test("nearest trust decisions win and invalid trust data fails closed", () => {
@@ -290,7 +350,7 @@ test("current-directory references are removed before collision checks", () => {
 });
 
 test("built entry cannot source shell or Node preload code before confinement", { skip: !process.env.PI_TEST_BINARY }, () => {
-  const { root, cwd, agent } = fixture();
+  const { root, home, cwd, agent } = fixture();
   const marker = join(root, "executed");
   const shell = join(root, "preload.sh");
   const preload = join(root, "preload.mjs");
@@ -300,7 +360,7 @@ test("built entry cannot source shell or Node preload code before confinement", 
   const child = spawnSync(process.env.PI_TEST_BINARY, ["--version"], {
     cwd,
     encoding: "utf8",
-    env: { ...process.env, PI_CODING_AGENT_DIR: agent, BASH_ENV: shell, NODE_OPTIONS: `--import=${preload}`, NODE_PATH: root },
+    env: { ...process.env, HOME: home, PI_CODING_AGENT_DIR: agent, BASH_ENV: shell, NODE_OPTIONS: `--import=${preload}`, NODE_PATH: root },
   });
   assert.ifError(child.error);
   assert.equal(child.status, 1);
@@ -308,8 +368,59 @@ test("built entry cannot source shell or Node preload code before confinement", 
   assert.equal(existsSync(marker), false);
 });
 
+test("sandbox startup suppresses only the proxy-agent warning and preserves proxy settings", () => {
+  const { root, home, cwd, agent, nono, profile } = fixture();
+  const runtime = join(root, "runtime");
+  mkdirSync(runtime);
+  const launcher = new URL("../scripts/launcher.mjs", import.meta.url).pathname;
+  writeFileSync(profile, readFileSync(new URL("../scripts/profile.json", import.meta.url)));
+  writeFileSync(nono, `#!${process.execPath}
+    const { spawnSync } = require("node:child_process");
+    const command = process.argv.slice(process.argv.indexOf("--") + 1);
+    const environment = { ...process.env, NODE_USE_ENV_PROXY: "1", HTTPS_PROXY: "http://127.0.0.1:1" };
+    delete environment.NODE_OPTIONS;
+    delete environment.NODE_PATH;
+    const child = spawnSync(command[0], command.slice(1), {
+      stdio: "inherit",
+      env: environment,
+    });
+    if (child.error) throw child.error;
+    process.exit(child.status ?? 1);
+  `);
+  chmodSync(nono, 0o700);
+  const probe = `
+    process.emitWarning("proxy-agent notice", { code: "UNDICI-EHPA" });
+    process.emitWarning("other warning", { code: "PI_TEST_OTHER_WARNING" });
+    console.log(JSON.stringify({
+      useEnvProxy: process.env.NODE_USE_ENV_PROXY,
+      httpsProxy: process.env.HTTPS_PROXY,
+      nodeOptions: process.env.NODE_OPTIONS,
+      nodePath: process.env.NODE_PATH,
+    }));
+  `;
+  for (const sandboxed of [true, false]) {
+    const child = spawnSync(process.execPath, [
+      launcher, nono, process.execPath, profile, "/missing-direnv", envBinary,
+      ...(sandboxed ? [] : ["--no-sandbox"]), "-e", probe,
+    ], {
+      cwd,
+      env: { HOME: home, PATH: process.env.PATH, TMPDIR: runtime, XDG_RUNTIME_DIR: runtime, PI_CODING_AGENT_DIR: agent, NODE_OPTIONS: "--trace-warnings", NODE_PATH: root },
+      encoding: "utf8",
+      timeout: 15000,
+    });
+    assert.ifError(child.error);
+    assert.equal(child.status, 0, child.stderr);
+    assert.equal(child.stderr.includes("UNDICI-EHPA"), !sandboxed, child.stderr);
+    assert.match(child.stderr, /PI_TEST_OTHER_WARNING/);
+    assert.deepEqual(JSON.parse(child.stdout), sandboxed ? {
+      useEnvProxy: "1",
+      httpsProxy: "http://127.0.0.1:1",
+      nodeOptions: "--disable-warning=UNDICI-EHPA",
+    } : {});
+  }
+});
 
-test("proxy flags and browser exceptions are scoped across OS paths", () => {
+test("direct web exceptions and proxy flags are scoped across OS paths", () => {
   const { cwd, agent, home, raw, profile } = fixture();
   const policy = JSON.parse(readFileSync(new URL("../scripts/profile.json", import.meta.url), "utf8"));
   assert.deepEqual(policy.network.open_port, [9222, 2828]);
@@ -320,8 +431,13 @@ test("proxy flags and browser exceptions are scoped across OS paths", () => {
   assert.deepEqual(policy.credential_capture.github.command, ["@GH_CAPTURE_BIN@", "auth", "token", "--hostname", "github.com"]);
   assert.ok(!policy.filesystem.read.includes("$HOME/.config/gh"));
   assert.ok(policy.filesystem.read.includes("$HOME/.local/share/gh/extensions"));
-  assert.ok(launchArguments(cwd, agent, home, {}, profile, raw, "darwin").includes("--trust-proxy-ca"));
-  assert.ok(!launchArguments(cwd, agent, home, {}, profile, raw, "linux").includes("--trust-proxy-ca"));
+  const darwin = launchArguments(cwd, agent, home, {}, profile, raw, envBinary, "darwin");
+  const linux = launchArguments(cwd, agent, home, {}, profile, raw, envBinary, "linux");
+  assert.ok(darwin.includes("--trust-proxy-ca"));
+  assert.ok(!linux.includes("--trust-proxy-ca"));
+  assert.equal(policy.linux.sandbox_policy, "landlock");
+  assert.deepEqual(values(linux, "--allow-connect-port"), ["80", "443"]);
+  assert.deepEqual(values(darwin, "--allow-connect-port"), []);
   assert.deepEqual(policy.network.allow_domain ?? [], []);
 });
 
@@ -330,7 +446,7 @@ test("dynamic grants reject the GitHub store through runtime, reference, cwd, an
   const config = join(home, ".config");
   const store = join(config, "gh");
   mkdirSync(store, { recursive: true });
-  const args = (directory, env = {}) => launchArguments(directory, agent, home, env, profile, raw);
+  const args = (directory, env = {}) => launchArguments(directory, agent, home, env, profile, raw, envBinary);
   assert.throws(() => args(cwd, { XDG_RUNTIME_DIR: store }), /GitHub credential/);
   writeFileSync(join(agent, "settings.json"), JSON.stringify({ references: { config: { path: config, description: "fixture" } } }));
   assert.throws(() => args(cwd), /GitHub credential/);
@@ -350,4 +466,66 @@ test("dynamic grants reject the GitHub store through runtime, reference, cwd, an
   writeFileSync(linkedTarget, "synthetic");
   assert.throws(() => args(cwd, { XDG_RUNTIME_DIR: targetParent }), /GitHub credential/);
   assert.doesNotThrow(() => args(cwd, { XDG_RUNTIME_DIR: join(home, ".pi", "agent") }));
+});
+
+test("sandbox handoff uses literal assignments and does not load shell or Node preloads", () => {
+  const { root } = fixture();
+  const home = join(root, "hjem æøå ' \" $()\n");
+  const marker = join(root, "executed");
+  const shell = join(root, "preload.sh");
+  const preload = join(root, "preload.mjs");
+  writeFileSync(shell, `printf injected > '${marker}'\n`);
+  writeFileSync(preload, `import { writeFileSync } from "node:fs"; writeFileSync(${JSON.stringify(marker)}, "injected");\n`);
+  const literals = ["a prompt with spaces", "", "--no-sandbox", "'; touch injected", "æøå", "key=value"];
+  const probe = `
+    const names = ["GH_CONFIG_DIR", "npm_config_cache", "UV_CACHE_DIR", "UV_PYTHON_INSTALL_DIR", "UV_TOOL_DIR", "NODE_OPTIONS", "GH_TOKEN", "HTTPS_PROXY"];
+    console.log(JSON.stringify({ pid: process.pid, args: process.argv.slice(1), environment: Object.fromEntries(names.map(name => [name, process.env[name]])) }));
+  `;
+  const command = sandboxRuntimeCommand(home, process.execPath, envBinary);
+  assert.equal(command[0], envBinary);
+  const child = spawnSync(command[0], [...command.slice(1), "-e", probe, "--", ...literals], {
+    env: {
+      ...process.env, PATH: "/untrusted", HOME: home, BASH_ENV: shell, ENV: shell,
+      NODE_OPTIONS: `--import=${preload}`, GH_CONFIG_DIR: "/host/credentials",
+      GH_TOKEN: "synthetic-proxy-placeholder", HTTPS_PROXY: "http://127.0.0.1:12345",
+    },
+    encoding: "utf8", timeout: 15000,
+  });
+  assert.ifError(child.error);
+  assert.equal(child.status, 0, child.stderr);
+  const result = JSON.parse(child.stdout);
+  assert.equal(result.pid, child.pid);
+  assert.deepEqual(result.args, literals);
+  assert.deepEqual(result.environment, {
+    GH_CONFIG_DIR: join(home, ".cache", "pi", "gh"),
+    npm_config_cache: join(home, ".cache", "pi", "npm"),
+    UV_CACHE_DIR: join(home, ".cache", "pi", "uv"),
+    UV_PYTHON_INSTALL_DIR: join(home, ".cache", "pi", "uv-python"),
+    UV_TOOL_DIR: join(home, ".cache", "pi", "uv-tools"),
+    NODE_OPTIONS: "--disable-warning=UNDICI-EHPA",
+    GH_TOKEN: "synthetic-proxy-placeholder", HTTPS_PROXY: "http://127.0.0.1:12345",
+  });
+  assert.equal(existsSync(marker), false);
+});
+
+test("sandbox handoff preserves child exit status and terminating signal", () => {
+  const { home } = fixture();
+  const command = sandboxRuntimeCommand(home, process.execPath, envBinary);
+  for (const [probe, status, signal] of [
+    ["process.exit(7)", 7, null],
+    ['process.kill(process.pid, "SIGTERM")', null, "SIGTERM"],
+  ]) {
+    const child = spawnSync(command[0], [...command.slice(1), "-e", probe], { encoding: "utf8", timeout: 15000 });
+    assert.ifError(child.error);
+    assert.equal(child.status, status, child.stderr);
+    assert.equal(child.signal, signal, child.stderr);
+  }
+});
+
+test("sandbox launches require the pinned env executable while direct launches bypass it", () => {
+  const { cwd, agent, home, nono, raw, profile } = fixture();
+  for (const missing of ["env", join(home, "missing-env"), home]) {
+    assert.throws(() => launchArguments(cwd, agent, home, {}, profile, raw, missing), /Nix env executable missing/);
+  }
+  assert.deepEqual(launchCommand(["--no-sandbox", "--version"], cwd, agent, home, {}, nono, raw, profile, "/missing-env"), [raw, "--version"]);
 });

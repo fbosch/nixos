@@ -9,6 +9,8 @@ import { afterEach, test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { launchArguments } from "../scripts/launcher.mjs";
 
+const envBinary = process.env.ENV_TEST_BINARY ?? "/usr/bin/env";
+
 const profile = fileURLToPath(new URL("../scripts/profile.json", import.meta.url));
 const created = [];
 function fixture(base = tmpdir()) {
@@ -19,7 +21,7 @@ function fixture(base = tmpdir()) {
   const cwd = join(root, "work");
   const ssh = join(home, ".ssh");
   for (const path of [agent, cwd]) mkdirSync(path, { recursive: true });
-  const args = (environment = {}) => launchArguments(cwd, agent, home, environment, profile, process.execPath);
+  const args = (environment = {}) => launchArguments(cwd, agent, home, environment, profile, process.execPath, envBinary);
   return { root, home, agent, cwd, ssh, args };
 }
 afterEach(() => {
@@ -50,7 +52,7 @@ test("SSH read exceptions cannot inherit writes from cwd, runtime, or aliased la
   writeFileSync(join(f.ssh, "known_hosts"), "fixture");
   assert.throws(() => f.args({ PI_HASHLINE_DIR: f.ssh }), /SSH client file overlaps a writable launcher grant/);
   assert.throws(() => f.args({ XDG_RUNTIME_DIR: f.ssh }), /SSH client file overlaps a writable launcher grant/);
-  assert.throws(() => launchArguments(f.home, f.agent, f.home, {}, profile, process.execPath), /SSH client file overlaps a writable launcher grant/);
+  assert.throws(() => launchArguments(f.home, f.agent, f.home, {}, profile, process.execPath, envBinary), /SSH client file overlaps a writable launcher grant/);
   const alias = join(f.root, "ssh-alias");
   symlinkSync(f.ssh, alias);
   assert.throws(() => f.args({ PI_HASHLINE_DIR: alias }), /SSH client file overlaps a writable launcher grant/);

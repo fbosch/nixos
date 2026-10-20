@@ -1,5 +1,16 @@
 let
-  piProfile = pkgs: builtins.fromJSON (builtins.replaceStrings [ "@GH_CAPTURE_BIN@" ] [ "${pkgs.gh}/bin/gh" ] (builtins.readFile ./scripts/profile.json));
+  piProfile = pkgs:
+    let
+      profile = builtins.fromJSON (builtins.readFile ./scripts/profile.json);
+      github = profile.credential_capture.github;
+    in
+    profile // {
+      credential_capture = profile.credential_capture // {
+        github = github // {
+          command = [ "${pkgs.gh}/bin/gh" ] ++ builtins.tail github.command;
+        };
+      };
+    };
   nixBuildAssertions =
     { config, lib, ... }:
     {
@@ -25,7 +36,7 @@ let
     { pkgs, ... }:
     {
       environment = {
-        systemPackages = [ pkgs.nono ];
+        systemPackages = [ pkgs.nono pkgs.gh ];
         etc."nono/pi.json".source = pkgs.writeText "pi-nono-profile.json" (builtins.toJSON (piProfile pkgs));
       };
     };
@@ -43,7 +54,9 @@ in
     { lib, pkgs, ... }:
     let
       evaluated = systemConfiguration { inherit pkgs; };
-      profile = builtins.fromJSON evaluated.environment.etc."nono/pi.json".source.text;
+      profile = builtins.fromJSON (
+        builtins.unsafeDiscardStringContext evaluated.environment.etc."nono/pi.json".source.text
+      );
     in
     {
       # Desktop and development services need pathname socket access. Filesystem
@@ -53,6 +66,7 @@ in
           pkgs.runCommand "nono-pi-ssh-access"
             {
               NONO_TEST_BINARY = lib.getExe pkgs.nono;
+              ENV_TEST_BINARY = "${pkgs.coreutils}/bin/env";
               SSH_KEYGEN_TEST_BINARY = lib.getExe' pkgs.openssh "ssh-keygen";
               SSH_ADD_TEST_BINARY = lib.getExe' pkgs.openssh "ssh-add";
             }
@@ -65,6 +79,7 @@ in
             {
               nativeBuildInputs = [ pkgs.git ];
               NONO_TEST_BINARY = lib.getExe pkgs.nono;
+              ENV_TEST_BINARY = "${pkgs.coreutils}/bin/env";
               GIT_TEST_BINARY = lib.getExe pkgs.git;
               WT_TEST_BINARY = "${pkgs.worktrunk}/bin/wt";
             }
@@ -76,11 +91,12 @@ in
           pkgs.runCommand "nono-pi-github-access"
             {
               NONO_TEST_BINARY = lib.getExe pkgs.nono;
+              ENV_TEST_BINARY = "${pkgs.coreutils}/bin/env";
               NONO_TEST_PROFILE = evaluated.environment.etc."nono/pi.json".source;
               GH_TEST_BINARY = lib.getExe pkgs.gh;
             }
             ''
-              ${pkgs.nodejs}/bin/node --test ${./__tests__}/github-access.test.mjs
+              ${pkgs.nodejs}/bin/node --test ${./.}/__tests__/github-access.test.mjs
               touch "$out"
             '';
         nono-pi-azure-access =
@@ -170,9 +186,9 @@ in
         };
       };
       nix-unit.tests.nonoProfile = {
-        testInstallsNono = {
+        testInstallsNonoAndGithubCli = {
           expr = map lib.getName evaluated.environment.systemPackages;
-          expected = [ "nono" ];
+          expected = [ "nono" "gh" ];
         };
         testUsesSystemOwnedProfile = {
           expr = builtins.attrNames evaluated.environment.etc;
@@ -260,9 +276,12 @@ in
             cache_ttl_secs = 300;
           };
         };
-        testKeepsSocketCompatibility = {
+        testKeepsSocketCompatibilityAndLandlockNetworkPolicy = {
           expr = profile.linux;
-          expected.af_unix_mediation = "off";
+          expected = {
+            af_unix_mediation = "off";
+            sandbox_policy = "landlock";
+          };
         };
         testKeepsSignalIsolationAndDisablesElevation = {
           expr = profile.security;

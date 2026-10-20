@@ -55,7 +55,8 @@
         ]
     },
     "linux": {
-        "af_unix_mediation": "off"
+        "af_unix_mediation": "off",
+        "sandbox_policy": "landlock"
     },
     "meta": {
         "description": "Pi with project reference grants and macOS LMDB semaphore support",

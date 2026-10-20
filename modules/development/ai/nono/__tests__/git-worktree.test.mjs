@@ -7,6 +7,8 @@ import { afterEach, test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { launchArguments } from "../scripts/launcher.mjs";
 
+const envBinary = process.env.ENV_TEST_BINARY ?? "/usr/bin/env";
+
 const profile = fileURLToPath(new URL("../scripts/profile.json", import.meta.url));
 const created = [];
 
@@ -25,7 +27,7 @@ function fixture(base = tmpdir()) {
   writeFileSync(join(cwd, ".git"), `gitdir: ${gitDir}\n`);
   writeFileSync(join(gitDir, "commondir"), "../..\n");
   writeFileSync(join(gitDir, "gitdir"), `${join(cwd, ".git")}\n`);
-  const args = (directory = cwd) => launchArguments(directory, agent, home, {}, profile, process.execPath);
+  const args = (directory = cwd) => launchArguments(directory, agent, home, {}, profile, process.execPath, envBinary);
   return { root, home, agent, project, cwd, common, gitDir, args };
 }
 
@@ -194,7 +196,7 @@ test("Nono resolves the scoped shared-metadata grant", {
   skip: !process.env.NONO_TEST_BINARY,
 }, () => {
   const f = gitFixture(true, process.cwd());
-  const args = launchArguments(f.cwd, f.agent, f.home, f.environment, profile, process.execPath);
+  const args = launchArguments(f.cwd, f.agent, f.home, f.environment, profile, process.execPath, envBinary);
   args.splice(args.indexOf("--"), 0, "--dry-run");
   const child = spawnSync(process.env.NONO_TEST_BINARY, args, {
     cwd: f.cwd, env: f.environment, encoding: "utf8", timeout: 30000,
@@ -213,7 +215,7 @@ test("Nono permits Git metadata reads and writes while denying sibling checkout 
   mkdirSync(sibling);
   writeFileSync(join(sibling, "private.txt"), "unchanged");
   const probe = fileURLToPath(new URL("./fixtures/git-worktree-probe.mjs", import.meta.url));
-  const args = launchArguments(f.cwd, f.agent, f.home, f.environment, profile, process.execPath);
+  const args = launchArguments(f.cwd, f.agent, f.home, f.environment, profile, process.execPath, envBinary);
   args.splice(args.indexOf("--"), 0, "--read-file", probe);
   const child = spawnSync(process.env.NONO_TEST_BINARY, [
     ...args,

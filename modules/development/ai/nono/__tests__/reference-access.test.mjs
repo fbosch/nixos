@@ -7,6 +7,8 @@ import { afterEach, test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { launchArguments } from "../scripts/launcher.mjs";
 
+const envBinary = process.env.ENV_TEST_BINARY ?? "/usr/bin/env";
+
 const profile = fileURLToPath(new URL("../scripts/profile.json", import.meta.url));
 const created = [];
 
@@ -26,7 +28,7 @@ function fixture(base = tmpdir()) {
     nixos: { path: "~/nixos", description: "NixOS" },
     vault: { path: vault, description: "Vault" },
   } }));
-  const args = (cwd = project, environment = {}) => launchArguments(cwd, agent, home, environment, profile, process.execPath);
+  const args = (cwd = project, environment = {}) => launchArguments(cwd, agent, home, environment, profile, process.execPath, envBinary);
   return { root, home, agent, project, dotfiles, nixos, vault, settings, args };
 }
 
@@ -95,7 +97,7 @@ test("reference names and writable metadata cannot manufacture a write exception
   assertReadOnly(f.args(f.dotfiles), [arbitrary, f.vault]);
 });
 
-test("paired repository descendants are writable but ancestor and sibling references are not", () => {
+test("paired repository descendants are writable while sibling references stay read-only", () => {
   const f = fixture();
   const child = join(f.nixos, "modules");
   const sibling = join(f.home, "nixos-other");
@@ -103,12 +105,19 @@ test("paired repository descendants are writable but ancestor and sibling refere
   mkdirSync(sibling);
   writeFileSync(f.settings, JSON.stringify({ references: {
     child: { path: child, description: "Modules" },
-    parent: { path: f.home, description: "Home" },
     sibling: { path: sibling, description: "Sibling" },
   } }));
   const args = f.args(f.dotfiles);
   assert.ok(paths(args, "--allow").includes(child));
-  assertReadOnly(args, [f.home, sibling]);
+  assertReadOnly(args, [sibling]);
+});
+
+test("home ancestor references are rejected because they expose GitHub credentials", () => {
+  const f = fixture();
+  writeFileSync(f.settings, JSON.stringify({ references: {
+    home: { path: f.home, description: "Home" },
+  } }));
+  assert.throws(() => f.args(f.dotfiles), /GitHub credential store overlaps a Pi sandbox grant/);
 });
 
 test("canonical paths determine the exception rather than symlink names", () => {
@@ -135,7 +144,7 @@ test("missing paired repositories do not prevent unrelated launches", () => {
 
 test("nonexistent homes do not prevent unrelated launches", () => {
   const f = fixture();
-  const args = launchArguments(f.project, f.agent, join(f.root, "missing-home"), {}, profile, process.execPath);
+  const args = launchArguments(f.project, f.agent, join(f.root, "missing-home"), {}, profile, process.execPath, envBinary);
   assertReadOnly(args, [f.vault]);
 });
 

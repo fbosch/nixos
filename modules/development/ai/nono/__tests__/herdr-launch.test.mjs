@@ -6,6 +6,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+const envBinary = process.env.ENV_TEST_BINARY ?? "/usr/bin/env";
+
 const launcher = fileURLToPath(new URL("../scripts/launcher.mjs", import.meta.url));
 const profile = fileURLToPath(new URL("../scripts/profile.json", import.meta.url));
 const roots = [];
@@ -18,10 +20,12 @@ function launch(environment, args = []) {
   const root = mkdtempSync(join(tmpdir(), "pi-herdr-launch-"));
   roots.push(root);
   const home = join(root, "home");
+  const cwd = join(root, "cwd");
+  const runtime = join(root, "runtime");
+  const temporary = join(root, "tmp");
+  for (const path of [cwd, runtime, temporary]) mkdirSync(path);
   const agent = join(home, ".pi", "agent");
   mkdirSync(agent, { recursive: true });
-  const cwd = join(root, "work");
-  mkdirSync(cwd);
   const nono = join(root, "nono");
   const rawPi = join(root, "raw-pi");
   for (const [path, kind] of [[nono, "nono"], [rawPi, "pi"]]) {
@@ -39,12 +43,12 @@ console.log(JSON.stringify({kind:${JSON.stringify(kind)},parentName,hint:process
     XDG_CACHE_HOME: join(home, ".cache"),
     XDG_DATA_HOME: join(home, ".local", "share"),
     XDG_STATE_HOME: join(home, ".local", "state"),
-    XDG_RUNTIME_DIR: cwd,
-    TMPDIR: cwd,
+    XDG_RUNTIME_DIR: runtime,
+    TMPDIR: temporary,
   };
   for (const name of ["HERDR_ENV", "HERDR_AGENT", "HERDR_PANE_ID", "HERDR_SOCKET_PATH", "NODE_OPTIONS", "NODE_PATH", "GH_TOKEN", "GITHUB_TOKEN", "GITHUB_PERSONAL_ACCESS_TOKEN", "GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN"]) delete env[name];
   Object.assign(env, environment);
-  const child = spawnSync(process.execPath, [launcher, nono, rawPi, profile, "/missing-direnv", ...args], {
+  const child = spawnSync(process.execPath, [launcher, nono, rawPi, profile, "/missing-direnv", envBinary, ...args], {
     cwd,
     env,
     encoding: "utf8",
