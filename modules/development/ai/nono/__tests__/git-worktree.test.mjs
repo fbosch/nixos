@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { afterEach, test } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -12,7 +11,8 @@ const envBinary = process.env.ENV_TEST_BINARY ?? "/usr/bin/env";
 const profile = fileURLToPath(new URL("../scripts/profile.json", import.meta.url));
 const created = [];
 
-function fixture(base = tmpdir()) {
+// Keep fixture HOME outside the shared temporary-directory read grants.
+function fixture(base = process.cwd()) {
   const root = realpathSync(mkdtempSync(join(base, ".pi-worktree-test-")));
   created.push(root);
   const home = join(root, "home");
@@ -21,13 +21,15 @@ function fixture(base = tmpdir()) {
   const cwd = join(project, "refactor-modernize-agentic-skills");
   const common = join(project, ".bare");
   const gitDir = join(common, "worktrees", "refactor-modernize-agentic-skills");
-  for (const directory of [agent, cwd, gitDir]) mkdirSync(directory, { recursive: true });
+  const temporary = join(root, "tmp");
+  const runtime = join(root, "runtime");
+  for (const directory of [agent, cwd, gitDir, temporary, runtime]) mkdirSync(directory, { recursive: true });
   for (const name of ["objects", "refs"]) mkdirSync(join(common, name));
   writeFileSync(join(common, "HEAD"), "ref: refs/heads/main\n");
   writeFileSync(join(cwd, ".git"), `gitdir: ${gitDir}\n`);
   writeFileSync(join(gitDir, "commondir"), "../..\n");
   writeFileSync(join(gitDir, "gitdir"), `${join(cwd, ".git")}\n`);
-  const args = (directory = cwd) => launchArguments(directory, agent, home, {}, profile, process.execPath, envBinary);
+  const args = (directory = cwd) => launchArguments(directory, agent, home, { TMPDIR: temporary, XDG_RUNTIME_DIR: runtime }, profile, process.execPath, envBinary);
   return { root, home, agent, project, cwd, common, gitDir, args };
 }
 
@@ -148,7 +150,7 @@ function git(args, cwd, environment) {
   return child.stdout.trim();
 }
 
-function gitFixture(bare, base = tmpdir()) {
+function gitFixture(bare, base = process.cwd()) {
   const f = fixture(base);
   rmSync(f.project, { recursive: true });
   mkdirSync(f.project);

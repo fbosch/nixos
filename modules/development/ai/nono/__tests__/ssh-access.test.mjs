@@ -3,7 +3,6 @@ import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
 import { existsSync, linkSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, test } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -13,15 +12,18 @@ const envBinary = process.env.ENV_TEST_BINARY ?? "/usr/bin/env";
 
 const profile = fileURLToPath(new URL("../scripts/profile.json", import.meta.url));
 const created = [];
-function fixture(base = tmpdir()) {
+// Fake credentials must stay outside shared temporary-directory read grants.
+function fixture(base = process.cwd()) {
   const root = realpathSync(mkdtempSync(join(base, ".pi-ssh-")));
   created.push(root);
   const home = join(root, "home");
   const agent = join(home, ".pi", "agent");
   const cwd = join(root, "work");
   const ssh = join(home, ".ssh");
-  for (const path of [agent, cwd]) mkdirSync(path, { recursive: true });
-  const args = (environment = {}) => launchArguments(cwd, agent, home, environment, profile, process.execPath, envBinary);
+  const temporary = join(root, "tmp");
+  const runtime = join(root, "runtime");
+  for (const path of [agent, cwd, temporary, runtime]) mkdirSync(path, { recursive: true });
+  const args = (environment = {}) => launchArguments(cwd, agent, home, { TMPDIR: temporary, XDG_RUNTIME_DIR: runtime, ...environment }, profile, process.execPath, envBinary);
   return { root, home, agent, cwd, ssh, args };
 }
 afterEach(() => {

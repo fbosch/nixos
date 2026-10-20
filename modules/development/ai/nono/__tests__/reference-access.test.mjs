@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, test } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -12,7 +11,8 @@ const envBinary = process.env.ENV_TEST_BINARY ?? "/usr/bin/env";
 const profile = fileURLToPath(new URL("../scripts/profile.json", import.meta.url));
 const created = [];
 
-function fixture(base = tmpdir()) {
+// Keep fixture HOME outside the shared temporary-directory read grants.
+function fixture(base = process.cwd()) {
   const root = realpathSync(mkdtempSync(join(base, ".pi-reference-test-")));
   created.push(root);
   const home = join(root, "home");
@@ -21,15 +21,17 @@ function fixture(base = tmpdir()) {
   const dotfiles = join(home, "dotfiles");
   const nixos = join(home, "nixos");
   const vault = join(root, "vault");
-  for (const path of [agent, project, dotfiles, nixos, vault]) mkdirSync(path, { recursive: true });
+  const temporary = join(root, "tmp");
+  const runtime = join(root, "runtime");
+  for (const path of [agent, project, dotfiles, nixos, vault, temporary, runtime]) mkdirSync(path, { recursive: true });
   const settings = join(agent, "settings.json");
   writeFileSync(settings, JSON.stringify({ references: {
     dotfiles: { path: "~/dotfiles", description: "Dotfiles" },
     nixos: { path: "~/nixos", description: "NixOS" },
     vault: { path: vault, description: "Vault" },
   } }));
-  const args = (cwd = project, environment = {}) => launchArguments(cwd, agent, home, environment, profile, process.execPath, envBinary);
-  return { root, home, agent, project, dotfiles, nixos, vault, settings, args };
+  const args = (cwd = project, environment = {}) => launchArguments(cwd, agent, home, { TMPDIR: temporary, XDG_RUNTIME_DIR: runtime, ...environment }, profile, process.execPath, envBinary);
+  return { root, home, agent, project, dotfiles, nixos, vault, settings, temporary, runtime, args };
 }
 
 afterEach(() => {
@@ -144,7 +146,7 @@ test("missing paired repositories do not prevent unrelated launches", () => {
 
 test("nonexistent homes do not prevent unrelated launches", () => {
   const f = fixture();
-  const args = launchArguments(f.project, f.agent, join(f.root, "missing-home"), {}, profile, process.execPath, envBinary);
+  const args = launchArguments(f.project, f.agent, join(f.root, "missing-home"), { TMPDIR: f.temporary, XDG_RUNTIME_DIR: f.runtime }, profile, process.execPath, envBinary);
   assertReadOnly(args, [f.vault]);
 });
 
