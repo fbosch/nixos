@@ -192,10 +192,13 @@ test("malformed base policy fails closed and Linux retains its existing profile 
 
 test("launcher supplies the generated policy to nono and --no-sandbox skips protection setup", { skip: process.platform !== "darwin" }, () => {
   const { root, home, environment } = fixture();
+  const cwd = join(root, "work");
+  mkdirSync(cwd);
+  environment.TMPDIR = environment.XDG_RUNTIME_DIR;
   for (const name of ["GH_TOKEN", "GITHUB_TOKEN", "GITHUB_PERSONAL_ACCESS_TOKEN", "GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN"]) delete environment[name];
   const nono = join(root, "nono-fixture.mjs");
   writeFileSync(nono, `#!${process.execPath}\nimport {readFileSync} from 'node:fs';const p=process.argv[process.argv.indexOf('--profile')+1];console.log(JSON.stringify({path:p,profile:JSON.parse(readFileSync(p,'utf8'))}));\n`, { mode: 0o700 });
-  const child = spawnSync(process.execPath, [launcher, nono, "/usr/bin/true", baseProfile, "/missing-direnv"], { cwd: root, env: environment, encoding: "utf8" });
+  const child = spawnSync(process.execPath, [launcher, nono, "/usr/bin/true", baseProfile, "/missing-direnv"], { cwd, env: environment, encoding: "utf8" });
   assert.equal(child.status, 0, child.stderr);
   const actual = JSON.parse(child.stdout);
   assert.match(actual.profile.unsafe_macos_seatbelt_rules.at(-1), /^\(deny file-write\*/);
@@ -203,7 +206,7 @@ test("launcher supplies the generated policy to nono and --no-sandbox skips prot
   assert.deepEqual(readdirSync(join(home, ".local", "state", "nono", "pi-profiles")), []);
   rmSync(join(home, ".local"), { recursive: true });
   symlinkSync(root, join(home, ".local"));
-  const direct = spawnSync(process.execPath, [launcher, "/missing-nono", "/usr/bin/true", "/missing-profile", "/missing-direnv", "--no-sandbox"], { cwd: root, env: environment, encoding: "utf8" });
+  const direct = spawnSync(process.execPath, [launcher, "/missing-nono", "/usr/bin/true", "/missing-profile", "/missing-direnv", "--no-sandbox"], { cwd, env: environment, encoding: "utf8" });
   assert.equal(direct.status, 0, direct.stderr);
   assert.ok(!existsSync(join(root, "state")));
 });

@@ -111,3 +111,22 @@ test("file, socket, bypass, and ancestor grants cannot alias a symlinked hosts c
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+
+test("declared profile paths cannot expose credentials through TMPDIR or a broad read", async () => {
+  const { assertGithubCredentialGrants } = await import("../scripts/github-auth.mjs");
+  const root = mkdtempSync(join(tmpdir(), "pi-github-static-"));
+  try {
+    const home = join(root, "home");
+    const safe = join(root, "safe");
+    const store = join(home, ".config", "gh");
+    mkdirSync(store, { recursive: true });
+    mkdirSync(safe);
+    const profile = { filesystem: { read: ["$TMPDIR"] } };
+    assert.throws(() => assertGithubCredentialGrants([], safe, home, { TMPDIR: root }, profile), /GitHub credential/);
+    assert.throws(() => assertGithubCredentialGrants([], safe, home, {}, { filesystem: { read: [home] } }), /GitHub credential/);
+    assert.doesNotThrow(() => assertGithubCredentialGrants([], safe, home, { TMPDIR: safe }, profile));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

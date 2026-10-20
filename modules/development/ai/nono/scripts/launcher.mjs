@@ -234,7 +234,7 @@ export function launchArguments(cwd, agentDir, home, environment, profile, rawPi
     "--", rawPi,
   ];
   assertReadOnlySshGrants(args, cwd);
-  assertGithubCredentialGrants(args, cwd, home);
+  assertGithubCredentialGrants(args, cwd, home, { ...environment, TMPDIR: environment.TMPDIR || tmpdir() }, readJson(profile, "nono profile"));
   return args;
 }
 

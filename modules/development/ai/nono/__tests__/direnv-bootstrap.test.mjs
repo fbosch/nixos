@@ -95,7 +95,7 @@ for (const blocked of [false, true]) {
     chmodSync(direnv, 0o700);
     const nono = join(root, "nono");
     writeFileSync(nono, `#!${process.execPath}\nimport {writeFileSync} from "node:fs";writeFileSync(${JSON.stringify(observed)},JSON.stringify({path:process.env.PATH,sample:process.env.SAMPLE,removed:process.env.REMOVE,args:process.argv.slice(2)}));\n`, { mode: 0o700 });
-    const env = { ...process.env, HOME: home, XDG_CONFIG_HOME: join(home, ".config"), XDG_CACHE_HOME: join(home, ".cache"), XDG_DATA_HOME: join(home, ".local", "share"), SAMPLE: "old", REMOVE: "old", PI_CODING_AGENT_DIR: join(home, ".pi", "agent"), XDG_STATE_HOME: join(home, ".local", "state") };
+    const env = { ...process.env, HOME: home, TMPDIR: cwd, XDG_RUNTIME_DIR: cwd, XDG_CONFIG_HOME: join(home, ".config"), XDG_CACHE_HOME: join(home, ".cache"), XDG_DATA_HOME: join(home, ".local", "share"), SAMPLE: "old", REMOVE: "old", PI_CODING_AGENT_DIR: join(home, ".pi", "agent"), XDG_STATE_HOME: join(home, ".local", "state") };
     delete env.NODE_OPTIONS;
     delete env.NODE_PATH;
     for (const name of ["GH_TOKEN", "GITHUB_TOKEN", "GITHUB_PERSONAL_ACCESS_TOKEN", "GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN"]) delete env[name];

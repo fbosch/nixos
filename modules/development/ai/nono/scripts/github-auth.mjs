@@ -64,7 +64,7 @@ function overlaps(left, right) {
   return remainder === "" || (remainder !== ".." && !remainder.startsWith(`..${sep}`) && !isAbsolute(remainder));
 }
 
-export function assertGithubCredentialGrants(args, cwd, home) {
+export function assertGithubCredentialGrants(args, cwd, home, environment = {}, profile = {}) {
   const store = join(home, ".config", "gh");
   const protectedPaths = [canonical(store)];
   const hosts = join(store, "hosts.yml");
@@ -82,6 +82,20 @@ export function assertGithubCredentialGrants(args, cwd, home) {
   }
   const flags = new Set(["--allow", "--read", "--allow-file", "--read-file", "--allow-unix-socket", "--read-unix-socket", "--bypass-protection"]);
   const paths = [cwd];
+  // Check declared profile grants too: a project-selected TMPDIR must not expose the store.
+  const filesystem = profile.filesystem ?? {};
+  for (const key of ["allow", "read", "write", "unix_socket", "bypass_protection"]) {
+    for (const entry of filesystem[key] ?? []) {
+      const value = typeof entry === "string" ? entry : entry.path;
+      const expanded = value.replace(/\$(?:\{([A-Za-z_][A-Za-z0-9_]*)\}|([A-Za-z_][A-Za-z0-9_]*))/g, (_, braced, bare) => {
+        const name = braced || bare;
+        const variable = name === "HOME" ? home : environment[name];
+        if (typeof variable !== "string" || variable === "") throw new Error("Missing GitHub credential profile path variable");
+        return variable;
+      });
+      paths.push(expanded);
+    }
+  }
   for (let index = 0; index < args.length && args[index] !== "--"; index++) {
     if (flags.has(args[index])) paths.push(args[++index]);
   }

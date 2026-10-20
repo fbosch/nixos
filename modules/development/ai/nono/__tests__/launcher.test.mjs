@@ -46,7 +46,7 @@ function fixture() {
   const nono = join(root, "nono");
   const raw = join(root, "raw-pi");
   const profile = join(root, "pi.json");
-  for (const path of [nono, raw, profile]) writeFileSync(path, "fixture");
+  for (const path of [nono, raw, profile]) writeFileSync(path, path === profile ? "{}" : "fixture");
   const launch = (args = [], env = {}) => launchCommand(args, cwd, agent, home, env, nono, raw, profile);
   return { root, home, agent, cwd, nono, raw, profile, launch };
 }
