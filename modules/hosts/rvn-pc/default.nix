@@ -63,7 +63,7 @@ in
       # system
       "secrets"
       "system/networkmanager"
-      "nas"
+      "nas/downloads"
       "services/attic"
       "services/comfyui"
       "services/nextdns"

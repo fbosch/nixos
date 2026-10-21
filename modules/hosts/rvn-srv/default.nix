@@ -50,7 +50,7 @@ in
 
       # system
       "secrets"
-      "nas"
+      "nas/downloads"
       "system/scheduled-suspend"
       "system/ananicy"
 

@@ -4,6 +4,8 @@
     # Enable NTFS support
     boot.supportedFilesystems = [ "ntfs" ];
 
+    services.nasDownloadsCache.sizeGiB = 20;
+
     fileSystems = {
       # Mount 2TB HDD (shared with Windows)
       "/mnt/storage" = {
