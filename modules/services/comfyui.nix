@@ -1,7 +1,8 @@
 { config, inputs, ... }:
 let
   flakeConfig = config;
-  comfyuiPkgsFor = system:
+  comfyuiPkgsFor =
+    system:
     import inputs.nixpkgs-comfyui {
       inherit system;
       config = {
@@ -17,32 +18,42 @@ in
     { lib, pkgs, ... }:
     let
       comfyuiPkgs = comfyuiPkgsFor pkgs.stdenv.hostPlatform.system;
-      comfyuiPackage = (comfyuiPkgs.comfyui.override { withManager = true; }).overrideAttrs (
-        old:
-        let
-          pythonEnv = old.passthru.pythonEnv.override (pythonEnvArgs: {
-            extraLibs = pythonEnvArgs.extraLibs ++ [
-              comfyuiPkgs.python3Packages.color-matcher
-              comfyuiPkgs.python3Packages.opencv-python
-              comfyuiPkgs.python3Packages.soundfile
-              comfyuiPkgs.python3Packages.scikit-image
-              comfyuiPkgs.python3Packages.ollama
-              comfyuiPkgs.python3Packages.numba
-            ];
-          });
-        in
+      comfyuiPackage = lib.makeOverridable (
         {
-          # ComfyUI's launcher hard-codes its Python environment at build time.
-          postInstall = (old.postInstall or "") + ''
-            rm "$out/bin/comfyui"
-            makeBinaryWrapper ${lib.getExe pythonEnv} "$out/bin/comfyui" \
-              --add-flag "$out/share/comfyui/main.py" \
-              --unset NIX_PYTHONPATH \
-              --unset PYTHONPATH
-          '';
-          passthru = old.passthru // { inherit pythonEnv; };
-        }
-      );
+          extraPackages ? (_: [ ]),
+        }:
+        (comfyuiPkgs.comfyui.override { withManager = true; }).overrideAttrs (
+          old:
+          let
+            pythonEnv = old.passthru.pythonEnv.override (pythonEnvArgs: {
+              extraLibs =
+                pythonEnvArgs.extraLibs
+                ++ [
+                  comfyuiPkgs.python3Packages.color-matcher
+                  comfyuiPkgs.python3Packages.opencv-python
+                  comfyuiPkgs.python3Packages.soundfile
+                  comfyuiPkgs.python3Packages.scikit-image
+                  comfyuiPkgs.python3Packages.ollama
+                  comfyuiPkgs.python3Packages.numba
+                ]
+                ++ extraPackages comfyuiPkgs.python3Packages;
+            });
+          in
+          {
+            # ComfyUI's launcher hard-codes its Python environment at build time.
+            postInstall = (old.postInstall or "") + ''
+              rm "$out/bin/comfyui"
+              makeBinaryWrapper ${lib.getExe pythonEnv} "$out/bin/comfyui" \
+                --add-flag "$out/share/comfyui/main.py" \
+                --unset NIX_PYTHONPATH \
+                --unset PYTHONPATH
+            '';
+            passthru = old.passthru // {
+              inherit pythonEnv;
+            };
+          }
+        )
+      ) { };
       scriptRuntimeInputs = with pkgs; [
         coreutils
         curl
