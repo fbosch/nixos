@@ -64,7 +64,15 @@ in
               "chmod 0640 /srv/nfs/volume1/downloads/blob"
           )
           client.wait_for_unit("cachefilesd.service")
-          client.succeed("grep CacheFiles /proc/fs/fscache/caches")
+          with subtest("cache daemon loads its kernel module when the device is absent"):
+              client.succeed(
+                  "systemctl stop cachefilesd.service && "
+                  "modprobe -r cachefiles && test ! -e /dev/cachefiles"
+              )
+              client.succeed("systemctl start cachefilesd.service && test -c /dev/cachefiles")
+              client.wait_for_unit("cachefilesd.service")
+
+          client.wait_until_succeeds("grep CacheFiles /proc/fs/fscache/caches")
           client.succeed("test $(findmnt -n -M /var/cache/fscache -o FSTYPE) = ext4")
           client.succeed("test $(stat -c %s /var/lib/nas-downloads-cache/cache.img) = 1073741824")
 

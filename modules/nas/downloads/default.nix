@@ -87,7 +87,11 @@ in
             cachefilesd = {
               bindsTo = [ cacheMountUnit ];
               after = [ cacheMountUnit ];
-              preStart = "${pkgs.coreutils}/bin/chmod 0700 ${cacheDirectory}";
+              # The daemon needs its device even when boot-time module loading was skipped.
+              preStart = ''
+                ${pkgs.kmod}/bin/modprobe cachefiles
+                ${pkgs.coreutils}/bin/chmod 0700 ${cacheDirectory}
+              '';
               serviceConfig.UMask = "0077";
             };
           };
