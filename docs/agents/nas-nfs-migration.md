@@ -39,12 +39,22 @@ the NAS mounts and `user@1000.service`, then starts and observes the user Quadle
 The user unit is not enabled independently: `/run/rdtclient/ready` guards it until
 the system controller has prepared the mounts and database. Stopping the system
 controller stops the user unit before releasing its mount dependencies.
+Changes to the user Quadlet also trigger a controller restart during a system
+switch.
 
 The pinned `2.0.142` image runs `dotnet RdtClient.Web.dll` directly. Its stock s6
 launcher resets supplementary groups and recursively changes ownership of `/data`
 unless `SKIP_CHOWN=true`. The rootless unit bypasses that launcher and sets
 `SKIP_CHOWN=true`; do not add ownership-changing bind options. Retest the direct
 entry point and group retention when upgrading the image.
+
+Keep seccomp-based systemd restrictions off the user-unit launcher: unprivileged
+systemd applies them with `no_new_privs`, preventing Nix's `newuidmap` and
+`newgidmap` wrappers from gaining their required capabilities. This fails with a
+fresh Podman namespace even if a pre-existing namespace made earlier probes pass.
+Container-level `NoNewPrivileges`, capability drops, and read-only root remain
+in place. Validate helper execution in the generated unit's sandbox and namespace
+bootstrap with isolated Podman storage; do not rely on a warm user namespace.
 
 The existing database stays at `/var/lib/rdtclient/data/rdtclient.db`, with no
 recursive ownership changes. The local data directory becomes `0700`. Before the

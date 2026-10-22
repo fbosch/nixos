@@ -17,6 +17,7 @@ in
       cpuQuota = builtins.fromJSON cfg.cpus * 100;
       systemctl = "${pkgs.systemd}/bin/systemctl";
       userUnit = "rdtclient.service";
+      userQuadletPath = "containers/systemd/users/${toString cfg.userId}/rdtclient.container";
     in
     {
       options.services.rdtclient = {
@@ -124,6 +125,7 @@ in
           # System mounts and startup tiers cannot be dependencies of a user unit.
           services.rdtclient = {
             description = "RDT-Client rootless Quadlet controller";
+            restartTriggers = [ config.environment.etc.${userQuadletPath}.source ];
             requires = [ userManager ];
             bindsTo = [ userManager ];
             wants = [ "network-online.target" ];
@@ -175,7 +177,7 @@ in
           };
         };
 
-        environment.etc."containers/systemd/users/${toString cfg.userId}/rdtclient.container".text = ''
+        environment.etc.${userQuadletPath}.text = ''
           [Container]
           ContainerName=rdtclient
           Image=docker.io/rogerfar/rdtclient:2.0.142
@@ -215,9 +217,9 @@ in
           [Service]
           # Only the mount-ordered system controller may release this startup guard.
           ExecStartPre=${pkgs.coreutils}/bin/test -f /run/rdtclient/ready
-          RestrictAddressFamilies=~AF_ALG
-          SystemCallArchitectures=native
-          CPUQuota=${toString cpuQuota}%
+          # Host-side seccomp blocks newuidmap/newgidmap on a fresh namespace.
+          # Apply hardening inside the container, not to the Podman launcher.
+          CPUQuota=${builtins.toJSON cpuQuota}%
           Restart=no
           TimeoutStartSec=900
           TimeoutStopSec=75

@@ -50,6 +50,7 @@
         && cfg.services.nas.cachedSmbShares == cachedSmbShares;
       server = host "rvn-srv";
       rdtPreStart = pkgs.writeText "rdtclient-pre-start.sh" server.systemd.services.rdtclient.preStart;
+      rdtQuadlet = pkgs.writeText "rdtclient.container" server.environment.etc."containers/systemd/users/1000/rdtclient.container".text;
       requirements = {
         "rvn-pc cached mounts" = clientHealthy "rvn-pc" 20;
         "rvn-srv cached mounts" = clientHealthy "rvn-srv" 10;
@@ -101,6 +102,9 @@
           (path: lib.elem path server.systemd.services.rdtclient.unitConfig.RequiresMountsFor)
           [ "/mnt/nas/downloads" "/mnt/nas/downloads/rdtclient-temp" "/var/lib/rdtclient/data" ]
         && lib.elem "user@1000.service" server.systemd.services.rdtclient.after;
+        "RDT controller updates" = lib.elem
+          server.environment.etc."containers/systemd/users/1000/rdtclient.container".source
+          server.systemd.services.rdtclient.restartTriggers;
         "RDT rootless access" = server.users.users.fbb.uid == 1000
           && server.users.users.fbb.linger
           && server.systemd.services.rdtclient.serviceConfig.User == "fbb"
@@ -119,7 +123,7 @@
             "Volume=/var/lib/rdtclient/data:/data/db\n"
             "Notify=healthy\n"
             "StopTimeout=60\n"
-            "CPUQuota=25.000000%\n"
+            "CPUQuota=25.0%\n"
             "Restart=no\n"
           ];
       };
@@ -132,8 +136,9 @@
           pkgs.runCommand "nas-media-cache-smoke"
             { nativeBuildInputs = with pkgs; [ python3 bash coreutils e2fsprogs util-linux ]; }
             ''
-              python -I - ${./scripts/cache-image.sh} ${rdtPreStart} <<'PY'
+              python -I - ${./scripts/cache-image.sh} ${rdtPreStart} ${rdtQuadlet} ${pkgs.systemd}/bin/systemd-analyze ${pkgs.coreutils}/bin/true <<'PY'
               import hashlib
+              import os
               import re
               import subprocess
               import sys
@@ -192,6 +197,21 @@
                   initialize(succeeds=False)
                   assert image.is_dir()
                   assert list(image.iterdir()) == []
+
+              with tempfile.TemporaryDirectory() as temporary:
+                  unit = Path(temporary) / "rdt-resource-check.service"
+                  service = Path(sys.argv[3]).read_text().split("[Service]\n", 1)[1]
+                  unit.write_text(
+                      "[Unit]\nDefaultDependencies=no\n[Service]\nType=oneshot\n"
+                      + f"ExecStart={sys.argv[5]}\n" + service
+                  )
+                  result = subprocess.run(
+                      [sys.argv[4], "--user", "verify", "--man=no", str(unit)],
+                      env=dict(os.environ, XDG_RUNTIME_DIR=temporary),
+                      capture_output=True, text=True,
+                  )
+                  assert result.returncode == 0, result.stderr
+                  assert "Invalid CPU quota" not in result.stderr, result.stderr
 
               migration = "\n".join(
                   line for line in Path(sys.argv[2]).read_text().splitlines()
