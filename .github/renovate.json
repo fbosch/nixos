@@ -121,10 +121,7 @@
       ],
       "matchPackageNames": [
         "/^pihole/pihole$/",
-        "/^.*qmcgaw/gluetun$/",
-        "/^.*komodo-core$/",
-        "/^.*komodo-periphery$/",
-        "/^mongo$/"
+        "/^.*qmcgaw/gluetun$/"
       ]
     },
     {
@@ -138,10 +135,7 @@
       ],
       "matchPackageNames": [
         "!/^pihole/pihole$/",
-        "!/^.*qmcgaw/gluetun$/",
-        "!/^.*komodo-core$/",
-        "!/^.*komodo-periphery$/",
-        "!/^mongo$/"
+        "!/^.*qmcgaw/gluetun$/"
       ]
     },
     {

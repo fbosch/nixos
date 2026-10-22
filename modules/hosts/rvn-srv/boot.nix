@@ -1,12 +1,16 @@
 {
-  flake.modules.nixos."hosts/rvn-srv/boot" = {
-    boot = {
-      loader = {
-        systemd-boot.enable = true;
-        efi.canTouchEfiVariables = true;
-      };
+  flake.modules.nixos."hosts/rvn-srv/boot" =
+    { pkgs, ... }:
+    {
+      boot = {
+        kernelPackages = pkgs.linuxKernel.packages.linux_7_3;
 
-      kernelParams = [ "transparent_hugepage=madvise" ];
+        loader = {
+          systemd-boot.enable = true;
+          efi.canTouchEfiVariables = true;
+        };
+
+        kernelParams = [ "transparent_hugepage=madvise" ];
+      };
     };
-  };
 }

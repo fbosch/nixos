@@ -17,8 +17,6 @@ in
       assetsDirIsSubdir = lib.hasPrefix "${configDir}/" assetsDir;
 
       secretNamesByEnv = {
-        KOMODO_API_KEY = "komodo-web-api-key";
-        KOMODO_API_SECRET = "komodo-web-api-secret";
         PORTAINER_API_KEY = "portainer-api-key";
         SYNOLOGY_USERNAME = "synology-api-username";
         SYNOLOGY_PASSWORD = "synology-api-password";
@@ -235,8 +233,6 @@ in
               "mdb-list-api-key"
             ])
             (sopsHelpers.mkSecretsWithOpts sopsFiles.containers sopsHelpers.wheelReadable [
-              "komodo-web-api-key"
-              "komodo-web-api-secret"
               "portainer-api-key"
               "ha-access-token"
             ])

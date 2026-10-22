@@ -56,8 +56,6 @@ Triggered automatically on PRs that modify files in `modules/services/containers
 **Services with special handling** (3-day stability wait before auto-merge):
 - **Pi-hole** (DNS): Also restricted to major version updates only
 - **Gluetun** (VPN): Already pinned to v3.40.0
-- **Komodo Core/Periphery** (infrastructure management)
-- **MongoDB** (Komodo's database backend)
 
 **Rationale**: These services are mission-critical infrastructure. We wait 3 days after an image is published before updating to catch any immediate bugs reported by the community.
 
