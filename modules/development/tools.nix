@@ -10,7 +10,26 @@ let
             })
         else
           pkgs.ast-grep;
-      azureCli = (pkgs.azure-cli.override { withImmutableConfig = false; }).overrideAttrs (_: {
+      # Fabric 3.2.3 requires Invoke <3. Remove this pin when Fabric supports Invoke 3.
+      # Keep the same Invoke version for Fabric and Paramiko within Azure CLI's Python scope.
+      # https://github.com/fabric/fabric/issues/2376
+      azureCliPkgs = pkgs.extend (
+        _: prev: {
+          pythonPackagesExtensions = prev.pythonPackagesExtensions ++ [
+            (_: pythonPrev: {
+              invoke = pythonPrev.invoke.overridePythonAttrs (old: rec {
+                version = "2.2.1";
+                src = prev.fetchPypi {
+                  inherit (old) pname;
+                  inherit version;
+                  hash = "sha256-UVv0m0pIkyt5sCRZA0jaIvOcSULf+ZGtH7i4uuob5wc=";
+                };
+              });
+            })
+          ];
+        }
+      );
+      azureCli = (azureCliPkgs.azure-cli.override { withImmutableConfig = false; }).overrideAttrs (_: {
         doInstallCheck = false;
       });
     in

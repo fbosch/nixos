@@ -121,13 +121,34 @@ test("SSH_AUTH_SOCK grants only connect access to the selected existing agent so
   }
 });
 
+test("missing SSH_AUTH_SOCK paths warn and preserve grants without adding agent access", t => {
+  const f = fixture();
+  mkdirSync(f.ssh);
+  writeFileSync(join(f.ssh, "known_hosts"), "fixture");
+  writeFileSync(join(f.ssh, "id_ed25519"), "private fixture");
+  const expected = f.args();
+  const warning = t.mock.method(console, "warn", () => {});
+  const missing = join(f.root, "missing.sock");
+  const dangling = join(f.root, "dangling.sock");
+  symlinkSync(missing, dangling);
+  const sockets = [missing, join(f.root, "missing-agent", "agent.sock"), dangling];
+  for (const socket of sockets) {
+    assert.deepEqual(f.args({ SSH_AUTH_SOCK: socket }), expected);
+  }
+  assert.equal(warning.mock.callCount(), sockets.length);
+  for (const [index, call] of warning.mock.calls.entries()) {
+    assert.match(call.arguments[0], /SSH_AUTH_SOCK.*missing.*continuing without SSH agent access/);
+    assert.ok(call.arguments[0].includes(JSON.stringify(sockets[index])));
+  }
+});
+
 test("invalid SSH agent paths fail loudly instead of granting a file or a directory", () => {
   const f = fixture();
   const file = join(f.root, "not-a-socket");
   writeFileSync(file, "fixture");
   assert.throws(() => f.args({ SSH_AUTH_SOCK: "relative.sock" }), /SSH_AUTH_SOCK.*absolute/);
   assert.throws(() => f.args({ SSH_AUTH_SOCK: file }), /SSH_AUTH_SOCK.*socket/);
-  assert.throws(() => f.args({ SSH_AUTH_SOCK: join(f.root, "missing.sock") }), /SSH_AUTH_SOCK.*ENOENT/);
+  assert.throws(() => f.args({ SSH_AUTH_SOCK: f.root }), /SSH_AUTH_SOCK.*socket/);
 });
 
 function sshFixture() {
@@ -155,6 +176,26 @@ function sshFixture() {
   }
   return { ...f, environment };
 }
+
+test("Nono starts without a missing SSH agent and keeps private-key reads denied", {
+  skip: !process.env.NONO_TEST_BINARY,
+}, async t => {
+  const f = sshFixture();
+  f.environment.SSH_AUTH_SOCK = join(f.home, ".config", "herdr", "herdr.sock.agent");
+  const warning = t.mock.method(console, "warn", () => {});
+  const args = f.args(f.environment);
+  const result = await runSandbox(process.env.NONO_TEST_BINARY, [
+    ...args, "-e", `
+      const assert = require("node:assert/strict");
+      const fs = require("node:fs");
+      assert.throws(() => fs.readFileSync(process.argv[1]), error => ["EACCES", "EPERM"].includes(error.code));
+      console.log("sandbox started without SSH agent access");
+    `, join(f.ssh, "id_ed25519"),
+  ], { cwd: f.cwd, env: f.environment });
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.match(result.stdout, /sandbox started without SSH agent access/);
+  assert.equal(warning.mock.callCount(), 1);
+});
 
 test("Nono resolves SSH client grants and keeps known-host writes and private-key reads denied", {
   skip: !process.env.NONO_TEST_BINARY,

@@ -144,18 +144,17 @@ test("direct SSH and platform web exceptions coexist with the isolated GitHub cr
       assert.equal(process.env.HTTPS_PROXY, process.env.HTTP_PROXY);
       assert.equal(typeof process.env.GH_TOKEN, "string");
       assert.notEqual(process.env.GH_TOKEN, "synthetic-github-credential");
-      const connect = (port) => new Promise((resolve) => {
-        const socket = createConnection({ host: "127.0.0.1", port });
+      const connect = (port, host = "127.0.0.1") => new Promise((resolve) => {
+        const socket = createConnection({ host, port });
         socket.setTimeout(2000, () => { socket.destroy(); resolve("timeout"); });
         socket.once("connect", () => { socket.destroy(); resolve("connected"); });
         socket.once("error", (error) => resolve(error.code));
       });
       (async () => {
         // Refusal from an empty loopback port proves connect reached the network stack.
-        const allowedPorts = process.platform === "linux" ? [22, 80, 443] : [22];
-        const deniedPorts = process.platform === "linux" ? [23] : [23, 80, 443];
-        for (const port of allowedPorts) assert.match(await connect(port), /^(connected|ECONNREFUSED)$/, String(port));
-        for (const port of deniedPorts) assert.match(await connect(port), /^(EACCES|EPERM)$/, String(port));
+        for (const port of [22, 80, 443]) assert.match(await connect(port), /^(connected|ECONNREFUSED)$/, String(port));
+        if (process.platform === "linux") assert.match(await connect(23), /^(EACCES|EPERM)$/);
+        assert.match(await connect(23, "192.0.2.1"), /^(EACCES|EPERM)$/);
         const key = require("node:path").join(process.env.HOME, ".ssh", "id_ed25519");
         assert.throws(() => require("node:fs").readFileSync(key), error => ["EACCES", "EPERM"].includes(error.code));
         assert.equal(await connect(Number(proxy.port)), "connected");
