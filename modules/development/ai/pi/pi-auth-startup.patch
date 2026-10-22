@@ -260,7 +260,7 @@ diff --git a/packages/coding-agent/src/core/sdk.ts b/packages/coding-agent/src/c
 +import { prepareModelAvailability } from "./extensions/model-availability.ts";
  import { formatNoModelsAvailableMessage } from "./auth-guidance.ts";
  import { CacheWarmer } from "./cache-warmer.ts";
- import { DEFAULT_THINKING_LEVEL } from "./defaults.ts";
+ import { getClientIdentity } from "./client-identity.ts";
 @@ -188,7 +189,15 @@
   * });
   * ```

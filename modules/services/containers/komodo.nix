@@ -189,7 +189,7 @@ in
 
                 [Container]
                 ContainerName=komodo-mongo
-                Image=mongo:8.3.7
+                Image=docker.io/library/mongo:8.3.7
                 Exec=--quiet --wiredTigerCacheSizeGB 0.25
                 Network=komodo.network
                 EnvironmentFile=${composeEnvPath}
@@ -231,6 +231,9 @@ in
                 Volume=/var/lib/komodo/backups:/backups
                 ${lib.optionalString (effectivePasskeyFile != null) ''
                   Volume=${effectivePasskeyFile}:${effectivePasskeyFile}:ro
+                ''}
+                ${lib.optionalString useAdminBootstrap ''
+                  Volume=${effectiveAdminPasswordFile}:${effectiveAdminPasswordFile}:ro
                 ''}
                 Memory=512m
                 PidsLimit=500

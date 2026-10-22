@@ -73,6 +73,7 @@ in
     nas = {
       hostname = "rvn-nas";
       ipAddress = "192.168.1.2";
+      mediaGroupId = 65537;
     };
 
     synology = {

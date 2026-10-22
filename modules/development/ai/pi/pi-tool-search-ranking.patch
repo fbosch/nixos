@@ -11,14 +11,14 @@ diff --git a/packages/coding-agent/src/extensions/codemode/execute.ts b/packages
  	CODEMODE_DOCS_PATH,
  	CODEMODE_STORE_ENTRY_TYPE,
 @@ -476,7 +476,7 @@
- 	const sandbox = new CodemodeSandbox({
- 		tools: sandboxTools,
- 		globals: [
--			...createDiscoveryGlobals(callable, samples, options),
-+			...createDiscoveryGlobals(callable, samples, options, ctx, signal, addModelUsage),
- 			...(options.models && ctx
- 				? createModelGlobals(ctx.modelRegistry, toolCallId, calls, publish, addModelUsage, addGeneratedImages)
- 				: []),
+ 		sandbox = new CodemodeSandbox({
+ 			tools: sandboxTools,
+ 			globals: [
+-				...createDiscoveryGlobals(callable, samples, options),
++				...createDiscoveryGlobals(callable, samples, options, ctx, signal, addModelUsage),
+ 				...(options.models && ctx
+ 					? createModelGlobals(ctx.modelRegistry, toolCallId, calls, publish, addModelUsage, addGeneratedImages)
+ 					: []),
 @@ -555,14 +555,16 @@
  	tools: readonly AgentTool<any>[],
  	samples: ReadonlyMap<string, string>,

@@ -33,7 +33,19 @@
 
             package = pkgs.home-assistant.override {
               packageOverrides = _self: super: {
-                pyicloud = super.pyicloud.overrideAttrs { postPatch = ""; };
+                pyicloud = super.pyicloud.overrideAttrs (old: {
+                  postPatch = ''
+                    substituteInPlace tests/test_cmdline.py \
+                      --replace-fail '@pytest.mark.timeout(10)' '@pytest.mark.timeout(30)'
+                  '';
+                  # The upstream suite writes pytest cache files under the read-only source tree.
+                  # Its reminders subgroup test also needs a longer per-test timeout on this host.
+                  pytestFlags = (old.pytestFlags or [ ]) ++ [
+                    "-p"
+                    "no:cacheprovider"
+                    "--timeout=30"
+                  ];
+                });
               };
             };
 
