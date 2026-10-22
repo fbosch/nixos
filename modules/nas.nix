@@ -8,24 +8,10 @@ in
     { config, lib, ... }:
     let
       nixosConfig = config;
-      # NAS server configuration
       nasHostname = flakeConfig.flake.meta.nas.hostname;
       nasIpAddress = flakeConfig.flake.meta.nas.ipAddress;
-      # List of NAS shares to mount
-      shares = [
-        "homes"
-        "music"
-        "photo"
-        "video"
-        "web"
-        "downloads"
-        "backup"
-        "cloud-backup"
-        "FrederikDocs"
-        "websites"
-        "encrypted"
-        "LaCie"
-      ];
+      shares = nixosConfig.services.nas.smbShares;
+      cachedShares = nixosConfig.services.nas.cachedSmbShares;
 
       mediaShares = [
         "music"
@@ -45,25 +31,23 @@ in
       # Keep media services limited to shares they manage.
       cifsOptionsFor =
         share:
-        "credentials=${nixosConfig.sops.templates.smbcredentials.path},uid=${flakeConfig.flake.meta.user.username},gid=${shareGroup share},forceuid,forcegid,iocharset=utf8,file_mode=0660,dir_mode=0770,vers=3.1.1";
+        "credentials=${nixosConfig.sops.templates.smbcredentials.path},uid=${flakeConfig.flake.meta.user.username},gid=${shareGroup share},forceuid,forcegid,iocharset=utf8,file_mode=0660,dir_mode=0770,vers=3.1.1"
+        + lib.optionalString (lib.elem share cachedShares) ",cache=strict,fsc";
 
-      # Generate tmpfile rule for a share
       mkTmpfileRule =
         share: "d /mnt/nas/${share} 0770 ${flakeConfig.flake.meta.user.username} ${shareGroup share} -";
 
-      # Generate mount configuration for a share
       mkMount = share: {
         type = "cifs";
         what = "//${nasHostname}/${share}";
         where = "/mnt/nas/${share}";
         options = if share == "encrypted" then "${cifsOptionsFor share},nofail" else cifsOptionsFor share;
         unitConfig = {
-          After = "network-online.target";
-          Requires = "network-online.target";
+          After = [ "network-online.target" ] ++ lib.optional (lib.elem share cachedShares) "cachefilesd.service";
+          Requires = [ "network-online.target" ] ++ lib.optional (lib.elem share cachedShares) "cachefilesd.service";
         };
       };
 
-      # Generate automount configuration for a share
       mkAutomount = share: {
         where = "/mnt/nas/${share}";
         wantedBy = [ "multi-user.target" ];
@@ -73,38 +57,74 @@ in
       };
     in
     {
-      sops = {
-        secrets = sopsHelpers.mkSecretsWithOpts sopsFiles.common sopsHelpers.rootOnly [
-          "smb-username"
-          "smb-password"
-        ];
-
-        templates."smbcredentials" = {
-          content = ''
-            username=${nixosConfig.sops.placeholder.smb-username}
-            password=${nixosConfig.sops.placeholder.smb-password}
-          '';
-          mode = "0400";
-          owner = "root";
-          group = "root";
+      options.services.nas = {
+        smbShares = lib.mkOption {
+          type = lib.types.listOf lib.types.str;
+          default = [
+            "homes"
+            "music"
+            "photo"
+            "video"
+            "web"
+            "downloads"
+            "backup"
+            "cloud-backup"
+            "FrederikDocs"
+            "websites"
+            "encrypted"
+            "LaCie"
+          ];
+          description = "NAS shares mounted through SMB; NFS aspects own their shares separately.";
+        };
+        cachedSmbShares = lib.mkOption {
+          type = lib.types.listOf lib.types.str;
+          default = [ ];
+          description = "SMB shares whose reads use the local FS-Cache with strict SMB cache coherency.";
         };
       };
 
-      users.groups.media = { };
+      config = {
+        assertions = [
+          {
+            assertion = lib.all (share: lib.elem share shares) cachedShares;
+            message = "Every cached SMB share must also be listed in services.nas.smbShares.";
+          }
+          {
+            assertion = cachedShares == [ ] || nixosConfig.services.cachefilesd.enable;
+            message = "Cached SMB shares require cachefilesd.";
+          }
+        ];
+        sops = {
+          secrets = sopsHelpers.mkSecretsWithOpts sopsFiles.common sopsHelpers.rootOnly [
+            "smb-username"
+            "smb-password"
+          ];
 
-      # Add NAS hostname to /etc/hosts for reliable name resolution
-      networking.hosts = {
-        "${nasIpAddress}" = [ nasHostname ];
-      };
+          templates."smbcredentials" = {
+            content = ''
+              username=${nixosConfig.sops.placeholder.smb-username}
+              password=${nixosConfig.sops.placeholder.smb-password}
+            '';
+            mode = "0400";
+            owner = "root";
+            group = "root";
+          };
+        };
 
-      systemd = {
-        tmpfiles.rules = [
-          "d /mnt/nas 0755 ${flakeConfig.flake.meta.user.username} users -"
-        ]
-        ++ (map mkTmpfileRule shares);
+        users.groups.media = { };
+        networking.hosts = {
+          "${nasIpAddress}" = [ nasHostname ];
+        };
 
-        mounts = map mkMount shares;
-        automounts = map mkAutomount shares;
+        systemd = {
+          tmpfiles.rules = [
+            "d /mnt/nas 0755 ${flakeConfig.flake.meta.user.username} users -"
+          ]
+          ++ (map mkTmpfileRule shares);
+
+          mounts = map mkMount shares;
+          automounts = map mkAutomount shares;
+        };
       };
     };
 }

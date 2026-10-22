@@ -1,3 +1,7 @@
+{ config, ... }:
+let
+  nasMediaGroupId = config.flake.meta.nas.mediaGroupId;
+in
 {
   flake.modules.nixos."hosts/rvn-srv/platform" =
     { lib, pkgs, ... }:
@@ -50,11 +54,15 @@
           tempDownloadPath = "/mnt/nas/downloads/rdtclient-temp";
           timezone = "Europe/Copenhagen";
           userId = 1000;
-          groupId = 1000;
+          groupId = nasMediaGroupId;
           cpus = "0.25";
           memory = "4g";
         };
       };
+
+      users.users = lib.genAttrs
+        [ "plex" "bazarr" "prowlarr" "lidarr" "radarr" "sonarr" ]
+        (_: { extraGroups = [ "nas-media" ]; });
 
       environment.systemPackages = [ recoverPlexMounts ];
 

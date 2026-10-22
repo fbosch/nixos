@@ -101,8 +101,8 @@ in
           [Unit]
           After=network-online.target
           Wants=network-online.target
-          WantsMountsFor=${cfg.downloadPath}
-          WantsMountsFor=${cfg.tempDownloadPath}
+          RequiresMountsFor=${cfg.downloadPath}
+          RequiresMountsFor=${cfg.tempDownloadPath}
 
           [Container]
           ContainerName=rdtclient
