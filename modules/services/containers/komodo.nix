@@ -232,6 +232,9 @@ in
                 ${lib.optionalString (effectivePasskeyFile != null) ''
                   Volume=${effectivePasskeyFile}:${effectivePasskeyFile}:ro
                 ''}
+                ${lib.optionalString useAdminBootstrap ''
+                  Volume=${effectiveAdminPasswordFile}:${effectiveAdminPasswordFile}:ro
+                ''}
                 Memory=512m
                 PidsLimit=500
                 Ulimit=nofile=2048:4096

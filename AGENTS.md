@@ -14,6 +14,7 @@ Do not run `sops` commands directly; they break the TUI. Instruct the user to ru
 - Omit `--build-host` to build locally; set it only when a remote builder is explicitly requested. Check host metadata for compatible target architectures when using other host pairs.
 - Build from the current working tree, including uncommitted fixes. Do not assume the target host's repository clone contains changes made on the builder.
 - For user-executed remote activation, use `--elevate sudo --ask-elevate-password`. Keep runtime diagnostics and post-deployment service commands on the target host.
+
 ## Network Context
 
 - This environment is behind CGNAT.

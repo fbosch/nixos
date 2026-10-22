@@ -49,6 +49,7 @@
           cachedSmbShares
         && cfg.services.nas.cachedSmbShares == cachedSmbShares;
       server = host "rvn-srv";
+      rdtPreStart = pkgs.writeText "rdtclient-pre-start.sh" server.systemd.services.rdtclient.preStart;
       requirements = {
         "rvn-pc cached mounts" = clientHealthy "rvn-pc" 20;
         "rvn-srv cached mounts" = clientHealthy "rvn-srv" 10;
@@ -96,9 +97,31 @@
         "persistent cache" = lib.any
           (directory: directory.directory == "/var/lib/nas-downloads-cache" && directory.mode == "0700")
           (host "rvn-pc").preservation.preserveAt."/persist".directories;
-        "container NAS access" = lib.all
-          (line: lib.hasInfix line server.environment.etc."containers/systemd/rdtclient.container".text)
-          [ "RequiresMountsFor=/mnt/nas/downloads\n" "RequiresMountsFor=/mnt/nas/downloads/rdtclient-temp\n" "SupplementaryGroups=65537\n" ];
+        "RDT mount ordering" = lib.all
+          (path: lib.elem path server.systemd.services.rdtclient.unitConfig.RequiresMountsFor)
+          [ "/mnt/nas/downloads" "/mnt/nas/downloads/rdtclient-temp" "/var/lib/rdtclient/data" ]
+        && lib.elem "user@1000.service" server.systemd.services.rdtclient.after;
+        "RDT rootless access" = server.users.users.fbb.uid == 1000
+          && server.users.users.fbb.linger
+          && server.systemd.services.rdtclient.serviceConfig.User == "fbb"
+          && server.systemd.services.rdtclient.serviceConfig.RuntimeDirectory == "rdtclient"
+          && server.systemd.services.rdtclient.serviceConfig.Restart == "always"
+          && server.systemd.services.rdtclient.serviceConfig.RestartSec == 60
+          && lib.all
+          (line: lib.hasInfix line server.environment.etc."containers/systemd/users/1000/rdtclient.container".text)
+          [
+            "UserNS=keep-id\n"
+            "User=1000:100\n"
+            "GroupAdd=keep-groups\n"
+            "Entrypoint=dotnet\n"
+            "Exec=RdtClient.Web.dll\n"
+            "Environment=SKIP_CHOWN=true\n"
+            "Volume=/var/lib/rdtclient/data:/data/db\n"
+            "Notify=healthy\n"
+            "StopTimeout=60\n"
+            "CPUQuota=25.000000%\n"
+            "Restart=no\n"
+          ];
       };
       failures = lib.attrNames (lib.filterAttrs (_: healthy: !healthy) requirements);
     in
@@ -109,8 +132,9 @@
           pkgs.runCommand "nas-media-cache-smoke"
             { nativeBuildInputs = with pkgs; [ python3 bash coreutils e2fsprogs util-linux ]; }
             ''
-              python -I - ${./scripts/cache-image.sh} <<'PY'
+              python -I - ${./scripts/cache-image.sh} ${rdtPreStart} <<'PY'
               import hashlib
+              import re
               import subprocess
               import sys
               import tempfile
@@ -168,6 +192,55 @@
                   initialize(succeeds=False)
                   assert image.is_dir()
                   assert list(image.iterdir()) == []
+
+              migration = "\n".join(
+                  line for line in Path(sys.argv[2]).read_text().splitlines()
+                  if not line.strip().endswith(("--user daemon-reload", "--user stop rdtclient.service"))
+              )
+              with tempfile.TemporaryDirectory() as temporary:
+                  root = Path(temporary)
+
+                  def migration_case(name, journal=None, interrupt=False):
+                      data = root / name / "data"
+                      runtime = root / name / "runtime"
+                      data.mkdir(parents=True)
+                      runtime.mkdir()
+                      database = data / "rdtclient.db"
+                      database.write_bytes(b"original database")
+                      if journal:
+                          Path(str(database) + journal).write_bytes(b"pending journal")
+                      script = migration.replace("/var/lib/rdtclient/data", str(data)).replace("/run/rdtclient", str(runtime))
+                      if interrupt:
+                          script, count = re.subn(r'\S+/bin/cat --', "bash -c 'printf partial; exit 1' --", script)
+                          assert count == 1
+                      def start():
+                          return subprocess.run(["bash", "-ec", script], capture_output=True, text=True)
+                      result = start()
+                      assert database.read_bytes() == b"original database"
+                      return data, runtime, database, start, result
+
+                  data, runtime, database, start, result = migration_case("clean")
+                  assert result.returncode == 0, result.stderr
+                  backup = data / "rdtclient.pre-rootless.db"
+                  assert backup.read_bytes() == b"original database"
+                  assert backup.stat().st_mode & 0o777 == 0o600
+                  assert (runtime / "ready").is_file()
+                  database.write_bytes(b"new application state")
+                  assert start().returncode == 0
+                  assert backup.read_bytes() == b"original database"
+                  assert database.read_bytes() == b"new application state"
+
+                  for journal in ("-wal", "-journal"):
+                      data, runtime, database, start, result = migration_case(journal, journal=journal)
+                      assert result.returncode != 0
+                      assert "journal present" in result.stderr
+                      assert set(data.iterdir()) == {database, Path(str(database) + journal)}
+                      assert not (runtime / "ready").exists()
+
+                  data, runtime, database, start, result = migration_case("interrupted", interrupt=True)
+                  assert result.returncode != 0
+                  assert list(data.iterdir()) == [database]
+                  assert not (runtime / "ready").exists()
               PY
               touch "$out"
             '';

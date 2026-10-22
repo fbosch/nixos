@@ -22,17 +22,47 @@ Do not use **Map all users to admin**.
 
 `fbb` joins `nas-media` without changing its UID or primary group. On `rvn-srv`,
 Plex and the enabled Servarr services gain supplementary membership. Their
-existing `media` group remains unchanged. RDT-Client uses UID `1000` and primary
-GID `65537`. The Quadlet service also supplies that supplementary group to the
-host-side Podman process for NFS bind-mount checks. Container PUID/PGID alone do
-not set the launcher's NFS credentials; NAS root-squashing remains enabled.
-Private shares retain their user-only SMB mounts.
+existing `media` group remains unchanged. RDT-Client runs rootless as `fbb`, UID
+`1000`, retaining supplementary GID `65537` through `crun`'s `keep-groups`.
+Its primary group stays `users`. Private shares retain their user-only SMB mounts.
 
 Temporary preflights passed create/read/write/rename/delete checks and the
 12-file existing-data samples for the three Volume 1 shares on both hosts.
 The server checks modeled the planned service group membership; they do not
 prove that running services have received it. Root creation was denied on all
 three exports. Recheck access after activation, including downloads and imports.
+
+## Rootless RDT-Client
+
+The system `rdtclient.service` remains the startup-policy entry point. It requires
+the NAS mounts and `user@1000.service`, then starts and observes the user Quadlet.
+The user unit is not enabled independently: `/run/rdtclient/ready` guards it until
+the system controller has prepared the mounts and database. Stopping the system
+controller stops the user unit before releasing its mount dependencies.
+
+The pinned `2.0.142` image runs `dotnet RdtClient.Web.dll` directly. Its stock s6
+launcher resets supplementary groups and recursively changes ownership of `/data`
+unless `SKIP_CHOWN=true`. The rootless unit bypasses that launcher and sets
+`SKIP_CHOWN=true`; do not add ownership-changing bind options. Retest the direct
+entry point and group retention when upgrading the image.
+
+The existing database stays at `/var/lib/rdtclient/data/rdtclient.db`, with no
+recursive ownership changes. The local data directory becomes `0700`. Before the
+first rootless start, the controller stops the user unit and atomically publishes
+a private, non-overwriting `rdtclient.pre-rootless.db` copy. A nonempty SQLite WAL
+or journal blocks that first backup. If blocked, create a consistent SQLite backup
+at that filename before retrying; do not delete journal files. The account is
+pinned to its existing UID `1000`, with lingering enabled declaratively.
+
+HTTP health gates startup. Only the system controller retries failures, with the
+shared limit of three attempts per hour and a 60-second restart delay. Container
+shutdown gets 60 seconds, the user unit 75 seconds, and the controller 90 seconds.
+Verify graceful shutdown with a disposable database copy before activation.
+
+On `rvn-srv`, inspect the controller with `systemctl status rdtclient` and the
+container unit with `systemctl --user status rdtclient` as `fbb`. Reset a controller
+start limit with `sudo systemctl reset-failed rdtclient`, then start it with
+`sudo systemctl start rdtclient`. Do not start the user unit independently.
 
 ## Why LaCie stays on SMB
 
