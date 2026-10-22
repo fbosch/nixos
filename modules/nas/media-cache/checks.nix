@@ -6,6 +6,7 @@
       clients = map host [ "rvn-pc" "rvn-srv" ];
       nfsShares = [ "downloads" "music" "video" ];
       mediaShares = nfsShares ++ [ "LaCie" ];
+      cachedSmbShares = [ "LaCie" "FrederikDocs" ];
       privateShares = [ "FrederikDocs" "backup" "cloud-backup" "encrypted" "homes" "photo" "web" "websites" ];
       mountFor = cfg: path: lib.findFirst (mount: mount.where == path) null cfg.systemd.mounts;
       optionsFor = mount: lib.splitString "," mount.options;
@@ -18,7 +19,6 @@
         let
           cfg = host name;
           cache = mountFor cfg "/var/cache/fscache";
-          lacie = mountFor cfg "/mnt/nas/LaCie";
         in
         cfg.services.cachefilesd.enable
         && cfg.services.cachefilesd.cacheDir == "/var/cache/fscache"
@@ -28,6 +28,7 @@
         && hasOptions [ "loop" "nosuid" "nodev" "noexec" ] cache
         && lib.elem "nas-downloads-cache-image.service" cache.unitConfig.Requires
         && cfg.systemd.services.nas-downloads-cache-image.serviceConfig.StateDirectory == "nas-downloads-cache"
+        && cfg.systemd.services.nas-downloads-cache-image.serviceConfig.StateDirectoryMode == "0700"
         && cfg.systemd.services.nas-downloads-cache-image.unitConfig.RequiresMountsFor == [ "/var/lib/nas-downloads-cache" ]
         && cfg.systemd.services.cachefilesd.serviceConfig.UMask == "0077"
         && lib.all
@@ -38,10 +39,15 @@
             && hasOptions [ "rw" "vers=4.1" "proto=tcp" "sec=sys" "resvport" "hard" "retry=0" "fsc" "nosuid" "nodev" "noexec" ] mount
           )
           nfsShares
-        && cachedMount lacie && lacie.type == "cifs" && lacie.what == "//rvn-nas/LaCie"
-        && hasOptions [ "credentials=${cfg.sops.templates.smbcredentials.path}" "iocharset=utf8" "uid=fbb" "gid=media" "forceuid" "forcegid" "file_mode=0660" "dir_mode=0770" "vers=3.1.1" "cache=strict" "fsc" ] lacie
-        && !(lib.elem "cache=loose" (optionsFor lacie))
-        && cfg.services.nas.cachedSmbShares == [ "LaCie" ];
+        && lib.all
+          (share:
+            let mount = mountFor cfg "/mnt/nas/${share}";
+            in cachedMount mount && mount.type == "cifs" && mount.what == "//rvn-nas/${share}"
+            && hasOptions [ "credentials=${cfg.sops.templates.smbcredentials.path}" "iocharset=utf8" "uid=fbb" "gid=${if share == "LaCie" then "media" else "users"}" "forceuid" "forcegid" "file_mode=0660" "dir_mode=0770" "vers=3.1.1" "cache=strict" "fsc" ] mount
+            && !(lib.elem "cache=loose" (optionsFor mount))
+          )
+          cachedSmbShares
+        && cfg.services.nas.cachedSmbShares == cachedSmbShares;
       server = host "rvn-srv";
       requirements = {
         "rvn-pc cached mounts" = clientHealthy "rvn-pc" 20;
@@ -55,8 +61,8 @@
                 let mount = mountFor cfg "/mnt/nas/${share}";
                 in mount != null && mount.type == "cifs"
                 && hasOptions [ "uid=fbb" "gid=users" "file_mode=0660" "dir_mode=0770" ] mount
-                && !(lib.elem "fsc" (optionsFor mount))
-                && !(lib.elem "cachefilesd.service" mount.unitConfig.Requires)
+                && lib.elem "fsc" (optionsFor mount) == (share == "FrederikDocs")
+                && lib.elem "cachefilesd.service" mount.unitConfig.Requires == (share == "FrederikDocs")
               )
               privateShares
           )
@@ -67,7 +73,7 @@
             in mount != null && mount.type == "cifs" && mount.what == "//rvn-nas/${share}"
               && !(lib.elem "fsc" (optionsFor mount))
           )
-          mediaShares;
+          (mediaShares ++ [ "FrederikDocs" ]);
         "media identities" = lib.all
           (cfg: cfg.users.groups.nas-media.gid == 65537
             && lib.elem "fbb" cfg.users.groups.nas-media.members
@@ -90,9 +96,9 @@
         "persistent cache" = lib.any
           (directory: directory.directory == "/var/lib/nas-downloads-cache" && directory.mode == "0700")
           (host "rvn-pc").preservation.preserveAt."/persist".directories;
-        "container mount ordering" = lib.all
+        "container NAS access" = lib.all
           (line: lib.hasInfix line server.environment.etc."containers/systemd/rdtclient.container".text)
-          [ "RequiresMountsFor=/mnt/nas/downloads\n" "RequiresMountsFor=/mnt/nas/downloads/rdtclient-temp\n" ];
+          [ "RequiresMountsFor=/mnt/nas/downloads\n" "RequiresMountsFor=/mnt/nas/downloads/rdtclient-temp\n" "SupplementaryGroups=65537\n" ];
       };
       failures = lib.attrNames (lib.filterAttrs (_: healthy: !healthy) requirements);
     in

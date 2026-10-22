@@ -122,6 +122,8 @@ in
           LogOpt=tag=rdtclient
 
           [Service]
+          # Host-side bind checks need the data group on root-squashed NFS too.
+          SupplementaryGroups=${toString cfg.groupId}
           RestrictAddressFamilies=~AF_ALG
           SystemCallArchitectures=native
           Restart=always

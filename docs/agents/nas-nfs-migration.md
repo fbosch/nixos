@@ -6,7 +6,7 @@ Activation and live application checks remain separate from building this config
 | Shares | Protocol on `rvn-pc` and `rvn-srv` | Read cache |
 | --- | --- | --- |
 | `downloads`, `music`, `video` | NFSv4.1 | FS-Cache |
-| `LaCie` | SMB 3.1.1 with `cache=strict` | FS-Cache |
+| `LaCie`, `FrederikDocs` | SMB 3.1.1 with `cache=strict` | FS-Cache |
 | Other shares | Existing SMB configuration | Unchanged |
 
 All mounts on `rvn-vm` retain their existing SMB configuration without FS-Cache.
@@ -23,7 +23,10 @@ Do not use **Map all users to admin**.
 `fbb` joins `nas-media` without changing its UID or primary group. On `rvn-srv`,
 Plex and the enabled Servarr services gain supplementary membership. Their
 existing `media` group remains unchanged. RDT-Client uses UID `1000` and primary
-GID `65537`. Private shares retain their user-only SMB mounts.
+GID `65537`. The Quadlet service also supplies that supplementary group to the
+host-side Podman process for NFS bind-mount checks. Container PUID/PGID alone do
+not set the launcher's NFS credentials; NAS root-squashing remains enabled.
+Private shares retain their user-only SMB mounts.
 
 Temporary preflights passed create/read/write/rename/delete checks and the
 12-file existing-data samples for the three Volume 1 shares on both hosts.
@@ -57,6 +60,19 @@ already has access to the share.
 Remove the provisional LaCie NFS rules for the two clients when adopting this
 hybrid configuration. Keep the three Volume 1 NFS exports unchanged.
 
+## Private document caching
+
+FrederikDocs stays on SMB with its existing credentials, `uid=fbb`, `gid=users`,
+and `0660`/`0770` file/directory modes. Only its caching and daemon dependencies
+change; NAS permissions and media-group access remain unchanged. Other private
+shares remain uncached.
+
+Document contents read from FrederikDocs can persist in the host's shared cache.
+The image is `0600` and its directory and mounted cache root are `0700`, but
+FS-Cache adds no encryption. The configuration declares LUKS backing for
+`rvn-pc`; it declares none for `rvn-srv`. Verify live backing-storage protection
+on both hosts before activating private-document caching.
+
 ## Cache storage
 
 | Host | Shared image capacity | Backing storage |
@@ -64,7 +80,7 @@ hybrid configuration. Keep the three Volume 1 NFS exports unchanged.
 | `rvn-pc` | 20 GiB | `/persist/var/lib/nas-downloads-cache/cache.img` |
 | `rvn-srv` | 10 GiB | `/var/lib/nas-downloads-cache/cache.img` |
 
-These are per-host limits shared by all four cached mounts, not per-share limits.
+These are per-host limits shared by all five cached mounts, not per-share limits.
 The original image path and `nas-downloads-cache-image.service` identity remain
 so the hybrid setup reuses the pilot cache instead of allocating another image.
 
@@ -81,7 +97,7 @@ first reads and writes still need the NAS. This is not offline storage or a
 backup. SMB retains strict lease/oplock-based cache coherency.
 
 Startup ordering is image initialization, ext4 mount, `cachefilesd`, then the
-cached NFS and SMB mounts. All four mounts require the same daemon. RDT-Client
+cached NFS and SMB mounts. All five mounts require the same daemon. RDT-Client
 requires its download mounts before starting. The initializer reuses an existing
 ext4 image but refuses symlinks, other file types, unrecognized filesystems,
 and size changes. It never reformats an existing image.
@@ -110,14 +126,16 @@ activate the hybrid mounts.
 2. Remove only the provisional LaCie NFS client rules above. Do not change NAS
    file ownership, USB permissions, or the Volume 1 exports.
 3. Pause activity and stop services or processes using `downloads`, `music`,
-   `video`, and `LaCie` on the target host. Stop their automount and mount units
-   with `sudo systemctl stop`. Do not force or lazy-unmount a busy filesystem.
+   `video`, `LaCie`, and `FrederikDocs` on the target host. Stop their automount
+   and mount units with `sudo systemctl stop`. Do not force or lazy-unmount a
+   busy filesystem.
    Remove temporary pilot mounts after finishing their access checks.
 4. Switch the target host to the new configuration with `sudo`. Start a fresh
    `fbb` login and restart stopped services so they receive current groups.
-5. Trigger all four mounts. Verify NFSv4.1 with `fsc` for the Volume 1 shares and
-   SMB 3.1.1 with `cache=strict,fsc` for LaCie. Confirm the ext4 cache mount and
-   active `cachefilesd`. Check the initializer and mount units for failures.
+5. Trigger all five mounts. Verify NFSv4.1 with `fsc` for the Volume 1 shares and
+   SMB 3.1.1 with `cache=strict,fsc` for LaCie and FrederikDocs. Confirm the ext4
+   cache mount and active `cachefilesd`. Check the initializer and mount units
+   for failures.
 6. Verify normal-user and service access, downloads, and imports. Confirm real
    disk-cache reads after evicting only test data from client RAM. Check that a
    change through another client invalidates the cached SMB data. Then repeat
@@ -131,7 +149,7 @@ Do not drop global RAM caches on a live media server just to test FS-Cache.
 ## Resizing or discarding the cache
 
 Change `services.nasMediaCache.sizeGiB` only during a cache maintenance window.
-Stop consumers and all four cached automounts/mounts, stop `cachefilesd`, and
+Stop consumers and all five cached automounts/mounts, stop `cachefilesd`, and
 unmount `/var/cache/fscache` before replacing its disposable image. Stop the
 initializer too, so its completed oneshot state cannot skip initialization.
 Never remove or resize an image while its loop filesystem is mounted. Never
