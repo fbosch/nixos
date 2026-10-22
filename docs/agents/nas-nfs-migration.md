@@ -1,77 +1,121 @@
-# Downloads NFS pilot
+# Cached NAS media mounts
 
-`nas/downloads` replaces only `/mnt/nas/downloads` on `rvn-pc` and `rvn-srv`.
-The other shares and all mounts on `rvn-vm` stay on SMB.
+`nas/media-cache` configures one shared read cache on `rvn-pc` and `rvn-srv`.
+Activation and live application checks remain separate from building this configuration.
 
-## Access
+| Shares | Protocol on `rvn-pc` and `rvn-srv` | Read cache |
+| --- | --- | --- |
+| `downloads`, `music`, `video` | NFSv4.1 | FS-Cache |
+| `LaCie` | SMB 3.1.1 with `cache=strict` | FS-Cache |
+| Other shares | Existing SMB configuration | Unchanged |
 
-The client mounts `192.168.1.2:/volume1/downloads` using NFSv4.1 and `sec=sys`.
-The NAS must allow both client IPs, use **Map root to guest**, and grant the
-`nas-media` group read/write access to `downloads`. Its GID is `65537` on the
-NAS and both clients. Apply the share ACL to existing children and enable
-inheritance for new files and directories. Do not use **Map all users to admin**.
+All mounts on `rvn-vm` retain their existing SMB configuration without FS-Cache.
+The mount paths stay `/mnt/nas/<share>`. Cached mounts remain read/write.
+
+## NFS access
+
+The NFS exports are `192.168.1.2:/volume1/{downloads,music,video}` with `sec=sys`.
+The NAS must allow `192.168.1.169` and `192.168.1.46`, use **Map root to guest**,
+and grant `nas-media` read/write access. Its GID is `65537` on the NAS and both
+clients. Existing data and newly created children must inherit the media ACL.
+Do not use **Map all users to admin**.
 
 `fbb` joins `nas-media` without changing its UID or primary group. On `rvn-srv`,
 Plex and the enabled Servarr services gain supplementary membership. Their
 existing `media` group remains unchanged. RDT-Client uses UID `1000` and primary
-GID `65537`. This role does not grant access to private NAS shares.
+GID `65537`. Private shares retain their user-only SMB mounts.
 
-Before switching, verify normal-user create, read, write, rename, and delete
-operations with GID `65537` on the temporary NFS pilot mount. Confirm new files
-retain the caller's UID rather than NAS admin UID `1024`. On `rvn-srv`, also
-verify a media service UID can access files created by the download identity.
-A successful test under the old admin mapping does not verify this setup.
+Temporary preflights passed create/read/write/rename/delete checks and the
+12-file existing-data samples for the three Volume 1 shares on both hosts.
+The server checks modeled the planned service group membership; they do not
+prove that running services have received it. Root creation was denied on all
+three exports. Recheck access after activation, including downloads and imports.
+
+## Why LaCie stays on SMB
+
+LaCie is the ext4 USB filesystem at `/volumeUSB1/usbshare`. Its export correctly
+squashed root to guest UID `1025`, GID `100`, but its `0777` root allowed guest
+writes. Its existing `downloads` and `videos` directories were also `0777` and
+owned by NAS `fbb`, UID `1026`, group `100`. NFS-created directories were `0755`,
+owned by client UID `1000`, group `100`, so other service UIDs could not write.
+
+The inspected directories reported Linux mode with no Synology ACL archive
+flags. The `synoacl` mount option alone did not provide inheritance. The NAS
+had no `getfacl` or `setfacl` in its system PATH; POSIX ACL capability was not
+established. Synology also [excludes USB shares from Windows ACL management](https://kb.synology.com/en-us/DSM/help/DSM/AdminCenter/file_share_privilege).
+
+SMB retains the existing NAS credentials and local `forceuid`/`forcegid`
+presentation. Adding `fsc,cache=strict` does not change NAS ownership or require
+recursive permission changes. It does not make the mount read-only. Do not
+use `cache=loose` with these shared, concurrently written files.
+
+LaCie also contains `backup.hbk`. Do not apply media permissions recursively
+across the USB root or change backup ownership. Caching does not narrow the
+existing SMB access scope or make backup data private from an identity that
+already has access to the share.
+
+Remove the provisional LaCie NFS rules for the two clients when adopting this
+hybrid configuration. Keep the three Volume 1 NFS exports unchanged.
 
 ## Cache storage
 
-| Host | Image capacity | Backing storage |
+| Host | Shared image capacity | Backing storage |
 | --- | --- | --- |
 | `rvn-pc` | 20 GiB | `/persist/var/lib/nas-downloads-cache/cache.img` |
 | `rvn-srv` | 10 GiB | `/var/lib/nas-downloads-cache/cache.img` |
 
+These are per-host limits shared by all four cached mounts, not per-share limits.
+The original image path and `nas-downloads-cache-image.service` identity remain
+so the hybrid setup reuses the pilot cache instead of allocating another image.
+
 Both hosts expose the image at `/var/lib/nas-downloads-cache/cache.img` and mount
 its ext4 filesystem at `/var/cache/fscache`. On `rvn-pc`, preservation binds the
-image directory from `/persist`, so neither the image nor cached data uses the
-tmpfs root. The ext4 image provides CacheFiles support over the Btrfs backing
-filesystem. The sparse image grows as the cache fills, up to its configured
-capacity. Filesystem metadata and cache eviction thresholds reduce usable space.
+image directory from `/persist`, keeping cached data off the tmpfs root. The
+ext4 image provides CacheFiles support over the Btrfs backing filesystem. It
+is sparse and grows up to its capacity. Metadata and eviction thresholds
+reduce usable space.
 
-The cache contains downloaded file contents. Its image directory and mounted
-root are restricted to root. FS-Cache accelerates repeated reads, not first reads
-or writes. NFS writes go to the NAS. Cached data is disposable and does not
-provide offline access or a backup.
+The cache holds contents read through the cached mounts. Its image directory
+and mounted root are restricted to root. Repeat reads may use the local disk;
+first reads and writes still need the NAS. This is not offline storage or a
+backup. SMB retains strict lease/oplock-based cache coherency.
 
-Startup ordering is image initialization, ext4 mount, `cachefilesd`, then NFS.
-RDT-Client requires its download mounts before starting. The initializer reuses
-an existing ext4 image but refuses symlinks, other file types, unrecognized
-filesystems, and size changes. It never reformats an existing image.
+Startup ordering is image initialization, ext4 mount, `cachefilesd`, then the
+cached NFS and SMB mounts. All four mounts require the same daemon. RDT-Client
+requires its download mounts before starting. The initializer reuses an existing
+ext4 image but refuses symlinks, other file types, unrecognized filesystems,
+and size changes. It never reformats an existing image.
 
 ## Switch one host at a time
 
-1. Complete the NAS mapping and identity checks above. Pause download activity
-   and stop services or other processes using `/mnt/nas/downloads` on that host.
-2. Stop `mnt-nas-downloads.automount` and `mnt-nas-downloads.mount` with `sudo
-   systemctl stop`. Do not force or lazy-unmount a busy filesystem. On `rvn-pc`,
-   unmount `/mnt/nfs-pilot` after finishing the permission checks.
-3. Rebuild from a checkout containing these changes. New files under
-   `modules/nas/downloads/` must be in Git's index for a Git-backed flake to see
-   them; a commit is not required. Switching the system needs `sudo`.
-4. Start a fresh `fbb` login so it receives the new group membership. Access
-   `/mnt/nas/downloads`, verify its active filesystem is NFSv4 with `fsc`, and
-   confirm `/var/cache/fscache` is ext4. Check `cachefilesd` and the image
-   initializer for failures.
-5. Repeat the permission checks, restart the stopped services, and verify their
-   downloads and imports. Then repeat the cutover on the other host.
+1. Complete configuration checks and VM tests first. Git-backed flakes need new
+   files under `modules/nas/media-cache/` in the index; a commit is not required.
+2. Remove only the provisional LaCie NFS client rules above. Do not change NAS
+   file ownership, USB permissions, or the Volume 1 exports.
+3. Pause activity and stop services or processes using `downloads`, `music`,
+   `video`, and `LaCie` on the target host. Stop their automount and mount units
+   with `sudo systemctl stop`. Do not force or lazy-unmount a busy filesystem.
+   Remove temporary pilot mounts after finishing their access checks.
+4. Switch the target host to the new configuration with `sudo`. Start a fresh
+   `fbb` login and restart stopped services so they receive current groups.
+5. Trigger all four mounts. Verify NFSv4.1 with `fsc` for the Volume 1 shares and
+   SMB 3.1.1 with `cache=strict,fsc` for LaCie. Confirm the ext4 cache mount and
+   active `cachefilesd`. Check the initializer and mount units for failures.
+6. Verify normal-user and service access, downloads, and imports. Confirm real
+   disk-cache reads after evicting only test data from client RAM. Check that a
+   change through another client invalidates the cached SMB data. Then repeat
+   the cutover on the other host.
 
-Host evaluation and VM tests do not verify the live Synology ACLs, current NFS
-mapping, or application access. Keep the live cutover pending until those checks
-pass on both hosts.
+Builds and VM tests do not verify live Synology permissions, service membership,
+SMB lease behavior, or cache hits. Keep activation and live verification pending
+until these checks pass on both hosts. Do not drop global RAM caches on a live
+media server just to test FS-Cache.
 
 ## Resizing or discarding the cache
 
-Change `services.nasDownloadsCache.sizeGiB` only during a cache maintenance
-window. Stop consumers and the downloads automount/mount, stop `cachefilesd`,
-and unmount `/var/cache/fscache` before replacing its disposable image. Stop the
-image initializer too, so its completed oneshot state cannot skip initialization.
-Never remove or resize an image while its loop filesystem is mounted. Do not
-remove anything under `/mnt/nas/downloads` when resetting the local cache.
+Change `services.nasMediaCache.sizeGiB` only during a cache maintenance window.
+Stop consumers and all four cached automounts/mounts, stop `cachefilesd`, and
+unmount `/var/cache/fscache` before replacing its disposable image. Stop the
+initializer too, so its completed oneshot state cannot skip initialization.
+Never remove or resize an image while its loop filesystem is mounted. Never
+remove data under `/mnt/nas` when resetting the local cache.

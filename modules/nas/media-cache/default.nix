@@ -1,16 +1,18 @@
 { config, ... }:
 let
   flakeConfig = config;
+  # Reuse the pilot's persisted image and initializer identity when expanding the cache.
   imageDirectory = "/var/lib/nas-downloads-cache";
   imagePath = "${imageDirectory}/cache.img";
   cacheDirectory = "/var/cache/fscache";
   cacheMountUnit = "var-cache-fscache.mount";
+  nfsShares = [ "downloads" "music" "video" ];
 in
 {
-  flake.modules.nixos."nas/downloads" =
+  flake.modules.nixos."nas/media-cache" =
     { config, lib, options, pkgs, ... }:
     let
-      cfg = config.services.nasDownloadsCache;
+      cfg = config.services.nasMediaCache;
       scriptedAddressUnits = map (name: "${name}.service") (
         lib.filter (lib.hasPrefix "network-addresses-") (builtins.attrNames config.systemd.services)
       );
@@ -19,21 +21,45 @@ in
         runtimeInputs = with pkgs; [ coreutils e2fsprogs util-linux ];
         text = builtins.readFile ./scripts/cache-image.sh;
       };
+      mkNfsMount = share: {
+        what = "${flakeConfig.flake.meta.nas.ipAddress}:/volume1/${share}";
+        where = "/mnt/nas/${share}";
+        type = "nfs";
+        options = "rw,vers=4.1,proto=tcp,sec=sys,resvport,hard,retry=0,fsc,nosuid,nodev,noexec";
+        unitConfig = {
+          Requires = [ "network-online.target" "cachefilesd.service" ];
+          # Keep static non-gateway interfaces up until NFS has unmounted.
+          After = [ "network-online.target" "cachefilesd.service" ] ++ scriptedAddressUnits;
+        };
+        mountConfig.TimeoutSec = "30s";
+      };
+      mkNfsAutomount = share: {
+        where = "/mnt/nas/${share}";
+        wantedBy = [ "multi-user.target" ];
+        automountConfig = {
+          TimeoutIdleSec = if share == "video" then "0" else "30s";
+          # Automount parents must be searchable before a user can trigger the mount.
+          DirectoryMode = "0555";
+        };
+      };
     in
     {
       imports = [ flakeConfig.flake.modules.nixos.nas ];
 
-      options.services.nasDownloadsCache.sizeGiB = lib.mkOption {
+      options.services.nasMediaCache.sizeGiB = lib.mkOption {
         type = lib.types.ints.between 1 1024;
         default = 10;
-        description = "Size in GiB of the disposable, loop-backed NFS read cache.";
+        description = "Size in GiB of the disposable, shared NFS and SMB read cache.";
       };
 
       config = {
         services = {
-          nas.smbShares = lib.mkDefault (
-            lib.remove "downloads" options.services.nas.smbShares.default
-          );
+          nas = {
+            smbShares = lib.mkDefault (
+              lib.subtractLists nfsShares options.services.nas.smbShares.default
+            );
+            cachedSmbShares = lib.mkDefault [ "LaCie" ];
+          };
           cachefilesd = {
             enable = lib.mkDefault true;
             cacheDir = cacheDirectory;
@@ -50,27 +76,25 @@ in
 
         assertions = [
           {
-            assertion = !(lib.elem "downloads" config.services.nas.smbShares);
-            message = "nas/downloads owns /mnt/nas/downloads; it cannot also be an SMB share.";
+            assertion = lib.all (share: !(lib.elem share config.services.nas.smbShares)) nfsShares;
+            message = "nas/media-cache owns the downloads, music, and video NFS mounts; they cannot also be SMB shares.";
           }
           {
             assertion = config.services.cachefilesd.enable;
-            message = "nas/downloads requires cachefilesd for its cached NFS mount.";
+            message = "nas/media-cache requires cachefilesd for its cached mounts.";
           }
         ];
 
-        boot.supportedFilesystems = [ "ext4" "nfs" ];
-        users = {
-          groups.nas-media = {
-            gid = flakeConfig.flake.meta.nas.mediaGroupId;
-            members = [ flakeConfig.flake.meta.user.username ];
-          };
+        boot.supportedFilesystems = [ "cifs" "ext4" "nfs" ];
+        users.groups.nas-media = {
+          gid = flakeConfig.flake.meta.nas.mediaGroupId;
+          members = [ flakeConfig.flake.meta.user.username ];
         };
 
         systemd = {
           services = {
             nas-downloads-cache-image = {
-              description = "Initialize the bounded NAS downloads read cache";
+              description = "Initialize the bounded NAS media read cache";
               unitConfig.RequiresMountsFor = [ imageDirectory ];
               serviceConfig = {
                 Type = "oneshot";
@@ -112,31 +136,9 @@ in
                 Before = [ "umount.target" ];
               };
             }
-            {
-              what = "${flakeConfig.flake.meta.nas.ipAddress}:/volume1/downloads";
-              where = "/mnt/nas/downloads";
-              type = "nfs";
-              options = "rw,vers=4.1,proto=tcp,sec=sys,resvport,hard,retry=0,fsc,nosuid,nodev,noexec";
-              unitConfig = {
-                Requires = [ "network-online.target" "cachefilesd.service" ];
-                # Keep static non-gateway interfaces up until NFS has unmounted.
-                After = [ "network-online.target" "cachefilesd.service" ] ++ scriptedAddressUnits;
-              };
-              mountConfig.TimeoutSec = "30s";
-            }
-          ];
+          ] ++ map mkNfsMount nfsShares;
 
-          automounts = [
-            {
-              where = "/mnt/nas/downloads";
-              wantedBy = [ "multi-user.target" ];
-              automountConfig = {
-                TimeoutIdleSec = "30s";
-                # Automount parents must be searchable before a user can trigger the mount.
-                DirectoryMode = "0555";
-              };
-            }
-          ];
+          automounts = map mkNfsAutomount nfsShares;
         };
       };
     };
@@ -144,7 +146,7 @@ in
   flake.modules.nixos.preservation =
     { lib, options, ... }:
     {
-      config = lib.mkIf (options.services ? nasDownloadsCache) {
+      config = lib.mkIf (options.services ? nasMediaCache) {
         preservation.preserveAt."/persist".directories = [
           {
             directory = imageDirectory;

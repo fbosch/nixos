@@ -11,6 +11,7 @@ in
       nasHostname = flakeConfig.flake.meta.nas.hostname;
       nasIpAddress = flakeConfig.flake.meta.nas.ipAddress;
       shares = nixosConfig.services.nas.smbShares;
+      cachedShares = nixosConfig.services.nas.cachedSmbShares;
 
       mediaShares = [
         "music"
@@ -30,7 +31,8 @@ in
       # Keep media services limited to shares they manage.
       cifsOptionsFor =
         share:
-        "credentials=${nixosConfig.sops.templates.smbcredentials.path},uid=${flakeConfig.flake.meta.user.username},gid=${shareGroup share},forceuid,forcegid,iocharset=utf8,file_mode=0660,dir_mode=0770,vers=3.1.1";
+        "credentials=${nixosConfig.sops.templates.smbcredentials.path},uid=${flakeConfig.flake.meta.user.username},gid=${shareGroup share},forceuid,forcegid,iocharset=utf8,file_mode=0660,dir_mode=0770,vers=3.1.1"
+        + lib.optionalString (lib.elem share cachedShares) ",cache=strict,fsc";
 
       mkTmpfileRule =
         share: "d /mnt/nas/${share} 0770 ${flakeConfig.flake.meta.user.username} ${shareGroup share} -";
@@ -41,8 +43,8 @@ in
         where = "/mnt/nas/${share}";
         options = if share == "encrypted" then "${cifsOptionsFor share},nofail" else cifsOptionsFor share;
         unitConfig = {
-          After = "network-online.target";
-          Requires = "network-online.target";
+          After = [ "network-online.target" ] ++ lib.optional (lib.elem share cachedShares) "cachefilesd.service";
+          Requires = [ "network-online.target" ] ++ lib.optional (lib.elem share cachedShares) "cachefilesd.service";
         };
       };
 
@@ -55,26 +57,43 @@ in
       };
     in
     {
-      options.services.nas.smbShares = lib.mkOption {
-        type = lib.types.listOf lib.types.str;
-        default = [
-          "homes"
-          "music"
-          "photo"
-          "video"
-          "web"
-          "downloads"
-          "backup"
-          "cloud-backup"
-          "FrederikDocs"
-          "websites"
-          "encrypted"
-          "LaCie"
-        ];
-        description = "NAS shares mounted through SMB; NFS aspects own their shares separately.";
+      options.services.nas = {
+        smbShares = lib.mkOption {
+          type = lib.types.listOf lib.types.str;
+          default = [
+            "homes"
+            "music"
+            "photo"
+            "video"
+            "web"
+            "downloads"
+            "backup"
+            "cloud-backup"
+            "FrederikDocs"
+            "websites"
+            "encrypted"
+            "LaCie"
+          ];
+          description = "NAS shares mounted through SMB; NFS aspects own their shares separately.";
+        };
+        cachedSmbShares = lib.mkOption {
+          type = lib.types.listOf lib.types.str;
+          default = [ ];
+          description = "SMB shares whose reads use the local FS-Cache with strict SMB cache coherency.";
+        };
       };
 
       config = {
+        assertions = [
+          {
+            assertion = lib.all (share: lib.elem share shares) cachedShares;
+            message = "Every cached SMB share must also be listed in services.nas.smbShares.";
+          }
+          {
+            assertion = cachedShares == [ ] || nixosConfig.services.cachefilesd.enable;
+            message = "Cached SMB shares require cachefilesd.";
+          }
+        ];
         sops = {
           secrets = sopsHelpers.mkSecretsWithOpts sopsFiles.common sopsHelpers.rootOnly [
             "smb-username"
