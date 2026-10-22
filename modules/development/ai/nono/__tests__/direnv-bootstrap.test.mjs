@@ -59,9 +59,30 @@ test("already-loaded environment accepts an empty diff", () => {
   assert.deepEqual(loadProjectEnvironment(cwd, { SAMPLE: "loaded" }, direnv, () => ({ status: 0, stdout: "", stderr: "" })), { SAMPLE: "loaded" });
 });
 
+test("successful direnv exports tolerate warning keywords and diagnostic words in informational paths", () => {
+  const { cwd, direnv } = fixture();
+  for (const stderr of [
+    "warning: optional cache failed; using defaults\n",
+    "warning: cannot read optional cache: permission denied\n",
+    "direnv: warning: no such file or directory for optional cache\n",
+    "direnv: loading /project/error-handling/.envrc\n",
+    "direnv: export +ERROR +FAILED +FAILURE +CANNOT +UNABLE\n",
+    "\u001b[33mwarning: optional cache failed; using defaults\u001b[0m\n",
+    "/project/.envrc: line 2: warning: optional cache failed; using defaults\n",
+  ]) {
+    const loaded = loadProjectEnvironment(cwd, {}, direnv, () => ({ status: 0, stdout: '{"SAMPLE":"loaded"}', stderr }));
+    assert.equal(loaded.SAMPLE, "loaded", stderr);
+  }
+});
+
 for (const [name, result] of [
   ["blocked approval", { status: 1, stdout: "", stderr: "direnv: error .envrc is blocked" }],
   ["exit-zero evaluation failure", { status: 0, stdout: "{}", stderr: 'error: opening file "/": Permission denied' }],
+  ["exit-zero blocked approval", { status: 0, stdout: "{}", stderr: "direnv: error .envrc is blocked" }],
+  ["colored evaluation failure", { status: 0, stdout: "{}", stderr: '\u001b[31merror:\u001b[0m evaluation failed' }],
+  ["devenv evaluation failure", { status: 0, stdout: "{}", stderr: 'devenv: error: evaluation failed' }],
+  ["error after a warning", { status: 0, stdout: "{}", stderr: 'warning: optional cache failed\nerror: evaluation failed' }],
+  ["exit-zero shell evaluation failure", { status: 0, stdout: "{}", stderr: '/project/.envrc: line 2: ./required.env: No such file or directory' }],
   ["nonzero evaluation failure", { status: 1, stdout: "{}", stderr: "" }],
   ["timeout", { status: null, error: new Error("ETIMEDOUT"), stdout: "", stderr: "" }],
   ["malformed JSON", { status: 0, stdout: "not json", stderr: "" }],
@@ -93,7 +114,7 @@ for (const blocked of [false, true]) {
     mkdirSync(home);
     writeFileSync(direnv, `#!${process.execPath}\n${blocked
       ? 'console.error("direnv: error .envrc is blocked"); process.exit(1);'
-      : 'console.log(JSON.stringify({SAMPLE:"loaded", REMOVE:null, PATH:"/project/bin"}));'}\n`, { mode: 0o700 });
+      : 'console.error("warning: optional cache failed; using defaults"); console.log(JSON.stringify({SAMPLE:"loaded", REMOVE:null, PATH:"/project/bin"}));'}\n`, { mode: 0o700 });
     chmodSync(direnv, 0o700);
     const nono = join(root, "nono");
     writeFileSync(nono, `#!${process.execPath}\nimport {writeFileSync} from "node:fs";writeFileSync(${JSON.stringify(observed)},JSON.stringify({path:process.env.PATH,sample:process.env.SAMPLE,removed:process.env.REMOVE,args:process.argv.slice(2)}));\n`, { mode: 0o700 });
@@ -119,7 +140,7 @@ for (const blocked of [false, true]) {
   });
 }
 
-test("real direnv loads an approved fixture and rejects changed content without reapproval", {
+test("real direnv tolerates warnings and rejects unapproved or failed loads", {
   skip: !process.env.PI_TEST_DIRENV,
 }, () => {
   const { root, cwd } = fixture();
@@ -136,7 +157,7 @@ test("real direnv loads an approved fixture and rejects changed content without 
     REMOVE: "old",
   };
   for (const name of ["DIRENV_DIFF", "DIRENV_DIR", "DIRENV_FILE", "DIRENV_WATCHES", "BASH_ENV", "ENV", "NODE_OPTIONS", "NODE_PATH"]) delete env[name];
-  writeFileSync(join(cwd, ".envrc"), "export SAMPLE=loaded\nunset REMOVE\n");
+  writeFileSync(join(cwd, ".envrc"), 'printf "warning: optional cache failed; using defaults\\n" >&2\nexport SAMPLE=loaded\nunset REMOVE\n');
   // Only this synthetic file is approved, in a disposable trust store.
   const approval = spawnSync(process.env.PI_TEST_DIRENV, ["allow", "."], { cwd, env, encoding: "utf8" });
   assert.equal(approval.status, 0, approval.stderr);
@@ -148,4 +169,9 @@ test("real direnv loads an approved fixture and rejects changed content without 
   const changedAt = new Date(Date.now() + 2_000);
   utimesSync(join(cwd, ".envrc"), changedAt, changedAt);
   assert.throws(() => loadProjectEnvironment(cwd, loaded, process.env.PI_TEST_DIRENV), /environment load failed/);
+  writeFileSync(join(cwd, ".envrc"), ". ./missing-required-env.sh\n");
+  utimesSync(join(cwd, ".envrc"), new Date(changedAt.getTime() + 2_000), new Date(changedAt.getTime() + 2_000));
+  const reapproval = spawnSync(process.env.PI_TEST_DIRENV, ["allow", "."], { cwd, env, encoding: "utf8" });
+  assert.equal(reapproval.status, 0, reapproval.stderr);
+  assert.throws(() => loadProjectEnvironment(cwd, env, process.env.PI_TEST_DIRENV), /environment load failed/);
 });

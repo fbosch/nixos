@@ -88,6 +88,22 @@ test("launches without PI_NVIM_SOCKET do not grant editor socket access", () => 
   }
 });
 
+test("missing PI_NVIM_SOCKET paths warn and leave editor socket access disabled", t => {
+  const { root, launch } = fixture();
+  const expected = launch();
+  const warning = t.mock.method(console, "warn", () => {});
+  const missing = join(root, "missing.sock");
+  const dangling = join(root, "dangling.sock");
+  symlinkSync(missing, dangling);
+  const sockets = [missing, join(root, "missing-editor", "nvim.sock"), dangling];
+  for (const socket of sockets) assert.deepEqual(launch([], { PI_NVIM_SOCKET: socket }), expected);
+  assert.equal(warning.mock.callCount(), sockets.length);
+  for (const [index, call] of warning.mock.calls.entries()) {
+    assert.match(call.arguments[0], /PI_NVIM_SOCKET.*missing.*continuing without Neovim access/);
+    assert.ok(call.arguments[0].includes(JSON.stringify(sockets[index])));
+  }
+});
+
 test("invalid PI_NVIM_SOCKET paths fail closed before entering the sandbox", () => {
   const { root, launch } = fixture();
   const file = join(root, "not-a-socket");
@@ -96,7 +112,6 @@ test("invalid PI_NVIM_SOCKET paths fail closed before entering the sandbox", () 
     ["relative.sock", /PI_NVIM_SOCKET.*absolute/],
     [file, /PI_NVIM_SOCKET.*socket/],
     [root, /PI_NVIM_SOCKET.*socket/],
-    [join(root, "missing.sock"), /PI_NVIM_SOCKET.*ENOENT/],
   ]) {
     assert.throws(() => launch([], { PI_NVIM_SOCKET: path }), message);
   }
@@ -262,6 +277,40 @@ test("sandbox runtime state is prepared before grants and separated from supervi
   assert.equal(readFileSync(join(cache, "uv-tools", "state"), "utf8"), "preserved");
 });
 
+for (const [name, access] of [
+  ["SSH_AUTH_SOCK", "SSH agent access"],
+  ["PI_NVIM_SOCKET", "Neovim access"],
+  ["XDG_RUNTIME_DIR", "runtime-directory access"],
+]) {
+  test(`sandbox launcher starts nono despite a missing ${name}`, () => {
+    const { root, home, cwd, agent, nono, profile } = fixture();
+    const missing = join(root, "missing", name);
+    const runtime = join(root, "runtime");
+    mkdirSync(runtime);
+    writeFileSync(nono, `#!${process.execPath}\nconsole.log(JSON.stringify(process.argv.slice(2)));\n`);
+    chmodSync(nono, 0o700);
+    const child = spawnSync(process.execPath, [
+      new URL("../scripts/launcher.mjs", import.meta.url).pathname,
+      nono, process.execPath, profile, "/missing-direnv", envBinary, "--version",
+    ], {
+      cwd,
+      env: {
+        HOME: home, PATH: process.env.PATH, PI_CODING_AGENT_DIR: agent,
+        TMPDIR: runtime, XDG_RUNTIME_DIR: runtime, [name]: missing,
+      },
+      encoding: "utf8", timeout: 15000,
+    });
+    assert.ifError(child.error);
+    assert.equal(child.status, 0, child.stderr);
+    assert.match(child.stderr, new RegExp(`${name}.*missing.*continuing without ${access}`));
+    const args = JSON.parse(child.stdout);
+    assert.equal(args[0], "run");
+    assert.ok(args.includes("--profile"));
+    assert.ok(!args.includes(missing));
+    assert.deepEqual(args.slice(-2), [process.execPath, "--version"]);
+  });
+}
+
 test("forged capability markers cannot bypass config errors", () => {
   const { launch, agent } = fixture();
   writeFileSync(join(agent, "settings.json"), "invalid JSON");
@@ -331,6 +380,32 @@ test("retains narrow grants without Podman or SSH private-key access", () => {
   assert.ok(!values(args, "--allow").includes(config));
 });
 
+test("missing XDG_RUNTIME_DIR paths warn without creating directories or adding grants", t => {
+  const { root, launch } = fixture();
+  const expected = launch();
+  const warning = t.mock.method(console, "warn", () => {});
+  const missing = join(root, "missing-runtime");
+  const dangling = join(root, "dangling-runtime");
+  symlinkSync(missing, dangling);
+  const directories = [missing, join(root, "missing-session", "runtime"), dangling];
+  for (const directory of directories) {
+    assert.deepEqual(launch([], { XDG_RUNTIME_DIR: directory }), expected);
+    assert.equal(existsSync(directory), false);
+  }
+  assert.equal(warning.mock.callCount(), directories.length);
+  for (const [index, call] of warning.mock.calls.entries()) {
+    assert.match(call.arguments[0], /XDG_RUNTIME_DIR.*missing.*continuing without runtime-directory access/);
+    assert.ok(call.arguments[0].includes(JSON.stringify(directories[index])));
+  }
+});
+
+test("an existing non-directory XDG_RUNTIME_DIR still fails closed", () => {
+  const { root, launch } = fixture();
+  const file = join(root, "not-a-directory");
+  writeFileSync(file, "fixture");
+  assert.throws(() => launch([], { XDG_RUNTIME_DIR: file }), /Not a directory/);
+});
+
 test("does not create or grant writable direnv trust state while permitting the selected runtime root", () => {
   const { root, home, cwd, agent, raw, profile } = fixture();
   const data = join(root, "data");
@@ -351,9 +426,6 @@ test("does not create or grant writable direnv trust state while permitting the 
   assert.ok(values(approvedArgs, "--read").includes(realpathSync(approvals)));
   assert.ok(!values(approvedArgs, "--allow").includes(realpathSync(approvals)));
   assert.ok(!values(approvedArgs, "--allow").includes(realpathSync(state)));
-  assert.throws(() => launchArguments(cwd, agent, home, {
-    XDG_RUNTIME_DIR: join(root, "missing-runtime"),
-  }, profile, raw, envBinary), /XDG_RUNTIME_DIR must be an existing directory/);
 });
 
 test("global user skills do not require project trust", () => {

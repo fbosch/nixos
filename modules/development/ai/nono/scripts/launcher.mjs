@@ -3,6 +3,7 @@ import { homedir, tmpdir } from "node:os";
 import { delimiter, dirname, isAbsolute, join, resolve, sep } from "node:path";
 import { spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
+import { stripVTControlCharacters } from "node:util";
 import { withProtectedShellProfile } from "./shell-protection.mjs";
 import { assertReadOnlySshGrants, sshClientArguments } from "./ssh-access.mjs";
 import { assertGithubCredentialGrants, direnvGithubEnvironment, prepareGithubEnvironment } from "./github-auth.mjs";
@@ -215,7 +216,11 @@ export function launchArguments(cwd, agentDir, home, environment, profile, rawPi
       // Neovim RPC can execute host commands; authorize only the caller-selected socket.
       extra.push("--allow-unix-socket", neovimSocket);
     } catch (error) {
-      throw new Error(`Cannot grant PI_NVIM_SOCKET access: ${error.message}`);
+      if (error.code === "ENOENT") {
+        console.warn(`pi sandbox launch: PI_NVIM_SOCKET socket is missing (${JSON.stringify(neovimSocket)}); continuing without Neovim access.`);
+      } else {
+        throw new Error(`Cannot grant PI_NVIM_SOCKET access: ${error.message}`);
+      }
     }
   }
   for (const path of [
@@ -235,8 +240,11 @@ export function launchArguments(cwd, agentDir, home, environment, profile, rawPi
   // Explicitly permit devenv's dynamically named directories in the desktop runtime root.
   if (environment.XDG_RUNTIME_DIR) {
     const runtime = existingDirectory(environment.XDG_RUNTIME_DIR);
-    if (runtime === undefined) throw new Error("XDG_RUNTIME_DIR must be an existing directory");
-    extra.push("--allow", runtime);
+    if (runtime === undefined) {
+      console.warn(`pi sandbox launch: XDG_RUNTIME_DIR is missing (${JSON.stringify(environment.XDG_RUNTIME_DIR)}); continuing without runtime-directory access.`);
+    } else {
+      extra.push("--allow", runtime);
+    }
   }
   const args = [
     "run", "--profile", profile, "--allow-cwd", "--suppress-save-prompt", "/",
@@ -297,8 +305,11 @@ export function loadProjectEnvironment(cwd, environment, direnv, run = spawnSync
     timeout: 120_000,
     maxBuffer: 16 * 1024 * 1024,
   });
+  // Direnv can exit zero after evaluation errors; inspect severity and shell diagnostics, not keywords.
+  const diagnostics = stripVTControlCharacters(result.stderr || "");
   if (result.error || result.status !== 0 ||
-      /\b(?:error|failed|failure|cannot|unable)\b|is blocked|permission denied|no such file or directory/i.test(result.stderr || "")) {
+      /^[ \t]*(?:(?:direnv|nix|devenv):[ \t]*)?(?:error|fatal)(?:[ \t:]|$)/im.test(diagnostics) ||
+      /^[^:\r\n]+:[ \t]*(?:line[ \t]+)?\d+:(?![ \t]*warning(?:[ \t:]|$))/im.test(diagnostics)) {
     throw new Error("Project direnv environment load failed; Pi was not launched");
   }
 

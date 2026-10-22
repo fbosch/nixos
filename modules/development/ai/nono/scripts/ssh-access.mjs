@@ -46,7 +46,11 @@ export function sshClientArguments(home, environment) {
       // Authorize signing through the caller's existing agent, not access to private-key files.
       args.push("--allow-unix-socket", socket, "--bypass-protection", socket);
     } catch (error) {
-      throw new Error(`Cannot grant SSH_AUTH_SOCK access: ${error.message}`);
+      if (error.code === "ENOENT") {
+        console.warn(`pi sandbox launch: SSH_AUTH_SOCK socket is missing (${JSON.stringify(socket)}); continuing without SSH agent access.`);
+      } else {
+        throw new Error(`Cannot grant SSH_AUTH_SOCK access: ${error.message}`);
+      }
     }
   }
   return args;
