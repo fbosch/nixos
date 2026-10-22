@@ -63,12 +63,6 @@
         noAnalytics = true;
       };
 
-      komodo = {
-        core.host = "https://komodo.corvus-corax.synology.me";
-        core.allowSignups = false;
-        # periphery.requirePasskey = false;
-      };
-
       uptime-kuma = {
         enable = true;
         settings.HOST = "0.0.0.0";

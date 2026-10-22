@@ -118,10 +118,10 @@ hosts.my-server.modules = [
 - Configure the nixpkgs service directly with `lib.mkDefault` for all values
 - Example: `services.plex.enable = lib.mkDefault true;`
 
-**For custom services (komodo, pihole-container, tinyproxy):**
+**For custom services (pihole-container, tinyproxy):**
 - Use `options.services.<name>` for parameterization
 - Keep all configuration in the module with good defaults
-- Example: `options.services.komodo.core.port = lib.mkOption { default = 9120; }`
+- Example: `options.services.pihole-container.webPort = lib.mkOption { default = 8082; }`
 
 **Why `services.*` and not `modules.*` for options?**
 1. Follows NixOS conventions - service options belong in `services.*` namespace
