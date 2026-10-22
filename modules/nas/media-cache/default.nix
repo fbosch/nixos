@@ -13,6 +13,7 @@ in
     { config, lib, options, pkgs, ... }:
     let
       cfg = config.services.nasMediaCache;
+      mountDependencies = [ "network-online.target" "cachefilesd.service" ];
       scriptedAddressUnits = map (name: "${name}.service") (
         lib.filter (lib.hasPrefix "network-addresses-") (builtins.attrNames config.systemd.services)
       );
@@ -27,9 +28,9 @@ in
         type = "nfs";
         options = "rw,vers=4.1,proto=tcp,sec=sys,resvport,hard,retry=0,fsc,nosuid,nodev,noexec";
         unitConfig = {
-          Requires = [ "network-online.target" "cachefilesd.service" ];
+          Requires = mountDependencies;
           # Keep static non-gateway interfaces up until NFS has unmounted.
-          After = [ "network-online.target" "cachefilesd.service" ] ++ scriptedAddressUnits;
+          After = mountDependencies ++ scriptedAddressUnits;
         };
         mountConfig.TimeoutSec = "30s";
       };

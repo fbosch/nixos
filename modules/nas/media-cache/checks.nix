@@ -1,238 +1,170 @@
 { config, ... }:
 {
-  perSystem =
-    { lib, pkgs, system, ... }:
+  perSystem = { lib, pkgs, system, ... }:
     let
       host = name: config.flake.nixosConfigurations.${name}.config;
       clients = map host [ "rvn-pc" "rvn-srv" ];
       nfsShares = [ "downloads" "music" "video" ];
-      cachedShares = nfsShares ++ [ "LaCie" ];
+      mediaShares = nfsShares ++ [ "LaCie" ];
       privateShares = [ "FrederikDocs" "backup" "cloud-backup" "encrypted" "homes" "photo" "web" "websites" ];
-      mountFor = cfg: share:
-        lib.findFirst (mount: mount.where == "/mnt/nas/${share}") null cfg.systemd.mounts;
-      cacheMount = cfg:
-        lib.findFirst (mount: mount.where == cfg.services.cachefilesd.cacheDir) null cfg.systemd.mounts;
+      mountFor = cfg: path: lib.findFirst (mount: mount.where == path) null cfg.systemd.mounts;
       optionsFor = mount: lib.splitString "," mount.options;
-      smbPaths = map (share: "/mnt/nas/${share}") [ "FrederikDocs" "LaCie" "backup" "cloud-backup" "encrypted" "homes" "photo" "web" "websites" ];
+      hasOptions = required: mount: lib.all (option: lib.elem option (optionsFor mount)) required;
+      cachedMount = mount: mount != null
+        && !(lib.elem "ro" (optionsFor mount))
+        && lib.all (unit: lib.elem unit mount.unitConfig.Requires && lib.elem unit mount.unitConfig.After)
+        [ "network-online.target" "cachefilesd.service" ];
+      clientHealthy = name: size:
+        let
+          cfg = host name;
+          cache = mountFor cfg "/var/cache/fscache";
+          lacie = mountFor cfg "/mnt/nas/LaCie";
+        in
+        cfg.services.cachefilesd.enable
+        && cfg.services.cachefilesd.cacheDir == "/var/cache/fscache"
+        && cfg.services.nasMediaCache.sizeGiB == size
+        && cache != null && cache.type == "ext4"
+        && cache.what == "/var/lib/nas-downloads-cache/cache.img"
+        && hasOptions [ "loop" "nosuid" "nodev" "noexec" ] cache
+        && lib.elem "nas-downloads-cache-image.service" cache.unitConfig.Requires
+        && cfg.systemd.services.nas-downloads-cache-image.serviceConfig.StateDirectory == "nas-downloads-cache"
+        && cfg.systemd.services.nas-downloads-cache-image.unitConfig.RequiresMountsFor == [ "/var/lib/nas-downloads-cache" ]
+        && cfg.systemd.services.cachefilesd.serviceConfig.UMask == "0077"
+        && lib.all
+          (share:
+            let mount = mountFor cfg "/mnt/nas/${share}";
+            in cachedMount mount && mount.type == "nfs"
+            && mount.what == "192.168.1.2:/volume1/${share}"
+            && hasOptions [ "rw" "vers=4.1" "proto=tcp" "sec=sys" "resvport" "hard" "retry=0" "fsc" "nosuid" "nodev" "noexec" ] mount
+          )
+          nfsShares
+        && cachedMount lacie && lacie.type == "cifs" && lacie.what == "//rvn-nas/LaCie"
+        && hasOptions [ "credentials=${cfg.sops.templates.smbcredentials.path}" "iocharset=utf8" "uid=fbb" "gid=media" "forceuid" "forcegid" "file_mode=0660" "dir_mode=0770" "vers=3.1.1" "cache=strict" "fsc" ] lacie
+        && !(lib.elem "cache=loose" (optionsFor lacie))
+        && cfg.services.nas.cachedSmbShares == [ "LaCie" ];
       server = host "rvn-srv";
-      mediaUsers = [ "plex" "bazarr" "prowlarr" "lidarr" "radarr" "sonarr" ];
-    in
-    {
-      checks = lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
-        nas-cache-image = pkgs.runCommand "nas-cache-image-tests"
-          {
-            nativeBuildInputs = with pkgs; [ python3 bash coreutils e2fsprogs util-linux ];
-          } ''
-          python ${./__tests__/cache-image.py} ${./scripts/cache-image.sh}
-          touch "$out"
-        '';
-      };
-
-      nix-unit.tests.nasMediaCache = lib.optionalAttrs (system == "x86_64-linux") {
-        testBothHostsUseCachedReadWriteNfsForVerifiedShares = {
-          expr = map
-            (cfg: map
+      requirements = {
+        "rvn-pc cached mounts" = clientHealthy "rvn-pc" 20;
+        "rvn-srv cached mounts" = clientHealthy "rvn-srv" 10;
+        "unconverted SMB access" = lib.all
+          (cfg:
+            builtins.sort builtins.lessThan cfg.services.nas.smbShares
+            == builtins.sort builtins.lessThan (privateShares ++ [ "LaCie" ])
+            && lib.all
               (share:
-                let mount = mountFor cfg share;
-                in {
-                  inherit (mount) type what;
-                  options = optionsFor mount;
-                }
-              )
-              nfsShares
-            )
-            clients;
-          expected = lib.replicate 2 (map
-            (share: {
-              type = "nfs";
-              what = "192.168.1.2:/volume1/${share}";
-              options = [ "rw" "vers=4.1" "proto=tcp" "sec=sys" "resvport" "hard" "retry=0" "fsc" "nosuid" "nodev" "noexec" ];
-            })
-            nfsShares);
-        };
-
-        testLacieUsesStrictCachedSmbWithoutChangingItsIdentityMapping = {
-          expr = map
-            (cfg:
-              let mount = mountFor cfg "LaCie";
-              in {
-                inherit (mount) type what;
-                options = optionsFor mount;
-                enabledShares = cfg.services.nas.cachedSmbShares;
-              }
-            )
-            clients;
-          expected = map
-            (cfg: {
-              type = "cifs";
-              what = "//rvn-nas/LaCie";
-              options = [
-                "credentials=${cfg.sops.templates.smbcredentials.path}"
-                "uid=fbb"
-                "gid=media"
-                "forceuid"
-                "forcegid"
-                "iocharset=utf8"
-                "file_mode=0660"
-                "dir_mode=0770"
-                "vers=3.1.1"
-                "cache=strict"
-                "fsc"
-              ];
-              enabledShares = [ "LaCie" ];
-            })
-            clients;
-        };
-
-        testUnconvertedSharesKeepSmbOnBothHosts = {
-          expr = map
-            (cfg:
-              builtins.sort builtins.lessThan (
-                map (mount: mount.where)
-                  (builtins.filter (mount: mount.type == "cifs") cfg.systemd.mounts)
-              )
-            )
-            clients;
-          expected = [ smbPaths smbPaths ];
-        };
-
-        testPrivateSharesKeepUserOnlyUncachedSmbAccess = {
-          expr = map
-            (cfg: lib.all
-              (share:
-                let mount = mountFor cfg share; options = optionsFor mount;
-                in mount.type == "cifs"
-                  && lib.elem "gid=users" options
-                  && lib.elem "uid=fbb" options
-                  && lib.elem "file_mode=0660" options
-                  && lib.elem "dir_mode=0770" options
-                  && !(lib.elem "fsc" options)
-                  && !(lib.elem "cachefilesd.service" mount.unitConfig.Requires)
+                let mount = mountFor cfg "/mnt/nas/${share}";
+                in mount != null && mount.type == "cifs"
+                && hasOptions [ "uid=fbb" "gid=users" "file_mode=0660" "dir_mode=0770" ] mount
+                && !(lib.elem "fsc" (optionsFor mount))
+                && !(lib.elem "cachefilesd.service" mount.unitConfig.Requires)
               )
               privateShares
-            )
-            clients;
-          expected = [ true true ];
-        };
-
-        testVirtualMachineKeepsItsUncachedSmbMediaMounts = {
-          expr = map
+          )
+          clients;
+        "rvn-vm SMB mounts" = lib.all
+          (share:
+            let mount = mountFor (host "rvn-vm") "/mnt/nas/${share}";
+            in mount != null && mount.type == "cifs" && mount.what == "//rvn-nas/${share}"
+              && !(lib.elem "fsc" (optionsFor mount))
+          )
+          mediaShares;
+        "media identities" = lib.all
+          (cfg: cfg.users.groups.nas-media.gid == 65537
+            && lib.elem "fbb" cfg.users.groups.nas-media.members
+            && (cfg.users.users.fbb.uid == null || cfg.users.users.fbb.uid == 1000)
+          )
+          clients
+        && lib.all (name: lib.elem "nas-media" server.users.users.${name}.extraGroups)
+          [ "plex" "bazarr" "prowlarr" "lidarr" "radarr" "sonarr" ]
+        && server.services.rdtclient.groupId == 65537;
+        "NFS automount access" = lib.all
+          (cfg: lib.all
             (share:
-              let mount = mountFor (host "rvn-vm") share;
-              in {
-                inherit (mount) type what;
-                cached = lib.elem "fsc" (optionsFor mount);
-              }
+              let mount = lib.findFirst (mount: mount.where == "/mnt/nas/${share}") null cfg.systemd.automounts;
+              in mount != null && mount.automountConfig.DirectoryMode == "0555"
+                && mount.automountConfig.TimeoutIdleSec == (if share == "video" then "0" else "30s")
             )
-            cachedShares;
-          expected = map (share: { type = "cifs"; what = "//rvn-nas/${share}"; cached = false; }) cachedShares;
-        };
+            nfsShares
+          )
+          clients;
+        "persistent cache" = lib.any
+          (directory: directory.directory == "/var/lib/nas-downloads-cache" && directory.mode == "0700")
+          (host "rvn-pc").preservation.preserveAt."/persist".directories;
+        "container mount ordering" = lib.all
+          (line: lib.hasInfix line server.environment.etc."containers/systemd/rdtclient.container".text)
+          [ "RequiresMountsFor=/mnt/nas/downloads\n" "RequiresMountsFor=/mnt/nas/downloads/rdtclient-temp\n" ];
+      };
+      failures = lib.attrNames (lib.filterAttrs (_: healthy: !healthy) requirements);
+    in
+    {
+      checks = lib.optionalAttrs (system == "x86_64-linux") {
+        nas-media-cache = assert lib.assertMsg (failures == [ ])
+          "NAS smoke check failed: ${lib.concatStringsSep ", " failures}";
+          pkgs.runCommand "nas-media-cache-smoke"
+            { nativeBuildInputs = with pkgs; [ python3 bash coreutils e2fsprogs util-linux ]; }
+            ''
+              python -I - ${./scripts/cache-image.sh} <<'PY'
+              import hashlib
+              import subprocess
+              import sys
+              import tempfile
+              from pathlib import Path
 
-        testClientIdentityUsesSharedGroupWithoutChangingUserIds = {
-          expr = map
-            (cfg: {
-              gid = cfg.users.groups.nas-media.gid;
-              uid = cfg.users.users.fbb.uid;
-              member = lib.elem "fbb" cfg.users.groups.nas-media.members;
-            })
-            clients;
-          expected = [
-            { gid = 65537; uid = 1000; member = true; }
-            { gid = 65537; uid = null; member = true; }
-          ];
-        };
+              size = 64 * 1024 * 1024
+              with tempfile.TemporaryDirectory() as temporary:
+                  directory = Path(temporary)
+                  image = directory / "cache.img"
 
-        testMediaServicesAndContainerKeepSharedNasAccess = {
-          expr = {
-            services = map (name: lib.elem "nas-media" server.users.users.${name}.extraGroups) mediaUsers;
-            containerGid = server.services.rdtclient.groupId;
-          };
-          expected = {
-            services = lib.replicate (builtins.length mediaUsers) true;
-            containerGid = 65537;
-          };
-        };
+                  def initialize(capacity=size, succeeds=True):
+                      result = subprocess.run(
+                          ["bash", sys.argv[1], str(image), str(capacity)],
+                          capture_output=True, text=True,
+                      )
+                      assert (result.returncode == 0) == succeeds, f"expected success={succeeds}; exit={result.returncode}: {result.stderr}"
+                      return result
 
-        testCacheImagesHaveHostSpecificCaps = {
-          expr = map (cfg: cfg.services.nasMediaCache.sizeGiB) clients;
-          expected = [ 20 10 ];
-        };
+                  def digest():
+                      return hashlib.sha256(image.read_bytes()).digest()
 
-        testOneDiskBackedCacheReusesThePilotImageAndInitializer = {
-          expr = map
-            (cfg:
-              let mount = cacheMount cfg;
-              in {
-                inherit (mount) type what;
-                initializer = mount.unitConfig.Requires;
-                sourceMounts = cfg.systemd.services.nas-downloads-cache-image.unitConfig.RequiresMountsFor;
-                stateDirectory = cfg.systemd.services.nas-downloads-cache-image.serviceConfig.StateDirectory;
-                daemonMask = cfg.systemd.services.cachefilesd.serviceConfig.UMask;
-              }
-            )
-            clients;
-          expected = lib.replicate 2 {
-            type = "ext4";
-            what = "/var/lib/nas-downloads-cache/cache.img";
-            initializer = [ "nas-downloads-cache-image.service" ];
-            sourceMounts = [ "/var/lib/nas-downloads-cache" ];
-            stateDirectory = "nas-downloads-cache";
-            daemonMask = "0077";
-          };
-        };
+                  initialize()
+                  assert image.stat().st_size == size
+                  assert image.stat().st_mode & 0o777 == 0o600
+                  filesystem = subprocess.check_output(
+                      ["blkid", "-p", "-s", "TYPE", "-o", "value", str(image)], text=True,
+                  ).strip()
+                  assert filesystem == "ext4"
+                  assert list(directory.iterdir()) == [image]
 
-        testAllCachedMountsRequireAndFollowTheSameDaemon = {
-          expr = map
-            (cfg: map
-              (share:
-                let mount = mountFor cfg share;
-                in {
-                  requires = mount.unitConfig.Requires;
-                  followsDaemon = lib.elem "cachefilesd.service" mount.unitConfig.After;
-                }
-              )
-              cachedShares
-            )
-            clients;
-          expected = lib.replicate 2 (lib.replicate 4 {
-            requires = [ "network-online.target" "cachefilesd.service" ];
-            followsDaemon = true;
-          });
-        };
+                  original = digest()
+                  initialize()
+                  assert digest() == original
+                  result = initialize(size * 2, succeeds=False)
+                  assert "size changed" in result.stderr
+                  assert digest() == original
 
-        testVideoMountKeepsPersistentAutomountAndSearchableNfsParents = {
-          expr = map
-            (cfg: map
-              (share:
-                let auto = lib.findFirst (mount: mount.where == "/mnt/nas/${share}") null cfg.systemd.automounts;
-                in { inherit (auto.automountConfig) TimeoutIdleSec DirectoryMode; }
-              )
-              nfsShares
-            )
-            clients;
-          expected = lib.replicate 2 [
-            { TimeoutIdleSec = "30s"; DirectoryMode = "0555"; }
-            { TimeoutIdleSec = "30s"; DirectoryMode = "0555"; }
-            { TimeoutIdleSec = "0"; DirectoryMode = "0555"; }
-          ];
-        };
+                  image.unlink()
+                  with image.open("wb") as file:
+                      file.truncate(size)
+                  original = digest()
+                  initialize(succeeds=False)
+                  assert digest() == original
 
-        testCacheImagePersistsOnTmpfsRootHost = {
-          expr = lib.any
-            (directory:
-              directory.directory == "/var/lib/nas-downloads-cache" && directory.mode == "0700"
-            )
-            (host "rvn-pc").preservation.preserveAt."/persist".directories;
-          expected = true;
-        };
+                  image.unlink()
+                  target = directory / "existing-data"
+                  target.write_bytes(b"unrelated data")
+                  image.symlink_to(target)
+                  initialize(succeeds=False)
+                  assert image.is_symlink()
+                  assert target.read_bytes() == b"unrelated data"
 
-        testContainerRequiresItsDownloadMounts = {
-          expr = lib.all
-            (line:
-              lib.hasInfix line server.environment.etc."containers/systemd/rdtclient.container".text
-            ) [ "RequiresMountsFor=/mnt/nas/downloads\n" "RequiresMountsFor=/mnt/nas/downloads/rdtclient-temp\n" ];
-          expected = true;
-        };
+                  image.unlink()
+                  image.mkdir()
+                  initialize(succeeds=False)
+                  assert image.is_dir()
+                  assert list(image.iterdir()) == []
+              PY
+              touch "$out"
+            '';
       };
     };
 }

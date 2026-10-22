@@ -86,10 +86,27 @@ requires its download mounts before starting. The initializer reuses an existing
 ext4 image but refuses symlinks, other file types, unrecognized filesystems,
 and size changes. It never reformats an existing image.
 
+## Build-time smoke check
+
+Run `nix build --no-link .#checks.x86_64-linux.nas-media-cache`.
+This is the single default NAS check. It validates the configured mounts, cache
+limits, access groups, and startup dependencies, then exercises the real image
+initializer with temporary files. It needs no NAS mounts or decrypted credentials.
+It does not prove live permissions, cache hits, or invalidation.
+
+The last VM run failed when reading an SMB-created file over SMB after modifying
+it over NFS. Whether this also affects the Synology configuration is unknown.
+
+TODO(nas/media-cache maintainer, before hybrid activation): verify cross-protocol
+coherency against the NAS and resolve any failure. Writes through NFS must become
+visible through SMB, and vice versa. A passing smoke check is not clearance to
+activate the hybrid mounts.
+
 ## Switch one host at a time
 
-1. Complete configuration checks and VM tests first. Git-backed flakes need new
-   files under `modules/nas/media-cache/` in the index; a commit is not required.
+1. Pass the smoke check and resolve the coherency activation gate first.
+   Git-backed flakes need new files under `modules/nas/media-cache/` in the
+   index; a commit is not required.
 2. Remove only the provisional LaCie NFS client rules above. Do not change NAS
    file ownership, USB permissions, or the Volume 1 exports.
 3. Pause activity and stop services or processes using `downloads`, `music`,
@@ -106,10 +123,10 @@ and size changes. It never reformats an existing image.
    change through another client invalidates the cached SMB data. Then repeat
    the cutover on the other host.
 
-Builds and VM tests do not verify live Synology permissions, service membership,
-SMB lease behavior, or cache hits. Keep activation and live verification pending
-until these checks pass on both hosts. Do not drop global RAM caches on a live
-media server just to test FS-Cache.
+Build-time checks do not verify live Synology permissions, service membership,
+SMB lease behavior, or cache hits. Keep
+activation and live verification pending until these checks pass on both hosts.
+Do not drop global RAM caches on a live media server just to test FS-Cache.
 
 ## Resizing or discarding the cache
 
