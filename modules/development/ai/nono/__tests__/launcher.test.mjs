@@ -39,6 +39,62 @@ test("profile grants npm cache and log writes without making all npm state writa
   ]);
 });
 
+test("profile permits managed global package reads without package writes", () => {
+  const profile = JSON.parse(readFileSync(new URL("../scripts/profile.json", import.meta.url), "utf8"));
+  const modules = "$HOME/.local/state/pnpm-globals/current/node_modules";
+  assert.ok(profile.filesystem.read.includes(modules));
+  for (const path of ["$HOME/.local/state", "$HOME/.local/state/pnpm-globals", modules]) {
+    assert.ok(!profile.filesystem.allow.includes(path));
+  }
+});
+
+test("Linux launches managed global package shims while protecting packages and neighboring state", {
+  skip: process.platform !== "linux" || !process.env.NONO_TEST_BINARY,
+}, () => {
+  // /tmp is already granted by the default profile, so isolate HOME outside it.
+  const root = realpathSync(mkdtempSync(join(process.cwd(), ".pi-global-package-test-")));
+  created.push(root);
+  const home = join(root, "home");
+  const cwd = join(root, "project");
+  const state = join(home, ".local", "state", "pnpm-globals");
+  const modules = join(state, "current", "node_modules");
+  const bin = join(modules, ".bin");
+  const dependency = join(modules, ".pnpm", "fallow-fixture", "node_modules", "fallow");
+  mkdirSync(bin, { recursive: true });
+  mkdirSync(dependency, { recursive: true });
+  mkdirSync(cwd);
+  const program = join(dependency, "lsp.cjs");
+  writeFileSync(program, 'console.log("fallow-lsp fixture");\n');
+  symlinkSync(dependency, join(modules, "fallow"));
+  const shim = join(bin, "fallow-lsp");
+  writeFileSync(shim, `#!${process.execPath}\nrequire("../fallow/lsp.cjs");\n`, { mode: 0o755 });
+  const neighbor = join(state, "input-fingerprint");
+  writeFileSync(neighbor, "private state");
+  // Only filesystem confinement is under test; keep nested runs offline.
+  const profile = JSON.parse(readFileSync(new URL("../scripts/profile.json", import.meta.url), "utf8"));
+  profile.network = { block: true };
+  profile.credential_capture = {};
+  const offlineProfile = join(root, "profile.json");
+  writeFileSync(offlineProfile, JSON.stringify(profile));
+  const child = spawnSync(process.env.NONO_TEST_BINARY, [
+    "run", "--profile", offlineProfile, "--allow-cwd", "--no-audit", "--no-rollback", "--block-net", "--",
+    process.execPath, "-e", `
+      const assert = require("node:assert/strict");
+      const fs = require("node:fs");
+      const { spawnSync } = require("node:child_process");
+      const [shim, program, neighbor] = process.argv.slice(1);
+      const child = spawnSync(shim, [], { encoding: "utf8" });
+      assert.ifError(child.error);
+      assert.equal(child.status, 0, child.stderr);
+      assert.equal(child.stdout.trim(), "fallow-lsp fixture");
+      assert.throws(() => fs.writeFileSync(program, "changed"), { code: "EACCES" });
+      assert.throws(() => fs.readFileSync(neighbor), { code: "EACCES" });
+    `, shim, program, neighbor,
+  ], { cwd, env: { ...process.env, HOME: home, XDG_STATE_HOME: join(home, ".local", "state") }, encoding: "utf8", timeout: 30000 });
+  assert.ifError(child.error);
+  assert.equal(child.status, 0, child.stderr);
+});
+
 const created = [];
 function fixture() {
   const root = mkdtempSync(join(tmpdir(), "pi-launch-test-"));

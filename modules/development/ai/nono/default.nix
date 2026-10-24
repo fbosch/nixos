@@ -242,6 +242,7 @@ in
               read = [
                 "$HOME/.agents/skills"
                 "$HOME/.local/share/gh/extensions"
+                "$HOME/.local/state/pnpm-globals/current/node_modules"
                 "$HOME/.nvm"
                 "/tmp"
                 "$TMPDIR"
