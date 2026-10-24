@@ -40,13 +40,61 @@ test("profile grants npm cache and log writes without making all npm state writa
   ]);
 });
 
-test("profile grants Claude bridge session storage without exposing credentials", () => {
+test("profile grants Claude sessions and read-only login without exposing all Claude state", () => {
   const profile = JSON.parse(readFileSync(new URL("../scripts/profile.json", import.meta.url), "utf8"));
   assert.ok(profile.filesystem.allow.includes("$HOME/.claude/projects"));
-  for (const path of ["$HOME", "$HOME/.claude", "$HOME/.claude/.credentials.json"]) {
+  assert.ok(profile.filesystem.read.includes("$HOME/.claude/.credentials.json"));
+  assert.ok(!profile.filesystem.allow.includes("$HOME/.claude/.credentials.json"));
+  for (const path of ["$HOME", "$HOME/.claude"]) {
     assert.ok(!profile.filesystem.allow.includes(path));
     assert.ok(!profile.filesystem.read.includes(path));
   }
+});
+
+test("Linux Claude login reads are allowed while credential writes and neighboring state stay denied", {
+  skip: process.platform !== "linux" || !process.env.NONO_TEST_BINARY,
+}, () => {
+  // Keep synthetic HOME outside /tmp and the writable CWD so grants cannot mask denials.
+  const root = realpathSync(mkdtempSync(join(process.cwd(), ".pi-claude-auth-test-")));
+  created.push(root);
+  const home = join(root, "home");
+  const cwd = join(root, "work");
+  const claude = join(home, ".claude");
+  for (const directory of [cwd, join(root, "tmp"), join(claude, "projects"), join(home, ".azure"), join(home, ".config"), join(home, ".cache"), join(home, ".local", "state")]) {
+    mkdirSync(directory, { recursive: true });
+  }
+  writeFileSync(join(claude, ".credentials.json"), "synthetic-credential", { mode: 0o600 });
+  writeFileSync(join(claude, "neighbor-secret"), "synthetic-neighbor", { mode: 0o600 });
+  const profile = JSON.parse(readFileSync(new URL("../scripts/profile.json", import.meta.url), "utf8"));
+  profile.network = { block: true };
+  profile.credential_capture = {};
+  const profilePath = join(root, "offline.json");
+  writeFileSync(profilePath, JSON.stringify(profile));
+  const child = spawnSync(process.env.NONO_TEST_BINARY, [
+    "run", "--profile", profilePath, "--allow-cwd", "--no-audit", "--no-rollback", "--block-net", "--",
+    process.execPath, "-e", `
+      const assert = require("node:assert/strict");
+      const fs = require("node:fs");
+      const path = require("node:path");
+      const claude = process.argv[1];
+      const credential = path.join(claude, ".credentials.json");
+      const denied = error => ["EACCES", "EPERM"].includes(error.code);
+      assert.equal(fs.readFileSync(credential, "utf8"), "synthetic-credential");
+      assert.throws(() => fs.writeFileSync(credential, "changed"), denied);
+      assert.throws(() => fs.writeFileSync(path.join(claude, "refresh.tmp"), "changed"), denied);
+      assert.throws(() => fs.readFileSync(path.join(claude, "neighbor-secret")), denied);
+      const session = path.join(claude, "projects", "fixture-project");
+      fs.mkdirSync(session);
+      fs.writeFileSync(path.join(session, "session.jsonl"), "{}");
+      assert.equal(fs.readFileSync(path.join(session, "session.jsonl"), "utf8"), "{}");
+    `, claude,
+  ], {
+    cwd,
+    env: { PATH: process.env.PATH, HOME: home, TMPDIR: join(root, "tmp"), XDG_CONFIG_HOME: join(home, ".config"), XDG_CACHE_HOME: join(home, ".cache"), XDG_STATE_HOME: join(home, ".local", "state") },
+    encoding: "utf8", timeout: 30000,
+  });
+  assert.ifError(child.error);
+  assert.equal(child.status, 0, child.stderr);
 });
 
 test("profile permits managed global package reads without package writes", () => {

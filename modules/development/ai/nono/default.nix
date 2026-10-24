@@ -241,6 +241,7 @@ in
                 }
               ];
               read = [
+                "$HOME/.claude/.credentials.json"
                 "$HOME/.agents/skills"
                 "$HOME/.local/share/gh/extensions"
                 "$HOME/.local/state/pnpm-globals/current/node_modules"
