@@ -230,6 +230,7 @@ in
             filesystem = {
               allow = [
                 "$HOME/.pi"
+                "$HOME/.claude/projects"
                 "$HOME/.npm/_cacache"
                 "$HOME/.npm/_logs"
                 "$HOME/.azure"

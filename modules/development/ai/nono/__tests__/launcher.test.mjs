@@ -31,12 +31,22 @@ test("profile grants npm cache and log writes without making all npm state writa
   const profile = JSON.parse(readFileSync(new URL("../scripts/profile.json", import.meta.url), "utf8"));
   assert.deepEqual(profile.filesystem.allow, [
     "$HOME/.pi",
+    "$HOME/.claude/projects",
     "$HOME/.npm/_cacache",
     "$HOME/.npm/_logs",
     "$HOME/.azure",
     "$HOME/.azure-devops/python-sdk/cache",
     { path: "/dev/dri", when: "linux" },
   ]);
+});
+
+test("profile grants Claude bridge session storage without exposing credentials", () => {
+  const profile = JSON.parse(readFileSync(new URL("../scripts/profile.json", import.meta.url), "utf8"));
+  assert.ok(profile.filesystem.allow.includes("$HOME/.claude/projects"));
+  for (const path of ["$HOME", "$HOME/.claude", "$HOME/.claude/.credentials.json"]) {
+    assert.ok(!profile.filesystem.allow.includes(path));
+    assert.ok(!profile.filesystem.read.includes(path));
+  }
 });
 
 test("profile permits managed global package reads without package writes", () => {
