@@ -56,6 +56,46 @@ let
       ];
     };
   };
+  # shortcut: Mirror upstream without its removed-option assertion; drop this when preservation stops reading `boot.initrd.systemd.enable`.
+  preservationSystemModule =
+    { config, lib, ... }:
+    let
+      cfg = config.preservation;
+      inherit (import "${inputs.preservation}/lib.nix" { inherit lib; })
+        mkRegularMountUnits
+        mkInitrdMountUnits
+        mkRegularTmpfilesRules
+        mkInitrdTmpfilesRules
+        ;
+    in
+    {
+      imports = [ "${inputs.preservation}/options.nix" ];
+      config = lib.mkIf cfg.enable {
+        boot.initrd.systemd = {
+          targets.initrd-preservation = {
+            description = "Initrd Preservation Mounts";
+            before = [ "initrd.target" ];
+            wantedBy = [ "initrd.target" ];
+          };
+          tmpfiles.settings.preservation = lib.mkMerge (
+            lib.flatten (lib.mapAttrsToList mkInitrdTmpfilesRules cfg.preserveAt)
+          );
+          mounts = lib.flatten (lib.mapAttrsToList mkInitrdMountUnits cfg.preserveAt);
+        };
+
+        systemd = {
+          targets.preservation = {
+            description = "Preservation Mounts";
+            before = [ "sysinit.target" ];
+            wantedBy = [ "sysinit.target" ];
+          };
+          tmpfiles.settings.preservation = lib.mkMerge (
+            lib.flatten (lib.mapAttrsToList mkRegularTmpfilesRules cfg.preserveAt)
+          );
+          mounts = lib.flatten (lib.mapAttrsToList mkRegularMountUnits cfg.preserveAt);
+        };
+      };
+    };
 in
 {
   flake.modules = {
@@ -63,12 +103,11 @@ in
       { lib, ... }:
       {
         imports = [
-          inputs.preservation.nixosModules.preservation
+          preservationSystemModule
           config.flake.modules.nixos.preservation
         ];
 
         boot.initrd.systemd = {
-          enable = true;
           services.verify-persistent-machine-id = {
             description = "Verify restored persistent machine ID";
             requires = [ "sysroot-persist.mount" ];
@@ -405,7 +444,6 @@ in
 
         testBootContract = {
           expr = {
-            initrdSystemd = future.boot.initrd.systemd.enable;
             nixNeededForBoot = future.fileSystems."/nix".neededForBoot;
             persistNeededForBoot = future.fileSystems."/persist".neededForBoot;
             machineIdCommitSuppressed = lib.elem "systemd-machine-id-commit.service" future.systemd.suppressedSystemUnits;
@@ -442,7 +480,6 @@ in
             };
           };
           expected = {
-            initrdSystemd = true;
             nixNeededForBoot = true;
             persistNeededForBoot = true;
             machineIdCommitSuppressed = true;

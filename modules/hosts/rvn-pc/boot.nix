@@ -29,8 +29,6 @@
             "ntsync"
             "rtc_cmos"
           ];
-          # Optimize tmpfs usage for 32GB RAM system
-          verbose = false;
           systemd.tpm2.enable = true;
           luks.devices.cryptsystem.crypttabExtraOpts = [ "tpm2-device=atuo" ];
         };
