@@ -313,12 +313,13 @@ diff --git a/packages/coding-agent/src/modes/interactive/components/user-message
 diff --git a/packages/coding-agent/src/modes/interactive/components/login-dialog.ts b/packages/coding-agent/src/modes/interactive/components/login-dialog.ts
 --- a/packages/coding-agent/src/modes/interactive/components/login-dialog.ts
 +++ b/packages/coding-agent/src/modes/interactive/components/login-dialog.ts
-@@ -83,7 +83,7 @@
- 		);
+@@ -103,8 +103,8 @@
+ 		this.deviceCodeAction = undefined;
  	}
  
 -	private cancel(): void {
 +	cancel(): void {
+ 		this.clearDeviceCodeAction();
  		this.abortController.abort();
  		if (this.inputRejecter) {
  			this.inputRejecter(new Error("Login cancelled"));

@@ -17,23 +17,28 @@ let
               previous:
               let
                 chromium = builtins.head previous.buildInputs;
+                upstreamWrapper = ''
+                  wrapProgram $out/bin/agent-browser \
+                    --set AGENT_BROWSER_EXECUTABLE_PATH ${chromium}/bin/chromium
+                '';
                 browserPath = pkgs.lib.makeBinPath [
                   pkgs.local.lightpanda
                   chromium
                 ];
               in
               assert pkgs.lib.assertMsg
-                (
-                  builtins.hashFile "sha256" "${inputs.llm-agents.outPath}/packages/agent-browser/package.nix"
-                  == "8e6505687dbda7f78ac1f3f99b743422c049bf2d21c7f91b407062fcdfb89d93"
-                ) "Review the agent-browser wrapper: upstream postInstall changed";
+                (pkgs.lib.hasInfix (builtins.unsafeDiscardStringContext upstreamWrapper) previous.postInstall)
+                "Review the agent-browser wrapper: upstream postInstall changed";
               {
                 # Avoid the generic executable path: agent-browser applies it to every engine.
-                postInstall = ''
-                  mkdir -p $out/share/agent-browser
-                  cp -r ../skills ../skill-data $out/share/agent-browser/
-                  wrapProgram $out/bin/agent-browser --set AGENT_BROWSER_ENGINE lightpanda --prefix PATH : ${browserPath}
-                '';
+                postInstall = pkgs.lib.replaceStrings
+                  [ upstreamWrapper ]
+                  [
+                    ''
+                      wrapProgram $out/bin/agent-browser --set AGENT_BROWSER_ENGINE lightpanda --prefix PATH : ${browserPath}
+                    ''
+                  ]
+                  previous.postInstall;
               }
             )
         else
