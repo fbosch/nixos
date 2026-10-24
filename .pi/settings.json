@@ -1,4 +1,7 @@
 {
+  "toolOutput": {
+    "enabled": true
+  },
   "references": {
     "dotfiles": {
       "path": "~/dotfiles",

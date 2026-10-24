@@ -1,137 +1,3 @@
-diff --git a/packages/ai/src/api/anthropic-messages.ts b/packages/ai/src/api/anthropic-messages.ts
-index 00d82034..2c1a1ebb 100644
---- a/packages/ai/src/api/anthropic-messages.ts
-+++ b/packages/ai/src/api/anthropic-messages.ts
-@@ -41,7 +41,7 @@ import { appendAssistantMessageDiagnostic } from "../utils/diagnostics.ts";
- import { AssistantMessageEventStream } from "../utils/event-stream.ts";
- import { headersToRecord } from "../utils/headers.ts";
- import { type ClientIdentity, getIdentityHeaders } from "../utils/identity.ts";
--import { parseJsonWithRepair, parseStreamingJson, parseToolCallArguments } from "../utils/json-parse.ts";
-+import { parseJsonWithRepair, parseStreamingJsonWhileStreaming, parseToolCallArguments } from "../utils/json-parse.ts";
- import {
- 	applyOpenRouterReportedCost,
- 	isOpenRouterModel,
-@@ -802,7 +802,7 @@ export const stream: StreamFunction<"anthropic-messages", AnthropicOptions> = (
- 						const block = blocks[index];
- 						if (block && block.type === "toolCall") {
- 							block.partialJson += event.delta.partial_json;
--							block.arguments = parseStreamingJson(block.partialJson);
-+							block.arguments = parseStreamingJsonWhileStreaming(block, block.partialJson, block.arguments);
- 							stream.push({
- 								type: "toolcall_delta",
- 								contentIndex: index,
-diff --git a/packages/ai/src/api/bedrock-converse-stream.ts b/packages/ai/src/api/bedrock-converse-stream.ts
-index 8c6df253..74b940e1 100644
---- a/packages/ai/src/api/bedrock-converse-stream.ts
-+++ b/packages/ai/src/api/bedrock-converse-stream.ts
-@@ -54,7 +54,7 @@ import { normalizeProviderError } from "../utils/error-body.ts";
- import { AssistantMessageEventStream } from "../utils/event-stream.ts";
- import { providerHeadersToRecord } from "../utils/headers.ts";
- import { type ClientIdentity, getClientVersion } from "../utils/identity.ts";
--import { parseStreamingJson, parseToolCallArguments } from "../utils/json-parse.ts";
-+import { parseStreamingJsonWhileStreaming, parseToolCallArguments } from "../utils/json-parse.ts";
- import { resolveHttpProxyUrlForTarget } from "../utils/node-http-proxy.ts";
- import { getProviderEnvValue } from "../utils/provider-env.ts";
- import { sanitizeSurrogates } from "../utils/sanitize-unicode.ts";
-@@ -640,7 +640,7 @@ function handleContentBlockDelta(
- 		}
- 	} else if (delta?.toolUse && block?.type === "toolCall") {
- 		block.partialJson = (block.partialJson || "") + (delta.toolUse.input || "");
--		block.arguments = parseStreamingJson(block.partialJson);
-+		block.arguments = parseStreamingJsonWhileStreaming(block, block.partialJson, block.arguments);
- 		stream.push({ type: "toolcall_delta", contentIndex: index, delta: delta.toolUse.input || "", partial: output });
- 	} else if (delta?.reasoningContent) {
- 		let thinkingBlock = block;
-diff --git a/packages/ai/src/api/mistral-conversations.ts b/packages/ai/src/api/mistral-conversations.ts
-index 9ac71039..dbc14f0d 100644
---- a/packages/ai/src/api/mistral-conversations.ts
-+++ b/packages/ai/src/api/mistral-conversations.ts
-@@ -18,7 +18,7 @@ import { AssistantMessageEventStream } from "../utils/event-stream.ts";
- import { shortHash } from "../utils/hash.ts";
- import { headersToRecord } from "../utils/headers.ts";
- import { getIdentityHeaders } from "../utils/identity.ts";
--import { parseStreamingJson, parseToolCallArguments } from "../utils/json-parse.ts";
-+import { parseStreamingJsonWhileStreaming, parseToolCallArguments } from "../utils/json-parse.ts";
- import { sanitizeSurrogates } from "../utils/sanitize-unicode.ts";
- import { getSystemMessageText, renderSystemMessageUpdate } from "../utils/text.ts";
- import { getCurrentTools, resolveTranscript } from "../utils/transcript.ts";
-@@ -746,7 +746,7 @@ async function consumeChatStream(
- 					? toolCall.function.arguments
- 					: JSON.stringify(toolCall.function.arguments || {});
- 			block.partialArgs = (block.partialArgs || "") + argsDelta;
--			block.arguments = parseStreamingJson<ToolCall["arguments"]>(block.partialArgs);
-+			block.arguments = parseStreamingJsonWhileStreaming(block, block.partialArgs, block.arguments);
- 			stream.push({
- 				type: "toolcall_delta",
- 				contentIndex: toolBlocksByKey.get(key)!,
-diff --git a/packages/ai/src/api/openai-completions.ts b/packages/ai/src/api/openai-completions.ts
-index a752d304..92f4b586 100644
---- a/packages/ai/src/api/openai-completions.ts
-+++ b/packages/ai/src/api/openai-completions.ts
-@@ -40,7 +40,7 @@ import { AssistantMessageEventStream } from "../utils/event-stream.ts";
- import { shortHash } from "../utils/hash.ts";
- import { headersToRecord } from "../utils/headers.ts";
- import { type ClientIdentity, getIdentityHeaders } from "../utils/identity.ts";
--import { parseStreamingJson, parseToolCallArguments } from "../utils/json-parse.ts";
-+import { parseStreamingJsonWhileStreaming, parseToolCallArguments } from "../utils/json-parse.ts";
- import {
- 	applyOpenRouterReportedCost,
- 	isOpenRouterModel,
-@@ -674,7 +674,7 @@ export const stream: StreamFunction<"openai-completions", OpenAICompletionsOptio
- 							if (toolCall.function?.arguments) {
- 								delta = toolCall.function.arguments;
- 								block.partialArgs = (block.partialArgs ?? "") + toolCall.function.arguments;
--								block.arguments = parseStreamingJson(block.partialArgs);
-+								block.arguments = parseStreamingJsonWhileStreaming(block, block.partialArgs, block.arguments);
- 							} else if (toolCall.custom?.input) {
- 								const nextInput = getCustomToolCallInput(block) + toolCall.custom.input;
- 								delta = appendCustomToolCallInput(block, nextInput, false) ?? "";
-diff --git a/packages/ai/src/api/openai-responses-shared.ts b/packages/ai/src/api/openai-responses-shared.ts
-index 3f637105..6f99a081 100644
---- a/packages/ai/src/api/openai-responses-shared.ts
-+++ b/packages/ai/src/api/openai-responses-shared.ts
-@@ -33,7 +33,7 @@ import type {
- } from "../types.ts";
- import type { AssistantMessageEventStream } from "../utils/event-stream.ts";
- import { shortHash } from "../utils/hash.ts";
--import { parseStreamingJson, parseToolCallArguments } from "../utils/json-parse.ts";
-+import { parseStreamingJson, parseStreamingJsonWhileStreaming, parseToolCallArguments } from "../utils/json-parse.ts";
- import { sanitizeSurrogates } from "../utils/sanitize-unicode.ts";
- import { getSystemMessageText, renderSystemMessageUpdate } from "../utils/text.ts";
- import { resolveTranscript, resolveTranscriptTools, type TranscriptToolSupport } from "../utils/transcript.ts";
-@@ -734,7 +734,7 @@ export async function processResponsesStream<TApi extends Api>(
- 			const slot = getSlot(event.output_index, "toolCall");
- 			if (!slot || slot.block.partialJson === undefined) continue;
- 			slot.block.partialJson += event.delta;
--			slot.block.arguments = parseStreamingJson(slot.block.partialJson);
-+			slot.block.arguments = parseStreamingJsonWhileStreaming(slot.block, slot.block.partialJson, slot.block.arguments);
- 			pushToolCallDelta(slot, event.delta);
- 		} else if (event.type === "response.function_call_arguments.done") {
- 			const slot = getSlot(event.output_index, "toolCall");
-diff --git a/packages/ai/src/api/pi-messages.ts b/packages/ai/src/api/pi-messages.ts
-index 83ddc06c..c9c0e38f 100644
---- a/packages/ai/src/api/pi-messages.ts
-+++ b/packages/ai/src/api/pi-messages.ts
-@@ -28,7 +28,7 @@ import { appendAssistantMessageDiagnostic, createAssistantMessageDiagnostic } fr
- import { AssistantMessageEventStream } from "../utils/event-stream.ts";
- import { headersToRecord, providerHeadersToRecord } from "../utils/headers.ts";
- import { getIdentityHeaders } from "../utils/identity.ts";
--import { parseStreamingJson } from "../utils/json-parse.ts";
-+import { parseStreamingJsonWhileStreaming } from "../utils/json-parse.ts";
- import { getProviderEnvValue } from "../utils/provider-env.ts";
- 
- export interface PiMessagesOptions extends StreamOptions {
-@@ -263,8 +263,8 @@ function createEventConverter(model: Model<"pi-messages">) {
- 			case "toolcall_delta": {
- 				const json = `${toolJson.get(event.contentIndex) ?? ""}${event.delta}`;
- 				toolJson.set(event.contentIndex, json);
--				(partial.content[event.contentIndex] as ToolCall).arguments =
--					parseStreamingJson<ToolCall["arguments"]>(json);
-+				const block = partial.content[event.contentIndex] as ToolCall;
-+				block.arguments = parseStreamingJsonWhileStreaming(block, json, block.arguments);
- 				break;
- 			}
- 			case "toolcall_end":
 diff --git a/packages/ai/src/utils/json-parse.ts b/packages/ai/src/utils/json-parse.ts
 index d6fdce63..cd008de9 100644
 --- a/packages/ai/src/utils/json-parse.ts
@@ -328,3 +194,38 @@ index d6fdce63..cd008de9 100644
 +	parsedLengths.set(block, length);
 +	return parseStreamingJson<T>(text);
 +}
+
+diff --git a/packages/ai/src/utils/streaming-json.ts b/packages/ai/src/utils/streaming-json.ts
+--- a/packages/ai/src/utils/streaming-json.ts
++++ b/packages/ai/src/utils/streaming-json.ts
+@@ -456,1 +456,2 @@
+-	#arguments: ToolCall["arguments"] = {};
++	#arguments: ToolCall["arguments"] = {};
++	#lastPreviewLength = 0;
+@@ -479,2 +480,5 @@
+-		this.#text = "";
+-		this.#parser = new StreamingJsonParser();
++		this.#text = "";
++		this.#parser = new StreamingJsonParser();
++		this.#snapshot = undefined;
++		this.#arguments = {};
++		this.#lastPreviewLength = 0;
+@@ -489,5 +493,12 @@
+-	#partial(): ToolCall["arguments"] {
+-		const snapshot = this.#parser.snapshot();
+-		if (snapshot === this.#snapshot) return this.#arguments;
+-		this.#snapshot = snapshot;
+-		// Tool arguments are an object; any other partial value shows as no arguments yet.
++	#partial(): ToolCall["arguments"] {
++		const length = this.#text.length;
++		if (
++			this.#snapshot !== undefined &&
++			length - this.#lastPreviewLength < (this.#lastPreviewLength < 1024 ? 1 : Math.floor(this.#lastPreviewLength / 8))
++		) {
++			return this.#arguments;
++		}
++		const snapshot = this.#parser.snapshot();
++		if (snapshot === this.#snapshot) return this.#arguments;
++		this.#snapshot = snapshot;
++		this.#lastPreviewLength = length;
++		// Tool arguments are an object; any other partial value shows as no arguments yet.

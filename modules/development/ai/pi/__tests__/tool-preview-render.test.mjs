@@ -11,7 +11,8 @@ const { ToolExecutionComponent } = await load(packageRoot, "modes/interactive/co
 const { AssistantMessageComponent } = await load(packageRoot, "modes/interactive/components/assistant-message.js");
 const { InteractiveMode } = await load(packageRoot, "modes/interactive/interactive-mode.js");
 const { initTheme } = await load(packageRoot, "modes/interactive/theme/theme.js");
-const { parseStreamingJsonWhileStreaming, parseToolCallArguments } = await load(join(packageRoot, "../pi-ai"), "utils/json-parse.js");
+const { parseToolCallArguments } = await load(join(packageRoot, "../pi-ai"), "utils/json-parse.js");
+const { ToolCallArgumentsStream } = await load(join(packageRoot, "../pi-ai"), "utils/streaming-json.js");
 initTheme("dark");
 
 function renderer(observe = () => {}) {
@@ -73,8 +74,8 @@ test("unchanged arguments reuse the tool preview, while new argument objects reb
   assert.equal(rendered, initial);
   assert.deepEqual(component.render(100), before);
   assert.equal(component.updateArgs({ ...args }), true);
-  assert.equal(rendered, initial + 1);
   assert.deepEqual(component.render(100), before);
+  assert.equal(rendered, initial + 1);
   assert.equal(component.updateArgs({ ...args, text: "changed æøå" }), true);
   assert.ok(component.render(100).join("\n").includes("changed æøå"));
 });
@@ -134,9 +135,10 @@ for (const chunkSize of [1, 16, 128]) {
     await f.update("toolcall_start");
     let drawn = f.host.chatContainer.render(80);
     let parsed = 0;
+    const argumentsStream = new ToolCallArgumentsStream();
     for (let end = chunkSize; end < json.length + chunkSize; end += chunkSize) {
       const before = block.arguments;
-      block.arguments = parseStreamingJsonWhileStreaming(block, json.slice(0, end), before);
+      block.arguments = argumentsStream.append(json.slice(end - chunkSize, end));
       const frames = f.frames();
       await f.update();
       assert.equal(f.frames() > frames, before !== block.arguments, "only changed argument snapshots request frames");
