@@ -47,6 +47,7 @@ let
     {
       environment.systemPackages = [
         llmAgents.codex
+        llmAgents.claude-code
         llmAgents.openspec
         agentBrowser
         pkgs.local.caliper
