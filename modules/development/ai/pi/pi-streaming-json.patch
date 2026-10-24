@@ -1,0 +1,330 @@
+diff --git a/packages/ai/src/api/anthropic-messages.ts b/packages/ai/src/api/anthropic-messages.ts
+index 00d82034..2c1a1ebb 100644
+--- a/packages/ai/src/api/anthropic-messages.ts
++++ b/packages/ai/src/api/anthropic-messages.ts
+@@ -41,7 +41,7 @@ import { appendAssistantMessageDiagnostic } from "../utils/diagnostics.ts";
+ import { AssistantMessageEventStream } from "../utils/event-stream.ts";
+ import { headersToRecord } from "../utils/headers.ts";
+ import { type ClientIdentity, getIdentityHeaders } from "../utils/identity.ts";
+-import { parseJsonWithRepair, parseStreamingJson, parseToolCallArguments } from "../utils/json-parse.ts";
++import { parseJsonWithRepair, parseStreamingJsonWhileStreaming, parseToolCallArguments } from "../utils/json-parse.ts";
+ import {
+ 	applyOpenRouterReportedCost,
+ 	isOpenRouterModel,
+@@ -802,7 +802,7 @@ export const stream: StreamFunction<"anthropic-messages", AnthropicOptions> = (
+ 						const block = blocks[index];
+ 						if (block && block.type === "toolCall") {
+ 							block.partialJson += event.delta.partial_json;
+-							block.arguments = parseStreamingJson(block.partialJson);
++							block.arguments = parseStreamingJsonWhileStreaming(block, block.partialJson, block.arguments);
+ 							stream.push({
+ 								type: "toolcall_delta",
+ 								contentIndex: index,
+diff --git a/packages/ai/src/api/bedrock-converse-stream.ts b/packages/ai/src/api/bedrock-converse-stream.ts
+index 8c6df253..74b940e1 100644
+--- a/packages/ai/src/api/bedrock-converse-stream.ts
++++ b/packages/ai/src/api/bedrock-converse-stream.ts
+@@ -54,7 +54,7 @@ import { normalizeProviderError } from "../utils/error-body.ts";
+ import { AssistantMessageEventStream } from "../utils/event-stream.ts";
+ import { providerHeadersToRecord } from "../utils/headers.ts";
+ import { type ClientIdentity, getClientVersion } from "../utils/identity.ts";
+-import { parseStreamingJson, parseToolCallArguments } from "../utils/json-parse.ts";
++import { parseStreamingJsonWhileStreaming, parseToolCallArguments } from "../utils/json-parse.ts";
+ import { resolveHttpProxyUrlForTarget } from "../utils/node-http-proxy.ts";
+ import { getProviderEnvValue } from "../utils/provider-env.ts";
+ import { sanitizeSurrogates } from "../utils/sanitize-unicode.ts";
+@@ -640,7 +640,7 @@ function handleContentBlockDelta(
+ 		}
+ 	} else if (delta?.toolUse && block?.type === "toolCall") {
+ 		block.partialJson = (block.partialJson || "") + (delta.toolUse.input || "");
+-		block.arguments = parseStreamingJson(block.partialJson);
++		block.arguments = parseStreamingJsonWhileStreaming(block, block.partialJson, block.arguments);
+ 		stream.push({ type: "toolcall_delta", contentIndex: index, delta: delta.toolUse.input || "", partial: output });
+ 	} else if (delta?.reasoningContent) {
+ 		let thinkingBlock = block;
+diff --git a/packages/ai/src/api/mistral-conversations.ts b/packages/ai/src/api/mistral-conversations.ts
+index 9ac71039..dbc14f0d 100644
+--- a/packages/ai/src/api/mistral-conversations.ts
++++ b/packages/ai/src/api/mistral-conversations.ts
+@@ -18,7 +18,7 @@ import { AssistantMessageEventStream } from "../utils/event-stream.ts";
+ import { shortHash } from "../utils/hash.ts";
+ import { headersToRecord } from "../utils/headers.ts";
+ import { getIdentityHeaders } from "../utils/identity.ts";
+-import { parseStreamingJson, parseToolCallArguments } from "../utils/json-parse.ts";
++import { parseStreamingJsonWhileStreaming, parseToolCallArguments } from "../utils/json-parse.ts";
+ import { sanitizeSurrogates } from "../utils/sanitize-unicode.ts";
+ import { getSystemMessageText, renderSystemMessageUpdate } from "../utils/text.ts";
+ import { getCurrentTools, resolveTranscript } from "../utils/transcript.ts";
+@@ -746,7 +746,7 @@ async function consumeChatStream(
+ 					? toolCall.function.arguments
+ 					: JSON.stringify(toolCall.function.arguments || {});
+ 			block.partialArgs = (block.partialArgs || "") + argsDelta;
+-			block.arguments = parseStreamingJson<ToolCall["arguments"]>(block.partialArgs);
++			block.arguments = parseStreamingJsonWhileStreaming(block, block.partialArgs, block.arguments);
+ 			stream.push({
+ 				type: "toolcall_delta",
+ 				contentIndex: toolBlocksByKey.get(key)!,
+diff --git a/packages/ai/src/api/openai-completions.ts b/packages/ai/src/api/openai-completions.ts
+index a752d304..92f4b586 100644
+--- a/packages/ai/src/api/openai-completions.ts
++++ b/packages/ai/src/api/openai-completions.ts
+@@ -40,7 +40,7 @@ import { AssistantMessageEventStream } from "../utils/event-stream.ts";
+ import { shortHash } from "../utils/hash.ts";
+ import { headersToRecord } from "../utils/headers.ts";
+ import { type ClientIdentity, getIdentityHeaders } from "../utils/identity.ts";
+-import { parseStreamingJson, parseToolCallArguments } from "../utils/json-parse.ts";
++import { parseStreamingJsonWhileStreaming, parseToolCallArguments } from "../utils/json-parse.ts";
+ import {
+ 	applyOpenRouterReportedCost,
+ 	isOpenRouterModel,
+@@ -674,7 +674,7 @@ export const stream: StreamFunction<"openai-completions", OpenAICompletionsOptio
+ 							if (toolCall.function?.arguments) {
+ 								delta = toolCall.function.arguments;
+ 								block.partialArgs = (block.partialArgs ?? "") + toolCall.function.arguments;
+-								block.arguments = parseStreamingJson(block.partialArgs);
++								block.arguments = parseStreamingJsonWhileStreaming(block, block.partialArgs, block.arguments);
+ 							} else if (toolCall.custom?.input) {
+ 								const nextInput = getCustomToolCallInput(block) + toolCall.custom.input;
+ 								delta = appendCustomToolCallInput(block, nextInput, false) ?? "";
+diff --git a/packages/ai/src/api/openai-responses-shared.ts b/packages/ai/src/api/openai-responses-shared.ts
+index 3f637105..6f99a081 100644
+--- a/packages/ai/src/api/openai-responses-shared.ts
++++ b/packages/ai/src/api/openai-responses-shared.ts
+@@ -33,7 +33,7 @@ import type {
+ } from "../types.ts";
+ import type { AssistantMessageEventStream } from "../utils/event-stream.ts";
+ import { shortHash } from "../utils/hash.ts";
+-import { parseStreamingJson, parseToolCallArguments } from "../utils/json-parse.ts";
++import { parseStreamingJson, parseStreamingJsonWhileStreaming, parseToolCallArguments } from "../utils/json-parse.ts";
+ import { sanitizeSurrogates } from "../utils/sanitize-unicode.ts";
+ import { getSystemMessageText, renderSystemMessageUpdate } from "../utils/text.ts";
+ import { resolveTranscript, resolveTranscriptTools, type TranscriptToolSupport } from "../utils/transcript.ts";
+@@ -734,7 +734,7 @@ export async function processResponsesStream<TApi extends Api>(
+ 			const slot = getSlot(event.output_index, "toolCall");
+ 			if (!slot || slot.block.partialJson === undefined) continue;
+ 			slot.block.partialJson += event.delta;
+-			slot.block.arguments = parseStreamingJson(slot.block.partialJson);
++			slot.block.arguments = parseStreamingJsonWhileStreaming(slot.block, slot.block.partialJson, slot.block.arguments);
+ 			pushToolCallDelta(slot, event.delta);
+ 		} else if (event.type === "response.function_call_arguments.done") {
+ 			const slot = getSlot(event.output_index, "toolCall");
+diff --git a/packages/ai/src/api/pi-messages.ts b/packages/ai/src/api/pi-messages.ts
+index 83ddc06c..c9c0e38f 100644
+--- a/packages/ai/src/api/pi-messages.ts
++++ b/packages/ai/src/api/pi-messages.ts
+@@ -28,7 +28,7 @@ import { appendAssistantMessageDiagnostic, createAssistantMessageDiagnostic } fr
+ import { AssistantMessageEventStream } from "../utils/event-stream.ts";
+ import { headersToRecord, providerHeadersToRecord } from "../utils/headers.ts";
+ import { getIdentityHeaders } from "../utils/identity.ts";
+-import { parseStreamingJson } from "../utils/json-parse.ts";
++import { parseStreamingJsonWhileStreaming } from "../utils/json-parse.ts";
+ import { getProviderEnvValue } from "../utils/provider-env.ts";
+ 
+ export interface PiMessagesOptions extends StreamOptions {
+@@ -263,8 +263,8 @@ function createEventConverter(model: Model<"pi-messages">) {
+ 			case "toolcall_delta": {
+ 				const json = `${toolJson.get(event.contentIndex) ?? ""}${event.delta}`;
+ 				toolJson.set(event.contentIndex, json);
+-				(partial.content[event.contentIndex] as ToolCall).arguments =
+-					parseStreamingJson<ToolCall["arguments"]>(json);
++				const block = partial.content[event.contentIndex] as ToolCall;
++				block.arguments = parseStreamingJsonWhileStreaming(block, json, block.arguments);
+ 				break;
+ 			}
+ 			case "toolcall_end":
+diff --git a/packages/ai/src/utils/json-parse.ts b/packages/ai/src/utils/json-parse.ts
+index d6fdce63..cd008de9 100644
+--- a/packages/ai/src/utils/json-parse.ts
++++ b/packages/ai/src/utils/json-parse.ts
+@@ -3,11 +3,6 @@ import type { ToolCall } from "../types.ts";
+ 
+ const VALID_JSON_ESCAPES = new Set(['"', "\\", "/", "b", "f", "n", "r", "t"]);
+ 
+-function isControlCharacter(char: string): boolean {
+-	const codePoint = char.codePointAt(0);
+-	return codePoint !== undefined && codePoint >= 0x00 && codePoint <= 0x1f;
+-}
+-
+ function escapeControlCharacter(char: string): string {
+ 	switch (char) {
+ 		case "\b":
+@@ -29,58 +24,62 @@ function escapeControlCharacter(char: string): string {
+  * Repairs malformed JSON string literals by:
+  * - escaping raw control characters inside strings
+  * - doubling backslashes before invalid escape characters
++ *
++ * Returns `json` itself when nothing needs repair. Unchanged runs are copied with slice() rather than one character at a
++ * time: streamed tool-call arguments, often a whole file, come through here each time they are parsed.
+  */
+ export function repairJson(json: string): string {
+ 	let repaired = "";
++	// Start of the run of characters that has not been copied to `repaired` yet.
++	let runStart = 0;
+ 	let inString = false;
+ 
+ 	for (let index = 0; index < json.length; index++) {
+-		const char = json[index];
++		const code = json.charCodeAt(index);
+ 
+ 		if (!inString) {
+-			repaired += char;
+-			if (char === '"') {
++			if (code === 0x22) {
+ 				inString = true;
+ 			}
+ 			continue;
+ 		}
+ 
+-		if (char === '"') {
+-			repaired += char;
++		if (code === 0x22) {
+ 			inString = false;
+ 			continue;
+ 		}
+ 
+-		if (char === "\\") {
++		if (code === 0x5c) {
+ 			const nextChar = json[index + 1];
+-			if (nextChar === undefined) {
+-				repaired += "\\\\";
++			// "\u" is an escape only with four hex digits after it; "\url" is text (#10868).
++			if (
++				nextChar === "u" ? isHexQuad(json, index + 2) : nextChar !== undefined && VALID_JSON_ESCAPES.has(nextChar)
++			) {
++				index += nextChar === "u" ? 5 : 1;
+ 				continue;
+ 			}
+-
+-			if (nextChar === "u") {
+-				const unicodeDigits = json.slice(index + 2, index + 6);
+-				if (/^[0-9a-fA-F]{4}$/.test(unicodeDigits)) {
+-					repaired += `\\u${unicodeDigits}`;
+-					index += 5;
+-					continue;
+-				}
+-			}
+-
+-			if (VALID_JSON_ESCAPES.has(nextChar)) {
+-				repaired += `\\${nextChar}`;
+-				index += 1;
+-				continue;
+-			}
+-
+-			repaired += "\\\\";
++			repaired += `${json.slice(runStart, index)}\\\\`;
++			runStart = index + 1;
+ 			continue;
+ 		}
+ 
+-		repaired += isControlCharacter(char) ? escapeControlCharacter(char) : char;
++		if (code <= 0x1f) {
++			repaired += json.slice(runStart, index) + escapeControlCharacter(json[index]);
++			runStart = index + 1;
++		}
+ 	}
+ 
+-	return repaired;
++	return runStart === 0 ? json : repaired + json.slice(runStart);
++}
++
++/** Whether the four characters of `json` at `start` are hex digits. */
++function isHexQuad(json: string, start: number): boolean {
++	if (start + 4 > json.length) return false;
++	for (let i = start; i < start + 4; i++) {
++		const code = json.charCodeAt(i) | 0x20;
++		if (!((code >= 0x30 && code <= 0x39) || (code >= 0x61 && code <= 0x66))) return false;
++	}
++	return true;
+ }
+ 
+ export function parseJsonWithRepair<T>(json: string): T {
+@@ -119,6 +118,22 @@ export function parseToolCallArguments(json: string | undefined): Pick<ToolCall,
+ 	}
+ }
+ 
++/** Whether `json` could be a complete JSON value after repairJson(): an object must end with "}", an array with "]". */
++function mayBeCompleteJson(json: string): boolean {
++	let first = 0;
++	while (first < json.length && isJsonWhitespace(json.charCodeAt(first))) first++;
++	const open = json.charCodeAt(first);
++	if (open !== 0x7b && open !== 0x5b) return true;
++	let last = json.length - 1;
++	while (last > first && isJsonWhitespace(json.charCodeAt(last))) last--;
++	// repairJson() changes only what is inside strings, so the first and last characters outside them stay.
++	return json.charCodeAt(last) === (open === 0x7b ? 0x7d : 0x5d);
++}
++
++function isJsonWhitespace(code: number): boolean {
++	return code === 0x20 || code === 0x0a || code === 0x0d || code === 0x09;
++}
++
+ /**
+  * Attempts to parse potentially incomplete JSON during streaming.
+  * Always returns a valid object, even if the JSON is incomplete.
+@@ -127,23 +142,55 @@ export function parseToolCallArguments(json: string | undefined): Pick<ToolCall,
+  * @returns Parsed object or empty object if parsing fails
+  */
+ export function parseStreamingJson<T = Record<string, unknown>>(partialJson: string | undefined): T {
+-	if (!partialJson || partialJson.trim() === "") {
+-		return {} as T;
++	if (!partialJson || partialJson.trim() === "") return {} as T;
++
++	try {
++		return JSON.parse(partialJson) as T;
++	} catch {
++		if (mayBeCompleteJson(partialJson)) {
++			const repaired = repairJson(partialJson);
++			if (repaired !== partialJson) {
++				try {
++					return JSON.parse(repaired) as T;
++				} catch {
++					// Incomplete or malformed containers still need partial-json.
++				}
++			}
++		}
+ 	}
+ 
+ 	try {
+-		return parseJsonWithRepair<T>(partialJson);
++		return (partialParse(partialJson) ?? {}) as T;
+ 	} catch {
+ 		try {
+-			const result = partialParse(partialJson);
+-			return (result ?? {}) as T;
++			return (partialParse(repairJson(partialJson)) ?? {}) as T;
+ 		} catch {
+-			try {
+-				const result = partialParse(repairJson(partialJson));
+-				return (result ?? {}) as T;
+-			} catch {
+-				return {} as T;
+-			}
++			return {} as T;
+ 		}
+ 	}
+ }
++
++const parsedLengths = new WeakMap<object, number>();
++
++/**
++ * Above 1 KiB, reuse previews until the buffer grows by roughly 12.5% to bound cumulative reparsing.
++ * State belongs to the tool-call object, not its ID; final arguments must bypass this preview cache.
++ */
++export function parseStreamingJsonWhileStreaming<T = Record<string, unknown>>(
++	block: object,
++	text: string | undefined,
++	current: T | undefined,
++): T {
++	const length = text?.length ?? 0;
++	const previous = parsedLengths.get(block);
++	if (
++		current !== undefined &&
++		previous !== undefined &&
++		length >= previous &&
++		length - previous < (previous < 1024 ? 1 : Math.floor(previous / 8))
++	) {
++		return current;
++	}
++	parsedLengths.set(block, length);
++	return parseStreamingJson<T>(text);
++}

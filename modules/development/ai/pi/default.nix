@@ -13,6 +13,9 @@ let
           ./pi-tool-search-ranking.patch
           ./pi-mcp-background.patch
           ./pi-install-esbuild.patch
+          ./pi-streaming-json.patch
+          ./pi-tool-preview-render.patch
+          ./pi-markdown-streaming.patch
         ];
         patchFlags = [
           "--batch"
@@ -45,6 +48,9 @@ let
                 ${./__tests__/auth-startup.test.mjs} \
                 ${./__tests__/codemode-worker.test.mjs} \
                 ${./__tests__/mcp-background.test.mjs} \
+                ${./__tests__/streaming-json.test.mjs} \
+                ${./__tests__/tool-preview-render.test.mjs} \
+                ${./__tests__/markdown-streaming.test.mjs} \
                 ${./__tests__/tool-search-ranking.test.mjs}
             '';
           }

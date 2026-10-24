@@ -1,0 +1,40 @@
+diff --git a/packages/coding-agent/src/modes/interactive/components/tool-execution.ts b/packages/coding-agent/src/modes/interactive/components/tool-execution.ts
+--- a/packages/coding-agent/src/modes/interactive/components/tool-execution.ts
++++ b/packages/coding-agent/src/modes/interactive/components/tool-execution.ts
+@@ -170,4 +170,7 @@
+-	updateArgs(args: any): void {
++	updateArgs(args: any): boolean {
++		// Streamed previews keep their identity between parses; the same arguments need no redraw.
++		if (args === this.args) return false;
+ 		this.args = args;
+ 		this.updateDisplay();
++		return true;
+ 	}
+diff --git a/packages/coding-agent/src/modes/interactive/interactive-mode.ts b/packages/coding-agent/src/modes/interactive/interactive-mode.ts
+--- a/packages/coding-agent/src/modes/interactive/interactive-mode.ts
++++ b/packages/coding-agent/src/modes/interactive/interactive-mode.ts
+@@ -3483,6 +3483,8 @@
+ 					this.streamingMessage = event.message;
+ 					this.streamingComponent.updateContent(this.streamingMessage, true);
+ 
++					let changed = event.assistantMessageEvent.type !== "toolcall_delta";
++
+ 					for (const content of this.streamingMessage.content) {
+ 						if (content.type === "toolCall") {
+ 							if (!this.pendingTools.has(content.id)) {
+@@ -3504,12 +3506,11 @@
+ 								this.pendingTools.set(content.id, component);
++								changed = true;
+ 							} else {
+ 								const component = this.pendingTools.get(content.id);
+-								if (component) {
+-									component.updateArgs(content.arguments);
+-								}
++								if (component?.updateArgs(content.arguments)) changed = true;
+ 							}
+ 						}
+ 					}
+-					this.ui.requestRender();
++					if (changed) this.ui.requestRender();
+ 				}
+ 				break;
