@@ -121,7 +121,7 @@ in
 
         postgresImage = lib.mkOption {
           type = lib.types.str;
-          default = "docker.io/library/postgres:16-alpine@sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685";
+          default = "docker.io/library/postgres:18-alpine@sha256:898c60cb390d1085bc97bdd6a1ae968757421df394b071848b52b1c09c89d6a5";
           description = "Pinned PostgreSQL container image; pre-pull it with just pull-priceghost-postgres before switching";
         };
 
