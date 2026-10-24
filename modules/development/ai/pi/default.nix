@@ -36,8 +36,15 @@ let
               previous.installPhase or ""
             )) "Review Pi Node CLI packaging: upstream's bundle entry changed";
           {
-            # Match llm-agents.nix's explicit defaults for the wrapped CLI.
             postInstall = (previous.postInstall or "") + ''
+              # Runtime dependencies arrive after source patching; patch only the installed copy.
+              lock_target="$out/lib/pi/node_modules/proper-lockfile/lib/mtime-precision.js"
+              echo "eb5adf91a21715b50f39438cdcda52043d551ccb5fe530681364c474c7206218  $lock_target" | sha256sum --check --strict
+              chmod u+w "$lock_target"
+              patch --batch --fuzz=0 -d "$out/lib/pi" -p1 < ${./proper-lockfile-4.1.2.patch}
+              echo "69ff3da4c35612d691c4e224d22e4128418be3caeabb682ab1ddf963784fb89d  $lock_target" | sha256sum --check --strict
+
+              # Match llm-agents.nix's explicit defaults for the wrapped CLI.
               wrapProgram "$out/bin/pi" \
                 --set PI_SKIP_VERSION_CHECK 1 \
                 --set PI_TELEMETRY 0
@@ -45,6 +52,7 @@ let
             postInstallCheck = (previous.postInstallCheck or "") + ''
               package="$out/lib/pi/node_modules/@earendil-works/pi-coding-agent"
               PI_TEST_PACKAGE="$package" PI_TEST_BINARY="$out/bin/pi" ${pkgs.nodejs_22}/bin/node --test \
+                ${./__tests__/proper-lockfile.test.mjs} \
                 ${./__tests__/auth-startup.test.mjs} \
                 ${./__tests__/codemode-worker.test.mjs} \
                 ${./__tests__/mcp-background.test.mjs} \
