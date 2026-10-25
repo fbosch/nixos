@@ -7,13 +7,13 @@
 
 let
   pname = "lightpanda";
-  version = "1.0.1";
+  version = "1.0.2";
 
   inherit (stdenvNoCC.hostPlatform) system;
   sources = {
     x86_64-linux = {
       url = "https://github.com/lightpanda-io/browser/releases/download/${version}/lightpanda-x86_64-linux";
-      hash = "sha256-VRdH41xRuhB7XVJ37KS0jgd7KjtA8JoEe/ZnBEi8Nf0=";
+      hash = "sha256-rn0B0mHvueSA4YzjQkUzMyiDhjvPcLEqQyG1cz834Z4=";
     };
     aarch64-linux = {
       url = "https://github.com/lightpanda-io/browser/releases/download/${version}/lightpanda-aarch64-linux";

@@ -136,11 +136,12 @@ run_update() {
 
 usage() {
   echo "Usage: $0 [--all | package-name]" >&2
-  echo "Example: $0 lightpanda" >&2
-  echo "         $0 hyprland-plugins/cursor-outline" >&2
-  echo "       $0 --all" >&2
-  echo "         --all includes every package available on the current system" >&2
   echo "       $0" >&2
+  echo "         checks every package with an upstream source and updates the ones with available updates" >&2
+  echo "       $0 --all" >&2
+  echo "         checks every package with an upstream source and lets you pick which to update" >&2
+  echo "       $0 package-name" >&2
+  echo "         updates one package, for example: $0 lightpanda" >&2
 }
 
 is_update_candidate() {
@@ -167,6 +168,10 @@ uses_explicit_update_script() {
 
   package_contents="$(<"$package_file")"
   [[ $package_contents == *"updateScript"* ]]
+}
+
+is_unstable_version() {
+  [[ $1 == unstable-* || $1 == *-unstable || $1 == unstable ]]
 }
 
 package_revision() {
@@ -214,6 +219,7 @@ fi
 declare -A package_updates=()
 declare -A package_check_results=()
 declare -a all_package_names=()
+declare -a upstream_package_names=()
 update_check_dir=""
 update_check_failed=false
 nix_update_command=()
@@ -319,7 +325,7 @@ check_package_update() {
   if uses_explicit_update_script "$package_file"; then
     nix_update_args+=(-u)
   fi
-  if [[ $old_version == unstable-* || $old_version == *-unstable || $old_version == unstable ]]; then
+  if is_unstable_version "$old_version"; then
     nix_update_args+=(--version unstable)
   fi
   nix_update_args+=(--override-filename "$check_package_file" "$package_name")
@@ -411,7 +417,6 @@ load_package_inventory() {
 check_upstream_updates() {
   local package_name
   local package_file
-  local has_update_candidate=false
 
   if ! load_package_inventory; then
     return 0
@@ -421,38 +426,28 @@ check_upstream_updates() {
     package_file="$packages_dir/$package_name/package.nix"
     if [ ! -f "$package_file" ]; then
       status 1 CHECK "flake package .#$package_name has no package.nix at $package_file" >&2
-      package_check_results["$package_name"]="failed"
       update_check_failed=true
       continue
     fi
     if is_update_candidate "$package_file"; then
-      has_update_candidate=true
-    else
-      package_check_results["$package_name"]="manual"
-      status 3 SKIP ".#$package_name has no upstream package source dependency" >&2
+      upstream_package_names+=("$package_name")
     fi
   done
 
-  if ! "$has_update_candidate"; then
+  if [ "${#upstream_package_names[@]}" -eq 0 ]; then
     return 0
   fi
   if ! ensure_nix_update_command; then
     update_check_failed=true
-    for package_name in "${all_package_names[@]}"; do
-      package_file="$packages_dir/$package_name/package.nix"
-      if [ -f "$package_file" ] && is_update_candidate "$package_file"; then
-        package_check_results["$package_name"]="failed"
-      fi
+    for package_name in "${upstream_package_names[@]}"; do
+      package_check_results["$package_name"]="failed"
     done
     return 0
   fi
 
   create_update_check_copy
-  for package_name in "${all_package_names[@]}"; do
-    package_file="$packages_dir/$package_name/package.nix"
-    if [ -f "$package_file" ] && is_update_candidate "$package_file"; then
-      check_package_update "$package_name" || true
-    fi
+  for package_name in "${upstream_package_names[@]}"; do
+    check_package_update "$package_name" || true
   done
 }
 
@@ -462,31 +457,18 @@ select_package_with_gum() {
   local package_name
   local revision
   local version
-  local check_result
-  local -a package_names=()
 
-  for package_name in "${all_package_names[@]}"; do
-    if "$show_all" || [ "${package_check_results[$package_name]:-}" = update ]; then
-      package_names+=("$package_name")
-    fi
-  done
-
-  if [ "${#package_names[@]}" -eq 0 ]; then
-    if "$update_check_failed"; then
-      status 1 ERROR "one or more package update checks failed; no complete update list is available" >&2
-      return 1
-    fi
-    status 3 SKIP "no package updates found" >&2
+  if [ "${#upstream_package_names[@]}" -eq 0 ]; then
+    status 3 SKIP "no packages with an upstream source found" >&2
     return 2
   fi
   if "$update_check_failed"; then
-    status 1 ERROR "one or more package update checks failed; the displayed update list may be incomplete" >&2
+    status 1 ERROR "one or more package update checks failed; the displayed list may be incomplete" >&2
   fi
 
   if ! selection="$(
-    for package_name in "${package_names[@]}"; do
-      check_result="${package_check_results[$package_name]:-manual}"
-      case "$check_result" in
+    for package_name in "${upstream_package_names[@]}"; do
+      case "${package_check_results[$package_name]:-failed}" in
       update)
         revision="$(package_revision "$packages_dir/$package_name/package.nix")"
         version="$(render_version_update "${package_updates[$package_name]}" "$revision")"
@@ -499,11 +481,8 @@ select_package_with_gum() {
       unavailable)
         version="upstream version not discoverable"
         ;;
-      failed)
-        version="check failed"
-        ;;
       *)
-        version="no automatic upstream check"
+        version="check failed"
         ;;
       esac
       printf '%s  %s\n' "$package_name" "$version"
@@ -523,6 +502,97 @@ select_package_with_gum() {
   done <<<"$selection"
 }
 
+select_available_updates() {
+  local package_name
+
+  for package_name in "${upstream_package_names[@]}"; do
+    if [ "${package_check_results[$package_name]:-}" = update ]; then
+      selected_packages+=("$package_name")
+    fi
+  done
+
+  if [ "${#selected_packages[@]}" -eq 0 ]; then
+    if "$update_check_failed"; then
+      status 1 ERROR "one or more package update checks failed; no complete update list is available" >&2
+      return 1
+    fi
+    status 3 SKIP "no package updates found" >&2
+    return 2
+  fi
+  if "$update_check_failed"; then
+    status 1 ERROR "one or more package update checks failed; updating the packages that could be checked" >&2
+  fi
+}
+
+update_package() {
+  local package_name="$1"
+  local package_file="$packages_dir/$package_name/package.nix"
+  local current_version
+  local before_hash
+  local after_hash
+  local -a nix_update_args
+
+  if [ ! -f "$package_file" ]; then
+    error "package file not found at $package_file" >&2
+    return 1
+  fi
+
+  if ! is_update_candidate "$package_file"; then
+    status 3 SKIP ".#$package_name has no upstream package source dependency"
+    return 0
+  fi
+
+  if ! nix eval --raw "$repo_root#$package_name.name" >/dev/null 2>&1; then
+    error "flake package '.#$package_name' does not exist on this system" >&2
+    return 1
+  fi
+
+  if "$has_gum"; then
+    printf '\n'
+    printf '%s\n' "$(CLICOLOR_FORCE=1 gum style --foreground 212 --bold "Update .#$package_name")"
+    printf '%s\n' "$(CLICOLOR_FORCE=1 gum style --foreground 244 "$package_file")"
+  fi
+
+  if [ -n "${package_updates[$package_name]:-}" ]; then
+    status 2 UPDATE ".#$package_name $(render_version_update "${package_updates[$package_name]}" "$(package_revision "$package_file")")"
+  fi
+
+  if ! current_version="$(package_version "$package_file")"; then
+    error "unable to read the current version of .#$package_name" >&2
+    return 1
+  fi
+  nix_update_args=(-F)
+  if uses_explicit_update_script "$package_file"; then
+    nix_update_args+=(-u)
+  fi
+  if is_unstable_version "$current_version"; then
+    nix_update_args+=(--version unstable)
+  fi
+  nix_update_args+=("$package_name")
+  if ! ensure_nix_update_command; then
+    return 1
+  fi
+
+  before_hash="$(sha256sum "$package_file")"
+  if ! (cd "$repo_root" && run_update "Updating .#$package_name" "${nix_update_command[@]}" "${nix_update_args[@]}"); then
+    error "nix-update failed for .#$package_name" >&2
+    return 1
+  fi
+  after_hash="$(sha256sum "$package_file")"
+
+  if [ "$before_hash" = "$after_hash" ]; then
+    status 3 SKIP ".#$package_name already matches upstream; no changes to build"
+    return 0
+  fi
+
+  if ! run_step "Building .#$package_name" nix build "$repo_root#$package_name"; then
+    error ".#$package_name was updated but does not build; review the changes in $packages_dir/$package_name" >&2
+    return 1
+  fi
+
+  status 2 DONE ".#$package_name is updated and builds successfully"
+}
+
 show_all=false
 if [ "$#" -eq 1 ] && [ "$1" = "--all" ]; then
   show_all=true
@@ -532,87 +602,43 @@ elif [ "$#" -eq 1 ] && [[ $1 == --* ]]; then
   exit 1
 fi
 
-declare -a selected_packages
+declare -a selected_packages=()
 if [ "$#" -eq 1 ] && ! "$show_all"; then
   selected_packages=("$1")
 else
-  if ! "$has_gum"; then
-    error "no package argument provided and 'gum' is not installed" >&2
-    echo "Pass a package name explicitly, for example: $0 lightpanda" >&2
+  if "$show_all" && ! "$has_gum"; then
+    error "--all needs 'gum' to select packages, and it is not installed" >&2
     exit 1
   fi
 
   check_upstream_updates
-  if selection="$(select_package_with_gum)"; then
-    mapfile -t selected_packages <<<"$selection"
+
+  if "$show_all"; then
+    if selection="$(select_package_with_gum)"; then
+      mapfile -t selected_packages <<<"$selection"
+    else
+      selection_exit_code=$?
+      [ "$selection_exit_code" -eq 2 ] && exit 0
+      exit "$selection_exit_code"
+    fi
+  elif select_available_updates; then
+    :
   else
     selection_exit_code=$?
-    if [ "$selection_exit_code" -eq 2 ]; then
-      exit 0
-    fi
+    [ "$selection_exit_code" -eq 2 ] && exit 0
     exit "$selection_exit_code"
   fi
 fi
 
+declare -a failed_packages=()
 for package_name in "${selected_packages[@]}"; do
-  package_file="$packages_dir/$package_name/package.nix"
-  current_version=""
-
-  if [ ! -f "$package_file" ]; then
-    error "package file not found at $package_file" >&2
-    exit 1
+  if ! update_package "$package_name"; then
+    failed_packages+=("$package_name")
   fi
-
-  if ! is_update_candidate "$package_file"; then
-    status 3 SKIP ".#$package_name has no upstream package source dependency"
-    continue
-  fi
-
-  if [ -n "${package_updates[$package_name]:-}" ]; then
-    status 2 UPDATE ".#$package_name $(render_version_update "${package_updates[$package_name]}" "$(package_revision "$package_file")")"
-  fi
-
-  cd "$repo_root"
-
-  if nix eval --raw ".#$package_name.name" >/dev/null 2>&1; then
-    :
-  else
-    error "flake package '.#$package_name' does not exist on this system" >&2
-    exit 1
-  fi
-
-  if "$has_gum"; then
-    printf '\n'
-    printf '%s\n' "$(CLICOLOR_FORCE=1 gum style --foreground 212 --bold "Update .#$package_name")"
-    printf '%s\n' "$(CLICOLOR_FORCE=1 gum style --foreground 244 "$package_file")"
-  fi
-
-  before_hash="$(sha256sum "$package_file")"
-  nix_update_args=(-F)
-  if uses_explicit_update_script "$package_file"; then
-    nix_update_args+=(-u)
-  fi
-  if ! current_version="$(package_version "$package_file")"; then
-    error "unable to read the current version of .#$package_name" >&2
-    exit 1
-  fi
-  if [[ $current_version == unstable-* || $current_version == *-unstable ]]; then
-    nix_update_args+=(--version unstable)
-  fi
-  nix_update_args+=("$package_name")
-  if ! ensure_nix_update_command; then
-    exit 1
-  fi
-
-  run_update "Updating .#$package_name" "${nix_update_command[@]}" "${nix_update_args[@]}"
-  after_hash="$(sha256sum "$package_file")"
-
-  if [ "$before_hash" = "$after_hash" ]; then
-    status 3 SKIP ".#$package_name already matches upstream; no changes to build"
-    continue
-  fi
-
-  run_step "Building .#$package_name" nix build ".#$package_name"
-
-  status 2 DONE ".#$package_name is updated and builds successfully"
 done
+
+if [ "${#failed_packages[@]}" -gt 0 ]; then
+  printf '\n'
+  error "failed to update: ${failed_packages[*]}" >&2
+  exit 1
+fi
