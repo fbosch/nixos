@@ -11,7 +11,7 @@ SOPS secrets use a dual-key approach.
 
 **GPG key (recovery)**
 - Used for manual secret editing and disaster recovery.
-- Backed up in Bitwarden; survives machine loss.
+- Encrypted backup stored as the `backup` release asset of the private `fbosch/gpg-backup` repo; survives machine loss.
 - Import to user keyring via `scripts/bootstrap/bootstrap-gpg.sh` for manual editing.
 - Not needed for system activation (age key handles that).
 

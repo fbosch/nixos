@@ -1,18 +1,16 @@
 #!/usr/bin/env bash
-# Bootstrap GPG key from an encrypted secret gist
-# Usage: ./scripts/bootstrap/bootstrap-gpg.sh [gist-id]
-# If no gist ID is provided, resolves it by searching your gists for the
-# expected filename (requires gh auth).
+# Bootstrap GPG key from the encrypted backup asset on the 'backup' release of a
+# private repo.
+# Usage: ./scripts/bootstrap/bootstrap-gpg.sh [owner/repo]
+# The repo defaults to GPG_BACKUP_REPO, then fbosch/gpg-backup (requires gh auth).
 
 set -euo pipefail
 
 gpg_key_id="fbb.privacy+gpg@protonmail.com"
-gpg_gist_filename="gpg-private.asc.gpg"
+backup_filename="gpg-private.asc.gpg"
+backup_repo="${GPG_BACKUP_REPO:-fbosch/gpg-backup}"
+backup_release_tag="backup"
 github_device_url="https://github.com/login/device?skip_account_picker=true"
-
-resolve_gist_ids() {
-  gh gist list --limit 100 2>/dev/null | awk -F'\t' -v name="$gpg_gist_filename" 'index($3, name) || index($2, name) { print $1 }'
-}
 
 render_github_device_qr() {
   if ! qrencode \
@@ -41,7 +39,7 @@ authenticate_github_cli() {
   printf "Use the printed code on another device (phone/laptop).\n"
   printf "Open: %s\n" "$github_device_url"
   show_github_device_qr
-  printf '\n' | GH_BROWSER=true gh auth login --web --scopes gist
+  printf '\n' | GH_BROWSER=true gh auth login --web --scopes repo
 }
 
 preset_gpg_passphrase_for_sops() {
@@ -154,24 +152,7 @@ fi
 authenticate_github_cli
 
 if [ -n "${1:-}" ]; then
-  gist_id="$1"
-elif [ -n "${GPG_KEY_GIST_ID:-}" ]; then
-  gist_id="$GPG_KEY_GIST_ID"
-else
-  printf "Resolving gist ID by filename (%s)...\n" "$gpg_gist_filename"
-  mapfile -t gist_ids < <(resolve_gist_ids)
-  if [ "${#gist_ids[@]}" -eq 0 ]; then
-    printf "Error: Could not find a gist containing '%s'.\n" "$gpg_gist_filename"
-    printf "Pass the gist ID explicitly: %s <gist-id>\n" "$0"
-    exit 1
-  fi
-  if [ "${#gist_ids[@]}" -gt 1 ]; then
-    printf "Error: Found multiple gists containing '%s'.\n" "$gpg_gist_filename"
-    printf "Pass the desired gist ID explicitly: %s <gist-id>\n" "$0"
-    exit 1
-  fi
-  gist_id="${gist_ids[0]}"
-  printf "Found gist: %s\n" "$gist_id"
+  backup_repo="$1"
 fi
 
 tmp_encrypted="$(mktemp)"
@@ -184,21 +165,25 @@ cleanup() {
 }
 trap cleanup EXIT
 
-printf "Downloading encrypted key from gist %s...\n" "$gist_id"
+printf "Downloading encrypted key from %s release '%s'...\n" "$backup_repo" "$backup_release_tag"
 download_ok="false"
 scope_refreshed="false"
 download_attempts=6
 download_sleep_seconds=3
 
 for attempt in $(seq 1 "$download_attempts"); do
-  if gh gist view "$gist_id" --raw --filename "$gpg_gist_filename" >"$tmp_encrypted" 2>"$tmp_error"; then
+  if gh release download "$backup_release_tag" \
+    --repo "$backup_repo" \
+    --pattern "$backup_filename" \
+    --output "$tmp_encrypted" \
+    --clobber 2>"$tmp_error"; then
     download_ok="true"
     break
   fi
 
   if grep -Eiq "scope|forbidden|401|403" "$tmp_error" && [ "$scope_refreshed" = "false" ]; then
-    printf "Refreshing GitHub auth scopes for gist access.\n"
-    gh auth refresh -h github.com -s gist
+    printf "Refreshing GitHub auth scopes for private repo access.\n"
+    gh auth refresh -h github.com -s repo
     scope_refreshed="true"
     continue
   fi
@@ -210,7 +195,7 @@ for attempt in $(seq 1 "$download_attempts"); do
 done
 
 if [ "$download_ok" = "false" ]; then
-  printf "Error: Failed to download gist after %s attempts.\n" "$download_attempts"
+  printf "Error: Failed to download backup after %s attempts.\n" "$download_attempts"
   printf "Last error:\n"
   cat "$tmp_error"
   exit 1
@@ -232,16 +217,16 @@ fi
 if printf "%s" "$gpg_backup_passphrase" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 --decrypt --output "$tmp_decrypted" "$tmp_encrypted"; then
   :
 else
-  printf "Error: Failed to decrypt key backup from gist.\n"
-  printf "Check passphrase and gist content.\n"
+  printf "Error: Failed to decrypt key backup.\n"
+  printf "Check passphrase and backup content.\n"
   exit 1
 fi
 
 if gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 --import "$tmp_decrypted" <<<"$gpg_backup_passphrase" 2>&1; then
   printf "GPG key imported successfully.\n"
 else
-  printf "Error: Failed to decrypt or import GPG key from gist.\n"
-  printf "Check passphrase and gist content.\n"
+  printf "Error: Failed to decrypt or import GPG key from backup.\n"
+  printf "Check passphrase and backup content.\n"
   exit 1
 fi
 unset gpg_backup_passphrase

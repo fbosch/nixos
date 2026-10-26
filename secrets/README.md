@@ -2,17 +2,15 @@
 
 ## Setting up a new machine
 
-1. **Import GPG key** (for manual secret editing):
+1. **Import GPG key** (only on machines where you edit secrets):
 
-   - Retrieve your GPG private key from Bitwarden
-    - Import it directly from the clipboard:
-
-    ```bash
-    # Copy GPG private key from Bitwarden to clipboard, then:
-    pbpaste | gpg --import  # macOS
-    # or
-    xclip -o | gpg --import  # Linux
+   ```bash
+   ./scripts/bootstrap/bootstrap-gpg.sh
    ```
+
+   The script downloads the encrypted backup from the `backup` release of the
+   private `fbosch/gpg-backup` repo (requires `gh` auth), then prompts for the
+   backup passphrase.
 
 2. **Build system** (auto-generates age key):
 
@@ -77,7 +75,9 @@ sops -d secrets/common.yaml
   - Used for automated decryption during system activation
    - Keep recovery copies outside this repository in an encrypted backup system
   
-- **GPG key**: Stored in Bitwarden
+- **GPG key**: Encrypted backup on the `backup` release of the private
+  `fbosch/gpg-backup` repo, protected by a separate backup passphrase
+  - Rotate with `just rotate-gpg-release`; verify with `just verify-gpg-release`
   - Used for manual secret editing with `sops`
   - Disaster recovery if all machines are lost
    - Recovery recipient for the repository secrets files

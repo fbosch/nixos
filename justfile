@@ -77,26 +77,12 @@ cleanup-disk:
 download-hyprwhspr-parakeet $target='':
     bash ./scripts/desktop/download-hyprwhspr-parakeet-model.sh ${target:+"$target"}
 
-# Rotate the encrypted GPG backup gist from the current local key
-[group('maintenance')]
-rotate-gpg-gist:
-    nix run .#rotate-gpg-gist
 
 # Manage local recovery archives; verify, compare, and restore accept an ID or --latest
 [group('maintenance')]
 recovery $operation='help' $backup_selector='' $approval='':
     sudo bash ./scripts/recovery/local-host-recovery.sh "$operation" ${backup_selector:+"$backup_selector"} ${approval:+"$approval"}
 
-# Show the GPG gist rotation actions without writing to GitHub
-[group('maintenance')]
-rotate-gpg-gist-dry:
-    nix run .#rotate-gpg-gist -- --dry-run
-
-# Verify the GPG backup gist decrypts and unlocks; accepts --backup-only, --file <path>, or a gist ID
-[group('maintenance')]
-[positional-arguments]
-verify-gpg-gist *args:
-    nix run .#verify-gpg-gist -- "$@"
 
 # Rotate the encrypted GPG backup release asset in the private backup repo
 [group('maintenance')]
@@ -104,7 +90,7 @@ verify-gpg-gist *args:
 rotate-gpg-release *args:
     nix run .#rotate-gpg-release -- "$@"
 
-# Verify the GPG backup release asset decrypts and unlocks; accepts --backup-only or --repo <owner/name>
+# Verify the GPG backup release asset decrypts and unlocks; accepts --backup-only, --repo <owner/name>, or --file <path>
 [group('maintenance')]
 [positional-arguments]
 verify-gpg-release *args:
