@@ -87,8 +87,6 @@ in
     ++ [
       inputs.nixos-hardware.nixosModules.common-cpu-intel
       inputs.grub2-themes.nixosModules.default
-      inputs.chaotic.nixosModules.nyx-cache
-      inputs.chaotic.nixosModules.nyx-overlay
       {
         services.surge.outputDir = "/mnt/storage/Downloads";
 

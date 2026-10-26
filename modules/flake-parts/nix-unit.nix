@@ -7,10 +7,7 @@
       inputs =
         (builtins.mapAttrs (_name: input: input.outPath) (builtins.removeAttrs inputs [ "self" ]))
         # Stage Hyprland's nested inputs, including xdph, for sandboxed evaluation.
-        // (lib.mapAttrs' (name: input: lib.nameValuePair "hyprland/${name}" input.outPath) inputs.hyprland.inputs)
-        // {
-          "chaotic/nixpkgs" = inputs.chaotic.inputs.nixpkgs.outPath;
-        };
+        // (lib.mapAttrs' (name: input: lib.nameValuePair "hyprland/${name}" input.outPath) inputs.hyprland.inputs);
 
       tests = {
         iconOverrides = import ../../tests/nix-unit/icon-overrides.nix {

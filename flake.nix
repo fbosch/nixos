@@ -7,14 +7,12 @@
       "https://devenv.cachix.org"
       "https://fbosch.cachix.org"
       "https://hyprland.cachix.org"
-      "https://nyx-cache.chaotic.cx/"
     ];
     extra-trusted-public-keys = [
       "niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g="
       "devenv.cachix.org-1:w1cLUi8dv3hnoSPGAuibQv+f9TZLr6cv/Hm9XgU50cw="
       "fbosch.cachix.org-1:QGKDLpPb1MY7YtcCvFpDNqQzGsYtDgE3YyC6IXK1nO8="
       "hyprland.cachix.org-1:a7pgxzMz7+chwVL3/pzj6jIBMioiJM7ypFP8PwtkuGc="
-      "nyx-cache.chaotic.cx:dJxTrgMC3V3cFfyIiBQDQorG6k1LsqurH/srpMSq7qk="
     ];
   };
 
@@ -67,9 +65,6 @@
     };
     determinate.url = "https://flakehub.com/f/DeterminateSystems/determinate/3";
     nixos-hardware.url = "github:nixos/nixos-hardware/master";
-
-    # Keep Nyx's own nixpkgs pin so its kernel and driver match the binary cache.
-    chaotic.url = "github:chaotic-cx/nyx/nyxpkgs-unstable";
 
     # Dotfiles (modules/dotfiles.nix)
     dotfiles = {
