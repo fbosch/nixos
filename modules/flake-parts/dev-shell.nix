@@ -80,6 +80,18 @@
         ];
         text = builtins.readFile ../../scripts/maintenance/rotate-gpg-gist.sh;
       };
+
+      verifyGpgGistScript = pkgs.writeShellApplication {
+        name = "verify-gpg-gist";
+        runtimeInputs = with pkgs; [
+          coreutils
+          gawk
+          gh
+          gnupg
+          gnugrep
+        ];
+        text = builtins.readFile ../../scripts/maintenance/verify-gpg-gist.sh;
+      };
     in
     {
       # Configure pre-commit hooks
@@ -170,6 +182,11 @@
           type = "app";
           program = "${rotateGpgGistScript}/bin/rotate-gpg-gist";
           meta.description = "Rotate the encrypted GPG backup gist from the current local key";
+        };
+        verify-gpg-gist = {
+          type = "app";
+          program = "${verifyGpgGistScript}/bin/verify-gpg-gist";
+          meta.description = "Verify the encrypted GPG backup gist decrypts in a throwaway keyring";
         };
       };
 

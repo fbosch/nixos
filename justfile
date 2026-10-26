@@ -92,6 +92,12 @@ recovery $operation='help' $backup_selector='' $approval='':
 rotate-gpg-gist-dry:
     nix run .#rotate-gpg-gist -- --dry-run
 
+# Verify the GPG backup gist decrypts and unlocks; accepts --backup-only, --file <path>, or a gist ID
+[group('maintenance')]
+[positional-arguments]
+verify-gpg-gist *args:
+    nix run .#verify-gpg-gist -- "$@"
+
 # Sync SDDM wallpaper from hyprpaper config
 [group('maintenance')]
 sync-wallpaper $config='' $output='' $monitor='':
