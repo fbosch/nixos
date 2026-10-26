@@ -191,7 +191,7 @@ download_attempts=6
 download_sleep_seconds=3
 
 for attempt in $(seq 1 "$download_attempts"); do
-  if gh gist view "$gist_id" --raw >"$tmp_encrypted" 2>"$tmp_error"; then
+  if gh gist view "$gist_id" --raw --filename "$gpg_gist_filename" >"$tmp_encrypted" 2>"$tmp_error"; then
     download_ok="true"
     break
   fi

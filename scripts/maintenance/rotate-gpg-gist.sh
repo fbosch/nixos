@@ -117,7 +117,7 @@ cleanup() {
 trap cleanup EXIT
 
 printf "Generating passphrase with xkcdpass...\n"
-backup_passphrase="$(xkcdpass -n 5 -d '-' -C lower)"
+backup_passphrase="$(xkcdpass -n 7 -d '-' -C lower)"
 
 printf "Exporting local secret key...\n"
 gpg --batch --yes --armor --output "$tmp_exported" --export-secret-keys "$gpg_key_id"
@@ -128,6 +128,7 @@ printf "%s" "$backup_passphrase" | gpg \
   --yes \
   --pinentry-mode loopback \
   --passphrase-fd 0 \
+  --armor \
   --symmetric \
   --cipher-algo AES256 \
   --output "$tmp_encrypted" \
