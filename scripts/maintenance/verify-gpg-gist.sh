@@ -149,9 +149,9 @@ if printf "%s" "$backup_passphrase" | gpg_tmp \
   --decrypt \
   --output "$decrypted_file" \
   "$encrypted_file" 2>/dev/null; then
-  printf "OK    Backup passphrase decrypts the gist.\n"
+  printf "OK    Backup passphrase decrypts the backup.\n"
 else
-  printf "FAIL  Backup passphrase did not decrypt the gist.\n"
+  printf "FAIL  Backup passphrase did not decrypt the backup.\n"
   exit 1
 fi
 unset backup_passphrase

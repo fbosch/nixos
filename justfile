@@ -98,6 +98,18 @@ rotate-gpg-gist-dry:
 verify-gpg-gist *args:
     nix run .#verify-gpg-gist -- "$@"
 
+# Rotate the encrypted GPG backup release asset in the private backup repo
+[group('maintenance')]
+[positional-arguments]
+rotate-gpg-release *args:
+    nix run .#rotate-gpg-release -- "$@"
+
+# Verify the GPG backup release asset decrypts and unlocks; accepts --backup-only or --repo <owner/name>
+[group('maintenance')]
+[positional-arguments]
+verify-gpg-release *args:
+    nix run .#verify-gpg-release -- "$@"
+
 # Sync SDDM wallpaper from hyprpaper config
 [group('maintenance')]
 sync-wallpaper $config='' $output='' $monitor='':

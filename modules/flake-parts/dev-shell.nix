@@ -92,6 +92,26 @@
         ];
         text = builtins.readFile ../../scripts/maintenance/verify-gpg-gist.sh;
       };
+
+      rotateGpgReleaseScript = pkgs.writeShellApplication {
+        name = "rotate-gpg-release";
+        runtimeInputs = with pkgs; [
+          gh
+          gnupg
+          xkcdpass
+        ];
+        text = builtins.readFile ../../scripts/maintenance/rotate-gpg-release.sh;
+      };
+
+      verifyGpgReleaseScript = pkgs.writeShellApplication {
+        name = "verify-gpg-release";
+        runtimeInputs = [
+          pkgs.coreutils
+          pkgs.gh
+          verifyGpgGistScript
+        ];
+        text = builtins.readFile ../../scripts/maintenance/verify-gpg-release.sh;
+      };
     in
     {
       # Configure pre-commit hooks
@@ -187,6 +207,16 @@
           type = "app";
           program = "${verifyGpgGistScript}/bin/verify-gpg-gist";
           meta.description = "Verify the encrypted GPG backup gist decrypts in a throwaway keyring";
+        };
+        rotate-gpg-release = {
+          type = "app";
+          program = "${rotateGpgReleaseScript}/bin/rotate-gpg-release";
+          meta.description = "Rotate the encrypted GPG backup release asset in the private backup repo";
+        };
+        verify-gpg-release = {
+          type = "app";
+          program = "${verifyGpgReleaseScript}/bin/verify-gpg-release";
+          meta.description = "Verify the encrypted GPG backup release asset decrypts in a throwaway keyring";
         };
       };
 
