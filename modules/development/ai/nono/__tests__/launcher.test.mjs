@@ -391,8 +391,32 @@ test("sandbox runtime state is prepared before grants and separated from supervi
   assert.equal(readFileSync(join(cache, "uv-tools", "state"), "utf8"), "preserved");
 });
 
+test("sandbox launcher rejects a missing configured SSH agent before starting nono", () => {
+  const { root, home, cwd, agent, nono, profile } = fixture();
+  const missing = join(root, "missing", "agent.sock");
+  const runtime = join(root, "runtime");
+  mkdirSync(runtime);
+  writeFileSync(nono, `#!${process.execPath}\nprocess.exit(0);\n`);
+  chmodSync(nono, 0o700);
+  const child = spawnSync(process.execPath, [
+    new URL("../scripts/launcher.mjs", import.meta.url).pathname,
+    nono, process.execPath, profile, "/missing-direnv", envBinary, "--version",
+  ], {
+    cwd,
+    env: {
+      HOME: home, PATH: process.env.PATH, PI_CODING_AGENT_DIR: agent,
+      TMPDIR: runtime, XDG_RUNTIME_DIR: runtime, SSH_AUTH_SOCK: missing,
+    },
+    encoding: "utf8", timeout: 15000,
+  });
+  assert.ifError(child.error);
+  assert.equal(child.status, 1, child.stderr);
+  assert.match(child.stderr, /SSH_AUTH_SOCK.*socket is missing/);
+  assert.ok(child.stderr.includes(JSON.stringify(missing)));
+  assert.match(child.stderr, /start the SSH agent before launching Pi/);
+});
+
 for (const [name, access] of [
-  ["SSH_AUTH_SOCK", "SSH agent access"],
   ["PI_NVIM_SOCKET", "Neovim access"],
   ["XDG_RUNTIME_DIR", "runtime-directory access"],
 ]) {

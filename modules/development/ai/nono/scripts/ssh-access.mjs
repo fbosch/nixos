@@ -47,7 +47,7 @@ export function sshClientArguments(home, environment) {
       args.push("--allow-unix-socket", socket, "--bypass-protection", socket);
     } catch (error) {
       if (error.code === "ENOENT") {
-        console.warn(`pi sandbox launch: SSH_AUTH_SOCK socket is missing (${JSON.stringify(socket)}); continuing without SSH agent access.`);
+        throw new Error(`Cannot grant SSH_AUTH_SOCK access: socket is missing (${JSON.stringify(socket)}); start the SSH agent before launching Pi.`);
       } else {
         throw new Error(`Cannot grant SSH_AUTH_SOCK access: ${error.message}`);
       }
