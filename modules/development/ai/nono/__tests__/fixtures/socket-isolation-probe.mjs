@@ -23,7 +23,7 @@ if (process.argv[2] === "--stdio-server") {
   });
 } else {
   const { sockets, bindPath, url } = JSON.parse(process.argv[2]);
-  assert.equal(process.env.PI_NVIM_SOCKET, undefined, "legacy host editor integration must be hidden");
+  assert.ok(process.env.PI_NVIM_SOCKET, "selected editor socket must remain available");
   const connected = [];
   for (const path of sockets) {
     const socket = createConnection(path);

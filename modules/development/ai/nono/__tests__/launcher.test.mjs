@@ -8,7 +8,6 @@ import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { launchArguments, launchCommand, prepareJitiCache, prepareNpmCache } from "../scripts/launcher.mjs";
 import { sandboxRuntimeCommand } from "../scripts/sandbox-runtime.mjs";
-import { piAskArguments } from "../scripts/pi-ask.mjs";
 
 const envBinary = process.env.ENV_TEST_BINARY ?? "/usr/bin/env";
 
@@ -175,9 +174,8 @@ function values(args, flag) {
   return args.flatMap((part, index) => part === flag ? [args[index + 1]] : []);
 }
 
-test("PI_NVIM_SOCKET never authorizes host editor RPC", async (t) => {
+test("PI_NVIM_SOCKET grants only the selected editor endpoint on Linux and macOS", async () => {
   const { root, cwd, agent, home, raw, profile } = fixture();
-  t.mock.method(console, "warn", () => {});
   const socket = join(root, "nvim.sock");
   const server = createServer(connection => connection.end());
   server.listen(socket);
@@ -185,7 +183,7 @@ test("PI_NVIM_SOCKET never authorizes host editor RPC", async (t) => {
   try {
     for (const platform of ["darwin", "linux"]) {
       const args = launchArguments(cwd, agent, home, { PI_NVIM_SOCKET: socket }, profile, raw, envBinary, platform);
-      assert.deepEqual(values(args, "--allow-unix-socket"), []);
+      assert.deepEqual(values(args, "--allow-unix-socket"), [socket]);
       for (const flag of ["--allow-unix-socket-bind", "--allow-unix-socket-dir", "--allow-unix-socket-dir-bind", "--allow-unix-socket-subtree", "--allow-unix-socket-subtree-bind", "--bypass-protection"]) {
         assert.deepEqual(values(args, flag), [], flag);
       }
@@ -197,81 +195,21 @@ test("PI_NVIM_SOCKET never authorizes host editor RPC", async (t) => {
   }
 });
 
-test("launches without PI_NVIM_SOCKET do not grant editor socket access", () => {
+test("launches without PI_NVIM_SOCKET do not add editor socket grants", () => {
   const { launch } = fixture();
   for (const value of [undefined, ""]) {
     assert.deepEqual(values(launch([], { PI_NVIM_SOCKET: value }), "--allow-unix-socket"), []);
   }
 });
 
-test("PiAsk grants only its canonical private per-launch endpoint", async () => {
-  const { root } = fixture();
-  const launchId = "0123456789abcdef0123456789abcdef";
-  const namespace = join(root, `pi-ask-${process.getuid()}`);
-  const directory = join(namespace, launchId);
-  mkdirSync(directory, { recursive: true, mode: 0o700 });
-  chmodSync(namespace, 0o700);
-  const socket = join(directory, "broker.sock");
-  const server = createServer(connection => connection.end());
-  server.listen(socket);
-  await once(server, "listening");
-  chmodSync(socket, 0o600);
-  const environment = { XDG_RUNTIME_DIR: root, PI_NVIM_BROKER: socket, PI_NVIM_LAUNCH_ID: launchId };
-  try {
-    assert.deepEqual(piAskArguments(environment), ["--allow-unix-socket", socket]);
-    assert.deepEqual(piAskArguments({}), []);
-    for (const overrides of [
-      { PI_NVIM_LAUNCH_ID: "invalid" }, { PI_NVIM_BROKER: "relative.sock" },
-      { PI_NVIM_BROKER: join(root, "nvim.sock") }, { PI_NVIM_BROKER: directory },
-    ]) assert.throws(() => piAskArguments({ ...environment, ...overrides }), /Cannot grant Pi Ask broker access/);
-    const alias = join(root, "alias.sock");
-    symlinkSync(socket, alias);
-    assert.throws(() => piAskArguments({ ...environment, PI_NVIM_BROKER: alias }), /canonical/);
-    chmodSync(directory, 0o755);
-    assert.throws(() => piAskArguments(environment), /private/);
-    chmodSync(directory, 0o700);
-    chmodSync(socket, 0o666);
-    assert.throws(() => piAskArguments(environment), /private/);
-  } finally {
-    await new Promise(resolve => server.close(resolve));
-  }
-});
-
-test("PiAsk cannot disguise a raw RPC socket as its broker endpoint", async () => {
-  const { root } = fixture();
-  const launchId = "0123456789abcdef0123456789abcdef";
-  const namespace = join(root, `pi-ask-${process.getuid()}`);
-  const directory = join(namespace, launchId);
-  mkdirSync(directory, { recursive: true, mode: 0o700 });
-  chmodSync(namespace, 0o700);
-  const raw = join(root, "raw.sock");
-  const socket = join(directory, "broker.sock");
-  const server = createServer(connection => connection.end());
-  server.listen(raw);
-  await once(server, "listening");
-  try {
-    symlinkSync(raw, socket);
-    assert.throws(() => piAskArguments({ XDG_RUNTIME_DIR: root, PI_NVIM_BROKER: socket, PI_NVIM_LAUNCH_ID: launchId }), /canonical/);
-  } finally {
-    await new Promise(resolve => server.close(resolve));
-  }
-});
-
-test("PI_NVIM_SOCKET is ignored with a warning regardless of its path", t => {
+test("invalid Neovim socket paths fail the launch", () => {
   const { root, launch } = fixture();
-  const expected = launch();
-  const warning = t.mock.method(console, "warn", () => {});
   const file = join(root, "not-a-socket");
   writeFileSync(file, "fixture");
   for (const socket of [join(root, "missing.sock"), "relative.sock", file, root]) {
-    assert.deepEqual(launch([], { PI_NVIM_SOCKET: socket }), expected);
-  }
-  assert.equal(warning.mock.callCount(), 4);
-  for (const call of warning.mock.calls) {
-    assert.match(call.arguments[0], /PI_NVIM_SOCKET is disabled.*host commands/);
+    assert.throws(() => launch([], { PI_NVIM_SOCKET: socket }), /PI_NVIM_SOCKET|ENOENT/);
   }
 });
-
 test("prepares missing npm cache and log directories without replacing existing contents", () => {
   const { home } = fixture();
   prepareNpmCache(home);
@@ -370,7 +308,7 @@ test("always selects absolute nono, immutable profile and distinct raw Pi, prese
   assert.equal(command[0], nono);
   assert.deepEqual(command.slice(1, 4), ["run", "--profile", profile]);
   assert.deepEqual(command.slice(command.indexOf("--") + 1), [
-    envBinary, "-u", "PI_NVIM_SOCKET", "--",
+    envBinary, "--",
     `GH_CONFIG_DIR=${join(home, ".cache", "pi", "gh")}`,
     `npm_config_cache=${join(home, ".cache", "pi", "npm")}`,
     `UV_CACHE_DIR=${join(home, ".cache", "pi", "uv")}`,
@@ -792,6 +730,7 @@ test("sandbox handoff uses literal assignments and does not load shell or Node p
     UV_TOOL_DIR: join(home, ".cache", "pi", "uv-tools"),
     NODE_OPTIONS: "--disable-warning=UNDICI-EHPA",
     GH_TOKEN: "synthetic-proxy-placeholder", HTTPS_PROXY: "http://127.0.0.1:12345",
+    PI_NVIM_SOCKET: "/host/nvim.sock",
   });
   assert.equal(existsSync(marker), false);
 });

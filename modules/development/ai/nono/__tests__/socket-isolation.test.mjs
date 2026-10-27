@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync } from "node:fs";
 import { createServer as createHttpServer } from "node:http";
 import { createConnection, createServer } from "node:net";
 import { dirname, join } from "node:path";
@@ -87,13 +87,7 @@ test("desktop and service sockets, aliases, stdio and HTTP work through the laun
     ]) mkdirSync(path, { recursive: true });
 
     const runtime = join(root, "runtime");
-    const launchId = "0123456789abcdef0123456789abcdef";
-    const namespace = join(runtime, `pi-ask-${process.getuid()}`);
-    const directory = join(namespace, launchId);
-    mkdirSync(directory, { recursive: true, mode: 0o700 });
-    chmodSync(namespace, 0o700);
-    const broker = join(directory, "broker.sock");
-    const permitted = [join(runtime, "agent.sock"), broker];
+    const permitted = [join(runtime, "agent.sock"), join(runtime, "editor.sock")];
     const neovim = join(runtime, "nvim.sock");
     const sockets = [
       join(runtime, "wayland-1"),
@@ -118,7 +112,6 @@ test("desktop and service sockets, aliases, stdio and HTTP work through the laun
       servers.push(server);
       server.listen(path);
       await once(server, "listening");
-      if (path === broker) chmodSync(path, 0o600);
     }
     const alias = join(work, "alias.sock");
     symlinkSync(sockets[0], alias);
@@ -154,8 +147,7 @@ test("desktop and service sockets, aliases, stdio and HTTP work through the laun
       PATH: process.env.PATH, HOME: home, TMPDIR: join(root, "tmp"),
       XDG_STATE_HOME: join(root, "state"), XDG_CACHE_HOME: join(root, "cache"),
       XDG_DATA_HOME: join(root, "data"), XDG_CONFIG_HOME: join(root, "config"),
-      XDG_RUNTIME_DIR: runtime, SSH_AUTH_SOCK: permitted[0], PI_NVIM_SOCKET: neovim,
-      PI_NVIM_BROKER: broker, PI_NVIM_LAUNCH_ID: launchId, NO_COLOR: "1",
+      XDG_RUNTIME_DIR: runtime, SSH_AUTH_SOCK: permitted[0], PI_NVIM_SOCKET: permitted[1], NO_COLOR: "1",
     };
     const args = launchArguments(work, join(home, ".pi", "agent"), home, environment,
       profilePath, process.execPath, process.env.ENV_TEST_BINARY ?? "/usr/bin/env");

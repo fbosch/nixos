@@ -6,7 +6,6 @@ import { pathToFileURL } from "node:url";
 import { stripVTControlCharacters } from "node:util";
 import { withProtectedShellProfile } from "./shell-protection.mjs";
 import { assertReadOnlySshGrants, sshClientArguments } from "./ssh-access.mjs";
-import { piAskArguments } from "./pi-ask.mjs";
 import { assertGithubCredentialGrants, direnvGithubEnvironment, prepareGithubEnvironment } from "./github-auth.mjs";
 import { prepareSandboxRuntime, sandboxRuntimeCommand } from "./sandbox-runtime.mjs";
 
@@ -209,9 +208,11 @@ export function launchArguments(cwd, agentDir, home, environment, profile, rawPi
   const dataHome = environment.XDG_DATA_HOME || join(home, ".local", "share");
   const cacheHome = environment.XDG_CACHE_HOME || join(home, ".cache");
   const extra = sshClientArguments(home, environment);
-  extra.push(...piAskArguments(environment));
-  if (environment.PI_NVIM_SOCKET) {
-    console.warn("pi sandbox launch: PI_NVIM_SOCKET is disabled in sandboxed sessions; Neovim RPC can execute host commands.");
+  const editorSocket = environment.PI_NVIM_SOCKET;
+  if (editorSocket) {
+    if (!isAbsolute(editorSocket)) throw new Error("PI_NVIM_SOCKET must be an absolute socket path");
+    if (!statSync(editorSocket).isSocket()) throw new Error("PI_NVIM_SOCKET must point to a socket");
+    extra.push("--allow-unix-socket", editorSocket);
   }
   for (const path of [
     join(home, ".pi-lens"),
