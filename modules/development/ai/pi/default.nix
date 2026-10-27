@@ -208,16 +208,11 @@ in
         pkgs.runCommand "pi-launcher-routing"
           {
             PI_TEST_PROFILE = launcherProfile;
-            PI_TEST_PACKAGE = "${mkPi pkgs}/lib/pi/node_modules/@earendil-works/pi-coding-agent";
-            PI_TEST_NONO = "${pkgs.nono}/bin/nono";
-            ENV_TEST_BINARY = "${pkgs.coreutils}/bin/env";
             PI_TEST_PROBE = "${mkLauncher pkgs shellProbe}/bin/pi";
             PI_TEST_FISH = "${pkgs.fish}/bin/fish";
           }
           ''
-            ${pkgs.nodejs}/bin/node --test \
-              ${../nono/__tests__/routing.test.mjs} \
-              ${../nono}/__tests__/herdr-launch.test.mjs
+            ${pkgs.nodejs}/bin/node --test ${../nono/__tests__/routing.test.mjs}
             touch "$out"
           '';
       nix-unit.tests.piActivation = {

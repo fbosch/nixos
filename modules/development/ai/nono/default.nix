@@ -59,7 +59,7 @@ in
       );
     in
     {
-      # Pathname mediation keeps filesystem grants separate from host IPC authority.
+      # Unix socket mediation stays off for desktop compatibility; host IPC is not isolated.
       checks = lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
         nono-pi-ssh-access =
           pkgs.runCommand "nono-pi-ssh-access"
@@ -279,10 +279,10 @@ in
             cache_ttl_secs = 300;
           };
         };
-        testRequiresPathnameMediationAndLandlockNetworkPolicy = {
+        testKeepsUnixSocketCompatibilityAndLandlockNetworkPolicy = {
           expr = profile.linux;
           expected = {
-            af_unix_mediation = "pathname";
+            af_unix_mediation = "off";
             sandbox_policy = "landlock";
           };
         };

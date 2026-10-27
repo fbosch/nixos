@@ -12,9 +12,9 @@ import { launchArguments } from "../scripts/launcher.mjs";
 const profilePath = process.env.NONO_TEST_PROFILE ?? fileURLToPath(new URL("../scripts/profile.json", import.meta.url));
 const probe = fileURLToPath(new URL("./fixtures/socket-isolation-probe.mjs", import.meta.url));
 
-test("Pi permits only the normal Nix daemon as an explicit socket grant", () => {
+test("Pi preserves Unix socket compatibility and configured socket grants", () => {
   const profile = JSON.parse(readFileSync(profilePath, "utf8"));
-  assert.equal(profile.linux?.af_unix_mediation, "pathname");
+  assert.deepEqual(profile.linux, { af_unix_mediation: "off", sandbox_policy: "landlock" });
   assert.deepEqual(profile.filesystem.unix_socket, [{ path: "/nix/var/nix/daemon-socket/socket", when: "linux" }]);
   for (const [key, value] of Object.entries(profile.filesystem)) {
     if (key.startsWith("unix_socket") && key !== "unix_socket") assert.deepEqual(value, [], key);
@@ -66,7 +66,7 @@ test("probe timeout terminates a process group retaining output pipes", { timeou
   `], {}, { signal: t.signal, timeoutMs: 500 }), /Sandbox probe timed out/);
 });
 
-test("pathname mediation denies unlisted sockets and aliases while explicit SSH, stdio and HTTP work", {
+test("desktop and service sockets, aliases, stdio and HTTP work through the launcher", {
   skip: process.platform !== "linux" || !process.env.NONO_TEST_BINARY,
   timeout: 45000,
 }, async (t) => {
@@ -80,16 +80,6 @@ test("pathname mediation denies unlisted sockets and aliases while explicit SSH,
     const resolved = await run(process.env.NONO_TEST_BINARY, ["profile", "show", "--json", profilePath], {}, { signal: t.signal });
     assert.equal(resolved.code, 0, resolved.stderr);
     const policy = JSON.parse(resolved.stdout);
-    assert.equal(policy.linux.af_unix_mediation, "pathname");
-    assert.deepEqual(Object.fromEntries(Object.entries(policy.filesystem).filter(([key]) => key.startsWith("unix_socket"))), {
-      unix_socket: ["/nix/var/nix/daemon-socket/socket"],
-      unix_socket_bind: [],
-      // The pinned default profile permits only NSS/user lookup sockets, not the session bus or service manager.
-      unix_socket_dir: ["/run/systemd/userdb"],
-      unix_socket_dir_bind: [],
-      unix_socket_subtree: [],
-      unix_socket_subtree_bind: [],
-    });
     for (const path of [
       work, join(root, "runtime", "podman"), join(root, "runtime", "systemd"), join(home, ".pi", "agent"),
       join(home, ".npm", "_cacache"), join(home, ".npm", "_logs"),
@@ -106,6 +96,8 @@ test("pathname mediation denies unlisted sockets and aliases while explicit SSH,
     const permitted = [join(runtime, "agent.sock"), broker];
     const neovim = join(runtime, "nvim.sock");
     const sockets = [
+      join(runtime, "wayland-1"),
+      join(root, "tmp", "supervisor.sock"),
       join(runtime, "podman", "podman.sock"),
       join(runtime, "docker.sock"),
       join(runtime, "systemd", "private"),
@@ -174,17 +166,17 @@ test("pathname mediation denies unlisted sockets and aliases while explicit SSH,
     const result = await run(process.env.NONO_TEST_BINARY, [
       ...grants, "--read", dirname(probe), "--open-port", String(http.address().port),
       "--no-audit", "--no-rollback", ...args.slice(boundary),
-      probe, JSON.stringify({ sockets, permitted, bindPath: join(runtime, "new.sock"), url: `http://127.0.0.1:${http.address().port}` }),
+      probe, JSON.stringify({ sockets: [...sockets, ...permitted], bindPath: join(runtime, "new.sock"), url: `http://127.0.0.1:${http.address().port}` }),
     ], { cwd: work, env: environment }, { signal: t.signal });
     assert.equal(result.signal, null, result.stderr);
     assert.equal(result.code, 0, result.stderr || result.stdout);
     const report = JSON.parse(result.stdout.trim());
-    assert.deepEqual(report.denied, sockets);
-    assert.deepEqual(report.connected, permitted);
-    assert.equal(report.bindDenied, true);
+    assert.deepEqual(report.connected, [...sockets, ...permitted]);
+    assert.equal(report.bound, true);
+    assert.equal(policy.linux.af_unix_mediation, "off");
     assert.equal(report.stdio, "stdio-fixture");
     assert.equal(report.http, "http-fixture");
-    assert.equal(accepted, baseline + permitted.length, "only explicitly permitted connections may reach a listener");
+    assert.equal(accepted, baseline * 2, "all compatibility fixture connections must reach their listeners");
   } finally {
     for (const socket of connections) socket.destroy();
     for (const server of servers) server.closeAllConnections?.();

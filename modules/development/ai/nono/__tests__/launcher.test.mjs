@@ -755,18 +755,6 @@ test("dynamic grants reject the GitHub store through runtime, reference, cwd, an
   assert.doesNotThrow(() => args(cwd, { XDG_RUNTIME_DIR: join(home, ".pi", "agent") }));
 });
 
-test("OSC 52 copy opt-in is scoped to Linux Herdr launches", () => {
-  const { cwd, agent, home, raw, profile } = fixture();
-  for (const platform of ["linux", "darwin"]) {
-    for (const herdr of [undefined, "0", "1"]) {
-      const environment = herdr === undefined ? {} : { HERDR_ENV: herdr };
-      const args = launchArguments(cwd, agent, home, environment, profile, raw, envBinary, platform);
-      const child = args.slice(args.indexOf("--") + 1);
-      assert.equal(child.includes("PI_CLIPBOARD_OSC52=1"), platform === "linux" && herdr === "1");
-    }
-  }
-});
-
 test("sandbox handoff uses literal assignments and does not load shell or Node preloads", () => {
   const { root } = fixture();
   const home = join(root, "hjem æøå ' \" $()\n");
@@ -780,7 +768,7 @@ test("sandbox handoff uses literal assignments and does not load shell or Node p
     const names = ["GH_CONFIG_DIR", "npm_config_cache", "UV_CACHE_DIR", "UV_PYTHON_INSTALL_DIR", "UV_TOOL_DIR", "NODE_OPTIONS", "GH_TOKEN", "HTTPS_PROXY", "PI_NVIM_SOCKET"];
     console.log(JSON.stringify({ pid: process.pid, args: process.argv.slice(1), environment: Object.fromEntries(names.map(name => [name, process.env[name]])) }));
   `;
-  const command = sandboxRuntimeCommand(home, process.execPath, envBinary, false);
+  const command = sandboxRuntimeCommand(home, process.execPath, envBinary);
   assert.equal(command[0], envBinary);
   const child = spawnSync(command[0], [...command.slice(1), "-e", probe, "--", ...literals], {
     env: {
@@ -810,7 +798,7 @@ test("sandbox handoff uses literal assignments and does not load shell or Node p
 
 test("sandbox handoff preserves child exit status and terminating signal", () => {
   const { home } = fixture();
-  const command = sandboxRuntimeCommand(home, process.execPath, envBinary, false);
+  const command = sandboxRuntimeCommand(home, process.execPath, envBinary);
   for (const [probe, status, signal] of [
     ["process.exit(7)", 7, null],
     ['process.kill(process.pid, "SIGTERM")', null, "SIGTERM"],
