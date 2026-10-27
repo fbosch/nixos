@@ -225,7 +225,7 @@ diff --git a/packages/coding-agent/src/extensions/tool-search/tool.ts b/packages
 +	return { name: tool.name, text: parts.filter((part) => part.trim()).join(" "), description: tool.description };
  }
  
- /** Okapi BM25 with the usual parameters. Ties keep document order. */
+ /** Lowercase with characters invalid in script identifiers as `_`, so `dev-radius` matches `dev_radius`. */
 @@ -197,27 +326,43 @@
   * Rank the searchable tools that are not active yet and activate the matches, so the next model
   * call declares them. Activation is recorded in the transcript like any tool change.
