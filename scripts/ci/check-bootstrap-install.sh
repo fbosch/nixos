@@ -133,7 +133,7 @@ EOF_EXPECTED_CURL_ARGS
 
   if [ "$privilege" = "root" ]; then
     {
-      printf '%s\n' '--preserve-env=BOOTSTRAP_INSTALL_ISO_RUNTIME,GPG_KEY_GIST_ID,NIXOS_INSTALL_ACTION,NIXOS_INSTALL_DRY_RUN,NIXOS_INSTALL_HOST'
+      printf '%s\n' '--preserve-env=BOOTSTRAP_INSTALL_ISO_RUNTIME,GPG_BACKUP_REPO,NIXOS_INSTALL_ACTION,NIXOS_INSTALL_DRY_RUN,NIXOS_INSTALL_HOST'
       printf '%s\n' nix-shell
       cat "$BOOTSTRAP_TEST_NIX_SHELL_ARGS"
     } >"$tmp_dir/expected-sudo-args"
@@ -325,7 +325,7 @@ gh() {
     [ "${GH_BROWSER:-}" = "true" ] || return 64
     IFS= read -r browser_confirmation || return 64
     [ -z "$browser_confirmation" ] || return 64
-    [ "$*" = "auth login --web --scopes gist" ] || return 64
+    [ "$*" = "auth login --web --scopes repo" ] || return 64
     return
   fi
   return 64
@@ -334,7 +334,7 @@ gh() {
 : >"$BOOTSTRAP_TEST_QRENCODE_ARGS"
 authenticate_github_cli
 diff -u "$tmp_dir/expected-qrencode-args" "$BOOTSTRAP_TEST_QRENCODE_ARGS"
-grep -Fqx 'auth login --web --scopes gist' "$BOOTSTRAP_TEST_GH_LOG"
+grep -Fqx 'auth login --web --scopes repo' "$BOOTSTRAP_TEST_GH_LOG"
 
 parse_args --dry-run
 if [ "$install_dry_run" != "true" ] || [ "$NIXOS_INSTALL_DRY_RUN" != "true" ]; then

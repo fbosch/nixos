@@ -71,14 +71,26 @@
         text = builtins.readFile ../../scripts/bootstrap/bootstrap-machine.sh;
       };
 
-      rotateGpgGistScript = pkgs.writeShellApplication {
-        name = "rotate-gpg-gist";
+      rotateGpgReleaseScript = pkgs.writeShellApplication {
+        name = "rotate-gpg-release";
         runtimeInputs = with pkgs; [
           gh
           gnupg
           xkcdpass
         ];
-        text = builtins.readFile ../../scripts/maintenance/rotate-gpg-gist.sh;
+        text = builtins.readFile ../../scripts/maintenance/rotate-gpg-release.sh;
+      };
+
+      verifyGpgReleaseScript = pkgs.writeShellApplication {
+        name = "verify-gpg-release";
+        runtimeInputs = with pkgs; [
+          coreutils
+          gawk
+          gh
+          gnupg
+          gnugrep
+        ];
+        text = builtins.readFile ../../scripts/maintenance/verify-gpg-release.sh;
       };
     in
     {
@@ -166,10 +178,15 @@
           program = "${installScript}/bin/bootstrap-machine";
           meta.description = "Bootstrap a fresh NixOS host and copy /etc/nixos config";
         };
-        rotate-gpg-gist = {
+        rotate-gpg-release = {
           type = "app";
-          program = "${rotateGpgGistScript}/bin/rotate-gpg-gist";
-          meta.description = "Rotate the encrypted GPG backup gist from the current local key";
+          program = "${rotateGpgReleaseScript}/bin/rotate-gpg-release";
+          meta.description = "Rotate the encrypted GPG backup release asset in the private backup repo";
+        };
+        verify-gpg-release = {
+          type = "app";
+          program = "${verifyGpgReleaseScript}/bin/verify-gpg-release";
+          meta.description = "Verify the encrypted GPG backup release asset decrypts in a throwaway keyring";
         };
       };
 

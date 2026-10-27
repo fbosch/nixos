@@ -1,7 +1,7 @@
 import { afterEach, test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -11,7 +11,6 @@ const envBinary = process.env.ENV_TEST_BINARY ?? "/usr/bin/env";
 
 const roots = [];
 const launcher = fileURLToPath(new URL("../scripts/launcher.mjs", import.meta.url));
-const profile = fileURLToPath(new URL("../scripts/profile.json", import.meta.url));
 
 function fixture(withEnvrc = true) {
   const root = mkdtempSync(join(tmpdir(), "pi-direnv-bootstrap-"));
@@ -107,11 +106,13 @@ test("a directory named .envrc fails closed", () => {
 });
 
 for (const blocked of [false, true]) {
-  test(`launcher ${blocked ? "does not start nono after a blocked load" : "passes loaded environment and arguments into nono"}`, () => {
+  test(`launcher ${blocked ? "starts nono with inherited environment after a blocked load" : "passes loaded environment and arguments into nono"}`, () => {
     const { root, cwd, direnv } = fixture();
     const home = join(root, "home");
     const observed = join(root, "observed.json");
     mkdirSync(home);
+    const profile = join(root, "profile.json");
+    writeFileSync(profile, JSON.stringify({ filesystem: { allow: [], read: [] } }));
     writeFileSync(direnv, `#!${process.execPath}\n${blocked
       ? 'console.error("direnv: error .envrc is blocked"); process.exit(1);'
       : 'console.error("warning: optional cache failed; using defaults"); console.log(JSON.stringify({SAMPLE:"loaded", REMOVE:null, PATH:"/project/bin"}));'}\n`, { mode: 0o700 });
@@ -123,20 +124,22 @@ for (const blocked of [false, true]) {
     delete env.NODE_PATH;
     for (const name of ["GH_TOKEN", "GITHUB_TOKEN", "GITHUB_PERSONAL_ACCESS_TOKEN", "GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN"]) delete env[name];
     const result = spawnSync(process.execPath, [launcher, nono, process.execPath, profile, direnv, envBinary, "--print", "hello"], { cwd, env, encoding: "utf8" });
+    assert.equal(result.status, 0, result.stderr);
+    const actual = JSON.parse(readFileSync(observed, "utf8"));
     if (blocked) {
-      assert.equal(result.status, 1, result.stderr);
-      assert.equal(existsSync(observed), false);
-      assert.match(result.stderr, /direnv environment load failed/);
+      assert.equal(actual.sample, "old");
+      assert.equal(actual.removed, "old");
+      assert.equal(actual.path.split(":")[0], env.PATH.split(":")[0]);
+      assert.ok(!actual.path.split(":").includes("/project/bin"));
+      assert.match(result.stderr, /continuing without project direnv environment/);
     } else {
-      assert.equal(result.status, 0, result.stderr);
-      const actual = JSON.parse(readFileSync(observed, "utf8"));
       assert.equal(actual.sample, "loaded");
       assert.equal(actual.path.split(":")[0], env.PATH.split(":")[0]);
       assert.ok(actual.path.split(":").includes("/project/bin"));
       assert.equal(actual.removed, undefined);
-      assert.deepEqual(actual.args.slice(-2), ["--print", "hello"]);
-      assert.ok(actual.args.includes("--allow-cwd"));
     }
+    assert.deepEqual(actual.args.slice(-2), ["--print", "hello"]);
+    assert.ok(actual.args.includes("--allow-cwd"));
   });
 }
 

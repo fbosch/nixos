@@ -1219,7 +1219,7 @@ run_downloaded_script() {
 
   curl -fsSL "$base_url/$script_name" -o "$downloaded_script"
   if [ "$privilege" = "root" ]; then
-    sudo --preserve-env=BOOTSTRAP_INSTALL_ISO_RUNTIME,GPG_KEY_GIST_ID,NIXOS_INSTALL_ACTION,NIXOS_INSTALL_DRY_RUN,NIXOS_INSTALL_HOST \
+    sudo --preserve-env=BOOTSTRAP_INSTALL_ISO_RUNTIME,GPG_BACKUP_REPO,NIXOS_INSTALL_ACTION,NIXOS_INSTALL_DRY_RUN,NIXOS_INSTALL_HOST \
       nix-shell -p "$@" --run "bash \"$downloaded_script\" </dev/tty"
     return
   fi

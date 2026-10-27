@@ -294,7 +294,7 @@ export function loadProjectEnvironment(cwd, environment, direnv, run = spawnSync
     throw new Error("Packaged direnv executable missing");
   }
 
-  // Collect the diff before confinement so exit-zero evaluation failures cannot launch Pi.
+  // Collect the diff before confinement; the launcher falls back to the sanitized inherited environment on failure.
   // Caller-controlled shell/Node preloads must not execute in this trusted bootstrap.
   const loaderEnvironment = { ...environment };
   for (const name of ["BASH_ENV", "ENV", "NODE_OPTIONS", "NODE_PATH"]) delete loaderEnvironment[name];
@@ -310,14 +310,14 @@ export function loadProjectEnvironment(cwd, environment, direnv, run = spawnSync
   if (result.error || result.status !== 0 ||
       /^[ \t]*(?:(?:direnv|nix|devenv):[ \t]*)?(?:error|fatal)(?:[ \t:]|$)/im.test(diagnostics) ||
       /^[^:\r\n]+:[ \t]*(?:line[ \t]+)?\d+:(?![ \t]*warning(?:[ \t:]|$))/im.test(diagnostics)) {
-    throw new Error("Project direnv environment load failed; Pi was not launched");
+    throw new Error("Project direnv environment load failed");
   }
 
   let exported;
   try {
     exported = result.stdout.trim() === "" ? {} : JSON.parse(result.stdout);
   } catch {
-    throw new Error("Project direnv export is not valid JSON; Pi was not launched");
+    throw new Error("Project direnv export is not valid JSON");
   }
   if (!record(exported)) throw new Error("Project direnv export must be an object");
 
@@ -343,7 +343,14 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     const home = homedir();
     const inheritedHome = environment.HOME;
     const inheritedEnvironment = { ...environment };
-    environment = loadProjectEnvironment(process.cwd(), direnvGithubEnvironment(environment), direnv);
+    const safeEnvironment = direnvGithubEnvironment(environment);
+    try {
+      environment = loadProjectEnvironment(process.cwd(), safeEnvironment, direnv);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`pi sandbox launch: ${message}; continuing without project direnv environment`);
+      environment = safeEnvironment;
+    }
     environment = prepareGithubEnvironment(inheritedEnvironment, environment, home);
     if (inheritedHome === undefined) delete environment.HOME;
     else environment.HOME = inheritedHome;
