@@ -19,12 +19,14 @@ export function prepareSandboxRuntime(home) {
   }
 }
 
-export function sandboxRuntimeCommand(home, rawPi, envBinary) {
+export function sandboxRuntimeCommand(home, rawPi, envBinary, terminalClipboard) {
   // Set child-only config after confinement; supervisor capture keeps the real store.
   const environment = {
     ...sandboxRuntimeEnvironment(home),
     // Nono strips Node options; restore only this fixed warning filter after confinement.
     NODE_OPTIONS: "--disable-warning=UNDICI-EHPA",
+    // Copy through the host terminal, not the sandbox-denied compositor socket.
+    ...(terminalClipboard ? { PI_CLIPBOARD_OSC52: "1" } : {}),
   };
   // Hide the unavailable host RPC integration; authorization is also omitted by the launcher.
   return [envBinary, "-u", "PI_NVIM_SOCKET", "--", ...Object.entries(environment).map(([name, value]) => `${name}=${value}`), rawPi];

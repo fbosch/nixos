@@ -244,7 +244,7 @@ export function launchArguments(cwd, agentDir, home, environment, profile, rawPi
     ...extra,
     ...[...reads].filter((path) => !grants.has(path)).flatMap((path) => ["--read", path]),
     ...[...grants].flatMap((path) => ["--allow", path]),
-    "--", ...sandboxRuntimeCommand(home, rawPi, envBinary),
+    "--", ...sandboxRuntimeCommand(home, rawPi, envBinary, platform === "linux" && environment.HERDR_ENV === "1"),
   ];
   assertReadOnlySshGrants(args, cwd);
   assertGithubCredentialGrants(args, cwd, home, { ...environment, TMPDIR: environment.TMPDIR || tmpdir() }, readJson(profile, "nono profile"));
