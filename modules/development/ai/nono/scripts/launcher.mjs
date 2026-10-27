@@ -6,6 +6,7 @@ import { pathToFileURL } from "node:url";
 import { stripVTControlCharacters } from "node:util";
 import { withProtectedShellProfile } from "./shell-protection.mjs";
 import { assertReadOnlySshGrants, sshClientArguments } from "./ssh-access.mjs";
+import { piAskArguments } from "./pi-ask.mjs";
 import { assertGithubCredentialGrants, direnvGithubEnvironment, prepareGithubEnvironment } from "./github-auth.mjs";
 import { prepareSandboxRuntime, sandboxRuntimeCommand } from "./sandbox-runtime.mjs";
 
@@ -208,20 +209,9 @@ export function launchArguments(cwd, agentDir, home, environment, profile, rawPi
   const dataHome = environment.XDG_DATA_HOME || join(home, ".local", "share");
   const cacheHome = environment.XDG_CACHE_HOME || join(home, ".cache");
   const extra = sshClientArguments(home, environment);
-  const neovimSocket = environment.PI_NVIM_SOCKET;
-  if (neovimSocket) {
-    try {
-      if (!isAbsolute(neovimSocket)) throw new Error("must be absolute");
-      if (!statSync(neovimSocket).isSocket()) throw new Error("must identify an existing Unix socket");
-      // Neovim RPC can execute host commands; authorize only the caller-selected socket.
-      extra.push("--allow-unix-socket", neovimSocket);
-    } catch (error) {
-      if (error.code === "ENOENT") {
-        console.warn(`pi sandbox launch: PI_NVIM_SOCKET socket is missing (${JSON.stringify(neovimSocket)}); continuing without Neovim access.`);
-      } else {
-        throw new Error(`Cannot grant PI_NVIM_SOCKET access: ${error.message}`);
-      }
-    }
+  extra.push(...piAskArguments(environment));
+  if (environment.PI_NVIM_SOCKET) {
+    console.warn("pi sandbox launch: PI_NVIM_SOCKET is disabled in sandboxed sessions; Neovim RPC can execute host commands.");
   }
   for (const path of [
     join(home, ".pi-lens"),

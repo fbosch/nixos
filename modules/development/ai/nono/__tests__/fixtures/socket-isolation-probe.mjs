@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
+import { renameSync } from "node:fs";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
-import { createConnection } from "node:net";
+import { createConnection, createServer } from "node:net";
 import { createInterface } from "node:readline";
 
 const initialize = {
@@ -22,9 +23,11 @@ if (process.argv[2] === "--stdio-server") {
     process.stdin.destroy();
   });
 } else {
-  const { sockets, url } = JSON.parse(process.argv[2]);
+  const { sockets, permitted, bindPath, url } = JSON.parse(process.argv[2]);
+  assert.equal(process.env.PI_NVIM_SOCKET, undefined, "host editor integration must be hidden");
   const connected = [];
-  for (const path of sockets) {
+  const denied = [];
+  for (const path of [...sockets, ...permitted]) {
     const socket = createConnection(path);
     try {
       await new Promise((resolve, reject) => {
@@ -33,9 +36,23 @@ if (process.argv[2] === "--stdio-server") {
         socket.setTimeout(3000, () => reject(new Error(`Socket check timed out: ${path}`)));
       });
       connected.push(path);
+      assert.ok(permitted.includes(path), `Unlisted socket connected: ${path}`);
+    } catch (error) {
+      assert.equal(permitted.includes(path), false, "explicit sockets must remain usable");
+      assert.equal(error.code, "EACCES", `${path}: ${error.message}`);
+      denied.push(path);
     } finally {
       socket.destroy();
     }
+  }
+
+  assert.throws(() => renameSync(sockets[4], permitted[1]), (error) => ["EACCES", "EPERM", "EXDEV"].includes(error.code), "raw RPC socket must not replace the permitted broker");
+  const listener = createServer();
+  try {
+    listener.listen(bindPath);
+    await assert.rejects(once(listener, "listening"), { code: "EACCES" });
+  } finally {
+    listener.close();
   }
 
   const child = spawn(process.execPath, [process.argv[1], "--stdio-server"], {
@@ -61,5 +78,5 @@ if (process.argv[2] === "--stdio-server") {
   assert.equal(response.status, 200);
   const http = await response.json();
   assert.equal(http.id, initialize.id);
-  console.log(JSON.stringify({ connected, stdio: stdio.result.serverInfo.name, http: http.result.serverInfo.name }));
+  console.log(JSON.stringify({ connected, denied, bindDenied: true, stdio: stdio.result.serverInfo.name, http: http.result.serverInfo.name }));
 }

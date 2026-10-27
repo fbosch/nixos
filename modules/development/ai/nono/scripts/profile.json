@@ -58,7 +58,7 @@
         ]
     },
     "linux": {
-        "af_unix_mediation": "off",
+        "af_unix_mediation": "pathname",
         "sandbox_policy": "landlock"
     },
     "meta": {

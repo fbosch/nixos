@@ -8,6 +8,7 @@ import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { launchArguments, launchCommand, prepareJitiCache, prepareNpmCache } from "../scripts/launcher.mjs";
 import { sandboxRuntimeCommand } from "../scripts/sandbox-runtime.mjs";
+import { piAskArguments } from "../scripts/pi-ask.mjs";
 
 const envBinary = process.env.ENV_TEST_BINARY ?? "/usr/bin/env";
 
@@ -174,8 +175,9 @@ function values(args, flag) {
   return args.flatMap((part, index) => part === flag ? [args[index + 1]] : []);
 }
 
-test("PI_NVIM_SOCKET grants only connect access to the inherited Neovim socket", async () => {
+test("PI_NVIM_SOCKET never authorizes host editor RPC", async (t) => {
   const { root, cwd, agent, home, raw, profile } = fixture();
+  t.mock.method(console, "warn", () => {});
   const socket = join(root, "nvim.sock");
   const server = createServer(connection => connection.end());
   server.listen(socket);
@@ -183,7 +185,7 @@ test("PI_NVIM_SOCKET grants only connect access to the inherited Neovim socket",
   try {
     for (const platform of ["darwin", "linux"]) {
       const args = launchArguments(cwd, agent, home, { PI_NVIM_SOCKET: socket }, profile, raw, envBinary, platform);
-      assert.deepEqual(values(args, "--allow-unix-socket"), [socket]);
+      assert.deepEqual(values(args, "--allow-unix-socket"), []);
       for (const flag of ["--allow-unix-socket-bind", "--allow-unix-socket-dir", "--allow-unix-socket-dir-bind", "--allow-unix-socket-subtree", "--allow-unix-socket-subtree-bind", "--bypass-protection"]) {
         assert.deepEqual(values(args, flag), [], flag);
       }
@@ -202,32 +204,71 @@ test("launches without PI_NVIM_SOCKET do not grant editor socket access", () => 
   }
 });
 
-test("missing PI_NVIM_SOCKET paths warn and leave editor socket access disabled", t => {
-  const { root, launch } = fixture();
-  const expected = launch();
-  const warning = t.mock.method(console, "warn", () => {});
-  const missing = join(root, "missing.sock");
-  const dangling = join(root, "dangling.sock");
-  symlinkSync(missing, dangling);
-  const sockets = [missing, join(root, "missing-editor", "nvim.sock"), dangling];
-  for (const socket of sockets) assert.deepEqual(launch([], { PI_NVIM_SOCKET: socket }), expected);
-  assert.equal(warning.mock.callCount(), sockets.length);
-  for (const [index, call] of warning.mock.calls.entries()) {
-    assert.match(call.arguments[0], /PI_NVIM_SOCKET.*missing.*continuing without Neovim access/);
-    assert.ok(call.arguments[0].includes(JSON.stringify(sockets[index])));
+test("PiAsk grants only its canonical private per-launch endpoint", async () => {
+  const { root } = fixture();
+  const launchId = "0123456789abcdef0123456789abcdef";
+  const namespace = join(root, `pi-ask-${process.getuid()}`);
+  const directory = join(namespace, launchId);
+  mkdirSync(directory, { recursive: true, mode: 0o700 });
+  chmodSync(namespace, 0o700);
+  const socket = join(directory, "broker.sock");
+  const server = createServer(connection => connection.end());
+  server.listen(socket);
+  await once(server, "listening");
+  chmodSync(socket, 0o600);
+  const environment = { XDG_RUNTIME_DIR: root, PI_NVIM_BROKER: socket, PI_NVIM_LAUNCH_ID: launchId };
+  try {
+    assert.deepEqual(piAskArguments(environment), ["--allow-unix-socket", socket]);
+    assert.deepEqual(piAskArguments({}), []);
+    for (const overrides of [
+      { PI_NVIM_LAUNCH_ID: "invalid" }, { PI_NVIM_BROKER: "relative.sock" },
+      { PI_NVIM_BROKER: join(root, "nvim.sock") }, { PI_NVIM_BROKER: directory },
+    ]) assert.throws(() => piAskArguments({ ...environment, ...overrides }), /Cannot grant Pi Ask broker access/);
+    const alias = join(root, "alias.sock");
+    symlinkSync(socket, alias);
+    assert.throws(() => piAskArguments({ ...environment, PI_NVIM_BROKER: alias }), /canonical/);
+    chmodSync(directory, 0o755);
+    assert.throws(() => piAskArguments(environment), /private/);
+    chmodSync(directory, 0o700);
+    chmodSync(socket, 0o666);
+    assert.throws(() => piAskArguments(environment), /private/);
+  } finally {
+    await new Promise(resolve => server.close(resolve));
   }
 });
 
-test("invalid PI_NVIM_SOCKET paths fail closed before entering the sandbox", () => {
+test("PiAsk cannot disguise a raw RPC socket as its broker endpoint", async () => {
+  const { root } = fixture();
+  const launchId = "0123456789abcdef0123456789abcdef";
+  const namespace = join(root, `pi-ask-${process.getuid()}`);
+  const directory = join(namespace, launchId);
+  mkdirSync(directory, { recursive: true, mode: 0o700 });
+  chmodSync(namespace, 0o700);
+  const raw = join(root, "raw.sock");
+  const socket = join(directory, "broker.sock");
+  const server = createServer(connection => connection.end());
+  server.listen(raw);
+  await once(server, "listening");
+  try {
+    symlinkSync(raw, socket);
+    assert.throws(() => piAskArguments({ XDG_RUNTIME_DIR: root, PI_NVIM_BROKER: socket, PI_NVIM_LAUNCH_ID: launchId }), /canonical/);
+  } finally {
+    await new Promise(resolve => server.close(resolve));
+  }
+});
+
+test("PI_NVIM_SOCKET is ignored with a warning regardless of its path", t => {
   const { root, launch } = fixture();
+  const expected = launch();
+  const warning = t.mock.method(console, "warn", () => {});
   const file = join(root, "not-a-socket");
   writeFileSync(file, "fixture");
-  for (const [path, message] of [
-    ["relative.sock", /PI_NVIM_SOCKET.*absolute/],
-    [file, /PI_NVIM_SOCKET.*socket/],
-    [root, /PI_NVIM_SOCKET.*socket/],
-  ]) {
-    assert.throws(() => launch([], { PI_NVIM_SOCKET: path }), message);
+  for (const socket of [join(root, "missing.sock"), "relative.sock", file, root]) {
+    assert.deepEqual(launch([], { PI_NVIM_SOCKET: socket }), expected);
+  }
+  assert.equal(warning.mock.callCount(), 4);
+  for (const call of warning.mock.calls) {
+    assert.match(call.arguments[0], /PI_NVIM_SOCKET is disabled.*host commands/);
   }
 });
 
@@ -329,7 +370,7 @@ test("always selects absolute nono, immutable profile and distinct raw Pi, prese
   assert.equal(command[0], nono);
   assert.deepEqual(command.slice(1, 4), ["run", "--profile", profile]);
   assert.deepEqual(command.slice(command.indexOf("--") + 1), [
-    envBinary, "--",
+    envBinary, "-u", "PI_NVIM_SOCKET", "--",
     `GH_CONFIG_DIR=${join(home, ".cache", "pi", "gh")}`,
     `npm_config_cache=${join(home, ".cache", "pi", "npm")}`,
     `UV_CACHE_DIR=${join(home, ".cache", "pi", "uv")}`,
@@ -393,7 +434,6 @@ test("sandbox runtime state is prepared before grants and separated from supervi
 
 for (const [name, access] of [
   ["SSH_AUTH_SOCK", "SSH agent access"],
-  ["PI_NVIM_SOCKET", "Neovim access"],
   ["XDG_RUNTIME_DIR", "runtime-directory access"],
 ]) {
   test(`sandbox launcher starts nono despite a missing ${name}`, () => {
@@ -424,6 +464,23 @@ for (const [name, access] of [
     assert.deepEqual(args.slice(-2), [process.execPath, "--version"]);
   });
 }
+
+test("unavailable socket enforcement fails visibly without retrying raw Pi", () => {
+  const { root, home, cwd, agent, nono, raw, profile } = fixture();
+  const marker = join(root, "raw-ran");
+  writeFileSync(raw, `#!${process.execPath}\nrequire("node:fs").writeFileSync(${JSON.stringify(marker)}, "unsafe");\n`);
+  writeFileSync(nono, `#!${process.execPath}\nconsole.error("nono: seccomp-notify required but unavailable"); process.exit(126);\n`);
+  chmodSync(raw, 0o700);
+  chmodSync(nono, 0o700);
+  const child = spawnSync(process.execPath, [
+    new URL("../scripts/launcher.mjs", import.meta.url).pathname,
+    nono, raw, profile, "/missing-direnv", envBinary,
+  ], { cwd, env: { HOME: home, PATH: process.env.PATH, PI_CODING_AGENT_DIR: agent }, encoding: "utf8", timeout: 15000 });
+  assert.ifError(child.error);
+  assert.equal(child.status, 126, child.stderr);
+  assert.match(child.stderr, /seccomp-notify required but unavailable/);
+  assert.equal(existsSync(marker), false);
+});
 
 test("forged capability markers cannot bypass config errors", () => {
   const { launch, agent } = fixture();
@@ -708,7 +765,7 @@ test("sandbox handoff uses literal assignments and does not load shell or Node p
   writeFileSync(preload, `import { writeFileSync } from "node:fs"; writeFileSync(${JSON.stringify(marker)}, "injected");\n`);
   const literals = ["a prompt with spaces", "", "--no-sandbox", "'; touch injected", "æøå", "key=value"];
   const probe = `
-    const names = ["GH_CONFIG_DIR", "npm_config_cache", "UV_CACHE_DIR", "UV_PYTHON_INSTALL_DIR", "UV_TOOL_DIR", "NODE_OPTIONS", "GH_TOKEN", "HTTPS_PROXY"];
+    const names = ["GH_CONFIG_DIR", "npm_config_cache", "UV_CACHE_DIR", "UV_PYTHON_INSTALL_DIR", "UV_TOOL_DIR", "NODE_OPTIONS", "GH_TOKEN", "HTTPS_PROXY", "PI_NVIM_SOCKET"];
     console.log(JSON.stringify({ pid: process.pid, args: process.argv.slice(1), environment: Object.fromEntries(names.map(name => [name, process.env[name]])) }));
   `;
   const command = sandboxRuntimeCommand(home, process.execPath, envBinary);
@@ -716,6 +773,7 @@ test("sandbox handoff uses literal assignments and does not load shell or Node p
   const child = spawnSync(command[0], [...command.slice(1), "-e", probe, "--", ...literals], {
     env: {
       ...process.env, PATH: "/untrusted", HOME: home, BASH_ENV: shell, ENV: shell,
+      PI_NVIM_SOCKET: "/host/nvim.sock",
       NODE_OPTIONS: `--import=${preload}`, GH_CONFIG_DIR: "/host/credentials",
       GH_TOKEN: "synthetic-proxy-placeholder", HTTPS_PROXY: "http://127.0.0.1:12345",
     },

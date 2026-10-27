@@ -26,5 +26,6 @@ export function sandboxRuntimeCommand(home, rawPi, envBinary) {
     // Nono strips Node options; restore only this fixed warning filter after confinement.
     NODE_OPTIONS: "--disable-warning=UNDICI-EHPA",
   };
-  return [envBinary, "--", ...Object.entries(environment).map(([name, value]) => `${name}=${value}`), rawPi];
+  // Hide the unavailable host RPC integration; authorization is also omitted by the launcher.
+  return [envBinary, "-u", "PI_NVIM_SOCKET", "--", ...Object.entries(environment).map(([name, value]) => `${name}=${value}`), rawPi];
 }

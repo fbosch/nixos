@@ -59,8 +59,7 @@ in
       );
     in
     {
-      # Desktop and development services need pathname socket access. Filesystem
-      # confinement does not constrain actions delegated to those services.
+      # Pathname mediation keeps filesystem grants separate from host IPC authority.
       checks = lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
         nono-pi-ssh-access =
           pkgs.runCommand "nono-pi-ssh-access"
@@ -113,10 +112,11 @@ in
           pkgs.runCommand "nono-pi-socket-isolation"
             {
               NONO_TEST_BINARY = lib.getExe pkgs.nono;
+              ENV_TEST_BINARY = "${pkgs.coreutils}/bin/env";
               NONO_TEST_PROFILE = evaluated.environment.etc."nono/pi.json".source;
             }
             ''
-              ${pkgs.nodejs}/bin/node --test ${./__tests__}/socket-isolation.test.mjs
+              ${pkgs.nodejs}/bin/node --test ${./.}/__tests__/socket-isolation.test.mjs
               touch "$out"
             '';
         nono-pi-nix-build-access = pkgs.testers.runNixOSTest {
@@ -279,10 +279,10 @@ in
             cache_ttl_secs = 300;
           };
         };
-        testKeepsSocketCompatibilityAndLandlockNetworkPolicy = {
+        testRequiresPathnameMediationAndLandlockNetworkPolicy = {
           expr = profile.linux;
           expected = {
-            af_unix_mediation = "off";
+            af_unix_mediation = "pathname";
             sandbox_policy = "landlock";
           };
         };
