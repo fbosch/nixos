@@ -79,8 +79,10 @@ for (const [options, message] of [
 ]) {
   test(`proxy startup fails closed: ${JSON.stringify(options)}`, async () => {
     const f = fixture(options);
+    // Only noReady tests the deadline; error fixtures need startup headroom under parallel builds.
+    const startupTimeout = options.noReady ? 500 : 5000;
     try {
-      await assert.rejects(runWithCredentialProxy(f.nono, f.profile, [process.execPath, "-e", `require("node:fs").writeFileSync(${JSON.stringify(f.output)}, "must not start")`], f.environment, { startupTimeout: 500, shutdownTimeout: 200 }), message);
+      await assert.rejects(runWithCredentialProxy(f.nono, f.profile, [process.execPath, "-e", `require("node:fs").writeFileSync(${JSON.stringify(f.output)}, "must not start")`], f.environment, { startupTimeout, shutdownTimeout: 200 }), message);
       assert.equal(existsSync(f.output), false);
       f.checkStopped();
     } finally { rmSync(f.root, { recursive: true, force: true }); }
@@ -185,60 +187,74 @@ test("termination during startup preserves the signal and removes the pending pr
   }
 });
 
-test("installed Nono uses the packaged Context7 capture command and forwards an event stream", {
-  skip: !process.env.NONO_PROXY_TEST_BINARY || !process.env.NONO_TEST_PROFILE,
-  timeout: 15_000,
-}, async () => {
-  const f = fixture();
-  let finishStream;
-  const upstream = createServer((request, response) => {
-    if (request.url === "/ack") {
-      finishStream();
-      response.end("ack");
-      return;
-    }
-    assert.equal(request.headers.authorization, "Bearer fixture-upstream-secret");
-    response.writeHead(200, { "content-type": "text/event-stream" });
-    response.write("data: first\n\n");
-    finishStream = () => response.end("data: last\n\n");
-  });
-  try {
-    upstream.listen(0, "127.0.0.1");
-    await once(upstream, "listening");
-    const secret = join(f.root, "synthetic-context7-key");
-    writeFileSync(secret, "fixture-upstream-secret", { mode: 0o400 });
+for (const name of ["context7", "exa", "exa_mcp"]) {
+  test(`installed Nono captures ${name}, injects its header, and forwards an event stream`, {
+    skip: !process.env.NONO_PROXY_TEST_BINARY || !process.env.NONO_TEST_PROFILE,
+    timeout: 15_000,
+  }, async () => {
+    const f = fixture();
     const template = JSON.parse(readFileSync(process.env.NONO_TEST_PROFILE, "utf8"));
-    const captureCommand = [...template.credential_capture.context7.command.slice(0, -1), secret];
-    writeFileSync(f.profile, JSON.stringify({
-      network: { credentials: ["context7"], custom_credentials: {
-        context7: { upstream: `http://127.0.0.1:${upstream.address().port}`, credential_key: "cmd://context7", env_var: "CONTEXT7_API_KEY" },
-      } },
-      credential_capture: { context7: { command: captureCommand } },
-    }));
-    const result = await runWithCredentialProxy(process.env.NONO_PROXY_TEST_BINARY, f.profile, [process.execPath, "-e", `
-      (async () => {
-        const response = await fetch(process.env.CONTEXT7_BASE_URL + "/mcp", {
-          headers: { Authorization: "Bearer " + process.env.CONTEXT7_API_KEY },
-          signal: AbortSignal.timeout(3000),
-        });
-        const reader = response.body.getReader();
-        const first = new TextDecoder().decode((await reader.read()).value);
-        if (!response.ok || !first.includes("data: first") || first.includes("data: last")) process.exit(1);
-        // The upstream cannot end until this acknowledgement: proves incremental delivery.
-        await fetch(${JSON.stringify("http://127.0.0.1:")} + ${upstream.address().port} + "/ack");
-        let rest = "";
-        for (;;) {
-          const chunk = await reader.read();
-          if (chunk.done) break;
-          rest += new TextDecoder().decode(chunk.value);
-        }
-        if (!rest.includes("data: last") || (first + rest).includes("fixture-upstream-secret")) process.exit(1);
-      })().catch(() => process.exit(1));
-    `], { HOME: f.root, PATH: process.env.PATH }, { platform: "linux" });
-    assert.equal(result.status, 0);
-  } finally {
-    upstream.closeAllConnections();
-    await new Promise((resolve) => upstream.close(resolve));
-    rmSync(f.root, { recursive: true, force: true });
-  }
-});
+    const route = template.network.custom_credentials[name];
+    const header = route.inject_header;
+    const names = name.startsWith("exa") ? ["exa", "exa_mcp"] : [name];
+    const requestPath = name === "exa" ? "/search" : "/mcp";
+    let finishStream;
+    const upstream = createServer((request, response) => {
+      if (request.url === "/ack") {
+        finishStream();
+        response.end("ack");
+        return;
+      }
+      assert.equal(request.method, "POST");
+      assert.equal(request.url, requestPath);
+      assert.equal(request.headers[header.toLowerCase()], route.credential_format.replace("{}", "fixture-upstream-secret"));
+      response.writeHead(200, { "content-type": "text/event-stream" });
+      response.write("data: first\n\n");
+      finishStream = () => response.end("data: last\n\n");
+    });
+    try {
+      upstream.listen(0, "127.0.0.1");
+      await once(upstream, "listening");
+      const secret = join(f.root, "synthetic-credential");
+      writeFileSync(secret, "fixture-upstream-secret", { mode: 0o400 });
+      writeFileSync(f.profile, JSON.stringify({
+        network: {
+          credentials: names,
+          custom_credentials: Object.fromEntries(names.map((service) => [service, {
+            ...template.network.custom_credentials[service],
+            upstream: `http://127.0.0.1:${upstream.address().port}`,
+          }])),
+        },
+        credential_capture: Object.fromEntries(names.map((service) => [service, {
+          command: [...template.credential_capture[service].command.slice(0, -1), secret],
+        }])),
+      }));
+      const result = await runWithCredentialProxy(process.env.NONO_PROXY_TEST_BINARY, f.profile, [process.execPath, "-e", `
+        (async () => {
+          const response = await fetch(process.env[${JSON.stringify(name.toUpperCase() + "_BASE_URL")}] + ${JSON.stringify(requestPath)}, {
+            method: "POST", body: JSON.stringify({ query: "synthetic search" }),
+            headers: { [${JSON.stringify(header)}]: ${JSON.stringify(route.credential_format)}.replace("{}", process.env[${JSON.stringify(route.env_var)}]) },
+            signal: AbortSignal.timeout(3000),
+          });
+          const reader = response.body.getReader();
+          const first = new TextDecoder().decode((await reader.read()).value);
+          if (!response.ok || !first.includes("data: first") || first.includes("data: last")) process.exit(1);
+          // The upstream cannot end until this acknowledgement: proves incremental delivery.
+          await fetch(${JSON.stringify("http://127.0.0.1:")} + ${upstream.address().port} + "/ack");
+          let rest = "";
+          for (;;) {
+            const chunk = await reader.read();
+            if (chunk.done) break;
+            rest += new TextDecoder().decode(chunk.value);
+          }
+          if (!rest.includes("data: last") || (first + rest).includes("fixture-upstream-secret")) process.exit(1);
+        })().catch(() => process.exit(1));
+      `], { HOME: f.root, PATH: process.env.PATH }, { platform: "linux" });
+      assert.equal(result.status, 0);
+    } finally {
+      upstream.closeAllConnections();
+      await new Promise((resolve) => upstream.close(resolve));
+      rmSync(f.root, { recursive: true, force: true });
+    }
+  });
+}

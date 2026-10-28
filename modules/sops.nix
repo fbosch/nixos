@@ -14,7 +14,7 @@ let
     ];
   };
 
-  inherit (sopsFiles) apis common;
+  inherit (sopsFiles) common;
 
   # Permission presets
   inherit (sopsHelpers)
@@ -92,11 +92,6 @@ in
                 "github-token"
                 "smb-username"
                 "smb-password"
-              ])
-
-              # API secrets
-              (mkSecrets apis [
-                "exa-api-key"
               ])
 
               # Special cases with custom options

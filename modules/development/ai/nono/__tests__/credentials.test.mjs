@@ -3,7 +3,22 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { assertCredentialSourceGrants, credentialEnvironmentForDirenv, prepareCredentialEnvironment } from "../scripts/credentials.mjs";
+import { assertCredentialSourceGrants, credentialDefinitions, credentialEnvironmentForDirenv, prepareCredentialEnvironment } from "../scripts/credentials.mjs";
+
+test("Exa API and MCP share a supervisor-only file source and raw-key header", () => {
+  for (const [name, upstream] of [["exa", "https://api.exa.ai"], ["exa_mcp", "https://mcp.exa.ai"]]) {
+    const definition = credentialDefinitions[name];
+    assert.deepEqual(definition.route, {
+      upstream, env_var: "EXA_API_KEY", inject_header: "x-api-key", credential_format: "{}",
+    });
+    assert.deepEqual(definition.source, {
+      type: "file", path: "/run/secrets/exa-api-key", sops: { file: "apis", key: "exa-api-key" },
+    });
+  }
+  assert.deepEqual(credentialEnvironmentForDirenv({ EXA_API_KEY: "synthetic-exa-key", OTHER: "kept" }), { OTHER: "kept" });
+  assert.throws(() => prepareCredentialEnvironment({ EXA_API_KEY: "synthetic-exa-key" }, {}, "/home/user"), /Exa credential environment/);
+  assert.throws(() => prepareCredentialEnvironment({}, { EXA_API_KEY: "synthetic-exa-key" }, "/home/user"), /Exa credential environment/);
+});
 
 function docs(path) {
   return {

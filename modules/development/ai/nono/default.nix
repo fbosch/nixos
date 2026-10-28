@@ -251,7 +251,7 @@ in
             network = {
               block = false;
               open_port = [ 9222 2828 ];
-              credentials = [ "context7" "github" ];
+              credentials = [ "context7" "exa" "exa_mcp" "github" ];
               custom_credentials = {
                 context7 = {
                   upstream = "https://mcp.context7.com";
@@ -259,6 +259,20 @@ in
                   env_var = "CONTEXT7_API_KEY";
                   inject_header = "Authorization";
                   credential_format = "Bearer {}";
+                };
+                exa = {
+                  upstream = "https://api.exa.ai";
+                  credential_key = "cmd://exa";
+                  env_var = "EXA_API_KEY";
+                  inject_header = "x-api-key";
+                  credential_format = "{}";
+                };
+                exa_mcp = {
+                  upstream = "https://mcp.exa.ai";
+                  credential_key = "cmd://exa_mcp";
+                  env_var = "EXA_API_KEY";
+                  inject_header = "x-api-key";
+                  credential_format = "{}";
                 };
                 github = {
                   upstream = "https://api.github.com";
@@ -286,6 +300,18 @@ in
             cache_ttl_secs = 300;
           };
         };
+        testCapturesExaWithPackagedCat = {
+          expr = { inherit (profile.credential_capture) exa exa_mcp; };
+          expected =
+            let
+              capture = {
+                command = [ "${pkgs.coreutils}/bin/coreutils" "--coreutils-prog=cat" "/run/secrets/exa-api-key" ];
+                timeout_secs = 10;
+                cache_ttl_secs = 300;
+              };
+            in
+            { exa = capture; exa_mcp = capture; };
+        };
         testAdditionalCredentialGeneratesRouteAndCapture = {
           expr =
             let
@@ -307,7 +333,7 @@ in
               capture = generated.credential_capture.docs;
             };
           expected = {
-            names = [ "context7" "docs" "github" ];
+            names = [ "context7" "docs" "exa" "exa_mcp" "github" ];
             route = { upstream = "https://docs.example.test"; env_var = "DOCS_API_KEY"; inject_header = "x-api-key"; credential_key = "cmd://docs"; };
             capture = {
               command = [ "${pkgs.coreutils}/bin/coreutils" "--coreutils-prog=cat" "/run/secrets/docs-api-key" ];
