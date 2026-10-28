@@ -91,6 +91,7 @@ let
           PI_TEST_BINARY="$out/bin/pi" PI_TEST_DIRENV="${pkgs.direnv}/bin/direnv" \
             NONO_PROXY_TEST_BINARY="${pkgs.nono}/bin/nono" NONO_TEST_PROFILE="${profile}" \
             GIT_TEST_BINARY="${pkgs.git}/bin/git" ENV_TEST_BINARY="${pkgs.coreutils}/bin/env" ${pkgs.nodejs}/bin/node --test \
+            ${../nono}/__tests__/credential-filesystem.test.mjs \
             ${../nono}/__tests__/credentials.test.mjs \
             ${../nono}/__tests__/context7-auth.test.mjs \
             ${../nono}/__tests__/credential-proxy.test.mjs \

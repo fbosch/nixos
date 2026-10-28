@@ -1,6 +1,10 @@
 {
     "extends": "default",
     "filesystem": {
+        "deny": [
+            "/run/secrets",
+            "/run/secrets.d"
+        ],
         "allow": [
             "$HOME/.pi",
             "$HOME/.claude/projects",

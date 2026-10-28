@@ -218,6 +218,8 @@ for (const name of ["context7", "exa", "exa_mcp"]) {
       const secret = join(f.root, "synthetic-credential");
       writeFileSync(secret, "fixture-upstream-secret", { mode: 0o400 });
       writeFileSync(f.profile, JSON.stringify({
+        // The supervisor must capture this file even though the child's policy denies it.
+        filesystem: { deny: [secret] },
         network: {
           credentials: names,
           custom_credentials: Object.fromEntries(names.map((service) => [service, {

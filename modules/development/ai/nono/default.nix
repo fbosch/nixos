@@ -51,6 +51,16 @@ in
     {
       # Unix socket mediation stays off for desktop compatibility; host IPC is not isolated.
       checks = lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
+        nono-pi-credential-filesystem =
+          pkgs.runCommand "nono-pi-credential-filesystem"
+            {
+              NONO_TEST_BINARY = lib.getExe pkgs.nono;
+              NONO_PROFILE_TEST_BINARY = lib.getExe pkgs.nono;
+            }
+            ''
+              ${pkgs.nodejs}/bin/node --test ${./.}/__tests__/credential-filesystem.test.mjs
+              touch "$out"
+            '';
         nono-pi-ssh-access =
           pkgs.runCommand "nono-pi-ssh-access"
             {
@@ -218,6 +228,8 @@ in
           };
           expected = {
             filesystem = {
+              # The stable parent also denies new generations after SOPS rotates its symlink.
+              deny = [ "/run/secrets" "/run/secrets.d" ];
               allow = [
                 "$HOME/.pi"
                 "$HOME/.claude/projects"
