@@ -125,7 +125,7 @@ function within(path, root) {
   return root === sep || path === root || path.startsWith(`${root}${sep}`);
 }
 
-function gitMetadataRoots(cwd, home) {
+function gitMetadata(cwd, home) {
   const canonicalCwd = realpathSync(cwd);
   const canonicalHome = existingDirectory(home) ?? resolve(home);
   for (let root = canonicalCwd; ; root = dirname(root)) {
@@ -135,17 +135,18 @@ function gitMetadataRoots(cwd, home) {
       entry = lstatSync(marker);
     } catch (error) {
       if (error.code !== "ENOENT") throw new Error(`Cannot inspect Git metadata at ${marker}: ${error.message}`);
-      if (root === dirname(root)) return [];
+      if (root === dirname(root)) return { roots: [] };
       continue;
     }
     try {
       let metadata;
+      let gitDir;
       if (entry.isDirectory()) {
         metadata = realpathSync(marker);
       } else if (entry.isFile()) {
         const pointer = /^gitdir: ([^\r\n\x00]+)\r?\n?$/.exec(readFileSync(marker, "utf8"));
         if (!pointer) throw new Error("Invalid .git worktree pointer");
-        const gitDir = realpathSync(resolve(root, pointer[1]));
+        gitDir = realpathSync(resolve(root, pointer[1]));
         if (!statSync(gitDir).isDirectory()) throw new Error("Worktree Git path is not a directory");
         const readPath = (name) => {
           const path = readFileSync(join(gitDir, name), "utf8").replace(/\r?\n$/, "");
@@ -169,7 +170,7 @@ function gitMetadataRoots(cwd, home) {
         throw new Error("Git metadata must not resolve to the home directory or a checkout ancestor");
       }
       // Indexes, locks, refs and objects need writes; granting only worktrees/<name> is insufficient.
-      return within(metadata, canonicalCwd) ? [] : [metadata];
+      return { roots: within(metadata, canonicalCwd) ? [] : [metadata], directory: gitDir ?? metadata };
     } catch (error) {
       throw new Error(`Cannot resolve Git metadata from ${marker}: ${error.message}`);
     }
@@ -191,11 +192,17 @@ function writableReferenceRoots(cwd, home) {
 export function launchArguments(cwd, agentDir, home, environment, profile, rawPi, envBinary, platform = process.platform) {
   if (!isAbsolute(profile) || !existingFile(profile)) throw new Error(`Nix nono profile missing: ${profile}`);
   if (!isAbsolute(envBinary) || !existingFile(envBinary)) throw new Error(`Nix env executable missing: ${envBinary}`);
-  const grants = new Set(gitMetadataRoots(cwd, home));
+  const metadata = gitMetadata(cwd, home);
+  const grants = new Set(metadata.roots);
+  const gitDirectories = new Set(metadata.directory ? [metadata.directory] : []);
   const reads = new Set();
   const writableRoots = writableReferenceRoots(cwd, home);
   for (const reference of references(cwd, agentDir, home)) {
     const path = existingDirectory(reference.path);
+    if (platform === "darwin" && path !== undefined) {
+      const directory = gitMetadata(path, home).directory;
+      if (directory) gitDirectories.add(directory);
+    }
     if (path === undefined) continue;
     const destinations = writableRoots.some((root) => within(path, root)) ? grants : reads;
     destinations.add(path);
@@ -209,6 +216,20 @@ export function launchArguments(cwd, agentDir, home, environment, profile, rawPi
   const dataHome = environment.XDG_DATA_HOME || join(home, ".local", "share");
   const cacheHome = environment.XDG_CACHE_HOME || join(home, ".cache");
   const extra = sshClientArguments(home, environment);
+  if (platform === "darwin") {
+    // Filesystem writes do not authorize Seatbelt connect(); keep grants to existing Git endpoints.
+    for (const directory of gitDirectories) {
+      const socket = join(directory, "fsmonitor--daemon.ipc");
+      let entry;
+      try {
+        entry = lstatSync(socket);
+      } catch (error) {
+        if (error.code === "ENOENT") continue;
+        throw error;
+      }
+      if (entry.isSocket()) extra.push("--allow-unix-socket", socket);
+    }
+  }
   const editorSocket = environment.PI_NVIM_SOCKET;
   if (editorSocket) {
     if (!isAbsolute(editorSocket)) throw new Error("PI_NVIM_SOCKET must be an absolute socket path");

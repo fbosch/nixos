@@ -11,10 +11,12 @@ import { promisify } from "node:util";
 const profilePath = process.env.NONO_TEST_PROFILE ?? fileURLToPath(new URL("../scripts/profile.json", import.meta.url));
 const probePath = fileURLToPath(new URL("./fixtures/macos-browser-startup-probe.py", import.meta.url));
 
-test("macOS runtime rules allow outbound SSH and scoped browser startup", () => {
+test("macOS runtime rules allow outbound SSH/HTTP/HTTPS and scoped browser startup", () => {
   const profile = JSON.parse(readFileSync(profilePath, "utf8"));
   assert.deepEqual(profile.unsafe_macos_seatbelt_rules, [
     '(allow network-outbound (remote tcp "*:22"))',
+    '(allow network-outbound (remote tcp "*:80"))',
+    '(allow network-outbound (remote tcp "*:443"))',
     '(allow network-outbound (remote tcp "localhost:*"))',
     "(allow ipc-sysv-sem)",
     "(allow lsopen)",

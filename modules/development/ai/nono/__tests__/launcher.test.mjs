@@ -155,8 +155,8 @@ test("Linux launches managed global package shims while protecting packages and 
 });
 
 const created = [];
-function fixture() {
-  const root = mkdtempSync(join(tmpdir(), "pi-launch-test-"));
+function fixture(base = tmpdir()) {
+  const root = mkdtempSync(join(base, "pi-launch-test-"));
   created.push(root);
   const home = join(root, "home");
   const agent = join(home, ".pi", "agent");
@@ -174,6 +174,76 @@ afterEach(() => { for (const path of created.splice(0)) rmSync(path, { recursive
 function values(args, flag) {
   return args.flatMap((part, index) => part === flag ? [args[index + 1]] : []);
 }
+
+test("macOS grants only existing fsmonitor sockets in the checkout and references", async () => {
+  // Short roots keep Unix socket paths below the macOS sockaddr_un limit.
+  const { root, cwd, agent, home, raw, profile } = fixture("/tmp");
+  const reference = join(root, "ref");
+  const nested = join(cwd, "src");
+  mkdirSync(nested);
+  writeFileSync(join(agent, "settings.json"), JSON.stringify({
+    references: { ref: { path: reference, description: "Fixture repository" } },
+  }));
+  const sockets = [cwd, reference].map(directory => join(directory, ".git", "fsmonitor--daemon.ipc"));
+  const servers = [];
+  try {
+    for (const socket of [...sockets, join(root, "unrelated.sock")]) {
+      mkdirSync(join(socket, ".."), { recursive: true });
+      const server = createServer(connection => connection.end());
+      servers.push(server);
+      server.listen(socket);
+      await once(server, "listening");
+    }
+    const args = launchArguments(nested, agent, home, {}, profile, raw, envBinary, "darwin");
+    assert.deepEqual(values(args, "--allow-unix-socket"), sockets.map(socket => realpathSync(socket)));
+    for (const flag of ["--allow-unix-socket-bind", "--allow-unix-socket-dir", "--allow-unix-socket-subtree"]) {
+      assert.deepEqual(values(args, flag), [], flag);
+    }
+    const linux = launchArguments(nested, agent, home, {}, profile, raw, envBinary, "linux");
+    assert.deepEqual(values(linux, "--allow-unix-socket"), []);
+  } finally {
+    await Promise.all(servers.map(server => new Promise(resolve => server.close(resolve))));
+  }
+});
+
+test("macOS grants the registered worktree's fsmonitor socket", async () => {
+  const { root, cwd, agent, home, raw, profile } = fixture("/tmp");
+  const common = join(root, "meta");
+  const gitDir = join(common, "worktrees", "x");
+  mkdirSync(gitDir, { recursive: true });
+  mkdirSync(join(common, "objects"));
+  mkdirSync(join(common, "refs"));
+  writeFileSync(join(common, "HEAD"), "ref: refs/heads/main\n");
+  writeFileSync(join(cwd, ".git"), `gitdir: ${gitDir}\n`);
+  writeFileSync(join(gitDir, "commondir"), "../..\n");
+  writeFileSync(join(gitDir, "gitdir"), `${join(cwd, ".git")}\n`);
+  const socket = join(gitDir, "fsmonitor--daemon.ipc");
+  const server = createServer(connection => connection.end());
+  server.listen(socket);
+  await once(server, "listening");
+  try {
+    const args = launchArguments(cwd, agent, home, {}, profile, raw, envBinary, "darwin");
+    assert.deepEqual(values(args, "--allow-unix-socket"), [realpathSync(socket)]);
+  } finally {
+    await new Promise(resolve => server.close(resolve));
+  }
+});
+
+test("macOS does not follow fsmonitor socket symlinks or grant non-socket files", () => {
+  const { root, cwd, agent, home, raw, profile } = fixture();
+  const metadata = join(cwd, ".git");
+  mkdirSync(metadata);
+  const socket = join(metadata, "fsmonitor--daemon.ipc");
+  const args = () => launchArguments(cwd, agent, home, {}, profile, raw, envBinary, "darwin");
+  assert.deepEqual(values(args(), "--allow-unix-socket"), []);
+  writeFileSync(socket, "not a socket");
+  assert.deepEqual(values(args(), "--allow-unix-socket"), []);
+  rmSync(socket);
+  const target = join(root, "other");
+  writeFileSync(target, "fixture");
+  symlinkSync(target, socket);
+  assert.deepEqual(values(args(), "--allow-unix-socket"), []);
+});
 
 test("PI_NVIM_SOCKET grants only the selected editor endpoint on Linux and macOS", async () => {
   const { root, cwd, agent, home, raw, profile } = fixture();
@@ -655,6 +725,9 @@ test("direct SSH/web exceptions and proxy flags are scoped across OS paths", () 
   const { cwd, agent, home, raw, profile } = fixture();
   const policy = JSON.parse(readFileSync(new URL("../scripts/profile.json", import.meta.url), "utf8"));
   assert.deepEqual(policy.network.open_port, [9222, 2828]);
+  for (const port of [22, 80, 443]) {
+    assert.ok(policy.unsafe_macos_seatbelt_rules.includes(`(allow network-outbound (remote tcp "*:${port}"))`));
+  }
   assert.ok(!policy.filesystem.read.includes("$HOME/.config/gh"));
   assert.ok(policy.filesystem.read.includes("$HOME/.local/share/gh/extensions"));
   const darwin = launchArguments(cwd, agent, home, {}, profile, raw, envBinary, "darwin");

@@ -23,6 +23,8 @@ function fixture(base = process.cwd()) {
   const temporary = join(root, "tmp");
   const runtime = join(root, "runtime");
   for (const path of [agent, cwd, temporary, runtime]) mkdirSync(path, { recursive: true });
+  // Isolate Git socket discovery from the repository hosting these fixtures.
+  mkdirSync(join(cwd, ".git"));
   const args = (environment = {}) => launchArguments(cwd, agent, home, { TMPDIR: temporary, XDG_RUNTIME_DIR: runtime, ...environment }, profile, process.execPath, envBinary);
   return { root, home, agent, cwd, ssh, args };
 }

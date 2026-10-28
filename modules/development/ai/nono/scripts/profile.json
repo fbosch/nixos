@@ -79,6 +79,8 @@
     },
     "unsafe_macos_seatbelt_rules": [
         "(allow network-outbound (remote tcp \"*:22\"))",
+        "(allow network-outbound (remote tcp \"*:80\"))",
+        "(allow network-outbound (remote tcp \"*:443\"))",
         "(allow network-outbound (remote tcp \"localhost:*\"))",
         "(allow ipc-sysv-sem)",
         "(allow lsopen)",
