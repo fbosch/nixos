@@ -9,6 +9,7 @@ import { join } from "node:path";
 import { launchArguments, launchCommand, prepareJitiCache, prepareNpmCache } from "../scripts/launcher.mjs";
 import { sandboxRuntimeCommand } from "../scripts/sandbox-runtime.mjs";
 
+import { proxyFixtureSource } from "./fixtures/credential-proxy.mjs";
 const envBinary = process.env.ENV_TEST_BINARY ?? "/usr/bin/env";
 
 test("profile keeps config access narrow and Azure CLI state writable", () => {
@@ -362,6 +363,7 @@ test("sandbox runtime state is prepared before grants and separated from supervi
     UV_PYTHON_INSTALL_DIR: join(cache, "uv-python"), UV_TOOL_DIR: join(cache, "uv-tools"),
     token: "synthetic-proxy-placeholder", other: "preserved",
   });
+  writeFileSync(nono, `#!${process.execPath}\n${proxyFixtureSource()}`, { mode: 0o700 });
   const bypass = spawnSync(process.execPath, [...args.slice(0, 6), "--no-sandbox", "-e", "console.log(process.env.UV_TOOL_DIR)"], {
     cwd, env: environment, encoding: "utf8", timeout: 15000,
   });
@@ -624,6 +626,7 @@ test("sandbox startup suppresses only the proxy-agent warning and preserves prox
     }));
   `;
   for (const sandboxed of [true, false]) {
+    if (!sandboxed) writeFileSync(nono, `#!${process.execPath}\n${proxyFixtureSource()}`, { mode: 0o700 });
     const child = spawnSync(process.execPath, [
       launcher, nono, process.execPath, profile, "/missing-direnv", envBinary,
       ...(sandboxed ? [] : ["--no-sandbox"]), "-e", probe,
@@ -635,13 +638,16 @@ test("sandbox startup suppresses only the proxy-agent warning and preserves prox
     });
     assert.ifError(child.error);
     assert.equal(child.status, 0, child.stderr);
-    assert.equal(child.stderr.includes("UNDICI-EHPA"), !sandboxed, child.stderr);
+    assert.equal(child.stderr.includes("UNDICI-EHPA"), false, child.stderr);
     assert.match(child.stderr, /PI_TEST_OTHER_WARNING/);
-    assert.deepEqual(JSON.parse(child.stdout), sandboxed ? {
-      useEnvProxy: "1",
-      httpsProxy: "http://127.0.0.1:1",
-      nodeOptions: "--disable-warning=UNDICI-EHPA",
-    } : {});
+    const actual = JSON.parse(child.stdout);
+    assert.equal(actual.useEnvProxy, "1");
+    assert.equal(actual.nodeOptions, "--disable-warning=UNDICI-EHPA");
+    if (sandboxed) assert.equal(actual.httpsProxy, "http://127.0.0.1:1");
+    else {
+      assert.equal(new URL(actual.httpsProxy).hostname, "127.0.0.1");
+      assert.equal(new URL(actual.httpsProxy).username, "nono");
+    }
   }
 });
 
@@ -649,7 +655,7 @@ test("direct SSH/web exceptions and proxy flags are scoped across OS paths", () 
   const { cwd, agent, home, raw, profile } = fixture();
   const policy = JSON.parse(readFileSync(new URL("../scripts/profile.json", import.meta.url), "utf8"));
   assert.deepEqual(policy.network.open_port, [9222, 2828]);
-  assert.deepEqual(policy.network.credentials, ["github"]);
+  assert.deepEqual(policy.network.credentials, ["github", "context7"]);
   assert.deepEqual(policy.network.custom_credentials.github, {
     upstream: "https://api.github.com", credential_key: "cmd://github", env_var: "GH_TOKEN",
   });

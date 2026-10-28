@@ -6,6 +6,10 @@ let
     in
     profile // {
       credential_capture = profile.credential_capture // {
+        context7 = profile.credential_capture.context7 // {
+          # Nono canonicalizes executable paths, so select the multicall program explicitly.
+          command = [ "${pkgs.coreutils}/bin/coreutils" ] ++ builtins.tail profile.credential_capture.context7.command;
+        };
         github = github // {
           command = [ "${pkgs.gh}/bin/gh" ] ++ builtins.tail github.command;
         };
@@ -261,11 +265,20 @@ in
             network = {
               block = false;
               open_port = [ 9222 2828 ];
-              credentials = [ "github" ];
-              custom_credentials.github = {
-                upstream = "https://api.github.com";
-                credential_key = "cmd://github";
-                env_var = "GH_TOKEN";
+              credentials = [ "github" "context7" ];
+              custom_credentials = {
+                context7 = {
+                  upstream = "https://mcp.context7.com";
+                  credential_key = "cmd://context7";
+                  env_var = "CONTEXT7_API_KEY";
+                  inject_header = "Authorization";
+                  credential_format = "Bearer {}";
+                };
+                github = {
+                  upstream = "https://api.github.com";
+                  credential_key = "cmd://github";
+                  env_var = "GH_TOKEN";
+                };
               };
             };
             workdir.access = "readwrite";
@@ -275,6 +288,14 @@ in
           expr = profile.credential_capture.github;
           expected = {
             command = [ "${pkgs.gh}/bin/gh" "auth" "token" "--hostname" "github.com" ];
+            timeout_secs = 10;
+            cache_ttl_secs = 300;
+          };
+        };
+        testCapturesContext7WithPackagedCat = {
+          expr = profile.credential_capture.context7;
+          expected = {
+            command = [ "${pkgs.coreutils}/bin/coreutils" "--coreutils-prog=cat" "/run/secrets/context7-api-key" ];
             timeout_secs = 10;
             cache_ttl_secs = 300;
           };

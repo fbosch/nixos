@@ -7,6 +7,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { shellProtection, withProtectedShellProfile } from "../scripts/shell-protection.mjs";
 
+import { proxyFixtureSource } from "./fixtures/credential-proxy.mjs";
 const envBinary = process.env.ENV_TEST_BINARY ?? "/usr/bin/env";
 
 const created = [];
@@ -208,7 +209,8 @@ test("launcher supplies the generated policy to nono and --no-sandbox skips prot
   assert.deepEqual(readdirSync(join(home, ".local", "state", "nono", "pi-profiles")), []);
   rmSync(join(home, ".local"), { recursive: true });
   symlinkSync(root, join(home, ".local"));
-  const direct = spawnSync(process.execPath, [launcher, "/missing-nono", "/usr/bin/true", "/missing-profile", "/missing-direnv", envBinary, "--no-sandbox"], { cwd, env: environment, encoding: "utf8" });
+  writeFileSync(nono, `#!${process.execPath}\n${proxyFixtureSource()}`, { mode: 0o700 });
+  const direct = spawnSync(process.execPath, [launcher, nono, "/usr/bin/true", baseProfile, "/missing-direnv", envBinary, "--no-sandbox"], { cwd, env: environment, encoding: "utf8" });
   assert.equal(direct.status, 0, direct.stderr);
   assert.ok(!existsSync(join(root, "state")));
 });

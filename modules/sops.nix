@@ -32,6 +32,11 @@ let
     mkSecretsWithOpts
     mkSecret
     ;
+  # Keep plaintext outside Home Manager runtime roots granted to Pi.
+  context7Secret = mkSecret apis (userOwned // {
+    mode = "0400";
+    path = "/run/secrets/context7-api-key";
+  });
 in
 {
   # SOPS materialization boundaries:
@@ -150,6 +155,7 @@ in
             # Special cases
             {
               ssh-private-key = mkSecret common userOwned;
+              context7-api-key = context7Secret;
             }
           ];
 
@@ -208,6 +214,7 @@ in
             # Special cases
             {
               ssh-private-key = mkSecret common userOwned;
+              context7-api-key = context7Secret;
             }
           ];
 

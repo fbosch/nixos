@@ -127,6 +127,11 @@ let
       ];
 
       services.ssh-agent.enable = sshAgent == "ssh-agent";
+
+      # Stow owns Fish config, so Home Manager cannot install its normal shellInit hook.
+      xdg.configFile."nix/ssh-agent.fish" = lib.mkIf config.services.ssh-agent.enable {
+        text = config.sshAuthSock.initialization.fish;
+      };
     };
 in
 {
@@ -165,6 +170,10 @@ in
             "gpg"
           ];
           expected = [ true false ];
+        };
+        testStowFishUsesManagedAgentInitialization = {
+          expr = (sshHomeConfig "ssh-agent").xdg.configFile."nix/ssh-agent.fish".text;
+          expected = (sshHomeConfig "ssh-agent").sshAuthSock.initialization.fish;
         };
         testAzureDevOpsUsesRsaSha2Signatures = {
           expr =

@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { proxyFixtureSource } from "./fixtures/credential-proxy.mjs";
 const envBinary = process.env.ENV_TEST_BINARY ?? "/usr/bin/env";
 
 const launcher = fileURLToPath(new URL("../scripts/launcher.mjs", import.meta.url));
@@ -35,6 +36,7 @@ const parentName = process.platform === "linux" ? readFileSync("/proc/" + proces
 console.log(JSON.stringify({kind:${JSON.stringify(kind)},parentName,hint:process.env.HERDR_AGENT ?? null,pane:process.env.HERDR_PANE_ID ?? null,socket:process.env.HERDR_SOCKET_PATH ?? null,args:process.argv.slice(2)}));
 `, { mode: 0o700 });
   }
+  if (args[0] === "--no-sandbox") writeFileSync(nono, `#!${process.execPath}\n${proxyFixtureSource()}`, { mode: 0o700 });
   const env = {
     ...process.env,
     HOME: home,

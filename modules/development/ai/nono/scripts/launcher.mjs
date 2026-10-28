@@ -7,7 +7,9 @@ import { stripVTControlCharacters } from "node:util";
 import { withProtectedShellProfile } from "./shell-protection.mjs";
 import { assertReadOnlySshGrants, sshClientArguments } from "./ssh-access.mjs";
 import { assertGithubCredentialGrants, direnvGithubEnvironment, prepareGithubEnvironment } from "./github-auth.mjs";
+import { assertContext7CredentialGrants, direnvContext7Environment, prepareContext7Environment } from "./context7-auth.mjs";
 import { prepareSandboxRuntime, sandboxRuntimeCommand } from "./sandbox-runtime.mjs";
+import { runWithCredentialProxy } from "./credential-proxy.mjs";
 
 function record(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -249,6 +251,7 @@ export function launchArguments(cwd, agentDir, home, environment, profile, rawPi
   ];
   assertReadOnlySshGrants(args, cwd);
   assertGithubCredentialGrants(args, cwd, home, { ...environment, TMPDIR: environment.TMPDIR || tmpdir() }, readJson(profile, "nono profile"));
+  assertContext7CredentialGrants(args, cwd, home, { ...environment, TMPDIR: environment.TMPDIR || tmpdir() }, readJson(profile, "nono profile"));
   return args;
 }
 
@@ -334,7 +337,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     const home = homedir();
     const inheritedHome = environment.HOME;
     const inheritedEnvironment = { ...environment };
-    const safeEnvironment = direnvGithubEnvironment(environment);
+    const safeEnvironment = direnvContext7Environment(direnvGithubEnvironment(environment));
     try {
       environment = loadProjectEnvironment(process.cwd(), safeEnvironment, direnv);
     } catch (error) {
@@ -343,6 +346,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
       environment = safeEnvironment;
     }
     environment = prepareGithubEnvironment(inheritedEnvironment, environment, home);
+    environment = prepareContext7Environment(inheritedEnvironment, environment);
     if (inheritedHome === undefined) delete environment.HOME;
     else environment.HOME = inheritedHome;
     if (process.platform === "darwin" && !environment.XDG_RUNTIME_DIR) {
@@ -382,7 +386,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
       prepareNpmCache();
       child = withProtectedShellProfile(profile, home, environment, run);
     } else {
-      child = run(profile);
+      child = await runWithCredentialProxy(nono, profile, command, environment);
     }
     if (child.error) throw child.error;
     if (child.signal) process.kill(process.pid, child.signal);
