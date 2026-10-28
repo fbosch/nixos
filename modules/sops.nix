@@ -32,11 +32,18 @@ let
     mkSecretsWithOpts
     mkSecret
     ;
+  credentialDefinitions = builtins.fromJSON (builtins.readFile ./development/ai/nono/scripts/credentials.json);
+  fileCredentials = lib.filterAttrs (_: definition: definition.source.type == "file" && definition.source ? sops) credentialDefinitions;
   # Keep plaintext outside Home Manager runtime roots granted to Pi.
-  context7Secret = mkSecret apis (userOwned // {
-    mode = "0400";
-    path = "/run/secrets/context7-api-key";
-  });
+  credentialSecrets = lib.mapAttrs'
+    (_: definition: {
+      name = definition.source.sops.key;
+      value = mkSecret sopsFiles.${definition.source.sops.file} (userOwned // {
+        mode = "0400";
+        path = definition.source.path;
+      });
+    })
+    fileCredentials;
 in
 {
   # SOPS materialization boundaries:
@@ -152,10 +159,10 @@ in
               "github-token"
             ])
 
+            credentialSecrets
             # Special cases
             {
               ssh-private-key = mkSecret common userOwned;
-              context7-api-key = context7Secret;
             }
           ];
 
@@ -211,10 +218,10 @@ in
               "github-token"
             ])
 
+            credentialSecrets
             # Special cases
             {
               ssh-private-key = mkSecret common userOwned;
-              context7-api-key = context7Secret;
             }
           ];
 

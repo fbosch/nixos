@@ -655,11 +655,6 @@ test("direct SSH/web exceptions and proxy flags are scoped across OS paths", () 
   const { cwd, agent, home, raw, profile } = fixture();
   const policy = JSON.parse(readFileSync(new URL("../scripts/profile.json", import.meta.url), "utf8"));
   assert.deepEqual(policy.network.open_port, [9222, 2828]);
-  assert.deepEqual(policy.network.credentials, ["github", "context7"]);
-  assert.deepEqual(policy.network.custom_credentials.github, {
-    upstream: "https://api.github.com", credential_key: "cmd://github", env_var: "GH_TOKEN",
-  });
-  assert.deepEqual(policy.credential_capture.github.command, ["@GH_CAPTURE_BIN@", "auth", "token", "--hostname", "github.com"]);
   assert.ok(!policy.filesystem.read.includes("$HOME/.config/gh"));
   assert.ok(policy.filesystem.read.includes("$HOME/.local/share/gh/extensions"));
   const darwin = launchArguments(cwd, agent, home, {}, profile, raw, envBinary, "darwin");

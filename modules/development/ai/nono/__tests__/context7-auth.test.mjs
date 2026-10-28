@@ -1,41 +1,42 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { linkSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { linkSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
-import {
-  assertContext7CredentialGrants,
-  context7SecretPath,
-  direnvContext7Environment,
-  prepareContext7Environment,
-} from "../scripts/context7-auth.mjs";
+import { assertCredentialSourceGrants, credentialDefinitions, credentialEnvironmentForDirenv, prepareCredentialEnvironment } from "../scripts/credentials.mjs";
+
+const context7 = { context7: credentialDefinitions.context7 };
+const context7SecretPath = context7.context7.source.path;
+const direnvContext7Environment = (environment) => credentialEnvironmentForDirenv(environment, context7);
+const prepareContext7Environment = (inherited, loaded) => prepareCredentialEnvironment(inherited, loaded, "/home/user", context7);
+const assertContext7CredentialGrants = (args, cwd, home, environment = {}, profile = {}, path = context7SecretPath) =>
+  assertCredentialSourceGrants(args, cwd, home, environment, profile, {
+    context7: { ...context7.context7, source: { ...context7.context7.source, path } },
+  });
 
 const token = "synthetic-context7-credential";
 
 test("Context7 credentials are withheld from direnv and rejected before nono", () => {
   assert.deepEqual(direnvContext7Environment({ CONTEXT7_API_KEY: token, OTHER: "kept" }), { OTHER: "kept" });
-  assert.throws(() => prepareContext7Environment({ CONTEXT7_API_KEY: token }, {}), /Context7 API key environment/);
-  assert.throws(() => prepareContext7Environment({}, { CONTEXT7_API_KEY: token }), /Context7 API key environment/);
+  assert.throws(() => prepareContext7Environment({ CONTEXT7_API_KEY: token }, {}), /Context7 credential environment/);
+  assert.throws(() => prepareContext7Environment({}, { CONTEXT7_API_KEY: token }), /Context7 credential environment/);
   assert.deepEqual(prepareContext7Environment({}, { OTHER: "kept", CONTEXT7_API_KEY: "" }), { OTHER: "kept" });
 });
 
-test("Context7 uses a lazy host capture and a host-scoped bearer route", () => {
-  const profile = JSON.parse(readFileSync(new URL("../scripts/profile.json", import.meta.url), "utf8"));
-  assert.ok(profile.network.credentials.includes("context7"));
-  assert.deepEqual(profile.network.custom_credentials.context7, {
+test("Context7 declares its file source and bearer route", () => {
+  assert.deepEqual(context7.context7.route, {
     upstream: "https://mcp.context7.com",
-    credential_key: "cmd://context7",
     env_var: "CONTEXT7_API_KEY",
     inject_header: "Authorization",
     credential_format: "Bearer {}",
   });
-  assert.deepEqual(profile.credential_capture.context7, {
-    command: ["@COREUTILS_CAPTURE_BIN@", "--coreutils-prog=cat", context7SecretPath],
-    timeout_secs: 10,
-    cache_ttl_secs: 300,
+  assert.deepEqual(context7.context7.source, {
+    type: "file", path: context7SecretPath,
+    sops: { file: "apis", key: "context7-api-key" },
   });
+  assert.deepEqual(context7.context7.capture, { timeout_secs: 10, cache_ttl_secs: 300 });
 });
 
 test("SOPS-style symlinks cannot expose a Context7 key through file, runtime, or ancestor grants", () => {
@@ -105,7 +106,7 @@ test("launcher rejects a project key without exposing it to direnv, nono, or std
         cwd, env, encoding: "utf8", timeout: 15000,
       });
       assert.equal(result.status, 1, result.stderr);
-      assert.match(result.stderr, /Context7 API key environment/);
+      assert.match(result.stderr, /Context7 credential environment/);
       assert.ok(!(result.stdout + result.stderr).includes(token));
     }
   } finally {

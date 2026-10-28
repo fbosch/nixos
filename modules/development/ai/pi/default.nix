@@ -1,4 +1,4 @@
-{ inputs, ... }:
+{ config, inputs, ... }:
 let
   mkPi =
     pkgs:
@@ -70,23 +70,8 @@ let
       assert pkgs.lib.assertMsg (pkgs.lib.versionAtLeast pkgs.nono.version "0.80.0")
         "Pi standalone credential proxy and sandbox protection require nono >= 0.80.0";
       let
-        profileTemplate = builtins.fromJSON (builtins.readFile ../nono/scripts/profile.json);
-        githubCapture = profileTemplate.credential_capture.github;
         profile = pkgs.writeText "pi-nono-profile.json" (
-          builtins.toJSON (
-            profileTemplate
-            // {
-              credential_capture = profileTemplate.credential_capture // {
-                context7 = profileTemplate.credential_capture.context7 // {
-                  # Preserve cat dispatch after Nono canonicalizes the executable path.
-                  command = [ "${pkgs.coreutils}/bin/coreutils" ] ++ builtins.tail profileTemplate.credential_capture.context7.command;
-                };
-                github = githubCapture // {
-                  command = [ "${pkgs.gh}/bin/gh" ] ++ builtins.tail githubCapture.command;
-                };
-              };
-            }
-          )
+          builtins.toJSON (config.flake.lib.mkPiCredentialProfile { inherit pkgs; })
         );
       in
       pkgs.runCommand "pi"
@@ -104,8 +89,9 @@ let
             --prefix PATH : "$out/bin" \
             --add-flags "${../nono/scripts}/launcher.mjs ${pkgs.nono}/bin/nono ${rawPi}/bin/pi ${profile} ${pkgs.direnv}/bin/direnv ${pkgs.coreutils}/bin/env"
           PI_TEST_BINARY="$out/bin/pi" PI_TEST_DIRENV="${pkgs.direnv}/bin/direnv" \
-            NONO_PROXY_TEST_BINARY="${pkgs.nono}/bin/nono" NONO_CONTEXT7_CAPTURE_BINARY="${pkgs.coreutils}/bin/coreutils" \
+            NONO_PROXY_TEST_BINARY="${pkgs.nono}/bin/nono" NONO_TEST_PROFILE="${profile}" \
             GIT_TEST_BINARY="${pkgs.git}/bin/git" ENV_TEST_BINARY="${pkgs.coreutils}/bin/env" ${pkgs.nodejs}/bin/node --test \
+            ${../nono}/__tests__/credentials.test.mjs \
             ${../nono}/__tests__/context7-auth.test.mjs \
             ${../nono}/__tests__/credential-proxy.test.mjs \
             ${../nono}/__tests__/github-auth.test.mjs \

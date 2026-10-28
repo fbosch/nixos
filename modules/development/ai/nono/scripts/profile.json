@@ -67,34 +67,7 @@
     },
     "network": {
         "block": false,
-        "open_port": [9222, 2828],
-        "credentials": ["github", "context7"],
-        "custom_credentials": {
-            "github": {
-                "upstream": "https://api.github.com",
-                "credential_key": "cmd://github",
-                "env_var": "GH_TOKEN"
-            },
-            "context7": {
-                "upstream": "https://mcp.context7.com",
-                "credential_key": "cmd://context7",
-                "env_var": "CONTEXT7_API_KEY",
-                "inject_header": "Authorization",
-                "credential_format": "Bearer {}"
-            }
-        }
-    },
-    "credential_capture": {
-        "context7": {
-            "command": ["@COREUTILS_CAPTURE_BIN@", "--coreutils-prog=cat", "/run/secrets/context7-api-key"],
-            "timeout_secs": 10,
-            "cache_ttl_secs": 300
-        },
-        "github": {
-            "command": ["@GH_CAPTURE_BIN@", "auth", "token", "--hostname", "github.com"],
-            "timeout_secs": 10,
-            "cache_ttl_secs": 300
-        }
+        "open_port": [9222, 2828]
     },
     "security": {
         "capability_elevation": false,

@@ -6,8 +6,7 @@ import { pathToFileURL } from "node:url";
 import { stripVTControlCharacters } from "node:util";
 import { withProtectedShellProfile } from "./shell-protection.mjs";
 import { assertReadOnlySshGrants, sshClientArguments } from "./ssh-access.mjs";
-import { assertGithubCredentialGrants, direnvGithubEnvironment, prepareGithubEnvironment } from "./github-auth.mjs";
-import { assertContext7CredentialGrants, direnvContext7Environment, prepareContext7Environment } from "./context7-auth.mjs";
+import { assertCredentialSourceGrants, credentialEnvironmentForDirenv, prepareCredentialEnvironment } from "./credentials.mjs";
 import { prepareSandboxRuntime, sandboxRuntimeCommand } from "./sandbox-runtime.mjs";
 import { runWithCredentialProxy } from "./credential-proxy.mjs";
 
@@ -250,8 +249,7 @@ export function launchArguments(cwd, agentDir, home, environment, profile, rawPi
     "--", ...sandboxRuntimeCommand(home, rawPi, envBinary),
   ];
   assertReadOnlySshGrants(args, cwd);
-  assertGithubCredentialGrants(args, cwd, home, { ...environment, TMPDIR: environment.TMPDIR || tmpdir() }, readJson(profile, "nono profile"));
-  assertContext7CredentialGrants(args, cwd, home, { ...environment, TMPDIR: environment.TMPDIR || tmpdir() }, readJson(profile, "nono profile"));
+  assertCredentialSourceGrants(args, cwd, home, { ...environment, TMPDIR: environment.TMPDIR || tmpdir() }, readJson(profile, "nono profile"));
   return args;
 }
 
@@ -337,7 +335,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     const home = homedir();
     const inheritedHome = environment.HOME;
     const inheritedEnvironment = { ...environment };
-    const safeEnvironment = direnvContext7Environment(direnvGithubEnvironment(environment));
+    const safeEnvironment = credentialEnvironmentForDirenv(environment);
     try {
       environment = loadProjectEnvironment(process.cwd(), safeEnvironment, direnv);
     } catch (error) {
@@ -345,8 +343,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
       console.error(`pi sandbox launch: ${message}; continuing without project direnv environment`);
       environment = safeEnvironment;
     }
-    environment = prepareGithubEnvironment(inheritedEnvironment, environment, home);
-    environment = prepareContext7Environment(inheritedEnvironment, environment);
+    environment = prepareCredentialEnvironment(inheritedEnvironment, environment, home);
     if (inheritedHome === undefined) delete environment.HOME;
     else environment.HOME = inheritedHome;
     if (process.platform === "darwin" && !environment.XDG_RUNTIME_DIR) {

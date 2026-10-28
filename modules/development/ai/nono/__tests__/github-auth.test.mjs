@@ -5,7 +5,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
-import { direnvGithubEnvironment, prepareGithubEnvironment } from "../scripts/github-auth.mjs";
+import { assertCredentialSourceGrants, credentialDefinitions, credentialEnvironmentForDirenv, prepareCredentialEnvironment } from "../scripts/credentials.mjs";
+
+const github = { github: credentialDefinitions.github };
+const direnvGithubEnvironment = (environment) => credentialEnvironmentForDirenv(environment, github);
+const prepareGithubEnvironment = (inherited, loaded, home) => prepareCredentialEnvironment(inherited, loaded, home, github);
+const assertGithubCredentialGrants = (args, cwd, home, environment = {}, profile = {}) => assertCredentialSourceGrants(args, cwd, home, environment, profile, github);
 
 const envBinary = process.env.ENV_TEST_BINARY ?? "/usr/bin/env";
 
@@ -16,10 +21,10 @@ for (const name of aliases) {
   test(`inherited ${name} is withheld from direnv and fails closed before nono`, () => {
     const inherited = { [name]: token, PATH: "/trusted" };
     assert.equal(direnvGithubEnvironment(inherited)[name], undefined);
-    assert.throws(() => prepareGithubEnvironment(inherited, {}, "/home/user"), /GitHub token environment variables/);
+    assert.throws(() => prepareGithubEnvironment(inherited, {}, "/home/user"), /GitHub credential environment variables/);
   });
   test(`project ${name} cannot become a supervisor or child credential`, () => {
-    assert.throws(() => prepareGithubEnvironment({}, { [name]: token }, "/home/user"), /GitHub token environment variables/);
+    assert.throws(() => prepareGithubEnvironment({}, { [name]: token }, "/home/user"), /GitHub credential environment variables/);
   });
 }
 
@@ -50,7 +55,7 @@ test("launcher rejects project token without passing it to direnv, nono or argv"
       encoding: "utf8", timeout: 15_000,
     });
     assert.equal(result.status, 1, result.stderr);
-    assert.match(result.stderr, /GitHub token environment variables/);
+    assert.match(result.stderr, /GitHub credential environment variables/);
     assert.ok(!result.stderr.includes(token));
   } finally {
     rmSync(root, { recursive: true, force: true });
@@ -84,7 +89,6 @@ test("missing GitHub login does not block unrelated Pi startup or expose supervi
 });
 
 test("file, socket, bypass, and ancestor grants cannot alias a symlinked hosts credential", async () => {
-  const { assertGithubCredentialGrants } = await import("../scripts/github-auth.mjs");
   const root = mkdtempSync(join(tmpdir(), "pi-github-grants-"));
   try {
     const home = join(root, "home");
@@ -116,7 +120,6 @@ test("file, socket, bypass, and ancestor grants cannot alias a symlinked hosts c
 
 
 test("declared profile paths cannot expose credentials through TMPDIR or a broad read", async () => {
-  const { assertGithubCredentialGrants } = await import("../scripts/github-auth.mjs");
   const root = mkdtempSync(join(tmpdir(), "pi-github-static-"));
   try {
     const home = join(root, "home");

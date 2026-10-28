@@ -1,20 +1,6 @@
+{ config, ... }:
 let
-  piProfile = pkgs:
-    let
-      profile = builtins.fromJSON (builtins.readFile ./scripts/profile.json);
-      github = profile.credential_capture.github;
-    in
-    profile // {
-      credential_capture = profile.credential_capture // {
-        context7 = profile.credential_capture.context7 // {
-          # Nono canonicalizes executable paths, so select the multicall program explicitly.
-          command = [ "${pkgs.coreutils}/bin/coreutils" ] ++ builtins.tail profile.credential_capture.context7.command;
-        };
-        github = github // {
-          command = [ "${pkgs.gh}/bin/gh" ] ++ builtins.tail github.command;
-        };
-      };
-    };
+  piProfile = pkgs: config.flake.lib.mkPiCredentialProfile { inherit pkgs; };
   nixBuildAssertions =
     { config, lib, ... }:
     {
@@ -265,7 +251,7 @@ in
             network = {
               block = false;
               open_port = [ 9222 2828 ];
-              credentials = [ "github" "context7" ];
+              credentials = [ "context7" "github" ];
               custom_credentials = {
                 context7 = {
                   upstream = "https://mcp.context7.com";
@@ -298,6 +284,36 @@ in
             command = [ "${pkgs.coreutils}/bin/coreutils" "--coreutils-prog=cat" "/run/secrets/context7-api-key" ];
             timeout_secs = 10;
             cache_ttl_secs = 300;
+          };
+        };
+        testAdditionalCredentialGeneratesRouteAndCapture = {
+          expr =
+            let
+              declared = builtins.fromJSON (builtins.readFile ./scripts/credentials.json);
+              generated = config.flake.lib.mkPiCredentialProfile {
+                inherit pkgs;
+                credentials = declared // {
+                  docs = {
+                    route = { upstream = "https://docs.example.test"; env_var = "DOCS_API_KEY"; inject_header = "x-api-key"; };
+                    source = { type = "file"; path = "/run/secrets/docs-api-key"; };
+                    capture = { timeout_secs = 10; cache_ttl_secs = 300; };
+                  };
+                };
+              };
+            in
+            {
+              names = generated.network.credentials;
+              route = generated.network.custom_credentials.docs;
+              capture = generated.credential_capture.docs;
+            };
+          expected = {
+            names = [ "context7" "docs" "github" ];
+            route = { upstream = "https://docs.example.test"; env_var = "DOCS_API_KEY"; inject_header = "x-api-key"; credential_key = "cmd://docs"; };
+            capture = {
+              command = [ "${pkgs.coreutils}/bin/coreutils" "--coreutils-prog=cat" "/run/secrets/docs-api-key" ];
+              timeout_secs = 10;
+              cache_ttl_secs = 300;
+            };
           };
         };
         testKeepsUnixSocketCompatibilityAndLandlockNetworkPolicy = {

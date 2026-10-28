@@ -87,6 +87,33 @@ for (const [options, message] of [
   });
 }
 
+test("an additional MCP route gets its declared placeholder and base URL", async () => {
+  const f = fixture();
+  try {
+    writeFileSync(f.profile, JSON.stringify({
+      network: {
+        credentials: ["docs"],
+        custom_credentials: {
+          docs: { upstream: "https://docs.example.test", env_var: "DOCS_API_KEY", inject_header: "x-api-key", credential_format: "{}" },
+        },
+      },
+    }));
+    const result = await runWithCredentialProxy(f.nono, f.profile, [process.execPath, "-e", `
+      require("node:fs").writeFileSync(${JSON.stringify(f.output)}, JSON.stringify({
+        key: process.env.DOCS_API_KEY,
+        base: process.env.DOCS_BASE_URL,
+        tokenMatches: process.env.DOCS_API_KEY === process.env.NONO_PROXY_TOKEN,
+      }));
+    `], f.environment);
+    assert.equal(result.status, 0);
+    const actual = JSON.parse(readFileSync(f.output, "utf8"));
+    assert.equal(actual.key, JSON.parse(readFileSync(f.recordFile, "utf8")).token);
+    assert.equal(actual.tokenMatches, true);
+    assert.equal(new URL(actual.base).pathname, "/docs");
+    f.checkStopped();
+  } finally { rmSync(f.root, { recursive: true, force: true }); }
+});
+
 test("proxy cleanup also runs when Pi cannot spawn or ignores proxy shutdown", async () => {
   const f = fixture({ ignoreInterrupt: true });
   try {
@@ -159,7 +186,7 @@ test("termination during startup preserves the signal and removes the pending pr
 });
 
 test("installed Nono uses the packaged Context7 capture command and forwards an event stream", {
-  skip: !process.env.NONO_PROXY_TEST_BINARY || !process.env.NONO_CONTEXT7_CAPTURE_BINARY,
+  skip: !process.env.NONO_PROXY_TEST_BINARY || !process.env.NONO_TEST_PROFILE,
   timeout: 15_000,
 }, async () => {
   const f = fixture();
@@ -180,8 +207,8 @@ test("installed Nono uses the packaged Context7 capture command and forwards an 
     await once(upstream, "listening");
     const secret = join(f.root, "synthetic-context7-key");
     writeFileSync(secret, "fixture-upstream-secret", { mode: 0o400 });
-    const template = JSON.parse(readFileSync(new URL("../scripts/profile.json", import.meta.url), "utf8"));
-    const captureCommand = [process.env.NONO_CONTEXT7_CAPTURE_BINARY, ...template.credential_capture.context7.command.slice(1, -1), secret];
+    const template = JSON.parse(readFileSync(process.env.NONO_TEST_PROFILE, "utf8"));
+    const captureCommand = [...template.credential_capture.context7.command.slice(0, -1), secret];
     writeFileSync(f.profile, JSON.stringify({
       network: { credentials: ["context7"], custom_credentials: {
         context7: { upstream: `http://127.0.0.1:${upstream.address().port}`, credential_key: "cmd://context7", env_var: "CONTEXT7_API_KEY" },

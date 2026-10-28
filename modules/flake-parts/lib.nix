@@ -5,6 +5,7 @@
 {
   config.flake.lib = {
     iconOverrides = import ../../lib/icon-overrides.nix { inherit lib; };
+    mkPiCredentialProfile = import ../../lib/pi-credential-profile.nix;
 
     sopsFiles = {
       apis = ../../secrets/apis.yaml;
