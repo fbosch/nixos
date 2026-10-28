@@ -17,7 +17,7 @@
           pkgs.evolution-data-server
           pkgs.gjs
           pkgs.glib
-          pkgs.astal.wireplumber
+          agsPackages.wireplumber
           agsPackages.astal4
           agsPackages.io
         ];
@@ -47,7 +47,7 @@
         enable = true;
         package = inputs.ags.packages.${system}.default;
         extraPackages = [
-          pkgs.astal.wireplumber
+          agsPackages.wireplumber
         ];
       };
 

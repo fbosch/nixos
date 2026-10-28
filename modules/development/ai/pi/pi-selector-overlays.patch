@@ -256,8 +256,7 @@ diff --git a/packages/coding-agent/src/modes/interactive/components/user-message
  
  		// Render visible messages (2 lines per message + blank line)
  		for (let i = startIndex; i < endIndex; i++) {
-@@ -78,6 +82,10 @@
- 		return lines;
+@@ -88,4 +92,8 @@
  	}
  
 +	setMaxVisible(maxVisible: number): void {
@@ -266,7 +265,6 @@ diff --git a/packages/coding-agent/src/modes/interactive/components/user-message
 +
  	handleInput(keyData: string): void {
  		const kb = getKeybindings();
- 		// Up arrow - go to previous (older) message, wrap to bottom when at top
 @@ -109,14 +117,17 @@
   */
  export class UserMessageSelectorComponent extends Container {
@@ -345,7 +343,7 @@ diff --git a/packages/coding-agent/src/modes/interactive/interactive-mode.ts b/p
 -import type { FullscreenExitOutput, TuiMode } from "../../core/settings-manager.ts";
 +import type { FullscreenExitOutput, SelectorOverlayName, TuiMode } from "../../core/settings-manager.ts";
  import { BUILTIN_SLASH_COMMANDS } from "../../core/slash-commands.ts";
- import type { SourceInfo } from "../../core/source-info.ts";
+ import { getSourcePackageKey, type SourceInfo } from "../../core/source-info.ts";
  import { isInstallTelemetryEnabled } from "../../core/telemetry.ts";
 @@ -232,6 +234,64 @@
  	return typeof obj === "object" && obj !== null && "setExpanded" in obj && typeof obj.setExpanded === "function";

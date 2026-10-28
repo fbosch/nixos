@@ -15,13 +15,13 @@ which can retroactively absorb earlier blocks, and completed replies.
  import { renderLatex } from "../latex.ts";
  import { getCapabilities, hyperlink, isImageLine } from "../terminal-image.ts";
  import type { Component } from "../tui.ts";
- import { applyBackgroundToLine, flattenLines, visibleWidth, wrapTextWithAnsi } from "../utils.ts";
+ import { applyBackgroundToLine, cjkPunctuationRegex, flattenLines, visibleWidth, wrapTextWithAnsi } from "../utils.ts";
  
 +let renderGeneration = 0;
 +
  const STRICT_STRIKETHROUGH_REGEX = /^(~~)(?=[^\s~])((?:\\.|[^\\])*?(?:\\.|[^\s~\\]))\1(?=[^~]|$)/;
  
- class StrictStrikethroughTokenizer extends Tokenizer {
+ class MarkdownTokenizer extends Tokenizer {
 @@ -179,7 +181,8 @@
  	// Trim streamed partial closing fences so code blocks do not shrink/flicker
  	// when the final fence character arrives. See https://github.com/earendil-works/pi/issues/5825.
