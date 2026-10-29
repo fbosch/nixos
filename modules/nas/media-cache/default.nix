@@ -59,7 +59,7 @@ in
             smbShares = lib.mkDefault (
               lib.subtractLists nfsShares options.services.nas.smbShares.default
             );
-            cachedSmbShares = lib.mkDefault [ "LaCie" "FrederikDocs" ];
+            cachedSmbShares = lib.mkDefault [ "LaCie" "FrederikDocs" "photo" ];
           };
           cachefilesd = {
             enable = lib.mkDefault true;

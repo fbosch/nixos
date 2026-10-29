@@ -6,7 +6,7 @@
       clients = map host [ "rvn-pc" "rvn-srv" ];
       nfsShares = [ "downloads" "music" "video" ];
       mediaShares = nfsShares ++ [ "LaCie" ];
-      cachedSmbShares = [ "LaCie" "FrederikDocs" ];
+      cachedSmbShares = [ "LaCie" "FrederikDocs" "photo" ];
       privateShares = [ "FrederikDocs" "backup" "cloud-backup" "encrypted" "homes" "photo" "web" "websites" ];
       mountFor = cfg: path: lib.findFirst (mount: mount.where == path) null cfg.systemd.mounts;
       optionsFor = mount: lib.splitString "," mount.options;
@@ -63,8 +63,8 @@
                 let mount = mountFor cfg "/mnt/nas/${share}";
                 in mount != null && mount.type == "cifs"
                 && hasOptions [ "uid=fbb" "gid=users" "file_mode=0660" "dir_mode=0770" ] mount
-                && lib.elem "fsc" (optionsFor mount) == (share == "FrederikDocs")
-                && lib.elem "cachefilesd.service" mount.unitConfig.Requires == (share == "FrederikDocs")
+                && lib.elem "fsc" (optionsFor mount) == (lib.elem share cachedSmbShares)
+                && lib.elem "cachefilesd.service" mount.unitConfig.Requires == (lib.elem share cachedSmbShares)
               )
               privateShares
           )
