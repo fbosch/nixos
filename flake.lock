@@ -319,11 +319,11 @@
     "dotfiles": {
       "flake": false,
       "locked": {
-        "lastModified": 1793221910,
-        "narHash": "sha256-UWIIiWmoGfcY+hXBSharkcC4sEcM8rkvHvNf4p8bW/c=",
+        "lastModified": 1793279796,
+        "narHash": "sha256-GRoIgnqG3YS1ZOFgOXAfsIuSZ0Mcn/yPS7oUzdd/K5Q=",
         "owner": "fbosch",
         "repo": "dotfiles",
-        "rev": "18ea550bd822af6f5926602e9d522eba0b89124f",
+        "rev": "6fb0ea3fab43241d5c8cc914b09dab4867892eef",
         "type": "github"
       },
       "original": {
@@ -528,11 +528,11 @@
         "rust-overlay": "rust-overlay"
       },
       "locked": {
-        "lastModified": 1793216654,
-        "narHash": "sha256-LSuQhQdhHvvBwDYy2cdBxrpKXzC6uM6gsPU1wqZtHp8=",
+        "lastModified": 1793278609,
+        "narHash": "sha256-0B58jR/v1vxbK7cwoq++SnOCsED0sHDkgqVMvsrjezE=",
         "owner": "herdrdev",
         "repo": "herdr",
-        "rev": "bc8c28988f75c538d4ca058b702f5adbea30566e",
+        "rev": "ee5bfb5041bb3e4a49d591c72308aae3c81ecdde",
         "type": "github"
       },
       "original": {
@@ -1037,11 +1037,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1786465352,
-        "narHash": "sha256-N0+NnYkgNmAEoSua6pgDJ5wrmrBYRCNh6cwgAQA/7ys=",
+        "lastModified": 1793260074,
+        "narHash": "sha256-mnoDwlSJyiT7wl8MrpE/+1jqkkcBV9aYXqK+q6mLn6k=",
         "owner": "hyprwm",
         "repo": "hyprlock",
-        "rev": "0332e40b8e56404f11cd79f859f208a4b9de8714",
+        "rev": "a9e26af1bda27a2a7f5dbe7f225dd2ef02b28fb4",
         "type": "github"
       },
       "original": {
@@ -1571,11 +1571,11 @@
         "treefmt-nix": "treefmt-nix"
       },
       "locked": {
-        "lastModified": 1793251592,
-        "narHash": "sha256-hTULuqjldMo/T0OYbjsCa5G9g+GMyAVuURoFDcatLd4=",
+        "lastModified": 1793267696,
+        "narHash": "sha256-pU0HWLzBuoGIYLMIjoZNqiALCAUl9JwV6ujIyOZO3i4=",
         "owner": "numtide",
         "repo": "llm-agents.nix",
-        "rev": "b3a15df4be892fbea8433d42247ea5ed39d7119c",
+        "rev": "e452052b9efb54fd59f8a06cbc09978fb542a3c2",
         "type": "github"
       },
       "original": {
@@ -2027,11 +2027,11 @@
         "nixpkgs-darwin-x64": "nixpkgs-darwin-x64"
       },
       "locked": {
-        "lastModified": 1793235117,
-        "narHash": "sha256-jsIpiIESujyCV3eALe5X1ZI2Na9pnCKs5I2IqLG8FTk=",
+        "lastModified": 1793284627,
+        "narHash": "sha256-uG7KzCqe0tSlbUxKcDU9n217KqpeWu9eLVW0QozO+fc=",
         "owner": "earendil-works",
         "repo": "pi",
-        "rev": "e65b3b88c08412bb8ffbd21fb5dc5756064a6e5a",
+        "rev": "c719d5b08e5d9fb9bbcb1f1792281eea8b442812",
         "type": "github"
       },
       "original": {
@@ -2471,11 +2471,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1792151336,
-        "narHash": "sha256-8d3MAVKCwIU14I67TVWxEff/WqoH7jNuy75huO3QRws=",
+        "lastModified": 1793263523,
+        "narHash": "sha256-PJEvYtgDUyr4gKFlxKfCVrK7PFGnN2m05xvqfdST/8Q=",
         "owner": "winapps-org",
         "repo": "winapps",
-        "rev": "f5c9ee3951046c28f2aaf3a0b3b16c9a1c0a09e9",
+        "rev": "0b950dc4b823a759015c549a46c35aaaf31c77c0",
         "type": "github"
       },
       "original": {
@@ -2496,11 +2496,11 @@
         "rust-overlay": "rust-overlay_2"
       },
       "locked": {
-        "lastModified": 1793208762,
-        "narHash": "sha256-3bDvB5stJAaN1YI9gOk6/H6qtSKEYOmfKrZOIc3rqO8=",
+        "lastModified": 1793268804,
+        "narHash": "sha256-OCS1u0ts3VMME+4pT9Pnm2o66+zjgaUKadHrnEmECiQ=",
         "owner": "max-sixty",
         "repo": "worktrunk",
-        "rev": "16d52e58b012fe365e16c3d857eb21646329d163",
+        "rev": "e82f74e5df024fc811436e8a9185eb1318f5c073",
         "type": "github"
       },
       "original": {
