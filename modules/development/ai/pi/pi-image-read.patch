@@ -1,0 +1,296 @@
+diff --git a/packages/coding-agent/src/utils/exif-orientation.ts b/packages/coding-agent/src/utils/exif-orientation.ts
+--- a/packages/coding-agent/src/utils/exif-orientation.ts
++++ b/packages/coding-agent/src/utils/exif-orientation.ts
+@@ -94,7 +94,7 @@ function hasExifHeader(bytes: Uint8Array, offset: number): boolean {
+ 	);
+ }
+ 
+-function getExifOrientation(bytes: Uint8Array): number {
++export function getExifOrientation(bytes: Uint8Array): number {
+ 	let tiffOffset = -1;
+ 
+ 	// JPEG: starts with FF D8
+diff --git a/packages/coding-agent/src/utils/image-dimensions.ts b/packages/coding-agent/src/utils/image-dimensions.ts
+new file mode 100644
+--- /dev/null
++++ b/packages/coding-agent/src/utils/image-dimensions.ts
+@@ -0,0 +1,111 @@
++export interface ImageDimensions {
++	width: number;
++	height: number;
++}
++
++/**
++ * Read pixel dimensions from a PNG, GIF, WebP, or baseline/progressive JPEG header.
++ * Returns undefined for other formats and for files without their end marker, so
++ * callers fall back to a full decode that rejects truncated images.
++ */
++export function readImageDimensions(bytes: Uint8Array): ImageDimensions | undefined {
++	return readPngDimensions(bytes) ?? readGifDimensions(bytes) ?? readWebpDimensions(bytes) ?? readJpegDimensions(bytes);
++}
++
++const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
++const PNG_IEND = [0x49, 0x45, 0x4e, 0x44];
++
++function hasBytes(bytes: Uint8Array, offset: number, expected: readonly number[]): boolean {
++	if (offset < 0 || offset + expected.length > bytes.length) return false;
++	return expected.every((value, index) => bytes[offset + index] === value);
++}
++
++function hasAscii(bytes: Uint8Array, offset: number, text: string): boolean {
++	return hasBytes(bytes, offset, Array.from(text, (char) => char.charCodeAt(0)));
++}
++
++function readUint16BE(bytes: Uint8Array, offset: number): number {
++	return (bytes[offset] << 8) | bytes[offset + 1];
++}
++
++function readUint16LE(bytes: Uint8Array, offset: number): number {
++	return bytes[offset] | (bytes[offset + 1] << 8);
++}
++
++function readUint24LE(bytes: Uint8Array, offset: number): number {
++	return bytes[offset] | (bytes[offset + 1] << 8) | (bytes[offset + 2] << 16);
++}
++
++function readUint32BE(bytes: Uint8Array, offset: number): number {
++	return ((bytes[offset] << 24) | (bytes[offset + 1] << 16) | (bytes[offset + 2] << 8) | bytes[offset + 3]) >>> 0;
++}
++
++function readUint32LE(bytes: Uint8Array, offset: number): number {
++	return (bytes[offset] | (bytes[offset + 1] << 8) | (bytes[offset + 2] << 16) | (bytes[offset + 3] << 24)) >>> 0;
++}
++
++function dimensions(width: number, height: number): ImageDimensions | undefined {
++	return width > 0 && height > 0 ? { width, height } : undefined;
++}
++
++function readPngDimensions(bytes: Uint8Array): ImageDimensions | undefined {
++	if (!hasBytes(bytes, 0, PNG_SIGNATURE) || bytes.length < 33) return undefined;
++	if (readUint32BE(bytes, 8) !== 13 || !hasAscii(bytes, 12, "IHDR")) return undefined;
++	// The IEND chunk is the last 12 bytes: length, type, and CRC.
++	if (!hasBytes(bytes, bytes.length - 8, PNG_IEND)) return undefined;
++	return dimensions(readUint32BE(bytes, 16), readUint32BE(bytes, 20));
++}
++
++function readGifDimensions(bytes: Uint8Array): ImageDimensions | undefined {
++	if (!hasAscii(bytes, 0, "GIF87a") && !hasAscii(bytes, 0, "GIF89a")) return undefined;
++	if (bytes.length < 14 || bytes[bytes.length - 1] !== 0x3b) return undefined;
++	return dimensions(readUint16LE(bytes, 6), readUint16LE(bytes, 8));
++}
++
++function readWebpDimensions(bytes: Uint8Array): ImageDimensions | undefined {
++	if (!hasAscii(bytes, 0, "RIFF") || !hasAscii(bytes, 8, "WEBP") || bytes.length < 30) return undefined;
++	if (readUint32LE(bytes, 4) + 8 !== bytes.length) return undefined;
++	const data = 20;
++	if (hasAscii(bytes, 12, "VP8X")) {
++		return dimensions(readUint24LE(bytes, data + 4) + 1, readUint24LE(bytes, data + 7) + 1);
++	}
++	if (hasAscii(bytes, 12, "VP8L")) {
++		if (bytes[data] !== 0x2f) return undefined;
++		const bits = readUint32LE(bytes, data + 1);
++		return dimensions((bits & 0x3fff) + 1, ((bits >>> 14) & 0x3fff) + 1);
++	}
++	if (hasAscii(bytes, 12, "VP8 ")) {
++		if (!hasBytes(bytes, data + 3, [0x9d, 0x01, 0x2a])) return undefined;
++		return dimensions(readUint16LE(bytes, data + 6) & 0x3fff, readUint16LE(bytes, data + 8) & 0x3fff);
++	}
++	return undefined;
++}
++
++// Baseline, extended sequential, and progressive Huffman frames. Rarer encodings take the decode path.
++const JPEG_DECODABLE_FRAMES = new Set([0xc0, 0xc1, 0xc2]);
++
++function readJpegDimensions(bytes: Uint8Array): ImageDimensions | undefined {
++	if (!hasBytes(bytes, 0, [0xff, 0xd8]) || !hasBytes(bytes, bytes.length - 2, [0xff, 0xd9])) return undefined;
++	let offset = 2;
++	while (offset + 4 <= bytes.length) {
++		if (bytes[offset] !== 0xff) return undefined;
++		const marker = bytes[offset + 1];
++		if (marker === 0xff) {
++			offset++;
++			continue;
++		}
++		if (marker === 0xd8 || marker === 0xd9 || marker === 0xda) return undefined;
++		if (marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) {
++			offset += 2;
++			continue;
++		}
++		const length = readUint16BE(bytes, offset + 2);
++		if (length < 2 || offset + 2 + length > bytes.length) return undefined;
++		if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
++			if (!JPEG_DECODABLE_FRAMES.has(marker) || length < 7) return undefined;
++			return dimensions(readUint16BE(bytes, offset + 7), readUint16BE(bytes, offset + 5));
++		}
++		offset += 2 + length;
++	}
++	return undefined;
++}
+diff --git a/packages/coding-agent/src/utils/image-resize-core.ts b/packages/coding-agent/src/utils/image-resize-core.ts
+--- a/packages/coding-agent/src/utils/image-resize-core.ts
++++ b/packages/coding-agent/src/utils/image-resize-core.ts
+@@ -38,6 +38,32 @@ const DEFAULT_OPTIONS: Required<ImageResizeOptions> = {
+ 	jpegQuality: 80,
+ };
+ 
++export function resolveImageResizeOptions(options?: ImageResizeOptions): Required<ImageResizeOptions> {
++	return { ...DEFAULT_OPTIONS, ...options };
++}
++
++/** Returns the input unchanged when it already fits every limit, otherwise undefined. */
++export function unresizedImage(
++	inputBytes: Uint8Array,
++	mimeType: string,
++	width: number,
++	height: number,
++	opts: Required<ImageResizeOptions>,
++): ResizedImage | undefined {
++	const inputBase64Size = Math.ceil(inputBytes.byteLength / 3) * 4;
++	if (width > opts.maxWidth || height > opts.maxHeight || inputBase64Size >= opts.maxBytes) return undefined;
++	const format = mimeType.split("/")[1] ?? "png";
++	return {
++		data: Buffer.from(inputBytes).toString("base64"),
++		mimeType: mimeType || `image/${format}`,
++		originalWidth: width,
++		originalHeight: height,
++		width,
++		height,
++		wasResized: false,
++	};
++}
++
+ interface EncodedCandidate {
+ 	data: string;
+ 	encodedSize: number;
+@@ -62,8 +88,8 @@ function encodeCandidate(buffer: Uint8Array, mimeType: string): EncodedCandidate
+  *
+  * Strategy for staying under maxBytes:
+  * 1. First resize to maxWidth/maxHeight
+- * 2. Try both PNG and JPEG formats, pick the smaller one
+- * 3. If still too large, try JPEG with decreasing quality
++ * 2. Use PNG if it fits
++ * 3. Otherwise try JPEG with decreasing quality
+  * 4. If still too large, progressively reduce dimensions until 1x1
+  */
+ export async function resizeImageInProcess(
+@@ -71,8 +97,7 @@ export async function resizeImageInProcess(
+ 	mimeType: string,
+ 	options?: ImageResizeOptions,
+ ): Promise<ResizedImage | null> {
+-	const opts = { ...DEFAULT_OPTIONS, ...options };
+-	const inputBase64Size = Math.ceil(inputBytes.byteLength / 3) * 4;
++	const opts = resolveImageResizeOptions(options);
+ 
+ 	const photon = await loadPhoton();
+ 	if (!photon) {
+@@ -87,20 +112,8 @@ export async function resizeImageInProcess(
+ 
+ 		const originalWidth = image.get_width();
+ 		const originalHeight = image.get_height();
+-		const format = mimeType.split("/")[1] ?? "png";
+-
+-		// Check if already within all limits (dimensions AND encoded size)
+-		if (originalWidth <= opts.maxWidth && originalHeight <= opts.maxHeight && inputBase64Size < opts.maxBytes) {
+-			return {
+-				data: Buffer.from(inputBytes).toString("base64"),
+-				mimeType: mimeType || `image/${format}`,
+-				originalWidth,
+-				originalHeight,
+-				width: originalWidth,
+-				height: originalHeight,
+-				wasResized: false,
+-			};
+-		}
++		const unresized = unresizedImage(inputBytes, mimeType, originalWidth, originalHeight, opts);
++		if (unresized) return unresized;
+ 
+ 		// Calculate initial dimensions respecting max limits
+ 		let targetWidth = originalWidth;
+@@ -115,15 +128,18 @@ export async function resizeImageInProcess(
+ 			targetHeight = opts.maxHeight;
+ 		}
+ 
+-		function tryEncodings(width: number, height: number, jpegQualities: number[]): EncodedCandidate[] {
++		// Encoding dominates resize time, so stop at the first candidate that fits.
++		function tryEncodings(width: number, height: number, jpegQualities: number[]): EncodedCandidate | undefined {
+ 			const resized = photon!.resize(image!, width, height, photon!.SamplingFilter.Lanczos3);
+ 
+ 			try {
+-				const candidates: EncodedCandidate[] = [encodeCandidate(resized.get_bytes(), "image/png")];
++				const png = encodeCandidate(resized.get_bytes(), "image/png");
++				if (png.encodedSize < opts.maxBytes) return png;
+ 				for (const quality of jpegQualities) {
+-					candidates.push(encodeCandidate(resized.get_bytes_jpeg(quality), "image/jpeg"));
++					const jpeg = encodeCandidate(resized.get_bytes_jpeg(quality), "image/jpeg");
++					if (jpeg.encodedSize < opts.maxBytes) return jpeg;
+ 				}
+-				return candidates;
++				return undefined;
+ 			} finally {
+ 				resized.free();
+ 			}
+@@ -134,19 +150,17 @@ export async function resizeImageInProcess(
+ 		let currentHeight = targetHeight;
+ 
+ 		while (true) {
+-			const candidates = tryEncodings(currentWidth, currentHeight, qualitySteps);
+-			for (const candidate of candidates) {
+-				if (candidate.encodedSize < opts.maxBytes) {
+-					return {
+-						data: candidate.data,
+-						mimeType: candidate.mimeType,
+-						originalWidth,
+-						originalHeight,
+-						width: currentWidth,
+-						height: currentHeight,
+-						wasResized: true,
+-					};
+-				}
++			const candidate = tryEncodings(currentWidth, currentHeight, qualitySteps);
++			if (candidate) {
++				return {
++					data: candidate.data,
++					mimeType: candidate.mimeType,
++					originalWidth,
++					originalHeight,
++					width: currentWidth,
++					height: currentHeight,
++					wasResized: true,
++				};
+ 			}
+ 
+ 			if (currentWidth === 1 && currentHeight === 1) {
+diff --git a/packages/coding-agent/src/utils/image-resize.ts b/packages/coding-agent/src/utils/image-resize.ts
+--- a/packages/coding-agent/src/utils/image-resize.ts
++++ b/packages/coding-agent/src/utils/image-resize.ts
+@@ -1,10 +1,14 @@
+ import { Worker } from "node:worker_threads";
++import { getExifOrientation } from "./exif-orientation.ts";
++import { readImageDimensions } from "./image-dimensions.ts";
+ import {
+ 	IMAGE_RESIZE_WORKER_RESPONSE_TYPE,
+ 	type ImageResizeOptions,
+ 	type ResizedImage,
+ 	type ResizeImageWorkerResponse,
+ 	resizeImageInProcess,
++	resolveImageResizeOptions,
++	unresizedImage,
+ } from "./image-resize-core.ts";
+ 
+ export type { ImageResizeOptions, ResizedImage } from "./image-resize-core.ts";
+@@ -86,6 +90,15 @@ export async function resizeImage(
+ 	mimeType: string,
+ 	options?: ImageResizeOptions,
+ ): Promise<ResizedImage | null> {
++	// Starting a worker and loading Photon costs ~100 ms, so images that already fit
++	// pass through from their header. EXIF-oriented images still decode to apply the rotation.
++	const dimensions = readImageDimensions(inputBytes);
++	if (dimensions && getExifOrientation(inputBytes) === 1) {
++		const opts = resolveImageResizeOptions(options);
++		const unresized = unresizedImage(inputBytes, mimeType, dimensions.width, dimensions.height, opts);
++		if (unresized) return unresized;
++	}
++
+ 	const isTypeScriptRuntime = import.meta.url.endsWith(".ts");
+ 	const workerUrl = new URL(
+ 		isTypeScriptRuntime ? "./image-resize-worker.ts" : "./image-resize-worker.js",

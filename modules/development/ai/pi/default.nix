@@ -16,6 +16,7 @@ let
           ./pi-streaming-json.patch
           ./pi-tool-preview-render.patch
           ./pi-markdown-streaming.patch
+          ./pi-image-read.patch
         ];
         patchFlags = [
           "--batch"
@@ -59,7 +60,8 @@ let
                 ${./__tests__/streaming-json.test.mjs} \
                 ${./__tests__/tool-preview-render.test.mjs} \
                 ${./__tests__/markdown-streaming.test.mjs} \
-                ${./__tests__/tool-search-ranking.test.mjs}
+                ${./__tests__/tool-search-ranking.test.mjs} \
+                ${./__tests__/image-read.test.mjs}
             '';
           }
       );
