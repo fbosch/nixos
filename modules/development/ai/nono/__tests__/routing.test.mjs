@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { delimiter, dirname, join } from "node:path";
 import { test } from "node:test";
@@ -8,9 +8,14 @@ import { test } from "node:test";
 const { PI_TEST_PROFILE: profile, PI_TEST_PROBE: probe, PI_TEST_FISH: fish } = process.env;
 assert.ok(profile && probe && fish, "Run through checks.pi-launcher-routing");
 
-test("assembled system profile exposes the activation marker beside pi", () => {
+test("assembled system profile exposes the activation marker and immutable Pi Ask host beside pi", () => {
   assert.ok(existsSync(join(profile, "bin", "pi")));
   assert.ok(existsSync(join(profile, "share", "pi", "nono-wrapper")));
+  const host = realpathSync(join(profile, "share", "pi", "pi-ask.lua"));
+  assert.match(host, /^\/nix\/store\//);
+  const stat = lstatSync(host);
+  assert.ok(stat.isFile());
+  assert.equal(stat.mode & 0o222, 0);
 });
 
 test("wrapper and Pi's actual shell helper keep writable launchers behind immutable pi", () => {

@@ -1,4 +1,4 @@
-{ config, inputs, ... }:
+{ config, inputs, lib, ... }:
 let
   mkPi =
     pkgs:
@@ -67,13 +67,28 @@ let
       );
     in
     pi;
+  mkIpcManifest = pkgs: pkgs.writeText "pi-ipc-capabilities.json" (builtins.toJSON config.piIpcRegistry);
+  mkIpcRuntime = pkgs: pkgs.importNpmLock.buildNodeModules {
+    npmRoot = ../nono;
+    inherit (pkgs) nodejs;
+    derivationArgs = {
+      pname = "pi-ipc-runtime";
+      postInstall = ''
+        cp -r ${../nono/scripts} "$out/scripts"
+        cp -r ${../nono/__tests__} "$out/__tests__"
+      '';
+      meta.description = "Pi IPC capability registry and bounded transport runtime";
+    };
+  };
   mkLauncher =
-    pkgs: rawPi:
+    pkgs: rawPi: { ipcRestricted ? false, proxyTestNono ? pkgs.nono }:
       assert pkgs.lib.assertMsg (pkgs.lib.versionAtLeast pkgs.nono.version "0.80.0")
         "Pi standalone credential proxy and sandbox protection require nono >= 0.80.0";
       let
+        runtime = mkIpcRuntime pkgs;
+        manifest = mkIpcManifest pkgs;
         profile = pkgs.writeText "pi-nono-profile.json" (
-          builtins.toJSON (config.flake.lib.mkPiCredentialProfile { inherit pkgs; })
+          builtins.toJSON (config.flake.lib.mkPiCredentialProfile { inherit pkgs ipcRestricted; })
         );
       in
       pkgs.runCommand "pi"
@@ -85,32 +100,41 @@ let
           mkdir -p "$out/bin"
           mkdir -p "$out/share/pi"
           touch "$out/share/pi/nono-wrapper"
+          ln -s ${../nono/scripts/pi-ask.lua} "$out/share/pi/pi-ask.lua"
           # A binary entry avoids sourcing BASH_ENV before nono applies confinement.
+          ${pkgs.nodejs}/bin/node --input-type=module -e 'import { loadCapabilities } from "${runtime}/scripts/ipc-policy.mjs"; loadCapabilities(process.argv[1]);' "${manifest}"
           makeBinaryWrapper ${pkgs.nodejs}/bin/node "$out/bin/pi" \
             --unset NODE_OPTIONS --unset NODE_PATH \
+            --set PI_IPC_MANIFEST "${manifest}" \
             --prefix PATH : "$out/bin" \
-            --add-flags "${../nono/scripts}/launcher.mjs ${pkgs.nono}/bin/nono ${rawPi}/bin/pi ${profile} ${pkgs.direnv}/bin/direnv ${pkgs.coreutils}/bin/env"
+            --add-flags "${runtime}/scripts/launcher.mjs ${pkgs.nono}/bin/nono ${rawPi}/bin/pi ${profile} ${pkgs.direnv}/bin/direnv ${pkgs.coreutils}/bin/env"
+          HERDR_REPORTER_TEST_SOURCE="${inputs.herdr}/src/integration/assets/pi/herdr-agent-state.ts" \
+            NONO_TEST_IPC_MODE="${if ipcRestricted then "pathname" else "off"}" \
           PI_TEST_BINARY="$out/bin/pi" PI_TEST_DIRENV="${pkgs.direnv}/bin/direnv" \
-            NONO_PROXY_TEST_BINARY="${pkgs.nono}/bin/nono" NONO_TEST_PROFILE="${profile}" \
+            NONO_PROXY_TEST_BINARY="${proxyTestNono}/bin/nono" NONO_TEST_PROFILE="${profile}" \
             GIT_TEST_BINARY="${pkgs.git}/bin/git" ENV_TEST_BINARY="${pkgs.coreutils}/bin/env" ${pkgs.nodejs}/bin/node --test \
-            ${../nono}/__tests__/credential-filesystem.test.mjs \
-            ${../nono}/__tests__/credentials.test.mjs \
-            ${../nono}/__tests__/context7-auth.test.mjs \
-            ${../nono}/__tests__/credential-proxy.test.mjs \
-            ${../nono}/__tests__/github-auth.test.mjs \
-            ${../nono}/__tests__/direnv-bootstrap.test.mjs \
-            ${../nono}/__tests__/git-worktree.test.mjs \
-            ${../nono}/__tests__/herdr-launch.test.mjs \
-            ${../nono}/__tests__/launcher.test.mjs \
-            ${../nono}/__tests__/macos-browser-startup.test.mjs \
-            ${../nono}/__tests__/reference-access.test.mjs \
-            ${../nono}/__tests__/shell-protection.test.mjs \
-            ${../nono}/__tests__/ssh-access.test.mjs \
-            ${../nono}/__tests__/socket-isolation.test.mjs
+            ${runtime}/__tests__/credential-filesystem.test.mjs \
+            ${runtime}/__tests__/credentials.test.mjs \
+            ${runtime}/__tests__/context7-auth.test.mjs \
+            ${runtime}/__tests__/credential-proxy.test.mjs \
+            ${runtime}/__tests__/github-auth.test.mjs \
+            ${runtime}/__tests__/direnv-bootstrap.test.mjs \
+            ${runtime}/__tests__/git-worktree.test.mjs \
+            ${runtime}/__tests__/herdr-launch.test.mjs \
+            ${runtime}/__tests__/herdr-socket.test.mjs \
+            ${runtime}/__tests__/herdr-reporting.test.mjs \
+            ${runtime}/__tests__/service-ipc.test.mjs \
+            ${runtime}/__tests__/ipc-workflows.test.mjs \
+            ${runtime}/__tests__/launcher.test.mjs \
+            ${runtime}/__tests__/macos-browser-startup.test.mjs \
+            ${runtime}/__tests__/reference-access.test.mjs \
+            ${runtime}/__tests__/shell-protection.test.mjs \
+            ${runtime}/__tests__/ssh-access.test.mjs \
+            ${runtime}/__tests__/socket-isolation.test.mjs
         '';
   systemPackages = { pkgs, ... }: {
     environment = {
-      systemPackages = [ (mkLauncher pkgs (mkPi pkgs)) ];
+      systemPackages = [ (mkLauncher pkgs (mkPi pkgs) { }) ];
       pathsToLink = [ "/share/pi" ];
     };
   };
@@ -149,109 +173,151 @@ let
     };
 in
 {
-  flake.modules = {
-    nixos.development.imports = [ systemPackages ];
-    darwin.development.imports = [ systemPackages ];
-    homeManager.development = homeManagerPi;
+  options.piIpcRegistry = lib.mkOption {
+    type = lib.types.attrsOf lib.types.anything;
+    default = builtins.fromJSON (builtins.readFile ../nono/scripts/ipc-capabilities.json);
+    description = "Nix-owned IPC capability catalog and profile selections; validated by the runtime JSON Schema.";
   };
 
-  perSystem =
-    { lib, pkgs, ... }:
-    let
-      launcher = mkLauncher pkgs (mkPi pkgs);
-      evaluateSystem =
-        if pkgs.stdenv.hostPlatform.isDarwin then
-          inputs.nix-darwin.lib.darwinSystem
-        else
-          inputs.nixpkgs.lib.nixosSystem;
-      profileConfig = evaluateSystem {
-        system = pkgs.stdenv.hostPlatform.system;
-        modules = [
-          systemPackages
-          { nixpkgs.pkgs = pkgs; }
-        ];
-      };
-      launcherProfile = pkgs.buildEnv {
-        name = "pi-profile-check";
-        paths = [ launcher ];
-        inherit (profileConfig.config.environment) pathsToLink;
-      };
-      # Upstream src is the dependency-lock directory; probe the installed helper.
-      shellProbe = pkgs.writeShellScriptBin "pi" ''
-        exec ${pkgs.nodejs}/bin/node ${../nono/__tests__/fixtures/shell-path-probe.mjs} \
-          ${mkPi pkgs}/lib/pi/node_modules/@earendil-works/pi-coding-agent/dist/utils/shell.js ${pkgs.bash}/bin/bash "$@"
-      '';
-      # Routing checks exercise the assembled wrapper without host CA/keychain changes.
-      routingNono = pkgs.runCommand "nono-routing-fixture"
-        { inherit (pkgs.nono) version; }
-        ''
-          mkdir -p "$out/bin"
-          ${pkgs.nodejs}/bin/node --input-type=module - "$out/bin/nono" <<'JS'
-          import { writeFileSync } from "node:fs";
-          import { proxyFixtureSource } from ${builtins.toJSON (toString ../nono/__tests__/fixtures/credential-proxy.mjs)};
-          writeFileSync(process.argv[2], "#!${pkgs.nodejs}/bin/node\n" + proxyFixtureSource(), { mode: 0o755 });
-          JS
-        '';
-      piHomeConfig =
-        (inputs.home-manager.lib.homeManagerConfiguration {
-          inherit pkgs;
-          modules = [
-            homeManagerPi
-            {
-              home = {
-                username = "tester";
-                homeDirectory = "/home/tester";
-                stateVersion = "25.05";
-              };
-            }
-          ];
-        }).config;
-      securePiAgentDirectory = piHomeConfig.home.activation.securePiAgentDirectory;
-    in
-    {
-      packages.pi-sandbox = launcher;
-      packages.pi-raw = mkPi pkgs;
-      checks.pi-launcher-routing =
-        pkgs.runCommand "pi-launcher-routing"
-          {
-            PI_TEST_PROFILE = launcherProfile;
-            PI_TEST_PROBE = "${mkLauncher (pkgs // { nono = routingNono; }) shellProbe}/bin/pi";
-            PI_TEST_FISH = "${pkgs.fish}/bin/fish";
-          }
-          ''
-            ${pkgs.nodejs}/bin/node --test ${../nono/__tests__/routing.test.mjs}
-            touch "$out"
-          '';
-      nix-unit.tests.piActivation = {
-        testSecuresPiAgentDirectory = {
-          expr = lib.hasInfix ''/bin/install -d -m 0700 "$HOME/.pi/agent"'' securePiAgentDirectory.data;
-          expected = true;
-        };
-        testRetiresOnlyKnownPiAlias = {
-          expr =
-            lib.hasInfix ''/bin/rm -- "$legacy"'' securePiAgentDirectory.data
-            && lib.hasInfix "pinned_source=$(" securePiAgentDirectory.data
-            && lib.hasInfix ''"$HOME/dotfiles/.pi/agent/bin/pi"'' securePiAgentDirectory.data
-            && lib.hasInfix "Refusing unknown Pi launcher" securePiAgentDirectory.data;
-          expected = true;
-        };
-        testRejectsSymlinkedAncestors = {
-          expr =
-            lib.hasInfix ''"$HOME/.pi/agent/bin"'' securePiAgentDirectory.data
-            && lib.hasInfix ''if [ -L "$ancestor" ]'' securePiAgentDirectory.data;
-          expected = true;
-        };
-        testRunsBeforeDotfiles = {
-          expr = securePiAgentDirectory.before;
-          expected = [ "dotfiles" ];
-        };
-        testRunsAfterHomeManagerWrites = {
-          expr = securePiAgentDirectory.after;
-          expected = [
-            "writeBoundary"
-            "linkGeneration"
-          ];
-        };
-      };
+  config = {
+    flake.modules = {
+      nixos.development.imports = [ systemPackages ];
+      darwin.development.imports = [ systemPackages ];
+      homeManager.development = homeManagerPi;
     };
+
+    perSystem =
+      { lib, pkgs, ... }:
+      let
+        launcher = mkLauncher pkgs (mkPi pkgs) { };
+        evaluateSystem =
+          if pkgs.stdenv.hostPlatform.isDarwin then
+            inputs.nix-darwin.lib.darwinSystem
+          else
+            inputs.nixpkgs.lib.nixosSystem;
+        profileConfig = evaluateSystem {
+          system = pkgs.stdenv.hostPlatform.system;
+          modules = [
+            systemPackages
+            { nixpkgs.pkgs = pkgs; }
+          ];
+        };
+        launcherProfile = pkgs.buildEnv {
+          name = "pi-profile-check";
+          paths = [ launcher ];
+          inherit (profileConfig.config.environment) pathsToLink;
+        };
+        # Upstream src is the dependency-lock directory; probe the installed helper.
+        shellProbe = pkgs.writeShellScriptBin "pi" ''
+          exec ${pkgs.nodejs}/bin/node ${../nono/__tests__/fixtures/shell-path-probe.mjs} \
+            ${mkPi pkgs}/lib/pi/node_modules/@earendil-works/pi-coding-agent/dist/utils/shell.js ${pkgs.bash}/bin/bash "$@"
+        '';
+        # Routing checks exercise the assembled wrapper without host CA/keychain changes.
+        routingNono = pkgs.runCommand "nono-routing-fixture"
+          { inherit (pkgs.nono) version; }
+          ''
+            mkdir -p "$out/bin"
+            ${pkgs.nodejs}/bin/node --input-type=module - "$out/bin/nono" <<'JS'
+            import { writeFileSync } from "node:fs";
+            import { proxyFixtureSource } from ${builtins.toJSON (toString ../nono/__tests__/fixtures/credential-proxy.mjs)};
+            writeFileSync(process.argv[2], "#!${pkgs.nodejs}/bin/node\n" + proxyFixtureSource(), { mode: 0o755 });
+            JS
+          '';
+        piHomeConfig =
+          (inputs.home-manager.lib.homeManagerConfiguration {
+            inherit pkgs;
+            modules = [
+              homeManagerPi
+              {
+                home = {
+                  username = "tester";
+                  homeDirectory = "/home/tester";
+                  stateVersion = "25.05";
+                };
+              }
+            ];
+          }).config;
+        securePiAgentDirectory = piHomeConfig.home.activation.securePiAgentDirectory;
+      in
+      {
+        # Match the central by-name export's priority without weakening its package policy.
+        packages = lib.mkForce {
+          pi-sandbox = launcher;
+          pi-raw = mkPi pkgs;
+          # Candidate only: Linux and desktop workflow gates must pass before default rollout.
+          pi-ipc-candidate = mkLauncher pkgs (mkPi pkgs) { ipcRestricted = true; };
+          pi-ipc-runtime = mkIpcRuntime pkgs;
+        };
+        checks.pi-launcher-routing =
+          pkgs.runCommand "pi-launcher-routing"
+            {
+              PI_TEST_PROFILE = launcherProfile;
+              # Native proxy smoke tests need real Nono, not the launcher-routing stub.
+              PI_TEST_PROBE = "${mkLauncher (pkgs // { nono = routingNono; }) shellProbe { proxyTestNono = pkgs.nono; }}/bin/pi";
+              PI_TEST_FISH = "${pkgs.fish}/bin/fish";
+            }
+            ''
+              ${pkgs.nodejs}/bin/node --test ${../nono/__tests__/routing.test.mjs}
+              touch "$out"
+            '';
+        checks.pi-ipc =
+          pkgs.runCommand "pi-ipc-check"
+            { HERDR_REPORTER_TEST_SOURCE = "${inputs.herdr}/src/integration/assets/pi/herdr-agent-state.ts"; }
+            ''
+              ${pkgs.nodejs}/bin/node --input-type=module -e 'import { loadCapabilities } from "${mkIpcRuntime pkgs}/scripts/ipc-policy.mjs"; loadCapabilities(process.argv[1]);' "${mkIpcManifest pkgs}"
+              ${pkgs.nodejs}/bin/node --test \
+                ${mkIpcRuntime pkgs}/__tests__/ipc-policy.test.mjs \
+                ${mkIpcRuntime pkgs}/__tests__/json-lines-server.test.mjs \
+                ${mkIpcRuntime pkgs}/__tests__/ipc-bootstrap.test.mjs \
+                ${mkIpcRuntime pkgs}/__tests__/ipc-session.test.mjs \
+                ${mkIpcRuntime pkgs}/__tests__/herdr-reporting.test.mjs
+              touch "$out"
+            '';
+        nix-unit.tests.piIpc = {
+          testOrdinaryFsmonitorUsesExistingDarwinEndpoints = {
+            expr = config.piIpcRegistry.profiles.ordinary."git-fsmonitor";
+            expected = { access = "connect-existing"; platforms = [ "darwin" ]; };
+          };
+          testRestrictedFsmonitorDeclaresFullProtocolAuthority = {
+            expr = config.piIpcRegistry.capabilities."git-fsmonitor".authority;
+            expected = "full-protocol";
+          };
+          testRestrictedFsmonitorPermitsLazyEndpointCreation = {
+            expr = config.piIpcRegistry.profiles.restricted."git-fsmonitor".access;
+            expected = "bind";
+          };
+        };
+        nix-unit.tests.piActivation = {
+          testSecuresPiAgentDirectory = {
+            expr = lib.hasInfix ''/bin/install -d -m 0700 "$HOME/.pi/agent"'' securePiAgentDirectory.data;
+            expected = true;
+          };
+          testRetiresOnlyKnownPiAlias = {
+            expr =
+              lib.hasInfix ''/bin/rm -- "$legacy"'' securePiAgentDirectory.data
+              && lib.hasInfix "pinned_source=$(" securePiAgentDirectory.data
+              && lib.hasInfix ''"$HOME/dotfiles/.pi/agent/bin/pi"'' securePiAgentDirectory.data
+              && lib.hasInfix "Refusing unknown Pi launcher" securePiAgentDirectory.data;
+            expected = true;
+          };
+          testRejectsSymlinkedAncestors = {
+            expr =
+              lib.hasInfix ''"$HOME/.pi/agent/bin"'' securePiAgentDirectory.data
+              && lib.hasInfix ''if [ -L "$ancestor" ]'' securePiAgentDirectory.data;
+            expected = true;
+          };
+          testRunsBeforeDotfiles = {
+            expr = securePiAgentDirectory.before;
+            expected = [ "dotfiles" ];
+          };
+          testRunsAfterHomeManagerWrites = {
+            expr = securePiAgentDirectory.after;
+            expected = [
+              "writeBoundary"
+              "linkGeneration"
+            ];
+          };
+        };
+      };
+  };
 }

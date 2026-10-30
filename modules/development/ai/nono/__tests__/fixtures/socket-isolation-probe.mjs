@@ -22,8 +22,8 @@ if (process.argv[2] === "--stdio-server") {
     process.stdin.destroy();
   });
 } else {
-  const { sockets, bindPath, url } = JSON.parse(process.argv[2]);
-  assert.ok(process.env.PI_NVIM_SOCKET, "selected editor socket must remain available");
+  const { sockets, deniedSockets = [], bindPath, deniedBindPath, url } = JSON.parse(process.argv[2]);
+  assert.ok(process.env.PI_NVIM_ASK_SOCKET, "selected Pi Ask socket must remain available");
   const connected = [];
   for (const path of sockets) {
     const socket = createConnection(path);
@@ -36,6 +36,27 @@ if (process.argv[2] === "--stdio-server") {
       connected.push(path);
     } finally {
       socket.destroy();
+    }
+  }
+  const denied = [];
+  for (const path of deniedSockets) {
+    const socket = createConnection(path);
+    try {
+      await assert.rejects(once(socket, "connect"), error => ["EACCES", "EPERM"].includes(error.code));
+      denied.push(path);
+    } finally {
+      socket.destroy();
+    }
+  }
+  if (deniedBindPath) {
+    const deniedListener = createServer();
+    try {
+      await assert.rejects(async () => {
+        deniedListener.listen(deniedBindPath);
+        await once(deniedListener, "listening");
+      }, error => ["EACCES", "EPERM"].includes(error.code));
+    } finally {
+      deniedListener.close();
     }
   }
 
@@ -70,5 +91,5 @@ if (process.argv[2] === "--stdio-server") {
   assert.equal(response.status, 200);
   const http = await response.json();
   assert.equal(http.id, initialize.id);
-  console.log(JSON.stringify({ connected, bound: true, stdio: stdio.result.serverInfo.name, http: http.result.serverInfo.name }));
+  console.log(JSON.stringify({ connected, denied, bound: true, stdio: stdio.result.serverInfo.name, http: http.result.serverInfo.name }));
 }

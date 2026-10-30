@@ -2,6 +2,8 @@ import { afterEach, test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { once } from "node:events";
+import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -18,7 +20,7 @@ afterEach(() => {
 });
 
 function launch(environment, args = []) {
-  const root = mkdtempSync(join(tmpdir(), "pi-herdr-launch-"));
+  const root = mkdtempSync(join(process.cwd(), ".pi-h-launch-"));
   roots.push(root);
   const home = join(root, "home");
   const cwd = join(root, "cwd");
@@ -38,7 +40,7 @@ console.log(JSON.stringify({kind:${JSON.stringify(kind)},parentName,hint:process
   }
   if (args[0] === "--no-sandbox") writeFileSync(nono, `#!${process.execPath}\n${proxyFixtureSource()}`, { mode: 0o700 });
   const env = {
-    ...process.env,
+    PATH: process.env.PATH,
     HOME: home,
     PI_CODING_AGENT_DIR: agent,
     XDG_CONFIG_HOME: join(home, ".config"),
@@ -48,7 +50,6 @@ console.log(JSON.stringify({kind:${JSON.stringify(kind)},parentName,hint:process
     XDG_RUNTIME_DIR: runtime,
     TMPDIR: temporary,
   };
-  for (const name of ["HERDR_ENV", "HERDR_AGENT", "HERDR_PANE_ID", "HERDR_SOCKET_PATH", "NODE_OPTIONS", "NODE_PATH", "GH_TOKEN", "GITHUB_TOKEN", "GITHUB_PERSONAL_ACCESS_TOKEN", "GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN"]) delete env[name];
   Object.assign(env, environment);
   const child = spawnSync(process.execPath, [launcher, nono, rawPi, profile, "/missing-direnv", envBinary, ...args], {
     cwd,
@@ -68,20 +69,29 @@ for (const args of [[], ["--no-sandbox", "--version"]]) {
 }
 
 for (const hint of [undefined, "", "claude"]) {
-  test(`Herdr launch passes a pi hint to the nono wrapper with ${hint === undefined ? "no" : JSON.stringify(hint)} inherited hint`, () => {
-    const environment = {
-      HERDR_ENV: "1",
-      HERDR_PANE_ID: "wFixture:p1",
-      HERDR_SOCKET_PATH: "/fixture/herdr.sock",
-      ...(hint === undefined ? {} : { HERDR_AGENT: hint }),
-    };
-    const args = ["--print", "a prompt with spaces"];
-    const actual = launch(environment, args);
-    assert.equal(actual.kind, "nono");
-    assert.equal(actual.hint, "pi");
-    assert.equal(actual.pane, environment.HERDR_PANE_ID);
-    assert.equal(actual.socket, environment.HERDR_SOCKET_PATH);
-    assert.deepEqual(actual.args.slice(-args.length), args);
+  test(`Herdr launch passes a pi hint to the nono wrapper with ${hint === undefined ? "no" : JSON.stringify(hint)} inherited hint`, async () => {
+    const root = mkdtempSync(join(tmpdir(), "pi-herdr-"));
+    roots.push(root);
+    const socket = createServer();
+    try {
+      const environment = {
+        HERDR_ENV: "1",
+        HERDR_PANE_ID: "wFixture:p1",
+        HERDR_SOCKET_PATH: join(root, "herdr.sock"),
+        ...(hint === undefined ? {} : { HERDR_AGENT: hint }),
+      };
+      socket.listen(environment.HERDR_SOCKET_PATH);
+      await once(socket, "listening");
+      const args = ["--print", "a prompt with spaces"];
+      const actual = launch(environment, args);
+      assert.equal(actual.kind, "nono");
+      assert.equal(actual.hint, "pi");
+      assert.equal(actual.pane, environment.HERDR_PANE_ID);
+      assert.equal(actual.socket, environment.HERDR_SOCKET_PATH);
+      assert.deepEqual(actual.args.slice(-args.length), args);
+    } finally {
+      await new Promise(resolve => socket.close(resolve));
+    }
   });
 }
 
