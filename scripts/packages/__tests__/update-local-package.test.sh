@@ -158,7 +158,7 @@ grep -Fq 'filterway  upstream version not discoverable' "$tmp_dir/choose.log"
 grep -Fq 'font-apple  26.2.1' "$tmp_dir/choose.log"
 grep -Fq 'font-fast-font  final →' "$tmp_dir/choose.log"
 grep -Fq 'font-microsoft  unstable' "$tmp_dir/choose.log"
-grep -Fq 'surge  0.12.0' "$tmp_dir/choose.log"
+grep -Eq 'surge  [0-9]+\.[0-9]+\.[0-9]+' "$tmp_dir/choose.log"
 grep -Fq 'webapp/apple-maps  no automatic upstream check' "$tmp_dir/choose.log"
 
 if ! run_scan none "$tmp_dir/updated.out" updated; then

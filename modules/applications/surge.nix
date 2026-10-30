@@ -290,13 +290,26 @@ in
     in
     {
       nix-unit.tests.surgeService = {
-        testDefaultPackageUsesUpstreamSource = {
-          expr = defaultSurgePackage.src.outPath;
-          expected = inputs.surge.outPath;
+        testDefaultPackageUsesReleaseSource = {
+          expr = {
+            owner = defaultSurgePackage.src.owner or null;
+            repo = defaultSurgePackage.src.repo or null;
+            tag = defaultSurgePackage.src.tag or null;
+          };
+          expected = {
+            owner = "SurgeDM";
+            repo = "Surge";
+            tag = "v${defaultSurgePackage.version}";
+          };
         };
-        testDefaultPackageUsesPinnedVersion = {
-          expr = defaultSurgePackage.version;
-          expected = "0.12.0";
+        testPackageUpdatePositionsAreLocal = {
+          expr = builtins.mapAttrs
+            (name: _: (builtins.unsafeGetAttrPos name defaultSurgePackage).file)
+            { src = null; version = null; };
+          expected = {
+            src = toString ../../pkgs/by-name/surge/package.nix;
+            version = toString ../../pkgs/by-name/surge/package.nix;
+          };
         };
         testStaleUpstreamVendorTreeIsDiscarded = {
           expr = lib.hasInfix "rm -rf vendor" defaultSurgePackage.postPatch;
