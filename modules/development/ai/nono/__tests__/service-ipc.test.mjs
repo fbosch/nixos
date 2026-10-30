@@ -9,16 +9,24 @@ import { devenvRuntime, serviceSocketArguments, withSessionServiceEnvironment } 
 const roots = [];
 const envBinary = process.env.ENV_TEST_BINARY || "/usr/bin/env";
 const base = JSON.parse(readFileSync(new URL("../scripts/profile.json", import.meta.url), "utf8"));
-function fixture() {
-  const root = realpathSync(mkdtempSync(join(process.cwd(), ".pi-service-")));
+function fixture(directory = process.cwd()) {
+  const root = realpathSync(mkdtempSync(join(directory, ".pi-service-")));
   roots.push(root);
   const home = join(root, "home");
   const project = join(root, "project");
-  const environment = { HOME: home, XDG_RUNTIME_DIR: join(root, "runtime") };
-  for (const path of [home, project, environment.XDG_RUNTIME_DIR]) mkdirSync(path, { recursive: true });
+  const environment = { HOME: home, TMPDIR: join(root, "tmp"), XDG_RUNTIME_DIR: join(root, "runtime") };
+  for (const path of [home, project, environment.TMPDIR, environment.XDG_RUNTIME_DIR]) mkdirSync(path, { recursive: true });
   writeFileSync(join(project, "devenv.nix"), "{}");
   const candidate = join(root, "candidate.json");
-  writeFileSync(candidate, JSON.stringify({ ...base, linux: { af_unix_mediation: "pathname", sandbox_policy: "landlock" } }));
+  writeFileSync(candidate, JSON.stringify({
+    ...base,
+    filesystem: {
+      ...base.filesystem,
+      // Nix builders put synthetic HOME under /tmp; only read the separate fixture TMPDIR.
+      read: base.filesystem.read.filter(path => path !== "/tmp"),
+    },
+    linux: { af_unix_mediation: "pathname", sandbox_policy: "landlock" },
+  }));
   return { root, home, project, environment, candidate };
 }
 afterEach(() => { for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true }); });
@@ -39,7 +47,7 @@ test("devenv 2.4 runtime follows the selected canonical dotfile, including profi
 });
 
 test("candidate grants the project runtime and direct service directories without exposing the desktop runtime root", () => {
-  const f = fixture();
+  const f = fixture("/tmp");
   const runtime = devenvRuntime(f.project, f.home, f.environment);
   mkdirSync(join(runtime, "postgres"), { recursive: true, mode: 0o700 });
   const agent = join(f.home, ".pi", "agent");
