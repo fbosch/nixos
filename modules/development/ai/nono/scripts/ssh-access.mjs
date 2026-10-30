@@ -61,7 +61,7 @@ export function assertReadOnlySshGrants(args, cwd) {
   const exemptions = new Set(values("--bypass-protection"));
   const files = values("--read-file").filter(path => exemptions.has(path));
   if (files.length === 0) return;
-  const roots = [cwd, ...values("--allow")].flatMap(path => optionalEntry(path) ? [path, realpathSync(path)] : [path]);
+  const roots = [cwd, ...values("--allow"), ...values("--allow-file")].flatMap(path => optionalEntry(path) ? [path, realpathSync(path)] : [path]);
   for (const file of files) {
     const targets = [file, realpathSync(file), join(realpathSync(dirname(file)), basename(file))];
     for (const root of roots) {

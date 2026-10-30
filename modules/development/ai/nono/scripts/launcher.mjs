@@ -1,4 +1,4 @@
-import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, statSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { delimiter, dirname, isAbsolute, join, resolve, sep } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -10,6 +10,7 @@ import { assertCredentialSourceGrants, credentialEnvironmentForDirenv, prepareCr
 import { prepareSandboxRuntime, sandboxRuntimeCommand } from "./sandbox-runtime.mjs";
 import { runWithCredentialProxy } from "./credential-proxy.mjs";
 import { assertPrivateIpcGrants } from "./private-ipc.mjs";
+import { assertCredentialGrants } from "./credential-grants.mjs";
 import { withIpcCapabilities } from "./ipc-session.mjs";
 import { serviceSocketArguments, withSessionServiceEnvironment } from "./service-ipc.mjs";
 import { defaultCapabilities, endpointArguments, loadCapabilities, selectCapabilities } from "./ipc-policy.mjs";
@@ -193,6 +194,28 @@ function writableReferenceRoots(cwd, home) {
   return roots.some((root) => within(canonicalCwd, root)) ? roots : [];
 }
 
+// sops-nix Home Manager decrypts user secrets into %r/secrets.d and links the active generation from %r/secrets.
+const runtimeSecretEntries = ["secrets", "secrets.d"];
+
+function runtimeDirectoryArguments(runtime, platform) {
+  if (platform !== "linux") return ["--allow", runtime];
+  // Landlock cannot exclude a child of a granted directory, so grant top-level entries instead of the root.
+  // Sockets need no grant while AF_UNIX mediation is off; symlinks are skipped so they cannot redirect a grant.
+  return readdirSync(runtime, { withFileTypes: true }).flatMap((entry) => {
+    if (runtimeSecretEntries.includes(entry.name)) return [];
+    const path = join(runtime, entry.name);
+    if (entry.isDirectory()) return ["--allow", path];
+    return entry.isFile() ? ["--allow-file", path] : [];
+  });
+}
+
+function assertRuntimeSecretGrants(args, cwd, home, environment, profile, platform) {
+  const runtime = platform === "linux" && environment.XDG_RUNTIME_DIR ? existingDirectory(environment.XDG_RUNTIME_DIR) : undefined;
+  if (runtime === undefined) return;
+  const secrets = runtimeSecretEntries.map((name) => join(runtime, name)).filter((path) => existsSync(path));
+  assertCredentialGrants(args, cwd, home, environment, profile, secrets, "Runtime secret");
+}
+
 export function launchArguments(cwd, agentDir, home, environment, profile, rawPi, envBinary, platform = process.platform, registry = defaultCapabilities) {
   if (!isAbsolute(profile) || !existingFile(profile)) throw new Error(`Nix nono profile missing: ${profile}`);
   if (!isAbsolute(envBinary) || !existingFile(envBinary)) throw new Error(`Nix env executable missing: ${envBinary}`);
@@ -261,7 +284,7 @@ export function launchArguments(cwd, agentDir, home, environment, profile, rawPi
     if (runtime === undefined) {
       console.warn(`pi sandbox launch: XDG_RUNTIME_DIR is missing (${JSON.stringify(environment.XDG_RUNTIME_DIR)}); continuing without runtime-directory access.`);
     } else {
-      extra.push("--allow", runtime);
+      extra.push(...runtimeDirectoryArguments(runtime, platform));
     }
   }
   const args = [
@@ -278,7 +301,10 @@ export function launchArguments(cwd, agentDir, home, environment, profile, rawPi
     assertPrivateIpcGrants(args, cwd, home);
   }
   assertReadOnlySshGrants(args, cwd);
-  assertCredentialSourceGrants(args, cwd, home, { ...environment, TMPDIR: environment.TMPDIR || tmpdir() }, readJson(profile, "nono profile"));
+  const guardEnvironment = { ...environment, TMPDIR: environment.TMPDIR || tmpdir() };
+  const loadedProfile = readJson(profile, "nono profile");
+  assertCredentialSourceGrants(args, cwd, home, guardEnvironment, loadedProfile);
+  assertRuntimeSecretGrants(args, cwd, home, guardEnvironment, loadedProfile, platform);
   return args;
 }
 

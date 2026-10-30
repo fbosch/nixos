@@ -158,7 +158,8 @@ test("selected socket grants preserve stdio/HTTP and reject unrelated endpoints 
     const boundary = args.indexOf("--");
     const grants = args.slice(0, boundary);
     assert.deepEqual(grants.flatMap((part, index) => part === "--allow-unix-socket" ? [grants[index + 1]] : []), permitted);
-    assert.equal(grants.some((part, index) => part === "--allow" && grants[index + 1] === runtime), !restricted);
+    // Ordinary mode grants runtime entries individually; sockets below remain reachable without a root grant.
+    assert.equal(grants.some((part, index) => part === "--allow" && grants[index + 1] === runtime), false);
     const result = await run(process.env.NONO_TEST_BINARY, [
       ...grants, "--read", dirname(probe), "--open-port", String(http.address().port),
       "--no-audit", "--no-rollback", ...args.slice(boundary),

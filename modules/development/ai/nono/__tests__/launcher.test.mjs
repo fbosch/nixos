@@ -584,6 +584,50 @@ test("missing XDG_RUNTIME_DIR paths warn without creating directories or adding 
   }
 });
 
+test("Linux runtime-directory grants omit sops-nix user secrets and symlinks", async () => {
+  const { root, home, cwd, agent, raw, profile } = fixture();
+  const runtime = join(root, "runtime");
+  const generation = join(runtime, "secrets.d", "1");
+  mkdirSync(generation, { recursive: true });
+  mkdirSync(join(runtime, "podman"));
+  writeFileSync(join(generation, "github-token"), "fixture");
+  writeFileSync(join(runtime, "wayland-1.lock"), "");
+  symlinkSync(generation, join(runtime, "secrets"));
+  symlinkSync(home, join(runtime, "alias"));
+  const server = createServer();
+  server.listen(join(runtime, "bus"));
+  await once(server, "listening");
+  try {
+    const args = launchArguments(cwd, agent, home, { XDG_RUNTIME_DIR: runtime }, profile, raw, envBinary, "linux");
+    assert.ok(values(args, "--allow").includes(join(runtime, "podman")));
+    assert.deepEqual(values(args, "--allow-file"), [join(runtime, "wayland-1.lock")]);
+    const paths = ["--allow", "--allow-file", "--read", "--read-file"].flatMap((flag) => values(args, flag));
+    assert.ok(!paths.includes(runtime));
+    for (const name of ["secrets", "secrets.d", "alias", "bus"]) {
+      assert.ok(!paths.some((path) => path === join(runtime, name) || path.startsWith(join(runtime, name) + "/")), name);
+    }
+  } finally {
+    server.close();
+  }
+});
+
+test("Linux launches reject grants covering runtime secrets", () => {
+  const { root, home, agent, raw, profile } = fixture();
+  const runtime = join(root, "runtime");
+  const generation = join(runtime, "secrets.d", "1");
+  mkdirSync(generation, { recursive: true });
+  assert.throws(() => launchArguments(generation, agent, home, { XDG_RUNTIME_DIR: runtime }, profile, raw, envBinary, "linux"),
+    /Runtime secret credential store overlaps a Pi sandbox grant/);
+});
+
+test("macOS keeps the runtime-directory grant", () => {
+  const { root, home, cwd, agent, raw, profile } = fixture();
+  const runtime = join(root, "runtime");
+  mkdirSync(runtime);
+  const args = launchArguments(cwd, agent, home, { XDG_RUNTIME_DIR: runtime }, profile, raw, envBinary, "darwin");
+  assert.ok(values(args, "--allow").includes(realpathSync(runtime)));
+});
+
 test("an existing non-directory XDG_RUNTIME_DIR still fails closed", () => {
   const { root, launch } = fixture();
   const file = join(root, "not-a-directory");
@@ -591,17 +635,14 @@ test("an existing non-directory XDG_RUNTIME_DIR still fails closed", () => {
   assert.throws(() => launch([], { XDG_RUNTIME_DIR: file }), /Not a directory/);
 });
 
-test("does not create or grant writable direnv trust state while permitting the selected runtime root", () => {
+test("does not create or grant writable direnv trust state", () => {
   const { root, home, cwd, agent, raw, profile } = fixture();
   const data = join(root, "data");
-  const runtime = join(root, "runtime");
-  mkdirSync(runtime);
-  const environment = { XDG_DATA_HOME: data, XDG_RUNTIME_DIR: runtime };
+  const environment = { XDG_DATA_HOME: data };
   const args = launchArguments(cwd, agent, home, environment, profile, raw, envBinary);
   const state = join(data, "direnv");
   assert.equal(existsSync(state), false);
   assert.ok(!values(args, "--allow").includes(state));
-  assert.ok(values(args, "--allow").includes(realpathSync(runtime)));
   assert.ok(!values(args, "--allow").includes(data));
   assert.ok(!values(args, "--allow").includes(home));
 
@@ -750,7 +791,7 @@ test("dynamic grants reject the GitHub store through runtime, reference, cwd, an
   const store = join(config, "gh");
   mkdirSync(store, { recursive: true });
   const args = (directory, env = {}) => launchArguments(directory, agent, home, env, profile, raw, envBinary);
-  assert.throws(() => args(cwd, { XDG_RUNTIME_DIR: store }), /GitHub credential/);
+  assert.throws(() => args(cwd, { XDG_RUNTIME_DIR: config }), /GitHub credential/);
   writeFileSync(join(agent, "settings.json"), JSON.stringify({ references: { config: { path: config, description: "fixture" } } }));
   assert.throws(() => args(cwd), /GitHub credential/);
   rmSync(join(agent, "settings.json"));
