@@ -81,7 +81,7 @@ let
     };
   };
   mkLauncher =
-    pkgs: rawPi: { ipcRestricted ? false }:
+    pkgs: rawPi: { ipcRestricted ? false, proxyTestNono ? pkgs.nono }:
       assert pkgs.lib.assertMsg (pkgs.lib.versionAtLeast pkgs.nono.version "0.80.0")
         "Pi standalone credential proxy and sandbox protection require nono >= 0.80.0";
       let
@@ -100,6 +100,7 @@ let
           mkdir -p "$out/bin"
           mkdir -p "$out/share/pi"
           touch "$out/share/pi/nono-wrapper"
+          ln -s ${../nono/scripts/pi-ask.lua} "$out/share/pi/pi-ask.lua"
           # A binary entry avoids sourcing BASH_ENV before nono applies confinement.
           ${pkgs.nodejs}/bin/node --input-type=module -e 'import { loadCapabilities } from "${runtime}/scripts/ipc-policy.mjs"; loadCapabilities(process.argv[1]);' "${manifest}"
           makeBinaryWrapper ${pkgs.nodejs}/bin/node "$out/bin/pi" \
@@ -109,9 +110,8 @@ let
             --add-flags "${runtime}/scripts/launcher.mjs ${pkgs.nono}/bin/nono ${rawPi}/bin/pi ${profile} ${pkgs.direnv}/bin/direnv ${pkgs.coreutils}/bin/env"
           HERDR_REPORTER_TEST_SOURCE="${inputs.herdr}/src/integration/assets/pi/herdr-agent-state.ts" \
             NONO_TEST_IPC_MODE="${if ipcRestricted then "pathname" else "off"}" \
-            PI_NVIM_ASK_HOST="${../nono/scripts/pi-ask.lua}" \
           PI_TEST_BINARY="$out/bin/pi" PI_TEST_DIRENV="${pkgs.direnv}/bin/direnv" \
-            NONO_PROXY_TEST_BINARY="${pkgs.nono}/bin/nono" NONO_TEST_PROFILE="${profile}" \
+            NONO_PROXY_TEST_BINARY="${proxyTestNono}/bin/nono" NONO_TEST_PROFILE="${profile}" \
             GIT_TEST_BINARY="${pkgs.git}/bin/git" ENV_TEST_BINARY="${pkgs.coreutils}/bin/env" ${pkgs.nodejs}/bin/node --test \
             ${runtime}/__tests__/credential-filesystem.test.mjs \
             ${runtime}/__tests__/credentials.test.mjs \
@@ -136,7 +136,6 @@ let
     environment = {
       systemPackages = [ (mkLauncher pkgs (mkPi pkgs) { }) ];
       pathsToLink = [ "/share/pi" ];
-      variables.PI_NVIM_ASK_HOST = "${../nono/scripts/pi-ask.lua}";
     };
   };
   homeManagerPi =
@@ -253,7 +252,8 @@ in
           pkgs.runCommand "pi-launcher-routing"
             {
               PI_TEST_PROFILE = launcherProfile;
-              PI_TEST_PROBE = "${mkLauncher (pkgs // { nono = routingNono; }) shellProbe {}}/bin/pi";
+              # Native proxy smoke tests need real Nono, not the launcher-routing stub.
+              PI_TEST_PROBE = "${mkLauncher (pkgs // { nono = routingNono; }) shellProbe { proxyTestNono = pkgs.nono; }}/bin/pi";
               PI_TEST_FISH = "${pkgs.fish}/bin/fish";
             }
             ''

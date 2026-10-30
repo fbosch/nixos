@@ -139,7 +139,7 @@ test("production Pi Ask helper enforces NDJSON and private socket lifecycle", { 
     env: {
       ...process.env,
       HOME: home,
-      PI_NVIM_ASK_HOST: storedHelper,
+      PI_ASK_TEST_HOST: storedHelper,
       PI_ASK_TEST_CWD: cwd,
     },
     stdio: ["ignore", "pipe", "pipe"],

@@ -71,7 +71,7 @@ for (const { browser, fsmonitor } of [{ browser: false, fsmonitor: false }, { br
         const [helper, harness] = stored.map(result => result.stdout.trim());
         nvim = spawn(process.env.NVIM_TEST_BINARY, ["--headless", "-u", "NONE", "-i", "NONE", "-l", harness], {
           cwd: work,
-          env: { ...environment, PI_NVIM_ASK_HOST: helper, PI_ASK_TEST_CWD: work, PI_ASK_TEST_NATIVE: join(home, "host", "nvim.sock") },
+          env: { ...environment, PI_ASK_TEST_HOST: helper, PI_ASK_TEST_CWD: work, PI_ASK_TEST_NATIVE: join(home, "host", "nvim.sock") },
           stdio: ["ignore", "pipe", "pipe"],
         });
         nvimExited = once(nvim, "exit");

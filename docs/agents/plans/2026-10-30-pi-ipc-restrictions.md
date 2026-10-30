@@ -16,7 +16,7 @@ The Nix-owned launcher and profile remain under `modules/development/ai/nono/`. 
 - Herdr validation permits only `pane.report_agent`, `pane.report_agent_session`, `pane.report_metadata` and `pane.release_agent`. It checks source/agent identity, state fields, session-reference shapes and session-directory membership. Metadata is limited to `pi_session_title`. Unknown fields, `resume_argv`, other-pane access and terminal-control methods fail. Shutdown drains accepted reports before releasing reporting state.
 - The pinned generated Herdr reporter has a behavioral compatibility test against the same restricted endpoint. Custom clients and the generated reporter therefore use the same endpoint authority. Existing OSC 7 CWD reporting remains unchanged.
 
-The new Neovim integration and its Nix module must move together. `PI_NVIM_ASK_HOST` must identify the Nix-owned helper, not a writable checkout. Native Neovim RPC is not a compatibility path.
+The new Neovim integration and its Nix module must move together. Pi Ask resolves the packaged helper from `/run/current-system/sw/share/pi/pi-ask.lua` at launch and validates its canonical, read-only Nix-store target. It does not load host code from a writable checkout. Native Neovim RPC is not a compatibility path.
 
 ## Verified on rvn-mac
 

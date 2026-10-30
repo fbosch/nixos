@@ -1,6 +1,6 @@
 local launch_id = "0123456789abcdef0123456789abcdef"
 local cwd = assert(vim.uv.fs_realpath(vim.env.PI_ASK_TEST_CWD))
-local host_path = assert(vim.env.PI_NVIM_ASK_HOST)
+local host_path = assert(vim.env.PI_ASK_TEST_HOST)
 local emit = function(value)
   io.stdout:write(vim.json.encode(value) .. "\n")
   io.stdout:flush()
