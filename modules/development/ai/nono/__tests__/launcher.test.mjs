@@ -245,7 +245,7 @@ test("macOS does not follow fsmonitor socket symlinks or grant non-socket files"
   assert.deepEqual(values(args(), "--allow-unix-socket"), []);
 });
 
-test("PI_NVIM_SOCKET grants only the selected editor endpoint on Linux and macOS", async () => {
+test("PI_NVIM_ASK_SOCKET grants only the selected editor endpoint on Linux and macOS", async () => {
   const { root, cwd, agent, home, raw, profile } = fixture();
   const socket = join(root, "nvim.sock");
   const server = createServer(connection => connection.end());
@@ -253,7 +253,7 @@ test("PI_NVIM_SOCKET grants only the selected editor endpoint on Linux and macOS
   await once(server, "listening");
   try {
     for (const platform of ["darwin", "linux"]) {
-      const args = launchArguments(cwd, agent, home, { PI_NVIM_SOCKET: socket }, profile, raw, envBinary, platform);
+      const args = launchArguments(cwd, agent, home, { PI_NVIM_ASK_SOCKET: socket }, profile, raw, envBinary, platform);
       assert.deepEqual(values(args, "--allow-unix-socket"), [socket]);
       for (const flag of ["--allow-unix-socket-bind", "--allow-unix-socket-dir", "--allow-unix-socket-dir-bind", "--allow-unix-socket-subtree", "--allow-unix-socket-subtree-bind", "--bypass-protection"]) {
         assert.deepEqual(values(args, flag), [], flag);
@@ -266,10 +266,10 @@ test("PI_NVIM_SOCKET grants only the selected editor endpoint on Linux and macOS
   }
 });
 
-test("launches without PI_NVIM_SOCKET do not add editor socket grants", () => {
+test("launches without PI_NVIM_ASK_SOCKET do not add editor socket grants", () => {
   const { launch } = fixture();
   for (const value of [undefined, ""]) {
-    assert.deepEqual(values(launch([], { PI_NVIM_SOCKET: value }), "--allow-unix-socket"), []);
+    assert.deepEqual(values(launch([], { PI_NVIM_ASK_SOCKET: value }), "--allow-unix-socket"), []);
   }
 });
 
@@ -278,8 +278,12 @@ test("invalid Neovim socket paths fail the launch", () => {
   const file = join(root, "not-a-socket");
   writeFileSync(file, "fixture");
   for (const socket of [join(root, "missing.sock"), "relative.sock", file, root]) {
-    assert.throws(() => launch([], { PI_NVIM_SOCKET: socket }), /PI_NVIM_SOCKET|ENOENT/);
+    assert.throws(() => launch([], { PI_NVIM_ASK_SOCKET: socket }), /PI_NVIM_ASK_SOCKET|ENOENT/);
   }
+});
+test("native Neovim RPC cannot substitute for Pi Ask", () => {
+  const { launch } = fixture();
+  assert.throws(() => launch([], { PI_NVIM_SOCKET: "/host/nvim.sock" }), /Native Neovim RPC is not a Pi Ask endpoint/);
 });
 test("prepares missing npm cache and log directories without replacing existing contents", () => {
   const { home } = fixture();

@@ -1,0 +1,241 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "profiles": {
+      "type": "object",
+      "required": [
+        "ordinary",
+        "restricted"
+      ],
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[A-Za-z][A-Za-z0-9_.:-]*$",
+        "maxLength": 128
+      },
+      "additionalProperties": {
+        "type": "object",
+        "propertyNames": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_.:-]*$",
+          "maxLength": 128
+        },
+        "additionalProperties": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {},
+              "required": [],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "access": {
+                  "enum": [
+                    "connect-existing",
+                    "bind"
+                  ]
+                },
+                "platforms": {
+                  "type": "array",
+                  "items": {
+                    "enum": [
+                      "linux",
+                      "darwin"
+                    ]
+                  },
+                  "minItems": 1,
+                  "uniqueItems": true
+                }
+              },
+              "required": [
+                "access",
+                "platforms"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        }
+      }
+    },
+    "capabilities": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[A-Za-z][A-Za-z0-9_.:-]*$",
+        "maxLength": 128
+      },
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "backend": {
+                "const": "endpoint"
+              },
+              "discovery": {
+                "const": "selected-git-metadata"
+              },
+              "filename": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+                "maxLength": 128
+              },
+              "authority": {
+                "const": "full-protocol"
+              }
+            },
+            "required": [
+              "backend",
+              "discovery",
+              "filename",
+              "authority"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "backend": {
+                "const": "json-lines"
+              },
+              "limits": {
+                "type": "object",
+                "properties": {
+                  "maxFrameBytes": {
+                    "type": "integer",
+                    "minimum": 256,
+                    "maximum": 65536
+                  },
+                  "maxConnections": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 64
+                  },
+                  "clientTimeoutMs": {
+                    "type": "integer",
+                    "minimum": 100,
+                    "maximum": 10000
+                  },
+                  "upstreamTimeoutMs": {
+                    "type": "integer",
+                    "minimum": 100,
+                    "maximum": 10000
+                  }
+                },
+                "required": [
+                  "maxFrameBytes",
+                  "maxConnections",
+                  "clientTimeoutMs",
+                  "upstreamTimeoutMs"
+                ],
+                "additionalProperties": false
+              },
+              "operations": {
+                "type": "object",
+                "minProperties": 1,
+                "propertyNames": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z][A-Za-z0-9_.:-]*$",
+                  "maxLength": 128
+                },
+                "additionalProperties": {
+                  "type": "object",
+                  "properties": {
+                    "schema": {
+                      "type": "object"
+                    },
+                    "bindings": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z][A-Za-z0-9_.:-]*$",
+                        "maxLength": 128
+                      },
+                      "additionalProperties": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z][A-Za-z0-9_.:-]*$",
+                        "maxLength": 128
+                      }
+                    }
+                  },
+                  "required": [
+                    "schema",
+                    "bindings"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "cleanup": {
+                "type": "array",
+                "maxItems": 8,
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "maxLength": 192
+                    },
+                    "method": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z][A-Za-z0-9_.:-]*$",
+                      "maxLength": 128
+                    },
+                    "params": {
+                      "type": "object"
+                    },
+                    "optionalBindings": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z][A-Za-z0-9_.:-]*$",
+                        "maxLength": 128
+                      },
+                      "uniqueItems": true
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "method",
+                    "params"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "provider": {
+                "enum": [
+                  "herdr",
+                  "inherited-socket"
+                ]
+              },
+              "socketEnvironment": {
+                "type": "string",
+                "pattern": "^[A-Z][A-Z0-9_]*_SOCKET(_PATH)?$",
+                "maxLength": 128
+              }
+            },
+            "required": [
+              "backend",
+              "limits",
+              "operations",
+              "cleanup",
+              "provider",
+              "socketEnvironment"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      }
+    }
+  },
+  "required": [
+    "version",
+    "profiles",
+    "capabilities"
+  ],
+  "additionalProperties": false
+}

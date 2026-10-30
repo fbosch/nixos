@@ -9,6 +9,10 @@ import { assertReadOnlySshGrants, sshClientArguments } from "./ssh-access.mjs";
 import { assertCredentialSourceGrants, credentialEnvironmentForDirenv, prepareCredentialEnvironment } from "./credentials.mjs";
 import { prepareSandboxRuntime, sandboxRuntimeCommand } from "./sandbox-runtime.mjs";
 import { runWithCredentialProxy } from "./credential-proxy.mjs";
+import { assertPrivateIpcGrants } from "./private-ipc.mjs";
+import { withIpcCapabilities } from "./ipc-session.mjs";
+import { serviceSocketArguments, withSessionServiceEnvironment } from "./service-ipc.mjs";
+import { defaultCapabilities, endpointArguments, loadCapabilities, selectCapabilities } from "./ipc-policy.mjs";
 
 function record(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -189,9 +193,12 @@ function writableReferenceRoots(cwd, home) {
   return roots.some((root) => within(canonicalCwd, root)) ? roots : [];
 }
 
-export function launchArguments(cwd, agentDir, home, environment, profile, rawPi, envBinary, platform = process.platform) {
+export function launchArguments(cwd, agentDir, home, environment, profile, rawPi, envBinary, platform = process.platform, registry = defaultCapabilities) {
   if (!isAbsolute(profile) || !existingFile(profile)) throw new Error(`Nix nono profile missing: ${profile}`);
   if (!isAbsolute(envBinary) || !existingFile(envBinary)) throw new Error(`Nix env executable missing: ${envBinary}`);
+  const ipcRestricted = readJson(profile, "nono profile")?.linux?.af_unix_mediation === "pathname";
+  const capabilities = selectCapabilities(registry, ipcRestricted ? "restricted" : "ordinary", platform);
+  const needsGitSockets = Object.values(capabilities).some(capability => capability.backend === "endpoint" && capability.discovery === "selected-git-metadata");
   const metadata = gitMetadata(cwd, home);
   const grants = new Set(metadata.roots);
   const gitDirectories = new Set(metadata.directory ? [metadata.directory] : []);
@@ -199,7 +206,7 @@ export function launchArguments(cwd, agentDir, home, environment, profile, rawPi
   const writableRoots = writableReferenceRoots(cwd, home);
   for (const reference of references(cwd, agentDir, home)) {
     const path = existingDirectory(reference.path);
-    if (platform === "darwin" && path !== undefined) {
+    if (needsGitSockets && path !== undefined) {
       const directory = gitMetadata(path, home).directory;
       if (directory) gitDirectories.add(directory);
     }
@@ -215,25 +222,23 @@ export function launchArguments(cwd, agentDir, home, environment, profile, rawPi
   const configHome = environment.XDG_CONFIG_HOME || join(home, ".config");
   const dataHome = environment.XDG_DATA_HOME || join(home, ".local", "share");
   const cacheHome = environment.XDG_CACHE_HOME || join(home, ".cache");
-  const extra = sshClientArguments(home, environment);
-  if (platform === "darwin") {
-    // Filesystem writes do not authorize Seatbelt connect(); keep grants to existing Git endpoints.
-    for (const directory of gitDirectories) {
-      const socket = join(directory, "fsmonitor--daemon.ipc");
-      let entry;
-      try {
-        entry = lstatSync(socket);
-      } catch (error) {
-        if (error.code === "ENOENT") continue;
-        throw error;
-      }
-      if (entry.isSocket()) extra.push("--allow-unix-socket", socket);
-    }
+  const extra = [...sshClientArguments(home, environment), ...serviceSocketArguments(cwd, home, environment, ipcRestricted)];
+  extra.push(...endpointArguments(capabilities, { "selected-git-metadata": [...gitDirectories] }));
+  const socketVariables = new Set(Object.values(capabilities).filter(capability => capability.backend === "json-lines").map(capability => capability.socketEnvironment));
+  if (!ipcRestricted && environment.HERDR_ENV === "1") socketVariables.add("HERDR_SOCKET_PATH");
+  if (ipcRestricted && environment.HERDR_ENV === "1" && environment.HERDR_SOCKET_PATH && !socketVariables.has("HERDR_SOCKET_PATH")) throw new Error("Herdr reporting is not enabled in the IPC capability profile");
+  for (const variable of socketVariables) {
+    const socket = environment[variable];
+    if (!socket) continue;
+    if (!isAbsolute(socket)) throw new Error(`${variable} must be an absolute socket path`);
+    if (!statSync(socket).isSocket()) throw new Error(`${variable} must point to a socket`);
+    extra.push("--allow-unix-socket", socket);
   }
-  const editorSocket = environment.PI_NVIM_SOCKET;
+  const editorSocket = environment.PI_NVIM_ASK_SOCKET;
+  if (environment.PI_NVIM_SOCKET && !editorSocket) throw new Error("Native Neovim RPC is not a Pi Ask endpoint; update both Pi Ask integrations");
   if (editorSocket) {
-    if (!isAbsolute(editorSocket)) throw new Error("PI_NVIM_SOCKET must be an absolute socket path");
-    if (!statSync(editorSocket).isSocket()) throw new Error("PI_NVIM_SOCKET must point to a socket");
+    if (!isAbsolute(editorSocket)) throw new Error("PI_NVIM_ASK_SOCKET must be an absolute socket path");
+    if (!statSync(editorSocket).isSocket()) throw new Error("PI_NVIM_ASK_SOCKET must point to a socket");
     extra.push("--allow-unix-socket", editorSocket);
   }
   for (const path of [
@@ -250,8 +255,8 @@ export function launchArguments(cwd, agentDir, home, environment, profile, rawPi
   const direnvAllow = existingDirectory(join(dataHome, "direnv", "allow"));
   // Approval is user-owned authorization; the sandbox may only consume existing decisions.
   if (direnvAllow !== undefined) reads.add(direnvAllow);
-  // Explicitly permit devenv's dynamically named directories in the desktop runtime root.
-  if (environment.XDG_RUNTIME_DIR) {
+  // Keep legacy behavior until the candidate passes the Linux development/desktop gates.
+  if (!ipcRestricted && environment.XDG_RUNTIME_DIR) {
     const runtime = existingDirectory(environment.XDG_RUNTIME_DIR);
     if (runtime === undefined) {
       console.warn(`pi sandbox launch: XDG_RUNTIME_DIR is missing (${JSON.stringify(environment.XDG_RUNTIME_DIR)}); continuing without runtime-directory access.`);
@@ -269,6 +274,9 @@ export function launchArguments(cwd, agentDir, home, environment, profile, rawPi
     ...[...grants].flatMap((path) => ["--allow", path]),
     "--", ...sandboxRuntimeCommand(home, rawPi, envBinary),
   ];
+  if ([...socketVariables].some(variable => Boolean(environment[variable])) || environment.PI_NVIM_ASK_SOCKET || environment.AGENT_BROWSER_SOCKET_DIR) {
+    assertPrivateIpcGrants(args, cwd, home);
+  }
   assertReadOnlySshGrants(args, cwd);
   assertCredentialSourceGrants(args, cwd, home, { ...environment, TMPDIR: environment.TMPDIR || tmpdir() }, readJson(profile, "nono profile"));
   return args;
@@ -286,11 +294,11 @@ export function prepareNpmCache(home = homedir()) {
   }
 }
 
-export function launchCommand(args, cwd, agentDir, home, environment, nono, rawPi, profile, envBinary) {
+export function launchCommand(args, cwd, agentDir, home, environment, nono, rawPi, profile, envBinary, registry = defaultCapabilities) {
   if (!isAbsolute(rawPi) || !existsSync(rawPi)) throw new Error(`Raw Pi executable missing: ${rawPi}`);
   if (args[0] === "--no-sandbox") return [rawPi, ...args.slice(1)];
   if (!isAbsolute(nono) || !existsSync(nono)) throw new Error(`nono executable missing: ${nono}`);
-  return [nono, ...launchArguments(cwd, agentDir, home, environment, profile, rawPi, envBinary), ...args];
+  return [nono, ...launchArguments(cwd, agentDir, home, environment, profile, rawPi, envBinary, process.platform, registry), ...args];
 }
 
 export function loadProjectEnvironment(cwd, environment, direnv, run = spawnSync) {
@@ -348,6 +356,8 @@ export function loadProjectEnvironment(cwd, environment, direnv, run = spawnSync
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   try {
     const [nono, rawPi, profile, direnv, envBinary, ...args] = process.argv.slice(2);
+    // Capture the binary wrapper's manifest before mutable project environment loading.
+    const registry = loadCapabilities(process.env.PI_IPC_MANIFEST || undefined);
     let environment = { ...process.env };
     // No mutable JS preload or module path may run in this pre-sandbox process.
     delete environment.NODE_OPTIONS;
@@ -389,23 +399,29 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
       managedBin,
     ].join(delimiter);
     if (args[0] !== "--no-sandbox") prepareSandboxRuntime(home);
-    const command = launchCommand(args, process.cwd(), agentDir, home, environment, nono, rawPi, profile, envBinary);
-    // Herdr must identify the host-visible bootstrap even when nono hides the child process.
-    process.title = "pi";
-    const run = (selectedProfile) => {
-      if (command[0] === nono) command[command.indexOf("--profile") + 1] = selectedProfile;
-      return spawnSync(command[0], command.slice(1), { stdio: "inherit", env: environment });
+    const runPi = async (boundEnvironment) => {
+      environment = boundEnvironment;
+      const command = launchCommand(args, process.cwd(), agentDir, home, environment, nono, rawPi, profile, envBinary, registry);
+      // Herdr must identify the host-visible bootstrap even when nono hides the child process.
+      process.title = "pi";
+      const run = (selectedProfile) => {
+        if (command[0] === nono) command[command.indexOf("--profile") + 1] = selectedProfile;
+        return spawnSync(command[0], command.slice(1), { stdio: "inherit", env: environment });
+      };
+      if (command[0] === nono) {
+        // Herdr sees the foreground nono wrapper, not Pi's isolated process group.
+        if (environment.HERDR_ENV === "1") environment.HERDR_AGENT = "pi";
+        prepareJitiCache();
+        prepareNpmCache();
+        return withProtectedShellProfile(profile, home, environment, run);
+      }
+      return runWithCredentialProxy(nono, profile, command, environment);
     };
-    let child;
-    if (command[0] === nono) {
-      // Herdr sees the foreground nono wrapper, not Pi's isolated process group.
-      if (environment.HERDR_ENV === "1") environment.HERDR_AGENT = "pi";
-      prepareJitiCache();
-      prepareNpmCache();
-      child = withProtectedShellProfile(profile, home, environment, run);
-    } else {
-      child = await runWithCredentialProxy(nono, profile, command, environment);
-    }
+    const ipcRestricted = readJson(profile, "nono profile")?.linux?.af_unix_mediation === "pathname";
+    const runWithCapabilities = bound => withIpcCapabilities(bound, inheritedEnvironment, home, process.cwd(), agentDir, args, registry, ipcRestricted ? "restricted" : "ordinary", runPi);
+    const child = ipcRestricted
+      ? await withSessionServiceEnvironment(environment, home, runWithCapabilities)
+      : await runWithCapabilities(environment);
     if (child.error) throw child.error;
     if (child.signal) process.kill(process.pid, child.signal);
     process.exit(child.status ?? 1);

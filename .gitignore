@@ -7,6 +7,9 @@ result-*
 node_modules
 __pycache__
 
+# IPC end-to-end test fixtures
+/.pi-e2e-*/
+
 # Secrets - encrypted files are committed, decrypted ones are not
 secrets/*.key
 secrets/*.pem

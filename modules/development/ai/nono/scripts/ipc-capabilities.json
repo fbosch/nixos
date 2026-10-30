@@ -1,0 +1,300 @@
+{
+  "version": 1,
+  "profiles": {
+    "ordinary": {
+      "git-fsmonitor": {
+        "access": "connect-existing",
+        "platforms": [
+          "darwin"
+        ]
+      }
+    },
+    "restricted": {
+      "git-fsmonitor": {
+        "access": "bind",
+        "platforms": [
+          "darwin",
+          "linux"
+        ]
+      },
+      "herdr-reporting": {}
+    }
+  },
+  "capabilities": {
+    "git-fsmonitor": {
+      "backend": "endpoint",
+      "discovery": "selected-git-metadata",
+      "filename": "fsmonitor--daemon.ipc",
+      "authority": "full-protocol"
+    },
+    "herdr-reporting": {
+      "backend": "json-lines",
+      "limits": {
+        "maxFrameBytes": 16384,
+        "maxConnections": 16,
+        "clientTimeoutMs": 2000,
+        "upstreamTimeoutMs": 1500
+      },
+      "operations": {
+        "pane.report_agent": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "pane_id": {
+                "type": "string"
+              },
+              "source": {
+                "type": "string"
+              },
+              "agent": {
+                "type": "string"
+              },
+              "seq": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              },
+              "state": {
+                "enum": [
+                  "idle",
+                  "working",
+                  "blocked"
+                ]
+              },
+              "message": {
+                "type": "string",
+                "format": "ipc-text",
+                "maxUtf8Bytes": 1024
+              },
+              "agent_session_id": {
+                "type": "string",
+                "format": "ipc-text",
+                "maxUtf8Bytes": 36,
+                "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+              },
+              "agent_session_path": {
+                "type": "string",
+                "format": "ipc-text",
+                "maxUtf8Bytes": 4096
+              }
+            },
+            "required": [
+              "pane_id",
+              "source",
+              "agent",
+              "state"
+            ],
+            "additionalProperties": false,
+            "not": {
+              "required": [
+                "agent_session_id",
+                "agent_session_path"
+              ]
+            }
+          },
+          "bindings": {
+            "pane_id": "pane",
+            "source": "source",
+            "agent": "agent"
+          }
+        },
+        "pane.report_agent_session": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "pane_id": {
+                "type": "string"
+              },
+              "source": {
+                "type": "string"
+              },
+              "agent": {
+                "type": "string"
+              },
+              "seq": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              },
+              "agent_session_id": {
+                "type": "string",
+                "format": "ipc-text",
+                "maxUtf8Bytes": 36,
+                "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+              },
+              "agent_session_path": {
+                "type": "string",
+                "format": "ipc-text",
+                "maxUtf8Bytes": 4096
+              },
+              "session_start_source": {
+                "enum": [
+                  "startup",
+                  "reload",
+                  "new",
+                  "resume",
+                  "fork"
+                ]
+              }
+            },
+            "required": [
+              "pane_id",
+              "source",
+              "agent"
+            ],
+            "additionalProperties": false,
+            "not": {
+              "required": [
+                "agent_session_id",
+                "agent_session_path"
+              ]
+            },
+            "anyOf": [
+              {
+                "required": [
+                  "agent_session_id"
+                ]
+              },
+              {
+                "required": [
+                  "agent_session_path"
+                ]
+              }
+            ]
+          },
+          "bindings": {
+            "pane_id": "pane",
+            "source": "source",
+            "agent": "agent"
+          }
+        },
+        "pane.report_metadata": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "pane_id": {
+                "type": "string"
+              },
+              "source": {
+                "type": "string"
+              },
+              "agent": {
+                "type": "string"
+              },
+              "seq": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              },
+              "applies_to_source": {
+                "type": "string"
+              },
+              "tokens": {
+                "type": "object",
+                "properties": {
+                  "pi_session_title": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "ipc-text",
+                        "maxUtf8Bytes": 1024
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "pi_session_title"
+                ],
+                "additionalProperties": false
+              },
+              "display_agent": {
+                "const": "Pi"
+              },
+              "clear_display_agent": {
+                "const": true
+              }
+            },
+            "required": [
+              "pane_id",
+              "source",
+              "agent",
+              "applies_to_source",
+              "tokens"
+            ],
+            "additionalProperties": false,
+            "not": {
+              "required": [
+                "display_agent",
+                "clear_display_agent"
+              ]
+            }
+          },
+          "bindings": {
+            "pane_id": "pane",
+            "source": "titleSource",
+            "agent": "agent",
+            "applies_to_source": "source",
+            "display_agent": "displayAgent",
+            "clear_display_agent": "clearDisplayAgent"
+          }
+        },
+        "pane.release_agent": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "pane_id": {
+                "type": "string"
+              },
+              "source": {
+                "type": "string"
+              },
+              "agent": {
+                "type": "string"
+              },
+              "seq": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "pane_id",
+              "source",
+              "agent"
+            ],
+            "additionalProperties": false
+          },
+          "bindings": {
+            "pane_id": "pane",
+            "source": "source",
+            "agent": "agent"
+          }
+        }
+      },
+      "cleanup": [
+        {
+          "id": "pi-host:release",
+          "method": "pane.release_agent",
+          "params": {}
+        },
+        {
+          "id": "pi-host:title-clear",
+          "method": "pane.report_metadata",
+          "params": {
+            "tokens": {
+              "pi_session_title": null
+            }
+          },
+          "optionalBindings": [
+            "clear_display_agent"
+          ]
+        }
+      ],
+      "provider": "herdr",
+      "socketEnvironment": "HERDR_SOCKET_PATH"
+    }
+  }
+}

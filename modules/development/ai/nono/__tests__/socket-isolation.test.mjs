@@ -12,9 +12,9 @@ import { launchArguments } from "../scripts/launcher.mjs";
 const profilePath = process.env.NONO_TEST_PROFILE ?? fileURLToPath(new URL("../scripts/profile.json", import.meta.url));
 const probe = fileURLToPath(new URL("./fixtures/socket-isolation-probe.mjs", import.meta.url));
 
-test("Pi preserves Unix socket compatibility and configured socket grants", () => {
+test("Pi preserves the selected IPC policy, exact Nix daemon grant and daemon safeguards", () => {
   const profile = JSON.parse(readFileSync(profilePath, "utf8"));
-  assert.deepEqual(profile.linux, { af_unix_mediation: "off", sandbox_policy: "landlock" });
+  assert.deepEqual(profile.linux, { af_unix_mediation: process.env.NONO_TEST_IPC_MODE || "off", sandbox_policy: "landlock" });
   assert.deepEqual(profile.filesystem.unix_socket, [{ path: "/nix/var/nix/daemon-socket/socket", when: "linux" }]);
   for (const [key, value] of Object.entries(profile.filesystem)) {
     if (key.startsWith("unix_socket") && key !== "unix_socket") assert.deepEqual(value, [], key);
@@ -66,7 +66,7 @@ test("probe timeout terminates a process group retaining output pipes", { timeou
   `], {}, { signal: t.signal, timeoutMs: 500 }), /Sandbox probe timed out/);
 });
 
-test("desktop and service sockets, aliases, stdio and HTTP work through the launcher", {
+test("selected socket grants preserve stdio/HTTP and reject unrelated endpoints under pathname mediation", {
   skip: process.platform !== "linux" || !process.env.NONO_TEST_BINARY,
   timeout: 45000,
 }, async (t) => {
@@ -74,15 +74,18 @@ test("desktop and service sockets, aliases, stdio and HTTP work through the laun
   const root = mkdtempSync(join(process.cwd(), ".pi-sockets-"));
   const work = join(root, "work");
   const home = join(root, "home");
+  const browser = join(home, ".pi-ipc", "browser");
   const servers = [];
   const connections = new Set();
   try {
     const resolved = await run(process.env.NONO_TEST_BINARY, ["profile", "show", "--json", profilePath], {}, { signal: t.signal });
     assert.equal(resolved.code, 0, resolved.stderr);
     const policy = JSON.parse(resolved.stdout);
+    const restricted = policy.linux.af_unix_mediation === "pathname";
     for (const path of [
       work, join(root, "runtime", "podman"), join(root, "runtime", "systemd"), join(home, ".pi", "agent"),
       join(home, ".npm", "_cacache"), join(home, ".npm", "_logs"),
+      join(browser, "nested"),
       join(root, "tmp"), join(root, "state"), join(root, "cache"), join(root, "data"), join(root, "config"),
     ]) mkdirSync(path, { recursive: true });
 
@@ -100,6 +103,7 @@ test("desktop and service sockets, aliases, stdio and HTTP work through the laun
       join(work, "work.sock"),
       join(root, "tmp", "tmp.sock"),
       join(home, ".pi", "pi.sock"),
+      join(browser, "nested", "other.sock"),
     ];
     let accepted = 0;
     for (const path of [...sockets, ...permitted]) {
@@ -147,28 +151,30 @@ test("desktop and service sockets, aliases, stdio and HTTP work through the laun
       PATH: process.env.PATH, HOME: home, TMPDIR: join(root, "tmp"),
       XDG_STATE_HOME: join(root, "state"), XDG_CACHE_HOME: join(root, "cache"),
       XDG_DATA_HOME: join(root, "data"), XDG_CONFIG_HOME: join(root, "config"),
-      XDG_RUNTIME_DIR: runtime, SSH_AUTH_SOCK: permitted[0], PI_NVIM_SOCKET: permitted[1], NO_COLOR: "1",
+      XDG_RUNTIME_DIR: runtime, SSH_AUTH_SOCK: permitted[0], PI_NVIM_ASK_SOCKET: permitted[1], AGENT_BROWSER_SOCKET_DIR: browser, NO_COLOR: "1",
     };
     const args = launchArguments(work, join(home, ".pi", "agent"), home, environment,
       profilePath, process.execPath, process.env.ENV_TEST_BINARY ?? "/usr/bin/env");
     const boundary = args.indexOf("--");
     const grants = args.slice(0, boundary);
     assert.deepEqual(grants.flatMap((part, index) => part === "--allow-unix-socket" ? [grants[index + 1]] : []), permitted);
-    assert.ok(grants.some((part, index) => part === "--allow" && grants[index + 1] === runtime));
+    assert.equal(grants.some((part, index) => part === "--allow" && grants[index + 1] === runtime), !restricted);
     const result = await run(process.env.NONO_TEST_BINARY, [
       ...grants, "--read", dirname(probe), "--open-port", String(http.address().port),
       "--no-audit", "--no-rollback", ...args.slice(boundary),
-      probe, JSON.stringify({ sockets: [...sockets, ...permitted], bindPath: join(runtime, "new.sock"), url: `http://127.0.0.1:${http.address().port}` }),
+      probe, JSON.stringify({ sockets: restricted ? permitted : [...sockets, ...permitted], deniedSockets: restricted ? sockets : [],
+        bindPath: join(browser, "new.sock"), deniedBindPath: restricted ? join(browser, "nested", "new.sock") : undefined,
+        url: `http://127.0.0.1:${http.address().port}` }),
     ], { cwd: work, env: environment }, { signal: t.signal });
     assert.equal(result.signal, null, result.stderr);
     assert.equal(result.code, 0, result.stderr || result.stdout);
     const report = JSON.parse(result.stdout.trim());
-    assert.deepEqual(report.connected, [...sockets, ...permitted]);
+    assert.deepEqual(report.connected, restricted ? permitted : [...sockets, ...permitted]);
+    assert.deepEqual(report.denied, restricted ? sockets : []);
     assert.equal(report.bound, true);
-    assert.equal(policy.linux.af_unix_mediation, "off");
     assert.equal(report.stdio, "stdio-fixture");
     assert.equal(report.http, "http-fixture");
-    assert.equal(accepted, baseline * 2, "all compatibility fixture connections must reach their listeners");
+    assert.equal(accepted, baseline + (restricted ? permitted.length : baseline), "denied fixture connections must not reach their listeners");
   } finally {
     for (const socket of connections) socket.destroy();
     for (const server of servers) server.closeAllConnections?.();
