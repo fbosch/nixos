@@ -2,13 +2,14 @@ import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSy
 import { homedir, tmpdir } from "node:os";
 import { delimiter, dirname, isAbsolute, join, resolve, sep } from "node:path";
 import { spawnSync } from "node:child_process";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { stripVTControlCharacters } from "node:util";
 import { withProtectedShellProfile } from "./shell-protection.mjs";
 import { assertReadOnlySshGrants, sshClientArguments } from "./ssh-access.mjs";
 import { assertCredentialSourceGrants, credentialEnvironmentForDirenv, prepareCredentialEnvironment } from "./credentials.mjs";
 import { prepareSandboxRuntime, sandboxRuntimeCommand } from "./sandbox-runtime.mjs";
 import { runWithCredentialProxy } from "./credential-proxy.mjs";
+import { withNonoDiagnostics } from "./nono-diagnostics.mjs";
 import { assertPrivateIpcGrants } from "./private-ipc.mjs";
 import { assertCredentialGrants } from "./credential-grants.mjs";
 import { withIpcCapabilities } from "./ipc-session.mjs";
@@ -344,9 +345,12 @@ export function prepareNpmCache(home = homedir()) {
 
 export function launchCommand(args, cwd, agentDir, home, environment, nono, rawPi, profile, envBinary, registry = defaultCapabilities) {
   if (!isAbsolute(rawPi) || !existsSync(rawPi)) throw new Error(`Raw Pi executable missing: ${rawPi}`);
-  if (args[0] === "--no-sandbox") return [rawPi, ...args.slice(1)];
+  const extension = environment.PI_NONO_DIAGNOSTICS === "1" && environment.PI_NONO_DIAGNOSTICS_FILE
+    ? ["--extension", fileURLToPath(new URL("./nono-diagnostics-extension.mjs", import.meta.url))]
+    : [];
+  if (args[0] === "--no-sandbox") return [rawPi, ...extension, ...args.slice(1)];
   if (!isAbsolute(nono) || !existsSync(nono)) throw new Error(`nono executable missing: ${nono}`);
-  return [nono, ...launchArguments(cwd, agentDir, home, environment, profile, rawPi, envBinary, process.platform, registry), ...args];
+  return [nono, ...launchArguments(cwd, agentDir, home, environment, profile, rawPi, envBinary, process.platform, registry), ...extension, ...args];
 }
 
 export function loadProjectEnvironment(cwd, environment, direnv, run = spawnSync) {
@@ -452,9 +456,11 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
       prepareSandboxRuntime(home);
       ensureSshIdentity(environment, home, sshAdd);
     }
-    const runPi = async (boundEnvironment) => {
-      environment = boundEnvironment;
+    const runPi = (boundEnvironment) => withNonoDiagnostics(boundEnvironment, async (diagnosticEnvironment) => {
+      environment = diagnosticEnvironment;
+      environment.PI_NONO_DIAGNOSTICS = inheritedEnvironment.PI_NONO_DIAGNOSTICS === "1" ? "1" : "0";
       const command = launchCommand(args, process.cwd(), agentDir, home, environment, nono, rawPi, profile, envBinary, registry);
+      if (command[0] === nono) command.splice(2, 0, "--log-file", environment.PI_NONO_DIAGNOSTICS_FILE);
       // Herdr must identify the host-visible bootstrap even when nono hides the child process.
       process.title = "pi";
       const run = (selectedProfile) => {
@@ -469,7 +475,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
         return withProtectedShellProfile(profile, home, environment, run);
       }
       return runWithCredentialProxy(nono, profile, command, environment);
-    };
+    });
     const ipcRestricted = readJson(profile, "nono profile")?.linux?.af_unix_mediation === "pathname";
     const runWithCapabilities = bound => withIpcCapabilities(bound, inheritedEnvironment, home, process.cwd(), agentDir, args, registry, ipcRestricted ? "restricted" : "ordinary", runPi);
     const child = ipcRestricted

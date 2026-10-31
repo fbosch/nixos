@@ -101,6 +101,16 @@ A binding maps a parameter name to a trusted context key. A supplied value must 
 
 Cleanup entries select permitted methods and supply constant parameters. The helper fills required bound parameters from trusted context and validates every cleanup message before listening. Optional context bindings must be named explicitly in `optionalBindings`. Cleanup follows acknowledged activity and waits for accepted requests to drain.
 
+## Nono diagnostics in the prompt UI
+
+The managed launcher passes `--log-file` to Nono so tracing warnings do not write over Pi's terminal. Each launch creates an owner-only temporary directory and a `0600` log file. A managed extension watches the file and calls `ctx.ui.notify()`; prompt-ui renders those notifications through its existing notification handling. Print and JSON modes receive sanitized summaries on stderr instead.
+
+The credential-capture wait failure produces `Nono could not wait for the credential capture command.` Other credential-loading failures receive a generic summary. Raw log text and terminal controls never enter the notification. Repeated notification kinds are coalesced for the launch. The watcher reads at most the final 64 KiB and closes on session shutdown.
+
+Both sandboxed and `--no-sandbox` launches use the native log sink. Pi's own stdio and credential-capture policy remain unchanged. The launcher deletes its temporary logs after completion or launch failure. Forced termination can leave private files behind, and the native writer does not rotate or cap the file. This change handles error display; it does not fix the underlying credential-capture failure.
+
+On rvn-pc, the launcher build passed 215 tests and skipped 26, including eight diagnostics tests and a notification reader running inside native Nono confinement. Routing and native Git fsmonitor checks passed. Pi's SDK loader accepted the managed extension. Live interactive prompt-ui rendering and macOS behavior remain unverified; activation and a new Pi session are required.
+
 ## Implementation and checks
 
 - `ipc-policy.mjs` validates manifests, selects profiles, resolves endpoint grants, compiles operation schemas and enforces bindings.

@@ -109,6 +109,7 @@ let
           makeBinaryWrapper ${pkgs.nodejs}/bin/node "$out/bin/pi" \
             --unset NODE_OPTIONS --unset NODE_PATH \
             --set PI_IPC_MANIFEST "${manifest}" ${desktopTools} \
+            --set PI_NONO_DIAGNOSTICS 1 \
             --set PI_SSH_ADD ${pkgs.openssh}/bin/ssh-add \
             --prefix PATH : "$out/bin" \
             --add-flags "${runtime}/scripts/launcher.mjs ${pkgs.nono}/bin/nono ${rawPi}/bin/pi ${profile} ${pkgs.direnv}/bin/direnv ${pkgs.coreutils}/bin/env"
@@ -125,6 +126,7 @@ let
             ${runtime}/__tests__/credentials.test.mjs \
             ${runtime}/__tests__/context7-auth.test.mjs \
             ${runtime}/__tests__/credential-proxy.test.mjs \
+            ${runtime}/__tests__/nono-diagnostics.test.mjs \
             ${runtime}/__tests__/desktop-broker.test.mjs \
             ${runtime}/__tests__/github-auth.test.mjs \
             ${runtime}/__tests__/direnv-bootstrap.test.mjs \

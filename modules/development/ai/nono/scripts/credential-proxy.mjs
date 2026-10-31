@@ -128,12 +128,19 @@ export async function runWithCredentialProxy(nono, profilePath, command, environ
 } = {}) {
   if (!isAbsolute(nono) || !existsSync(nono)) throw new Error(`nono executable missing: ${nono}`);
   if (!isAbsolute(profilePath) || !existsSync(profilePath) || !statSync(profilePath).isFile()) throw new Error("Nix nono profile missing");
-  const profile = JSON.parse(readFileSync(profilePath, "utf8"));
+  const profileContents = readFileSync(profilePath, "utf8");
+  let profile;
+  try {
+    profile = JSON.parse(profileContents);
+  } catch {
+    throw new Error("Nix nono profile is not valid JSON");
+  }
   const token = randomBytes(32).toString("hex");
   const proxyEnvironment = { ...environment, NONO_PROXY_PASS: token, NO_COLOR: "1", CLICOLOR: "0" };
   for (const name of ["NODE_OPTIONS", "NODE_PATH", "BASH_ENV", "ENV"]) delete proxyEnvironment[name];
   const proxy = spawn(nono, [
-    "proxy", "--profile", profilePath, "--listen", "127.0.0.1", "--port", "0",
+    "proxy", ...(environment.PI_NONO_DIAGNOSTICS_FILE ? ["--log-file", environment.PI_NONO_DIAGNOSTICS_FILE] : []),
+    "--profile", profilePath, "--listen", "127.0.0.1", "--port", "0",
     ...(platform === "darwin" ? ["--trust-proxy-ca"] : []),
   ], { env: proxyEnvironment, stdio: ["ignore", "pipe", "pipe"], detached: true });
   const proxyExited = exitOf(proxy);
