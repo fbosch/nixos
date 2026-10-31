@@ -3,6 +3,7 @@ import { isAbsolute } from "node:path";
 import { selectCapabilities } from "./ipc-policy.mjs";
 import { withFilterHelper } from "./ipc-bootstrap.mjs";
 import { withHerdrReporter } from "./herdr-bootstrap.mjs";
+import { withDesktopBroker } from "./desktop-broker.mjs";
 
 function withInheritedSocket(environment, inherited, home, cwd, capability, run) {
   const bound = { ...environment };
@@ -28,9 +29,9 @@ export async function withIpcCapabilities(environment, inherited, home, cwd, age
     if (index === selected.length) return run(current);
     const capability = selected[index];
     const proceed = updated => next(index + 1, updated);
-    return capability.provider === "herdr"
-      ? withHerdrReporter(current, inherited, home, cwd, agentDir, args, proceed, capability)
-      : withInheritedSocket(current, inherited, home, cwd, capability, proceed);
+    if (capability.provider === "herdr") return withHerdrReporter(current, inherited, home, cwd, agentDir, args, proceed, capability);
+    if (capability.provider === "desktop") return withDesktopBroker(current, inherited, home, capability, proceed);
+    return withInheritedSocket(current, inherited, home, cwd, capability, proceed);
   };
   if (profile === "restricted" && !selected.some(capability => capability.provider === "herdr")) {
     return withHerdrReporter(bound, inherited, home, cwd, agentDir, args, updated => next(0, updated), null);

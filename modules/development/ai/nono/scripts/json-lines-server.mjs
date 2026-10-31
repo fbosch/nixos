@@ -26,8 +26,10 @@ function forward(upstream, request, limits) {
   });
 }
 
-export async function startJsonLinesServer({ capability, context, endpoint, upstream, validate }) {
+export async function startJsonLinesServer({ capability, context, endpoint, upstream, validate, deliver }) {
   if (Buffer.byteLength(endpoint) > 103) throw new Error("IPC socket path exceeds the portable Unix socket limit");
+  // Providers without an upstream socket handle requests in this host process and may return a result.
+  const send = deliver ?? (request => forward(upstream, request, capability.limits));
   const cleanup = cleanupMessages(capability, context, validate);
   const { limits } = capability;
   const clients = new Set();
@@ -54,8 +56,11 @@ export async function startJsonLinesServer({ capability, context, endpoint, upst
         if (newline !== input.length - 1) throw new Error("One IPC request per connection");
         const json = new TextDecoder("utf-8", { fatal: true }).decode(input.subarray(0, newline));
         const request = validate(JSON.parse(json));
-        const delivery = forward(upstream, request, limits).then(
-          () => { reported = true; client.end(JSON.stringify({ id: request.id, ok: true }) + "\n"); },
+        const delivery = send(request).then(
+          result => {
+            reported = true;
+            client.end(JSON.stringify(result === undefined ? { id: request.id, ok: true } : { id: request.id, ok: true, result }) + "\n");
+          },
           deny,
         );
         pending.add(delivery);
@@ -75,7 +80,7 @@ export async function startJsonLinesServer({ capability, context, endpoint, upst
       for (const client of clients) client.destroy();
       await new Promise(resolve => server.close(resolve));
       await Promise.allSettled(pending);
-      if (reported) await Promise.allSettled(cleanup.map(request => forward(upstream, request, limits)));
+      if (reported) await Promise.allSettled(cleanup.map(send));
     },
   };
 }

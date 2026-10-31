@@ -6,22 +6,28 @@ import { startJsonLinesServer } from "./json-lines-server.mjs";
 
 let directory;
 try {
-  const { capability, home, authority, upstream, context } = JSON.parse(process.argv[2]);
+  const { capability, home, authority, upstream, context, desktop } = JSON.parse(process.argv[2]);
   validateCapabilities({ version: 1, capabilities: { filter: capability }, profiles: { ordinary: {}, restricted: { filter: {} } } });
   let validate;
   let capturedContext = context;
   let capturedUpstream = upstream;
+  let deliver;
   if (capability.provider === "herdr") {
     const { createReportValidator, reportingContext } = await import("./herdr-protocol.mts");
     capturedContext = reportingContext(authority);
     capturedUpstream = authority.upstream;
     validate = createReportValidator(authority, capability);
+  } else if (capability.provider === "desktop") {
+    const { createDesktopHandler } = await import("./desktop-broker.mjs");
+    capturedContext = {};
+    validate = createMessageValidator(capability, capturedContext);
+    deliver = createDesktopHandler(desktop, capability.limits.upstreamTimeoutMs);
   } else {
     validate = createMessageValidator(capability, capturedContext);
   }
   directory = privateIpcDirectory(home, "ipc-");
   const endpoint = join(directory, "s");
-  const server = await startJsonLinesServer({ capability, context: capturedContext, endpoint, upstream: capturedUpstream, validate });
+  const server = await startJsonLinesServer({ capability, context: capturedContext, endpoint, upstream: capturedUpstream, validate, deliver });
   let stopping;
   const stop = () => stopping ??= (async () => {
     process.stdin.destroy();

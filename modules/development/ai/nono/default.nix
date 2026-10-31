@@ -41,9 +41,14 @@ in
   };
 
   perSystem =
-    { lib, pkgs, ... }:
+    { lib, pkgs, self', ... }:
     let
       evaluated = systemConfiguration { inherit pkgs; };
+      # The runtime carries npm dependencies; the raw module source has no node_modules.
+      runtime = self'.packages.pi-ipc-runtime;
+      restrictedProfile = pkgs.writeText "pi-nono-restricted-profile.json" (
+        builtins.toJSON (config.flake.lib.mkPiCredentialProfile { inherit pkgs; ipcRestricted = true; })
+      );
       profile = builtins.fromJSON (
         builtins.unsafeDiscardStringContext evaluated.environment.etc."nono/pi.json".source.text
       );
@@ -58,7 +63,10 @@ in
               NONO_PROFILE_TEST_BINARY = lib.getExe pkgs.nono;
             }
             ''
-              ${pkgs.nodejs}/bin/node --test ${./.}/__tests__/credential-filesystem.test.mjs
+              # Nix runs in /build with TMPDIR=/build; the profile's TMPDIR read grant would cover nono state there.
+              mkdir tmp
+              export TMPDIR="$PWD/tmp"
+              ${pkgs.nodejs}/bin/node --test ${runtime}/__tests__/credential-filesystem.test.mjs
               touch "$out"
             '';
         nono-pi-ssh-access =
@@ -70,7 +78,7 @@ in
               SSH_ADD_TEST_BINARY = lib.getExe' pkgs.openssh "ssh-add";
             }
             ''
-              ${pkgs.nodejs}/bin/node --test ${./.}/__tests__/ssh-access.test.mjs
+              ${pkgs.nodejs}/bin/node --test ${runtime}/__tests__/ssh-access.test.mjs
               touch "$out"
             '';
         nono-pi-git-worktree =
@@ -83,7 +91,7 @@ in
               WT_TEST_BINARY = "${pkgs.worktrunk}/bin/wt";
             }
             ''
-              ${pkgs.nodejs}/bin/node --test ${./.}/__tests__/git-worktree.test.mjs
+              ${pkgs.nodejs}/bin/node --test ${runtime}/__tests__/git-worktree.test.mjs
               touch "$out"
             '';
         nono-pi-github-access =
@@ -95,7 +103,7 @@ in
               GH_TEST_BINARY = lib.getExe pkgs.gh;
             }
             ''
-              ${pkgs.nodejs}/bin/node --test ${./.}/__tests__/github-access.test.mjs
+              ${pkgs.nodejs}/bin/node --test ${runtime}/__tests__/github-access.test.mjs
               touch "$out"
             '';
         nono-pi-azure-access =
@@ -116,7 +124,19 @@ in
               NONO_TEST_PROFILE = evaluated.environment.etc."nono/pi.json".source;
             }
             ''
-              ${pkgs.nodejs}/bin/node --test ${./.}/__tests__/socket-isolation.test.mjs
+              ${pkgs.nodejs}/bin/node --test ${runtime}/__tests__/socket-isolation.test.mjs
+              touch "$out"
+            '';
+        nono-pi-socket-isolation-restricted =
+          pkgs.runCommand "nono-pi-socket-isolation-restricted"
+            {
+              NONO_TEST_BINARY = lib.getExe pkgs.nono;
+              ENV_TEST_BINARY = "${pkgs.coreutils}/bin/env";
+              NONO_TEST_PROFILE = restrictedProfile;
+              NONO_TEST_IPC_MODE = "pathname";
+            }
+            ''
+              ${pkgs.nodejs}/bin/node --test ${runtime}/__tests__/socket-isolation.test.mjs
               touch "$out"
             '';
         nono-pi-nix-build-access = pkgs.testers.runNixOSTest {

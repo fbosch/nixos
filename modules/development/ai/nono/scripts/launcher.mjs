@@ -196,9 +196,12 @@ function writableReferenceRoots(cwd, home) {
 
 // sops-nix Home Manager decrypts user secrets into %r/secrets.d and links the active generation from %r/secrets.
 const runtimeSecretEntries = ["secrets", "secrets.d"];
+// Sandboxed tools cannot create top-level runtime entries, so create their directories before granting them.
+const runtimeServiceDirectories = ["agent-browser"];
 
 function runtimeDirectoryArguments(runtime, platform) {
   if (platform !== "linux") return ["--allow", runtime];
+  for (const name of runtimeServiceDirectories) mkdirSync(join(runtime, name), { recursive: true, mode: 0o700 });
   // Landlock cannot exclude a child of a granted directory, so grant top-level entries instead of the root.
   // Sockets need no grant while AF_UNIX mediation is off; symlinks are skipped so they cannot redirect a grant.
   return readdirSync(runtime, { withFileTypes: true }).flatMap((entry) => {
@@ -287,6 +290,10 @@ export function launchArguments(cwd, agentDir, home, environment, profile, rawPi
       extra.push(...runtimeDirectoryArguments(runtime, platform));
     }
   }
+  // grim and other Wayland clients allocate buffers with shm_open; its flat names cannot be scoped per tool.
+  // Ordinary sessions already reach the compositor directly, so only the restricted candidate keeps /dev/shm closed.
+  const sharedMemory = !ipcRestricted && platform === "linux" ? existingDirectory("/dev/shm") : undefined;
+  if (sharedMemory !== undefined) extra.push("--allow", sharedMemory);
   const args = [
     "run", "--profile", profile, "--allow-cwd", "--suppress-save-prompt", "/",
     ...(platform === "darwin" ? ["--trust-proxy-ca"] : []),
@@ -313,6 +320,21 @@ export function prepareJitiCache(temporaryDirectory = tmpdir(), platform = proce
   if (platform === "linux") mkdirSync(join(temporaryDirectory, "jiti"), { recursive: true, mode: 0o700 });
 }
 
+// Sandboxed SSH and Git signing only reach keys through the agent; the private key file stays denied.
+// Load the default key on the host first, while the launcher still owns the terminal for a passphrase prompt.
+export function ensureSshIdentity(environment, home, sshAdd, { run = spawnSync, interactive = process.stdin.isTTY === true } = {}) {
+  const socket = environment.SSH_AUTH_SOCK;
+  const key = join(home, ".ssh", "id_ed25519");
+  if (!interactive || !socket || !sshAdd || !isAbsolute(sshAdd) || !existingFile(key)) return "skipped";
+  const env = { SSH_AUTH_SOCK: socket, HOME: home };
+  // ssh-add -l exits 1 for an empty agent and 2 when no agent is reachable.
+  const listed = run(sshAdd, ["-l"], { env, stdio: "ignore", timeout: 5000 });
+  if (listed.status !== 1) return listed.status === 0 ? "loaded" : "skipped";
+  const added = run(sshAdd, [key], { env, stdio: "inherit", timeout: 120_000 });
+  if (added.status === 0) return "added";
+  console.warn("pi sandbox launch: ssh-add did not load ~/.ssh/id_ed25519; SSH and commit signing will fail inside Pi.");
+  return "failed";
+}
 export function prepareNpmCache(home = homedir()) {
   // Like Jiti's cache, these narrow profile paths must exist before Landlock grants are built.
   for (const directory of ["_cacache", "_logs"]) {
@@ -392,6 +414,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     const home = homedir();
     const inheritedHome = environment.HOME;
     const inheritedEnvironment = { ...environment };
+    // The binary wrapper pins this store path; project environment loading cannot replace it.
+    const sshAdd = environment.PI_SSH_ADD;
     const safeEnvironment = credentialEnvironmentForDirenv(environment);
     try {
       environment = loadProjectEnvironment(process.cwd(), safeEnvironment, direnv);
@@ -424,7 +448,10 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
       ...new Set(pathEntries.filter((path) => legacyBins.has(resolve(path)) && resolve(path) !== managedBin)),
       managedBin,
     ].join(delimiter);
-    if (args[0] !== "--no-sandbox") prepareSandboxRuntime(home);
+    if (args[0] !== "--no-sandbox") {
+      prepareSandboxRuntime(home);
+      ensureSshIdentity(environment, home, sshAdd);
+    }
     const runPi = async (boundEnvironment) => {
       environment = boundEnvironment;
       const command = launchCommand(args, process.cwd(), agentDir, home, environment, nono, rawPi, profile, envBinary, registry);
@@ -446,7 +473,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     const ipcRestricted = readJson(profile, "nono profile")?.linux?.af_unix_mediation === "pathname";
     const runWithCapabilities = bound => withIpcCapabilities(bound, inheritedEnvironment, home, process.cwd(), agentDir, args, registry, ipcRestricted ? "restricted" : "ordinary", runPi);
     const child = ipcRestricted
-      ? await withSessionServiceEnvironment(environment, home, runWithCapabilities)
+      ? await withSessionServiceEnvironment(environment, inheritedEnvironment, home, runWithCapabilities)
       : await runWithCapabilities(environment);
     if (child.error) throw child.error;
     if (child.signal) process.kill(process.pid, child.signal);

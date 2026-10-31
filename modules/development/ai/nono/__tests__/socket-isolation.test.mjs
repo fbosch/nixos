@@ -90,10 +90,10 @@ test("selected socket grants preserve stdio/HTTP and reject unrelated endpoints 
     ]) mkdirSync(path, { recursive: true });
 
     const runtime = join(root, "runtime");
-    const permitted = [join(runtime, "agent.sock"), join(runtime, "editor.sock")];
+    const permitted = [join(runtime, "agent.sock"), join(runtime, "editor.sock"), join(runtime, "wayland-1")];
     const neovim = join(runtime, "nvim.sock");
     const sockets = [
-      join(runtime, "wayland-1"),
+      join(runtime, "wayland-2"),
       join(root, "tmp", "supervisor.sock"),
       join(runtime, "podman", "podman.sock"),
       join(runtime, "docker.sock"),
@@ -152,19 +152,21 @@ test("selected socket grants preserve stdio/HTTP and reject unrelated endpoints 
       XDG_STATE_HOME: join(root, "state"), XDG_CACHE_HOME: join(root, "cache"),
       XDG_DATA_HOME: join(root, "data"), XDG_CONFIG_HOME: join(root, "config"),
       XDG_RUNTIME_DIR: runtime, SSH_AUTH_SOCK: permitted[0], PI_NVIM_ASK_SOCKET: permitted[1], AGENT_BROWSER_SOCKET_DIR: browser, NO_COLOR: "1",
+      WAYLAND_DISPLAY: "wayland-1",
     };
     const args = launchArguments(work, join(home, ".pi", "agent"), home, environment,
       profilePath, process.execPath, process.env.ENV_TEST_BINARY ?? "/usr/bin/env");
     const boundary = args.indexOf("--");
     const grants = args.slice(0, boundary);
-    assert.deepEqual(grants.flatMap((part, index) => part === "--allow-unix-socket" ? [grants[index + 1]] : []), permitted);
+    const grantedSockets = grants.flatMap((part, index) => part === "--allow-unix-socket" ? [grants[index + 1]] : []);
+    assert.deepEqual(grantedSockets.sort(), (restricted ? [...permitted] : permitted.slice(0, 2)).sort());
     // Ordinary mode grants runtime entries individually; sockets below remain reachable without a root grant.
     assert.equal(grants.some((part, index) => part === "--allow" && grants[index + 1] === runtime), false);
     const result = await run(process.env.NONO_TEST_BINARY, [
       ...grants, "--read", dirname(probe), "--open-port", String(http.address().port),
       "--no-audit", "--no-rollback", ...args.slice(boundary),
       probe, JSON.stringify({ sockets: restricted ? permitted : [...sockets, ...permitted], deniedSockets: restricted ? sockets : [],
-        bindPath: join(browser, "new.sock"), deniedBindPath: restricted ? join(browser, "nested", "new.sock") : undefined,
+        bindPath: restricted ? join(browser, "new.sock") : join(runtime, "agent-browser", "new.sock"), deniedBindPath: restricted ? join(browser, "nested", "new.sock") : undefined,
         url: `http://127.0.0.1:${http.address().port}` }),
     ], { cwd: work, env: environment }, { signal: t.signal });
     assert.equal(result.signal, null, result.stderr);

@@ -87,6 +87,9 @@ let
       let
         runtime = mkIpcRuntime pkgs;
         manifest = mkIpcManifest pkgs;
+        # The desktop broker runs these from fixed store paths, never from the session PATH.
+        desktopTools = pkgs.lib.optionalString pkgs.stdenv.hostPlatform.isLinux
+          "--set PI_DESKTOP_WL_COPY ${pkgs.wl-clipboard}/bin/wl-copy --set PI_DESKTOP_GRIM ${pkgs.grim}/bin/grim --set PI_DESKTOP_PATH ${pkgs.coreutils}/bin";
         profile = pkgs.writeText "pi-nono-profile.json" (
           builtins.toJSON (config.flake.lib.mkPiCredentialProfile { inherit pkgs ipcRestricted; })
         );
@@ -105,9 +108,13 @@ let
           ${pkgs.nodejs}/bin/node --input-type=module -e 'import { loadCapabilities } from "${runtime}/scripts/ipc-policy.mjs"; loadCapabilities(process.argv[1]);' "${manifest}"
           makeBinaryWrapper ${pkgs.nodejs}/bin/node "$out/bin/pi" \
             --unset NODE_OPTIONS --unset NODE_PATH \
-            --set PI_IPC_MANIFEST "${manifest}" \
+            --set PI_IPC_MANIFEST "${manifest}" ${desktopTools} \
+            --set PI_SSH_ADD ${pkgs.openssh}/bin/ssh-add \
             --prefix PATH : "$out/bin" \
             --add-flags "${runtime}/scripts/launcher.mjs ${pkgs.nono}/bin/nono ${rawPi}/bin/pi ${profile} ${pkgs.direnv}/bin/direnv ${pkgs.coreutils}/bin/env"
+          makeBinaryWrapper ${pkgs.nodejs}/bin/node "$out/bin/pi-desktop" \
+            --unset NODE_OPTIONS --unset NODE_PATH ${desktopTools} \
+            --add-flags "${runtime}/scripts/pi-desktop.mjs"
           HERDR_REPORTER_TEST_SOURCE="${inputs.herdr}/src/integration/assets/pi/herdr-agent-state.ts" \
             NONO_TEST_IPC_MODE="${if ipcRestricted then "pathname" else "off"}" \
           PI_TEST_BINARY="$out/bin/pi" PI_TEST_DIRENV="${pkgs.direnv}/bin/direnv" \
@@ -117,6 +124,7 @@ let
             ${runtime}/__tests__/credentials.test.mjs \
             ${runtime}/__tests__/context7-auth.test.mjs \
             ${runtime}/__tests__/credential-proxy.test.mjs \
+            ${runtime}/__tests__/desktop-broker.test.mjs \
             ${runtime}/__tests__/github-auth.test.mjs \
             ${runtime}/__tests__/direnv-bootstrap.test.mjs \
             ${runtime}/__tests__/git-worktree.test.mjs \
@@ -219,7 +227,7 @@ in
             mkdir -p "$out/bin"
             ${pkgs.nodejs}/bin/node --input-type=module - "$out/bin/nono" <<'JS'
             import { writeFileSync } from "node:fs";
-            import { proxyFixtureSource } from ${builtins.toJSON (toString ../nono/__tests__/fixtures/credential-proxy.mjs)};
+            import { proxyFixtureSource } from ${builtins.toJSON "${../nono/__tests__/fixtures/credential-proxy.mjs}"};
             writeFileSync(process.argv[2], "#!${pkgs.nodejs}/bin/node\n" + proxyFixtureSource(), { mode: 0o755 });
             JS
           '';
@@ -262,7 +270,10 @@ in
             '';
         checks.pi-ipc =
           pkgs.runCommand "pi-ipc-check"
-            { HERDR_REPORTER_TEST_SOURCE = "${inputs.herdr}/src/integration/assets/pi/herdr-agent-state.ts"; }
+            {
+              HERDR_REPORTER_TEST_SOURCE = "${inputs.herdr}/src/integration/assets/pi/herdr-agent-state.ts";
+              ENV_TEST_BINARY = "${pkgs.coreutils}/bin/env";
+            }
             ''
               ${pkgs.nodejs}/bin/node --input-type=module -e 'import { loadCapabilities } from "${mkIpcRuntime pkgs}/scripts/ipc-policy.mjs"; loadCapabilities(process.argv[1]);' "${mkIpcManifest pkgs}"
               ${pkgs.nodejs}/bin/node --test \
@@ -270,7 +281,8 @@ in
                 ${mkIpcRuntime pkgs}/__tests__/json-lines-server.test.mjs \
                 ${mkIpcRuntime pkgs}/__tests__/ipc-bootstrap.test.mjs \
                 ${mkIpcRuntime pkgs}/__tests__/ipc-session.test.mjs \
-                ${mkIpcRuntime pkgs}/__tests__/herdr-reporting.test.mjs
+                ${mkIpcRuntime pkgs}/__tests__/herdr-reporting.test.mjs \
+                ${mkIpcRuntime pkgs}/__tests__/desktop-broker.test.mjs
               touch "$out"
             '';
         nix-unit.tests.piIpc = {

@@ -209,7 +209,8 @@
               "provider": {
                 "enum": [
                   "herdr",
-                  "inherited-socket"
+                  "inherited-socket",
+                  "desktop"
                 ]
               },
               "socketEnvironment": {

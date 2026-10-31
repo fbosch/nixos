@@ -8,7 +8,11 @@ The default manifest is `modules/development/ai/nono/scripts/ipc-capabilities.js
 
 The binary wrapper forces `PI_IPC_MANIFEST` to the store path. The launcher loads and validates that file before loading the project environment. Project environment changes cannot replace the captured registry, choose upstream sockets, or forge Herdr identity.
 
-The manifest has a capability catalog and profile selections. A capability declaration alone does not enable it. The `ordinary` profile preserves the existing direct fsmonitor behavior on macOS. The `restricted` profile selects the bounded Herdr filter and exact fsmonitor bind/connect grants on macOS and Linux.
+The manifest has a capability catalog and profile selections. A capability declaration alone does not enable it. The `ordinary` profile preserves the existing direct fsmonitor behavior on macOS. The `restricted` profile selects the bounded Herdr filter, the desktop broker and exact fsmonitor bind/connect grants on macOS and Linux.
+
+The Linux candidate also grants the exact inherited Wayland socket outside the registry. This is full compositor protocol access, including clipboard reads and any exposed screen-capture or input-injection protocols. It is not constrained by the desktop broker's operation schemas. The launcher captures the socket before project environment loading and exports its absolute path. It does not grant the runtime directory or force OSC 52. D-Bus, Hyprland control and other unselected sockets remain denied.
+
+The candidate still excludes `/dev/shm`, so direct `grim` may fail when allocating image buffers. Use `pi-desktop screenshot` for the broker path.
 
 Malformed manifests, unknown capabilities or providers, invalid schemas, conflicting socket exports and missing required launch bindings fail startup. There is no direct-service fallback after filter failure. The ordinary Linux nono profile still uses unrestricted Unix IPC mediation; selecting a filter there would not establish socket confinement.
 
@@ -17,17 +21,19 @@ Malformed manifests, unknown capabilities or providers, invalid schemas, conflic
 | Backend | Declaration | Authority |
 | --- | --- | --- |
 | `endpoint` | `discovery = selected-git-metadata`, a socket filename, and a profile-specific access mode | Full protocol access to each selected endpoint |
-| `json-lines` | A trusted endpoint provider, exported socket variable, operation schemas, context bindings, limits and cleanup messages | Only accepted messages, with acknowledgment-only replies |
+| `json-lines` | A trusted endpoint provider, exported socket variable, operation schemas, context bindings, limits and cleanup messages | Only accepted messages; forwarding providers reply with acknowledgments, host-handled providers may return a result |
 
 The endpoint backend resolves selected worktree, shared Git and explicitly referenced Git metadata directories. `connect-existing` grants existing user-owned, unaliased sockets. `bind` grants the exact filename even before the daemon creates it. Existing symlinks, non-sockets and aliased sockets cannot receive restricted grants. Bind permission also permits connecting. It is not a read-only protocol permission.
 
-The JSON-lines backend accepts one UTF-8 `{id, method, params}` request per connection. It enforces bounded frames, connections and timeouts, then returns only `{id, ok: true}` after upstream acknowledgment. It rejects batches, extra fields, malformed UTF-8 and methods absent from the operation table. It does not forward upstream response bodies or implement general JSON-RPC 2.0.
+The JSON-lines backend accepts one UTF-8 `{id, method, params}` request per connection. It enforces bounded frames, connections and timeouts, then returns only `{id, ok: true}` after upstream acknowledgment. Providers handled in the helper process, such as `desktop`, may add a `result` field. It rejects batches, extra fields, malformed UTF-8 and methods absent from the operation table. It does not forward upstream response bodies or implement general JSON-RPC 2.0.
 
 ## Trusted endpoint providers
 
 `inherited-socket` captures the absolute Unix socket named by `socketEnvironment` from the original launch environment. It exports a private filtered endpoint under that variable. If the socket was not inherited, project environment loading cannot enable it. Its trusted context contains canonical `cwd`, canonical `home` and numeric `uid`.
 
 `herdr` captures the original pane, reporting identity and upstream endpoint. It also resolves the selected session directory and retains the session-reference filesystem checks. It requires `HERDR_SOCKET_PATH`. Embedded display metadata uses context bindings that are unavailable to standalone sessions. A project cannot enable Herdr reporting by inventing environment hints.
+
+`desktop` runs in the helper process instead of forwarding to an upstream socket. It needs `WAYLAND_DISPLAY` naming an existing socket in `XDG_RUNTIME_DIR`, plus `PI_DESKTOP_WL_COPY`, `PI_DESKTOP_GRIM` and `PI_DESKTOP_PATH`, which the Nix wrapper sets to store paths. Without them the provider exports nothing. It allows `clipboard.copy_text` and `screenshot.capture` for all outputs, one output or a region. There is no clipboard read. The tools receive only `WAYLAND_DISPLAY`, `XDG_RUNTIME_DIR` and the fixed `PATH`. Screenshots return as base64 PNG data, and `pi-desktop` writes them inside the sandbox, so the host never writes to an agent-selected path. Hyprland's `noscreenshare` window rule applies to grim's screencopy capture; the broker adds no separate privacy filter. Ordinary sessions run `pi-desktop` against the compositor directly.
 
 Providers supply trusted facts. Schemas do not prove filesystem ownership, path freshness, editor-buffer ownership or screenshot privacy. A service requiring such checks needs an appropriate host-side guard before its methods can be enabled.
 
@@ -109,6 +115,6 @@ The `x86_64-linux` IPC check evaluates, but was not built or run. The aggregate 
 
 ## Remaining scope
 
-Hyprland operations, screenshot privacy, clipboard transfers, image opening, D-Bus credential access and explicit host-container capabilities are not implemented by this registry. Neovim retains its existing dedicated editor transport. Nix daemon, SSH-agent, browser and devenv grants remain in their existing code. Those integrations have not been migrated into the catalog.
+Bounded Hyprland operations, clipboard reads through the desktop broker, image opening, D-Bus credential access and explicit host-container capabilities are not implemented by this registry. Direct Wayland access nevertheless permits clipboard reads and other compositor protocols. Neovim retains its existing dedicated editor transport. Nix daemon, SSH-agent, Wayland, browser and devenv grants remain in their existing code. Those integrations have not been migrated into the catalog.
 
 This registry does not repair Linux's previously identified seccomp address race, io_uring limitations or descriptor passing. An endpoint grant authorizes the peer's full protocol. Passing schema and transport tests does not establish containment of hostile native code. Linux runtime validation and the broader default-rollout gates remain outstanding.

@@ -30,17 +30,58 @@ These results use installed nono 0.80.0 and the current working-tree launcher. T
 
 The browser branch of `ipc-workflows.test.mjs` requires `AGENT_BROWSER_TEST_BINARY` and `LIGHTPANDA_TEST_BINARY`; it was skipped in the passing focused run. An earlier real browser attempt failed startup with permission errors. Successful socket setup is not evidence that Lightpanda works.
 
+## Verified on rvn-pc
+
+These results use nono 0.80.0 on Linux with Landlock. They cover Nix checks and package builds, not interactive workflows under the candidate.
+
+- `pi-ipc-candidate`, `pi-sandbox` and the `rvn-pc` system build. The candidate wrapper's launcher suite passed 182 tests and skipped 26.
+- `nono-pi-socket-isolation-restricted` runs the socket-isolation suite against the candidate profile with `af_unix_mediation = "pathname"`. The selected SSH-agent and Pi Ask endpoints connected and the browser IPC directory accepted a bind. Wayland, Podman, Docker, systemd, session-bus, native Neovim, workdir, temporary, Pi-state and nested browser sockets were denied, including socket and directory symlink aliases and relative paths.
+- `pi-ipc`, `pi-launcher-routing`, `nono-pi-socket-isolation`, `nono-pi-credential-filesystem`, `nono-pi-ssh-access`, `nono-pi-git-worktree`, `nono-pi-github-access`, `nono-pi-azure-access` and `nono-pi-nix-build-access` pass. Except for the restricted socket check, these use the ordinary profile.
+- In a live ordinary session, sops-nix user secrets under `$XDG_RUNTIME_DIR/secrets.d` could not be opened from the sandbox. A `systemd-run --user` process opened them, which the candidate's pathname mediation is meant to prevent.
+
+### Interactive gate probes (2026-10-31)
+
+The same probe script ran once in an ordinary session and once in a `pi-ipc-candidate` session, both launched from Herdr on rvn-pc. The host SSH agent held no identities, so rows 8 and 10 do not test the candidate.
+
+| # | Probe | Ordinary | Candidate |
+|---:|---|---|---|
+| 1 | Open `secrets.d/age-keys.txt` | denied | denied |
+| 2 | `systemd-run --user --wait --pipe true` | runs on the host | denied: user bus `Operation not permitted` |
+| 3 | Podman API `_ping` | ok | denied (curl exit 7) |
+| 4 | `hyprctl version` | ok | denied (exit 4) |
+| 5 | `busctl --user list` | ok | denied: `Operation not permitted` |
+| 6 | `wezterm cli list` | ok | denied (exit 1) |
+| 7 | `ssh-add -l` | agent reachable, no identities | agent reachable, no identities |
+| 8 | `ssh rvn-srv true` | fails: no agent identity | fails: no agent identity |
+| 9 | `git ls-remote origin HEAD` | ok | ok; libsecret logs `store failed: Could not connect: Permission denied` |
+| 10 | `ssh-keygen -Y sign` | fails: no agent identity | fails: no agent identity |
+| 11 | `nix build nixpkgs#hello` | ok | ok |
+| 12 | `devenv shell -- true` | fails: `opening file "/": Permission denied` | fails: `Failed to build eval state` |
+| 13 | `grim` 10×10 capture | fails: `failed to create buffer` | fails: `failed to create display` |
+| 14 | `agent-browser open about:blank` | fails: Lightpanda port bind `EACCES` | same |
+
+Pi-Lens returned no diagnostics for `launcher.mjs` in the candidate session and reported no error, so local-mode diagnostic execution remains unconfirmed.
+
+Follow-up changes after these probes:
+
+- Ordinary Linux launches now grant `/dev/shm`. `grim` allocates its buffer with `shm_open`, and Landlock denied `/dev/shm/grim-*`. The candidate does not receive this grant. A real `grim` run under the new grant remains unverified, because a nested sandbox cannot exceed the outer session's access.
+- devenv's embedded Nix opens `/` with `O_RDONLY`, which Landlock denies without a recursive read grant on `/`. An `O_PATH` handle would suffice, but a local patch rebuilds Nix and devenv from source and was rejected. The launcher loads the devenv environment before confinement; `devenv up`, `devenv shell` and reloads after editing `devenv.nix` run outside Pi.
+- The user approved direct Wayland socket access in the candidate, including clipboard reads and broader compositor authority. The launcher grants only the inherited compositor socket, captured before project environment loading, and no longer forces OSC 52. `wl-copy`, `wl-paste` and Pi's native copy can use this socket. `/dev/shm` stays excluded; `pi-desktop screenshot` retains its broker path for screenshot buffers. Other host IPC restrictions remain unchanged.
+- Interactive launches run `ssh-add ~/.ssh/id_ed25519` on the host when the inherited agent is empty, so SSH and commit signing work inside both profiles without exposing the private key file. Non-interactive launches, missing keys and unreachable agents skip it.
+
+- Wayland follow-up validation passed: `pi-launcher-routing`, `pi-ipc`, both socket-isolation checks and `pi-ipc-candidate` build. The launcher suite passed 195 tests and skipped 26. The restricted socket probe connects to the selected display while rejecting a second display and unrelated IPC endpoints. A direct source test could not resolve Ajv; the Nix runtime supplies the pinned dependencies and its suite passed.
+
 ## Remaining rollout blockers
 
-- Linux runtime checks remain unavailable because remote access was declined. No Linux Nix build, Git signing/authentication, devenv service operation, LSP diagnostic or Hyprland workflow has passed under the candidate.
-- Lightpanda startup remains unresolved. Its ephemeral loopback TCP connections need a passing real-browser test without unrelated network-policy changes.
-- The bounded Hyprland diagnostics/window/layer/screenshot adapter, desktop-session environment resolution, `no_screen_share` enforcement, explicit clipboard transfers and session-produced image opening are not implemented.
+- Interactive candidate gates are incomplete. SSH-agent signing and authentication are untested because the agent held no identities. devenv, Hyprland screenshots and agent-browser fail in both profiles, so they need ordinary-profile fixes before they can gate the candidate. Pi-Lens diagnostics remain unconfirmed.
+- Lightpanda startup remains unresolved. Its ephemeral loopback TCP connections need a passing real-browser test without unrelated network-policy changes. On rvn-pc the ordinary profile fails too: agent-browser binds `127.0.0.1:0` to pick a Lightpanda port, and Landlock returns `EACCES` because only the profile's `open_port` entries may bind.
+- The candidate retains the `desktop` broker for `pi-desktop` copies and screenshots alongside direct Wayland access. Unit tests pass, and a copy through the broker reached the real clipboard on rvn-pc. Native clipboard use after the socket-grant change and a screenshot through the broker in a candidate session remain unverified. The bounded Hyprland diagnostics/window/layer adapter and session-produced image opening are not implemented. Clipboard reads are now allowed through direct Wayland IPC.
 - A scoped replacement for Linux `git-credential-libsecret` access is not implemented. Do not restore unrestricted session-bus access to make HTTPS credentials work.
 - Explicit host-container management and deliberate existing Chrome/Firefox attachment capabilities are not implemented. Clearing inherited auto-attach settings does not prevent an intentional TCP connection by native code.
 - Pi-Lens local mode is selected, but real diagnostic execution remains unverified. Disabling warm attach sacrifices shared-server startup and memory reuse; the performance cost has not been measured.
 - Earlier wider Git worktree and SSH runtime probes failed because their fixtures requested proxy-CA trust without a proxy feature. Those failures were not treated as compatibility passes or fixed by broadening IPC permissions.
 - The complete SDK typecheck remains blocked by diagnostics in unchanged `just`, `prompt-ui` and `subagents` code. Passing Bun execution is not a complete typecheck.
-- The candidate package build did not complete. The offline build lacked cached dependencies and failed fetching `config.guess` because `cgit.git.savannah.gnu.org` did not resolve. Full Nix package checks and complete Herdr UI restoration remain unverified.
+- Complete Herdr UI restoration under the candidate remains unverified.
 
 ## Enforcement limits and remaining authority
 

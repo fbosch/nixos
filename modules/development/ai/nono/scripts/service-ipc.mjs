@@ -1,11 +1,27 @@
 import { createHash } from "node:crypto";
-import { existsSync, lstatSync, mkdirSync, readdirSync, realpathSync, rmSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, readdirSync, realpathSync, rmSync, statSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, sep } from "node:path";
 import { privateIpcDirectory } from "./private-ipc.mjs";
 
-export async function withSessionServiceEnvironment(environment, home, run) {
+function waylandSocket(environment) {
+  const display = environment.WAYLAND_DISPLAY;
+  if (!display) return undefined;
+  const runtime = environment.XDG_RUNTIME_DIR;
+  if (!isAbsolute(display) && (!/^[A-Za-z0-9._-]{1,64}$/.test(display) || !runtime || !isAbsolute(runtime))) {
+    throw new Error("Wayland display must be absolute or a display name under an absolute XDG_RUNTIME_DIR");
+  }
+  const socket = realpathSync(isAbsolute(display) ? display : join(runtime, display));
+  if (!statSync(socket).isSocket()) throw new Error("Wayland display must point to a Unix socket");
+  return socket;
+}
+
+export async function withSessionServiceEnvironment(environment, inherited, home, run) {
+  const display = waylandSocket(inherited);
   const browser = privateIpcDirectory(home, "b-");
   const bound = { ...environment, AGENT_BROWSER_SOCKET_DIR: browser, PI_LENS_WARM_ATTACH: "0" };
+  // Capture the original compositor, not a socket selected by project environment loading.
+  if (display) bound.WAYLAND_DISPLAY = display;
+  else delete bound.WAYLAND_DISPLAY;
   // agent-browser 0.41 resolves this override before its global daemon directory.
   // An empty new directory prevents reuse of a host daemon, even for the same Pi session ID.
   for (const name of ["AGENT_BROWSER_NAMESPACE", "AGENT_BROWSER_CDP", "AGENT_BROWSER_AUTO_CONNECT", "AGENT_BROWSER_PROFILE", "AGENT_BROWSER_SESSION_NAME"]) delete bound[name];
@@ -46,6 +62,9 @@ export function devenvRuntime(cwd, home, environment) {
 export function serviceSocketArguments(cwd, home, environment, restricted) {
   if (!restricted) return [];
   const args = [];
+  // Direct compositor access deliberately permits all exposed Wayland protocols, including clipboard reads.
+  const display = waylandSocket(environment);
+  if (display) args.push("--allow-unix-socket", display);
   const browser = environment.AGENT_BROWSER_SOCKET_DIR;
   if (browser) {
     const directory = realpathSync(browser);

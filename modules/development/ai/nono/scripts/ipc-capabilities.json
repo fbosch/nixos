@@ -17,7 +17,8 @@
           "linux"
         ]
       },
-      "herdr-reporting": {}
+      "herdr-reporting": {},
+      "desktop": {}
     }
   },
   "capabilities": {
@@ -295,6 +296,88 @@
       ],
       "provider": "herdr",
       "socketEnvironment": "HERDR_SOCKET_PATH"
+    },
+    "desktop": {
+      "backend": "json-lines",
+      "limits": {
+        "maxFrameBytes": 65536,
+        "maxConnections": 4,
+        "clientTimeoutMs": 10000,
+        "upstreamTimeoutMs": 8000
+      },
+      "operations": {
+        "clipboard.copy_text": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "text": {
+                "type": "string",
+                "minLength": 1,
+                "maxUtf8Bytes": 61440
+              }
+            },
+            "required": [
+              "text"
+            ],
+            "additionalProperties": false
+          },
+          "bindings": {}
+        },
+        "screenshot.capture": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "output": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9._-]{1,64}$"
+              },
+              "region": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "integer",
+                    "minimum": -65536,
+                    "maximum": 65536
+                  },
+                  "y": {
+                    "type": "integer",
+                    "minimum": -65536,
+                    "maximum": 65536
+                  },
+                  "width": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 32768
+                  },
+                  "height": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 32768
+                  }
+                },
+                "required": [
+                  "x",
+                  "y",
+                  "width",
+                  "height"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false,
+            "not": {
+              "required": [
+                "output",
+                "region"
+              ]
+            }
+          },
+          "bindings": {}
+        }
+      },
+      "cleanup": [],
+      "provider": "desktop",
+      "socketEnvironment": "PI_DESKTOP_SOCKET"
     }
   }
 }

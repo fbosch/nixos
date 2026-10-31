@@ -257,6 +257,23 @@ test("bootstrap binds inherited identity, creates the endpoint before launch and
   }
 });
 
+test("bootstrap accepts Herdr's alphanumeric pane suffixes and rejects malformed pane identities", async () => {
+  const f = fixture();
+  const host = createServer(socket => socket.on("data", () => socket.end('{"ok":true}\n')));
+  const launch = pane => withHerdrReporter({}, { HERDR_ENV: "1", HERDR_PANE_ID: pane, HERDR_SOCKET_PATH: f.authority.upstream },
+    f.home, f.root, join(f.home, ".pi", "agent"), ["--session-dir", f.authority.sessionDirectory], async environment => environment.HERDR_PANE_ID);
+  try {
+    host.listen(f.authority.upstream);
+    await once(host, "listening");
+    assert.equal(await launch("w1F:pN"), "w1F:pN");
+    for (const pane of ["w1F:p", "w1F:pN/x", "w1F:pN\n", "w1F", "../p1"]) {
+      await assert.rejects(launch(pane), /Invalid inherited Herdr pane identity/, JSON.stringify(pane));
+    }
+  } finally {
+    await new Promise(resolve => host.close(resolve));
+  }
+});
+
 test("pinned generated Herdr reporter remains compatible with the restricted endpoint", { skip: !process.env.HERDR_REPORTER_TEST_SOURCE }, async () => {
   const f = fixture();
   const received = [];

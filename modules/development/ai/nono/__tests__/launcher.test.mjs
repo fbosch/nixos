@@ -6,7 +6,7 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSy
 import { createServer } from "node:net";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
-import { launchArguments, launchCommand, prepareJitiCache, prepareNpmCache } from "../scripts/launcher.mjs";
+import { ensureSshIdentity, launchArguments, launchCommand, prepareJitiCache, prepareNpmCache } from "../scripts/launcher.mjs";
 import { sandboxRuntimeCommand } from "../scripts/sandbox-runtime.mjs";
 
 import { proxyFixtureSource } from "./fixtures/credential-proxy.mjs";
@@ -600,6 +600,8 @@ test("Linux runtime-directory grants omit sops-nix user secrets and symlinks", a
   try {
     const args = launchArguments(cwd, agent, home, { XDG_RUNTIME_DIR: runtime }, profile, raw, envBinary, "linux");
     assert.ok(values(args, "--allow").includes(join(runtime, "podman")));
+    // agent-browser binds its daemon socket below a runtime directory it would otherwise create itself.
+    assert.ok(values(args, "--allow").includes(join(runtime, "agent-browser")));
     assert.deepEqual(values(args, "--allow-file"), [join(runtime, "wayland-1.lock")]);
     const paths = ["--allow", "--allow-file", "--read", "--read-file"].flatMap((flag) => values(args, flag));
     assert.ok(!paths.includes(runtime));
@@ -618,6 +620,55 @@ test("Linux launches reject grants covering runtime secrets", () => {
   mkdirSync(generation, { recursive: true });
   assert.throws(() => launchArguments(generation, agent, home, { XDG_RUNTIME_DIR: runtime }, profile, raw, envBinary, "linux"),
     /Runtime secret credential store overlaps a Pi sandbox grant/);
+});
+
+test("ordinary Linux launches grant /dev/shm for Wayland buffers while the restricted profile and macOS do not", { skip: !existsSync("/dev/shm") }, () => {
+  const { root, home, cwd, agent, raw, profile } = fixture();
+  const shm = realpathSync("/dev/shm");
+  assert.ok(values(launchArguments(cwd, agent, home, {}, profile, raw, envBinary, "linux"), "--allow").includes(shm));
+  assert.ok(!values(launchArguments(cwd, agent, home, {}, profile, raw, envBinary, "darwin"), "--allow").includes(shm));
+  const restricted = join(root, "restricted.json");
+  writeFileSync(restricted, JSON.stringify({ linux: { af_unix_mediation: "pathname" } }));
+  assert.ok(!values(launchArguments(cwd, agent, home, {}, restricted, raw, envBinary, "linux"), "--allow").includes(shm));
+});
+
+test("an empty SSH agent gets the default key on the host before confinement", t => {
+  const { home } = fixture();
+  const key = join(home, ".ssh", "id_ed25519");
+  mkdirSync(join(home, ".ssh"));
+  writeFileSync(key, "fixture", { mode: 0o600 });
+  const sshAdd = "/nix/store/fixture-openssh/bin/ssh-add";
+  const environment = { SSH_AUTH_SOCK: "/run/agent.sock", GITHUB_TOKEN: "must-not-leak" };
+  const agent = statuses => {
+    const calls = [];
+    return { calls, run: (binary, args, options) => { calls.push({ binary, args, env: options.env, stdio: options.stdio }); return { status: statuses.shift() }; } };
+  };
+  const empty = agent([1, 0]);
+  assert.equal(ensureSshIdentity(environment, home, sshAdd, { run: empty.run, interactive: true }), "added");
+  assert.deepEqual(empty.calls.map(call => call.args), [["-l"], [key]]);
+  assert.deepEqual(empty.calls[1], { binary: sshAdd, args: [key], env: { SSH_AUTH_SOCK: "/run/agent.sock", HOME: home }, stdio: "inherit" });
+  const loaded = agent([0]);
+  assert.equal(ensureSshIdentity(environment, home, sshAdd, { run: loaded.run, interactive: true }), "loaded");
+  assert.equal(loaded.calls.length, 1);
+  const unreachable = agent([2]);
+  assert.equal(ensureSshIdentity(environment, home, sshAdd, { run: unreachable.run, interactive: true }), "skipped");
+  assert.equal(unreachable.calls.length, 1);
+  const warning = t.mock.method(console, "warn", () => {});
+  assert.equal(ensureSshIdentity(environment, home, sshAdd, { run: agent([1, 1]).run, interactive: true }), "failed");
+  assert.match(warning.mock.calls[0].arguments[0], /ssh-add did not load/);
+  for (const [options, env, binary] of [
+    [{ interactive: false }, environment, sshAdd],
+    [{ interactive: true }, {}, sshAdd],
+    [{ interactive: true }, environment, "ssh-add"],
+    [{ interactive: true }, environment, undefined],
+  ]) {
+    const skipped = agent([1, 0]);
+    assert.equal(ensureSshIdentity(env, home, binary, { ...options, run: skipped.run }), "skipped");
+    assert.equal(skipped.calls.length, 0);
+  }
+  const keyless = agent([1, 0]);
+  assert.equal(ensureSshIdentity(environment, join(home, "elsewhere"), sshAdd, { run: keyless.run, interactive: true }), "skipped");
+  assert.equal(keyless.calls.length, 0);
 });
 
 test("macOS keeps the runtime-directory grant", () => {
