@@ -37,9 +37,15 @@ export function reportingIdentity(authority: HerdrAuthority): { source: string; 
   return authority.embedded ? { source: "custom:neovim-pi", agent: "neovim-pi" } : { source: "herdr:pi", agent: "pi" };
 }
 
+export function reportingWorkspace(authority: HerdrAuthority): string {
+  const match = /^(w[A-Za-z0-9_-]+):p[A-Za-z0-9_-]+$/.exec(authority.pane);
+  if (!match) throw new Error("Invalid captured Herdr pane identity");
+  return match[1];
+}
+
 export function reportingContext(authority: HerdrAuthority) {
   return {
-    pane: authority.pane, ...reportingIdentity(authority), titleSource: "user:pi-session-title",
+    pane: authority.pane, workspace: reportingWorkspace(authority), ...reportingIdentity(authority), titleSource: "user:pi-session-title",
     ...(authority.embedded ? { displayAgent: "Pi", clearDisplayAgent: true } : {}),
   };
 }
@@ -49,6 +55,16 @@ export function createReportValidator(authority: HerdrAuthority, capability = de
   const validate = createMessageValidator(capability, reportingContext(captured));
   return (value: unknown): ReportRequest => {
     const request: ReportRequest = validate(value);
+    const workspace = reportingWorkspace(captured);
+    if (request.method === "pane.list") request.params.workspace_id = workspace;
+    if (request.method === "pane.read") {
+      if (typeof request.params.pane_id !== "string" || !request.params.pane_id.startsWith(workspace + ":p")) {
+        throw new Error("Herdr pane read is outside the launch workspace");
+      }
+      request.params.lines ??= 120;
+      request.params.format = "text";
+      request.params.strip_ansi = true;
+    }
     if (request.params.agent_session_path !== undefined) {
       request.params.agent_session_path = sessionPath(request.params.agent_session_path, captured.sessionDirectory);
     }

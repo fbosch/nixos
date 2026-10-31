@@ -31,12 +31,65 @@
     "herdr-reporting": {
       "backend": "json-lines",
       "limits": {
-        "maxFrameBytes": 16384,
+        "maxFrameBytes": 65536,
         "maxConnections": 16,
         "clientTimeoutMs": 2000,
         "upstreamTimeoutMs": 1500
       },
       "operations": {
+        "ping": {
+          "schema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+          },
+          "bindings": {}
+        },
+        "pane.list": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "workspace_id": {
+                "type": "string",
+                "pattern": "^w[A-Za-z0-9_-]+$",
+                "maxLength": 128
+              }
+            },
+            "additionalProperties": false
+          },
+          "bindings": {
+            "workspace_id": "workspace"
+          }
+        },
+        "pane.read": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "pane_id": {
+                "type": "string",
+                "pattern": "^w[A-Za-z0-9_-]+:p[A-Za-z0-9_-]+$",
+                "maxLength": 128
+              },
+              "source": {
+                "enum": ["visible", "recent", "recent_unwrapped", "detection"]
+              },
+              "lines": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 200
+              },
+              "format": {
+                "const": "text"
+              },
+              "strip_ansi": {
+                "const": true
+              }
+            },
+            "required": ["pane_id", "source"],
+            "additionalProperties": false
+          },
+          "bindings": {}
+        },
         "pane.report_agent": {
           "schema": {
             "type": "object",

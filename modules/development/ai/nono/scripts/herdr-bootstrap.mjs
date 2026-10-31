@@ -60,13 +60,14 @@ export async function withHerdrReporter(environment, inherited, home, cwd, agent
     for (const name of ["HERDR_ENV", "HERDR_SOCKET_PATH", "HERDR_PANE_ID", "PI_NVIM_HERDR_PANE_ID", "HERDR_AGENT"]) delete disabled[name];
     return run(disabled);
   }
-  if (!/^w[A-Za-z0-9_-]+:p[A-Za-z0-9_-]+$/.test(pane)) throw new Error("Invalid inherited Herdr pane identity");
+  const identity = /^(w[A-Za-z0-9_-]+):p[A-Za-z0-9_-]+$/.exec(pane);
+  if (!identity) throw new Error("Invalid inherited Herdr pane identity");
   if (!isAbsolute(upstream) || !statSync(upstream).isSocket()) throw new Error("Inherited Herdr endpoint must be an existing Unix socket");
   const authority = {
     upstream: realpathSync(upstream), pane, embedded: Boolean(inherited.PI_NVIM_HERDR_PANE_ID),
     sessionDirectory: sessionDirectory(cwd, agentDir, args, environment, home),
   };
-  const bound = { ...environment, HERDR_ENV: "1" };
+  const bound = { ...environment, HERDR_ENV: "1", HERDR_WORKSPACE_ID: identity[1] };
   for (const name of ["HERDR_PANE_ID", "PI_NVIM_HERDR_PANE_ID"]) {
     if (inherited[name] === undefined) delete bound[name];
     else bound[name] = inherited[name];

@@ -17,6 +17,8 @@ try {
     capturedContext = reportingContext(authority);
     capturedUpstream = authority.upstream;
     validate = createReportValidator(authority, capability);
+    const { createHerdrHandler } = await import("./herdr-reader.mjs");
+    deliver = createHerdrHandler(authority, capability);
   } else if (capability.provider === "desktop") {
     const { createDesktopHandler } = await import("./desktop-broker.mjs");
     capturedContext = {};

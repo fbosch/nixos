@@ -64,7 +64,7 @@ for (const embedded of [false, true]) {
   });
 }
 
-test("rejects other-pane access, terminal operations and unauthorized reporting fields", () => {
+test("rejects other-pane reporting, terminal operations and unauthorized reporting fields", () => {
   const f = fixture();
   for (const value of [
     f.request("pane.send_input", { text: "id\n" }),
@@ -243,10 +243,11 @@ test("bootstrap binds inherited identity, creates the endpoint before launch and
     host.listen(f.authority.upstream);
     await once(host, "listening");
     const inherited = { HERDR_ENV: "1", HERDR_PANE_ID: f.authority.pane, HERDR_SOCKET_PATH: f.authority.upstream };
-    await withHerdrReporter({ ...inherited, HERDR_PANE_ID: "wOther:p2" }, inherited, f.home, f.root, join(f.home, ".pi", "agent"), ["--session-dir", f.authority.sessionDirectory], async environment => {
+    await withHerdrReporter({ ...inherited, HERDR_PANE_ID: "wOther:p2", HERDR_WORKSPACE_ID: "wOther" }, inherited, f.home, f.root, join(f.home, ".pi", "agent"), ["--session-dir", f.authority.sessionDirectory], async environment => {
       endpoint = environment.HERDR_SOCKET_PATH;
       assert.notEqual(endpoint, f.authority.upstream);
       assert.equal(environment.HERDR_PANE_ID, f.authority.pane);
+      assert.equal(environment.HERDR_WORKSPACE_ID, "wFixture");
       assert.equal((await exchange(endpoint, f.request())).ok, true);
       assert.equal((await exchange(endpoint, f.request("pane.report_agent", { pane_id: "wOther:p2" }))).ok, false);
     });

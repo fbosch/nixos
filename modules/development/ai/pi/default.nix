@@ -116,6 +116,7 @@ let
             --unset NODE_OPTIONS --unset NODE_PATH ${desktopTools} \
             --add-flags "${runtime}/scripts/pi-desktop.mjs"
           HERDR_REPORTER_TEST_SOURCE="${inputs.herdr}/src/integration/assets/pi/herdr-agent-state.ts" \
+            HERDR_READ_TEST_BINARY="${lib.getExe inputs.herdr.packages.${pkgs.stdenv.hostPlatform.system}.default}" \
             NONO_TEST_IPC_MODE="${if ipcRestricted then "pathname" else "off"}" \
           PI_TEST_BINARY="$out/bin/pi" PI_TEST_DIRENV="${pkgs.direnv}/bin/direnv" \
             NONO_PROXY_TEST_BINARY="${proxyTestNono}/bin/nono" NONO_TEST_PROFILE="${profile}" \
@@ -131,6 +132,7 @@ let
             ${runtime}/__tests__/herdr-launch.test.mjs \
             ${runtime}/__tests__/herdr-socket.test.mjs \
             ${runtime}/__tests__/herdr-reporting.test.mjs \
+            ${runtime}/__tests__/herdr-reading.test.mjs \
             ${runtime}/__tests__/service-ipc.test.mjs \
             ${runtime}/__tests__/ipc-workflows.test.mjs \
             ${runtime}/__tests__/launcher.test.mjs \
@@ -272,6 +274,7 @@ in
           pkgs.runCommand "pi-ipc-check"
             {
               HERDR_REPORTER_TEST_SOURCE = "${inputs.herdr}/src/integration/assets/pi/herdr-agent-state.ts";
+              HERDR_READ_TEST_BINARY = lib.getExe inputs.herdr.packages.${pkgs.stdenv.hostPlatform.system}.default;
               ENV_TEST_BINARY = "${pkgs.coreutils}/bin/env";
             }
             ''
@@ -282,6 +285,7 @@ in
                 ${mkIpcRuntime pkgs}/__tests__/ipc-bootstrap.test.mjs \
                 ${mkIpcRuntime pkgs}/__tests__/ipc-session.test.mjs \
                 ${mkIpcRuntime pkgs}/__tests__/herdr-reporting.test.mjs \
+                ${mkIpcRuntime pkgs}/__tests__/herdr-reading.test.mjs \
                 ${mkIpcRuntime pkgs}/__tests__/desktop-broker.test.mjs
               touch "$out"
             '';

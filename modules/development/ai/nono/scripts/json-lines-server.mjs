@@ -2,7 +2,7 @@ import { chmodSync } from "node:fs";
 import { createConnection, createServer } from "node:net";
 import { cleanupMessages } from "./ipc-policy.mjs";
 
-function forward(upstream, request, limits) {
+export function requestJsonLine(upstream, request, limits) {
   return new Promise((resolve, reject) => {
     const socket = createConnection(upstream);
     let received = Buffer.alloc(0);
@@ -17,9 +17,9 @@ function forward(upstream, request, limits) {
       if (newline < 0) return;
       try {
         const response = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(received.subarray(0, newline)));
-        if (response === null || typeof response !== "object" || response.ok !== true) throw new Error("IPC peer rejected the request");
+        if (response === null || typeof response !== "object" || Array.isArray(response)) throw new Error("Invalid IPC response");
         socket.destroy();
-        resolve();
+        resolve(response);
       } catch (error) { fail(error); }
     });
     socket.once("end", () => fail(new Error("IPC peer closed without acknowledging the request")));
@@ -29,7 +29,9 @@ function forward(upstream, request, limits) {
 export async function startJsonLinesServer({ capability, context, endpoint, upstream, validate, deliver }) {
   if (Buffer.byteLength(endpoint) > 103) throw new Error("IPC socket path exceeds the portable Unix socket limit");
   // Providers without an upstream socket handle requests in this host process and may return a result.
-  const send = deliver ?? (request => forward(upstream, request, capability.limits));
+  const send = deliver ?? (request => requestJsonLine(upstream, request, capability.limits).then(response => {
+    if (response.ok !== true) throw new Error("IPC peer rejected the request");
+  }));
   const cleanup = cleanupMessages(capability, context, validate);
   const { limits } = capability;
   const clients = new Set();
@@ -43,7 +45,8 @@ export async function startJsonLinesServer({ capability, context, endpoint, upst
     client.on("error", () => client.destroy());
     let input = Buffer.alloc(0);
     let accepted = false;
-    const deny = () => client.end('{"ok":false,"error":{"code":"PI_IPC_DENIED","message":"IPC request rejected"}}\n');
+    let requestId = "pi-ipc:denied";
+    const deny = () => client.end(JSON.stringify({ id: requestId, ok: false, error: { code: "PI_IPC_DENIED", message: "IPC request rejected" } }) + "\n");
     client.setTimeout(limits.clientTimeoutMs, () => client.destroy());
     client.on("data", chunk => {
       if (accepted) return client.destroy();
@@ -55,7 +58,9 @@ export async function startJsonLinesServer({ capability, context, endpoint, upst
       try {
         if (newline !== input.length - 1) throw new Error("One IPC request per connection");
         const json = new TextDecoder("utf-8", { fatal: true }).decode(input.subarray(0, newline));
-        const request = validate(JSON.parse(json));
+        const message = JSON.parse(json);
+        if (typeof message?.id === "string" && Buffer.byteLength(message.id) <= 192) requestId = message.id;
+        const request = validate(message);
         const delivery = send(request).then(
           result => {
             reported = true;
