@@ -291,8 +291,8 @@ export function launchArguments(cwd, agentDir, home, environment, profile, rawPi
     }
   }
   // grim and other Wayland clients allocate buffers with shm_open; its flat names cannot be scoped per tool.
-  // Ordinary sessions already reach the compositor directly, so only the restricted candidate keeps /dev/shm closed.
-  const sharedMemory = !ipcRestricted && platform === "linux" ? existingDirectory("/dev/shm") : undefined;
+  // Both profiles permit native screenshots and the accompanying access to unrelated same-user shared memory.
+  const sharedMemory = platform === "linux" ? existingDirectory("/dev/shm") : undefined;
   if (sharedMemory !== undefined) extra.push("--allow", sharedMemory);
   const args = [
     "run", "--profile", profile, "--allow-cwd", "--suppress-save-prompt", "/",

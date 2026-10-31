@@ -622,14 +622,14 @@ test("Linux launches reject grants covering runtime secrets", () => {
     /Runtime secret credential store overlaps a Pi sandbox grant/);
 });
 
-test("ordinary Linux launches grant /dev/shm for Wayland buffers while the restricted profile and macOS do not", { skip: !existsSync("/dev/shm") }, () => {
+test("Linux launches grant /dev/shm for Wayland buffers in both profiles but macOS does not", { skip: !existsSync("/dev/shm") }, () => {
   const { root, home, cwd, agent, raw, profile } = fixture();
   const shm = realpathSync("/dev/shm");
   assert.ok(values(launchArguments(cwd, agent, home, {}, profile, raw, envBinary, "linux"), "--allow").includes(shm));
   assert.ok(!values(launchArguments(cwd, agent, home, {}, profile, raw, envBinary, "darwin"), "--allow").includes(shm));
   const restricted = join(root, "restricted.json");
   writeFileSync(restricted, JSON.stringify({ linux: { af_unix_mediation: "pathname" } }));
-  assert.ok(!values(launchArguments(cwd, agent, home, {}, restricted, raw, envBinary, "linux"), "--allow").includes(shm));
+  assert.ok(values(launchArguments(cwd, agent, home, {}, restricted, raw, envBinary, "linux"), "--allow").includes(shm));
 });
 
 test("an empty SSH agent gets the default key on the host before confinement", t => {

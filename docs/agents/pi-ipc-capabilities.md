@@ -12,7 +12,7 @@ The manifest has a capability catalog and profile selections. A capability decla
 
 The Linux candidate also grants the exact inherited Wayland socket outside the registry. This is full compositor protocol access, including clipboard reads and any exposed screen-capture or input-injection protocols. It is not constrained by the desktop broker's operation schemas. The launcher captures the socket before project environment loading and exports its absolute path. It does not grant the runtime directory or force OSC 52. D-Bus, Hyprland control and other unselected sockets remain denied.
 
-The candidate still excludes `/dev/shm`, so direct `grim` may fail when allocating image buffers. Use `pi-desktop screenshot` for the broker path.
+Both Linux profiles grant `/dev/shm` so native `grim` can allocate screenshot buffers. This also exposes unrelated same-user shared-memory objects; Hyprland does not control that namespace. The user explicitly accepted this access. `pi-desktop screenshot` remains available through the broker in the candidate.
 
 Malformed manifests, unknown capabilities or providers, invalid schemas, conflicting socket exports and missing required launch bindings fail startup. There is no direct-service fallback after filter failure. The ordinary Linux nono profile still uses unrestricted Unix IPC mediation; selecting a filter there would not establish socket confinement.
 
