@@ -472,6 +472,9 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
         if (environment.HERDR_ENV === "1") environment.HERDR_AGENT = "pi";
         prepareJitiCache();
         prepareNpmCache();
+        if (process.platform === "linux" && readJson(profile, "nono profile")?.network?.credentials?.length) {
+          return runWithCredentialProxy(nono, profile, command, environment, { sandboxed: true });
+        }
         return withProtectedShellProfile(profile, home, environment, run);
       }
       return runWithCredentialProxy(nono, profile, command, environment);

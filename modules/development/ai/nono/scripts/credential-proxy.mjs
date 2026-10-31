@@ -1,7 +1,8 @@
 import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { existsSync, readFileSync, statSync } from "node:fs";
-import { isAbsolute } from "node:path";
+import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { isAbsolute, join } from "node:path";
 import { stripVTControlCharacters } from "node:util";
 
 const caVariables = ["SSL_CERT_FILE", "NODE_EXTRA_CA_CERTS", "REQUESTS_CA_BUNDLE", "CURL_CA_BUNDLE", "GIT_SSL_CAINFO"];
@@ -121,11 +122,41 @@ function connectionReader(proxy, token, timeout) {
   return { ready, fail, dispose: () => clearTimeout(timer) };
 }
 
+function sandboxCommand(nono, command, profile, connection, directory) {
+  const network = { block: true, credentials: [], network_profile: null };
+  for (const name of ["open_port", "open_port_range", "listen_port", "listen_port_range", "connect_port"]) {
+    if (profile.network?.[name] !== undefined) network[name] = profile.network[name];
+  }
+  // Capture belongs to the standalone proxy, never the sandbox supervisor's orphan reaper.
+  const sandboxProfile = { ...profile, network, credential_capture: {} };
+  const profilePath = join(directory, "sandbox.json");
+  writeFileSync(profilePath, JSON.stringify(sandboxProfile), { mode: 0o600, flag: "wx" });
+  const result = [...command];
+  const profileIndex = result.indexOf("--profile");
+  const separator = result.indexOf("--");
+  if (result[0] !== nono || result[1] !== "run" || profileIndex < 2 || profileIndex + 1 >= separator) {
+    throw new Error("Standalone sandbox proxy requires a profiled nono run command");
+  }
+  result[profileIndex + 1] = profilePath;
+  const grants = ["--allow-connect-port", String(connection.port)];
+  if (connection.trustBundle) {
+    // Copy only public trust: Nono denies access to its state directory containing CA keys.
+    const bundle = join(directory, "proxy-ca.pem");
+    writeFileSync(bundle, readFileSync(connection.trustBundle), { mode: 0o600, flag: "wx" });
+    connection.trustBundle = bundle;
+    grants.push("--read-file", bundle);
+  }
+  result.splice(separator, 0, ...grants);
+  return result;
+}
+
 export async function runWithCredentialProxy(nono, profilePath, command, environment, {
   startupTimeout = 30_000,
   shutdownTimeout = 2_000,
   platform = process.platform,
+  sandboxed = false,
 } = {}) {
+  if (sandboxed && platform !== "linux") throw new Error("Standalone sandbox proxy is supported only on Linux");
   if (!isAbsolute(nono) || !existsSync(nono)) throw new Error(`nono executable missing: ${nono}`);
   if (!isAbsolute(profilePath) || !existsSync(profilePath) || !statSync(profilePath).isFile()) throw new Error("Nix nono profile missing");
   const profileContents = readFileSync(profilePath, "utf8");
@@ -151,6 +182,7 @@ export async function runWithCredentialProxy(nono, profilePath, command, environ
     diagnostics = (diagnostics + chunk).slice(-8192);
   });
   const reader = connectionReader(proxy, token, startupTimeout);
+  let sandboxDirectory;
   let child;
   let requestedSignal;
   let childStopTimer;
@@ -172,6 +204,10 @@ export async function runWithCredentialProxy(nono, profilePath, command, environ
     const connection = await Promise.race([reader.ready, startupExit]);
     reader.dispose();
     if (requestedSignal) return { status: null, signal: requestedSignal };
+    if (sandboxed) {
+      sandboxDirectory = mkdtempSync(join(environment.TMPDIR || tmpdir(), "pi-proxy-sandbox-"));
+      command = sandboxCommand(nono, command, profile, connection, sandboxDirectory);
+    }
     const childEnvironment = clientEnvironment(environment, profile, token, connection);
     child = spawn(command[0], command.slice(1), { stdio: "inherit", env: childEnvironment });
     const childExited = exitOf(child);
@@ -196,5 +232,6 @@ export async function runWithCredentialProxy(nono, profilePath, command, environ
     clearTimeout(childStopTimer);
     await stopProxy(proxy, proxyExited, shutdownTimeout);
     for (const [signal, handler] of handlers) process.off(signal, handler);
+    if (sandboxDirectory) rmSync(sandboxDirectory, { recursive: true, force: true });
   }
 }

@@ -73,18 +73,11 @@ diff --git a/packages/coding-agent/src/extensions/tool-search/tool.ts b/packages
  	ToolDefinition,
  	ToolExposure,
  	ToolInfo,
-@@ -24,6 +26,7 @@
- export interface ToolSearchDocument {
- 	name: string;
- 	text: string;
+@@ -30,1 +32,2 @@
+-}
 +	description?: string;
- }
- 
- export interface ToolSearchMatch {
-@@ -31,9 +34,135 @@
- 	score: number;
- }
- 
++}
+@@ -42,1 +45,127 @@
 +export interface ToolSearchRankingRequest {
 +	query: string;
 +	documents: readonly ToolSearchDocument[];
@@ -114,10 +107,6 @@ diff --git a/packages/coding-agent/src/extensions/tool-search/tool.ts b/packages
 +	onUsage?: (usage: Usage) => void;
 +}
 +
- /** Ranks tools for a query. BM25 today; a hybrid ranker with embeddings can replace it. */
- export interface ToolRanker {
- 	rank(query: string, documents: readonly ToolSearchDocument[], limit: number): ToolSearchMatch[];
-+}
 +
 +const toolSearchRankers = new WeakMap<object, { ranker: ToolSearchRankingHook }>();
 +
@@ -214,15 +203,11 @@ diff --git a/packages/coding-agent/src/extensions/tool-search/tool.ts b/packages
 +		seen.add(match.name);
 +	}
 +	return result;
- }
- 
- const STOP_WORDS: ReadonlySet<string> = new Set([
-@@ -112,7 +241,7 @@
- 	const parts = [tool.name, tool.name.replaceAll("_", " "), tool.description];
- 	schemaText(tool.parameters, parts);
- 	if (namespace) parts.push(namespace.name, namespace.description ?? "", namespace.instructions ?? "");
--	return { name: tool.name, text: parts.filter((part) => part.trim()).join(" ") };
-+	return { name: tool.name, text: parts.filter((part) => part.trim()).join(" "), description: tool.description };
++}
+ const wordSegmenter = new Intl.Segmenter(undefined, { granularity: "word" });
+@@ -128,4 +257,4 @@
+-	return { name: tool.name, text: parts.filter((part) => part.trim()).join(" "), namespaceText };
++	return { name: tool.name, text: parts.filter((part) => part.trim()).join(" "), namespaceText, description: tool.description };
  }
  
  /** Lowercase with characters invalid in script identifiers as `_`, so `dev-radius` matches `dev_radius`. */

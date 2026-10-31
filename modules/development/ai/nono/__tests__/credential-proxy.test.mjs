@@ -260,3 +260,176 @@ for (const name of ["context7", "exa", "exa_mcp"]) {
     }
   });
 }
+
+test("sandbox proxy retains filesystem policy and grants only its port and public trust bundle", async () => {
+  const f = fixture();
+  const original = {
+    ...JSON.parse(readFileSync(f.profile, "utf8")),
+    extends: "default",
+    filesystem: { deny: [join(f.root, "host-secret")] },
+    linux: { af_unix_mediation: "pathname", sandbox_policy: "landlock" },
+    security: { capability_elevation: false },
+    credential_capture: { context7: { command: ["/synthetic/capture"] } },
+  };
+  original.network.open_port = [9222];
+  writeFileSync(f.profile, JSON.stringify(original));
+  writeFileSync(f.nono, `#!${process.execPath}
+    if (process.argv[2] === "run") {
+      const fs = require("node:fs");
+      const args = process.argv.slice(2);
+      const profilePath = args[args.indexOf("--profile") + 1];
+      const bundle = process.env.SSL_CERT_FILE;
+      fs.writeFileSync(${JSON.stringify(f.output)}, JSON.stringify({
+        args, profilePath, profile: JSON.parse(fs.readFileSync(profilePath, "utf8")),
+        bundle, bundleContents: fs.readFileSync(bundle, "utf8"), extraCa: process.env.EXTRA_CA,
+        proxyPort: new URL(process.env.HTTP_PROXY).port,
+        token: process.env.CONTEXT7_API_KEY, brokerPassword: process.env.NONO_PROXY_PASS,
+      }));
+      process.exit(17);
+    }
+    ${proxyFixtureSource({ pidFile: f.pidFile, recordFile: f.recordFile, trustBundle: f.bundle })}
+  `, { mode: 0o700 });
+  const command = [f.nono, "run", "--profile", f.profile, "--allow-connect-port", "443", "--", process.execPath, "-e", "throw new Error('fixture must handle sandbox')"];
+  try {
+    const result = await runWithCredentialProxy(f.nono, f.profile, command, { HOME: f.root, PATH: process.env.PATH, TMPDIR: f.root }, { sandboxed: true, platform: "linux" });
+    assert.equal(result.status, 17);
+    const actual = JSON.parse(readFileSync(f.output, "utf8"));
+    assert.deepEqual(actual.profile.filesystem, original.filesystem);
+    assert.deepEqual(actual.profile.linux, original.linux);
+    assert.deepEqual(actual.profile.security, original.security);
+    assert.deepEqual(actual.profile.network, { block: true, credentials: [], network_profile: null, open_port: [9222] });
+    assert.deepEqual(actual.profile.credential_capture, {});
+    assert.deepEqual(actual.args.slice(actual.args.indexOf("--") - 4, actual.args.indexOf("--")), ["--allow-connect-port", actual.proxyPort, "--read-file", actual.bundle]);
+    assert.equal(actual.bundleContents, "fixture public CA bundle");
+    assert.equal(actual.extraCa, actual.bundle);
+    assert.notEqual(actual.bundle, f.bundle);
+    assert.equal(actual.token, JSON.parse(readFileSync(f.recordFile, "utf8")).token);
+    assert.equal(actual.brokerPassword, undefined);
+    assert.equal(existsSync(actual.profilePath), false);
+    assert.equal(existsSync(actual.bundle), false);
+    assert.deepEqual(JSON.parse(readFileSync(f.profile, "utf8")), original);
+    assert.equal(command[command.indexOf("--profile") + 1], f.profile);
+    f.checkStopped();
+  } finally { rmSync(f.root, { recursive: true, force: true }); }
+});
+
+test("sandbox proxy rejects an unconfined child instead of falling back", async () => {
+  const f = fixture();
+  try {
+    await assert.rejects(runWithCredentialProxy(f.nono, f.profile, [process.execPath, "-e", `require('node:fs').writeFileSync(${JSON.stringify(f.output)}, 'unconfined')`],
+      { HOME: f.root, PATH: process.env.PATH, TMPDIR: f.root }, { sandboxed: true, platform: "linux" }), /requires a profiled nono run command/);
+    assert.equal(existsSync(f.output), false);
+    f.checkStopped();
+  } finally { rmSync(f.root, { recursive: true, force: true }); }
+});
+
+test("Linux launcher selects the standalone proxy without bypassing nono run", { skip: process.platform !== "linux" }, async () => {
+  const f = fixture();
+  const home = join(f.root, "home");
+  const work = join(f.root, "work");
+  const temporary = join(f.root, "tmp");
+  const agent = join(home, ".pi", "agent");
+  for (const directory of [agent, work, temporary]) mkdirSync(directory, { recursive: true });
+  writeFileSync(f.nono, `#!${process.execPath}
+    if (process.argv[2] === "run") {
+      const assert = require("node:assert/strict");
+      const fs = require("node:fs");
+      const args = process.argv.slice(2);
+      const profile = JSON.parse(fs.readFileSync(args[args.indexOf("--profile") + 1], "utf8"));
+      assert.equal(profile.network.block, true);
+      assert.deepEqual(profile.network.credentials, []);
+      assert.deepEqual(profile.credential_capture, {});
+      assert.equal(args[args.indexOf("--") + 1], ${JSON.stringify(process.env.ENV_TEST_BINARY ?? "/usr/bin/env")});
+      assert.equal(typeof process.env.CONTEXT7_API_KEY, "string");
+      assert.ok(args.includes(new URL(process.env.HTTP_PROXY).port));
+      fs.writeFileSync(${JSON.stringify(f.output)}, "sandbox started");
+      process.exit(17);
+    }
+    ${proxyFixtureSource({ pidFile: f.pidFile })}
+  `, { mode: 0o700 });
+  try {
+    const launcher = fileURLToPath(new URL("../scripts/launcher.mjs", import.meta.url));
+    const child = spawn(process.execPath, [launcher, f.nono, process.execPath, f.profile, "/missing-direnv", process.env.ENV_TEST_BINARY ?? "/usr/bin/env", "--version"], {
+      cwd: work, env: { HOME: home, PATH: process.env.PATH, TMPDIR: temporary, PI_CODING_AGENT_DIR: agent }, stdio: ["ignore", "pipe", "pipe"],
+    });
+    const exited = once(child, "exit");
+    let stderr = "";
+    child.stdout.resume();
+    child.stderr.on("data", chunk => stderr += chunk);
+    const [status, signal] = await exited;
+    assert.equal(signal, null, stderr);
+    assert.equal(status, 17, stderr);
+    assert.equal(readFileSync(f.output, "utf8"), "sandbox started");
+    f.checkStopped();
+  } finally { rmSync(f.root, { recursive: true, force: true }); }
+});
+
+test("installed Nono standalone proxy injects credentials while its child remains sandboxed", {
+  skip: process.platform !== "linux" || !process.env.NONO_PROXY_TEST_BINARY,
+  timeout: 15000,
+}, async () => {
+  const f = fixture();
+  const work = join(f.root, "work");
+  const home = join(f.root, "home");
+  const temporary = join(f.root, "tmp");
+  const secret = join(f.root, "credential");
+  const denied = join(f.root, "host-secret");
+  for (const directory of [work, home, temporary]) mkdirSync(directory);
+  writeFileSync(secret, "fixture-upstream-secret", { mode: 0o400 });
+  writeFileSync(denied, "synthetic-host-secret", { mode: 0o400 });
+  const upstream = createServer((request, response) => {
+    assert.equal(request.headers.authorization, "Bearer fixture-upstream-secret");
+    response.end("ok");
+  });
+  try {
+    upstream.listen(0, "127.0.0.1");
+    await once(upstream, "listening");
+    writeFileSync(f.profile, JSON.stringify({
+      extends: "default",
+      filesystem: { read: ["/nix/store"], deny: [secret, denied] },
+      linux: { af_unix_mediation: "pathname", sandbox_policy: "landlock" },
+      network: { credentials: ["context7"], custom_credentials: {
+        context7: { upstream: `http://127.0.0.1:${upstream.address().port}`, credential_key: "cmd://context7", env_var: "CONTEXT7_API_KEY", inject_header: "Authorization", credential_format: "Bearer {}" },
+      } },
+      credential_capture: { context7: { command: [process.execPath, "-e", `process.stdout.write(require('node:fs').readFileSync(${JSON.stringify(secret)}))`] } },
+    }));
+    const probe = `
+      const assert = require("node:assert/strict");
+      const fs = require("node:fs");
+      (async () => {
+        for (const path of ${JSON.stringify([secret, denied])}) assert.throws(() => fs.readFileSync(path), error => ["EACCES", "EPERM"].includes(error.code));
+        assert.notEqual(process.env.CONTEXT7_API_KEY, "fixture-upstream-secret");
+        await new Promise((resolve, reject) => {
+          const socket = require("node:net").createConnection({ host: "127.0.0.1", port: 23 });
+          socket.once("error", error => ["EACCES", "EPERM"].includes(error.code) ? resolve() : reject(error));
+          socket.once("connect", () => { socket.destroy(); reject(new Error("ungranted port connected")); });
+        });
+        const response = await fetch(process.env.CONTEXT7_BASE_URL + "/probe", { headers: { Authorization: "Bearer " + process.env.CONTEXT7_API_KEY }, signal: AbortSignal.timeout(3000) });
+        assert.equal(response.status, 200);
+        assert.equal(await response.text(), "ok");
+      })().catch(error => { console.error(error); process.exitCode = 1; });
+    `;
+    const command = [process.env.NONO_PROXY_TEST_BINARY, "run", "--profile", f.profile, "--allow-cwd", "--no-audit", "--no-rollback", "--", process.execPath, "-e", probe];
+    const runner = `
+      import { runWithCredentialProxy } from ${JSON.stringify(new URL("../scripts/credential-proxy.mjs", import.meta.url).href)};
+      const result = await runWithCredentialProxy(${JSON.stringify(process.env.NONO_PROXY_TEST_BINARY)}, ${JSON.stringify(f.profile)}, ${JSON.stringify(command)}, process.env, { sandboxed: true });
+      if (result.error) throw result.error;
+      process.exit(result.status ?? 1);
+    `;
+    const child = spawn(process.execPath, ["--input-type=module", "-e", runner], {
+      cwd: work, env: { HOME: home, PATH: process.env.PATH, TMPDIR: temporary, NO_COLOR: "1" }, stdio: ["ignore", "pipe", "pipe"],
+    });
+    const exited = once(child, "exit");
+    let output = "";
+    child.stdout.on("data", chunk => output += chunk);
+    child.stderr.on("data", chunk => output += chunk);
+    const [status, signal] = await exited;
+    assert.equal(signal, null, output);
+    assert.equal(status, 0, output);
+    assert.doesNotMatch(output, /fixture-upstream-secret/);
+  } finally {
+    upstream.closeAllConnections();
+    await new Promise(resolve => upstream.close(resolve));
+    rmSync(f.root, { recursive: true, force: true });
+  }
+});

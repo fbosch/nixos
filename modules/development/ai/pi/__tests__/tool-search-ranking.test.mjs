@@ -112,7 +112,7 @@ export default async function () {
       ]);
     }
     assert.equal(request.documents[0].description, "Archive old project reports");
-    assert.ok(request.documents[0].text.includes("chosen"));
+    assert.ok(request.documents[0].namespaceText?.includes("chosen"));
     const lexical = request.rankLexical(24);
     assert.ok(lexical.length > 0);
     assert.ok(lexical.every((match) => request.documents.some((document) => document.name === match.name)));
