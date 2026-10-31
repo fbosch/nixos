@@ -1,6 +1,6 @@
 # Pi IPC capabilities
 
-The IPC registry configures selected-repository fsmonitor access and bounded JSON-lines filters. The restricted launcher remains opt-in. Git fsmonitor's native macOS probe currently fails inside nono, so this implementation does not unblock default rollout.
+The IPC registry configures selected-repository fsmonitor access and bounded JSON-lines filters. The Nix-owned Pi launcher selects the restricted profile by default on Linux and macOS. The user authorized promotion without completed macOS validation. The known native macOS fsmonitor failure remains unresolved.
 
 ## Configuration and ownership
 
@@ -10,11 +10,11 @@ The binary wrapper forces `PI_IPC_MANIFEST` to the store path. The launcher load
 
 The manifest has a capability catalog and profile selections. A capability declaration alone does not enable it. The `ordinary` profile preserves the existing direct fsmonitor behavior on macOS. The `restricted` profile selects the bounded Herdr filter, the desktop broker and exact fsmonitor bind/connect grants on macOS and Linux.
 
-The Linux candidate also grants the exact inherited Wayland socket outside the registry. This is full compositor protocol access, including clipboard reads and any exposed screen-capture or input-injection protocols. It is not constrained by the desktop broker's operation schemas. The launcher captures the socket before project environment loading and exports its absolute path. It does not grant the runtime directory or force OSC 52. D-Bus, Hyprland control and other unselected sockets remain denied.
+The restricted Linux launcher also grants the exact inherited Wayland socket outside the registry. This is full compositor protocol access, including clipboard reads and any exposed screen-capture or input-injection protocols. It is not constrained by the desktop broker's operation schemas. The launcher captures the socket before project environment loading and exports its absolute path. It does not grant the runtime directory or force OSC 52. D-Bus, Hyprland control and other unselected sockets remain denied.
 
-Both Linux profiles grant `/dev/shm` so native `grim` can allocate screenshot buffers. This also exposes unrelated same-user shared-memory objects; Hyprland does not control that namespace. The user explicitly accepted this access. `pi-desktop screenshot` remains available through the broker in the candidate.
+Both Linux profiles grant `/dev/shm` so native `grim` can allocate screenshot buffers. This also exposes unrelated same-user shared-memory objects; Hyprland does not control that namespace. The user explicitly accepted this access. `pi-desktop screenshot` remains available through the broker in the restricted launcher.
 
-Malformed manifests, unknown capabilities or providers, invalid schemas, conflicting socket exports and missing required launch bindings fail startup. There is no direct-service fallback after filter failure. The ordinary Linux nono profile still uses unrestricted Unix IPC mediation; selecting a filter there would not establish socket confinement.
+Malformed manifests, unknown capabilities or providers, invalid schemas, conflicting socket exports and missing required launch bindings fail startup. There is no direct-service fallback after filter failure. The ordinary Linux comparison profile still uses unrestricted Unix IPC mediation; selecting a filter there would not establish socket confinement.
 
 ## Supported mechanisms
 
@@ -39,7 +39,7 @@ Providers supply trusted facts. Schemas do not prove filesystem ownership, path 
 
 ### Read-only Herdr workspace access
 
-The candidate allows `pane.list` and `pane.read` within its launch workspace, across tabs. It also allows the CLI's `ping` handshake, returning only version and protocol metadata. Listing without a workspace always selects the captured workspace. Explicit other-workspace requests fail. The broker checks response pane and workspace identities too, including when a pane has moved.
+The restricted launcher allows `pane.list` and `pane.read` within its launch workspace, across tabs. It also allows the CLI's `ping` handshake, returning only version and protocol metadata. Listing without a workspace always selects the captured workspace. Explicit other-workspace requests fail. The broker checks response pane and workspace identities too, including when a pane has moved.
 
 Use native pane commands:
 
@@ -119,7 +119,9 @@ These source tests require the feature-local dependencies. The Nix check supplie
 
 The configuration-only fixture verifies automatic helper startup, exact endpoint grants, context binding, sanitized replies and cleanup. Other tests cover invalid manifests, forged project environment, session-reference aliases and teardown after a later helper fails startup.
 
-The native fsmonitor probe in `ipc-workflows.test.mjs` additionally requires `NONO_TEST_BINARY` and `GIT_TEST_BINARY` on macOS. It remains a rollout gate. Git 2.56.0 starts and stops the fixture daemon outside confinement, but `fsmonitor--daemon start` reports `daemon terminated` under nono 0.80.0. No broader socket or Mach permissions were added to hide this failure.
+The native fsmonitor probe in `ipc-workflows.test.mjs` requires `NONO_TEST_BINARY` and `GIT_TEST_BINARY`. Git 2.56.0 on rvn-pc advertises native fsmonitor support. `checks.x86_64-linux.pi-git-fsmonitor` passed the actual-launcher probe, including daemon start/query/stop and IPC-denial checks, with one test and no skips. This focused check remains Linux-only until macOS daemon startup is fixed and verified.
+
+The user waived the native macOS fsmonitor validation gate for default promotion. Git 2.56.0 starts and stops the fixture daemon outside confinement, but `fsmonitor--daemon start` reports `daemon terminated` under nono 0.80.0. The local-only follow-up did not reproduce or verify that failure on a Mac. Promotion does not fix this failure or add broader socket or Mach permissions.
 
 ## Validation on rvn-mac
 
@@ -127,10 +129,10 @@ The focused source suite passed 117 tests and skipped 13. It included the pinned
 
 Both `pi-ipc-runtime` and `checks.aarch64-darwin.pi-ipc` built from the current working tree. The Nix check validates the generated manifest and runs tests against the assembled runtime. Statix, Deadnix, syntax checks and `git diff --check` passed. The active LSP probe did not confirm any changed file clean because servers were disabled or timed out; the passing evidence is the explicit builds and tests.
 
-The `x86_64-linux` IPC check evaluates, but was not built or run. The aggregate `nix-unit` attempt timed out while fetching a source from `cache.nixos.org`; it is not recorded as passing.
+On rvn-pc, `checks.x86_64-linux.pi-ipc` passed 72 tests with no skips. The earlier aggregate `nix-unit` attempt timed out while fetching a source from `cache.nixos.org`; it is not recorded as passing.
 
 ## Remaining scope
 
 Bounded Hyprland operations, clipboard reads through the desktop broker, image opening, D-Bus credential access and explicit host-container capabilities are not implemented by this registry. Direct Wayland access nevertheless permits clipboard reads and other compositor protocols. Neovim retains its existing dedicated editor transport. Nix daemon, SSH-agent, Wayland, browser and devenv grants remain in their existing code. Those integrations have not been migrated into the catalog.
 
-This registry does not repair Linux's previously identified seccomp address race, io_uring limitations or descriptor passing. An endpoint grant authorizes the peer's full protocol. Passing schema and transport tests does not establish containment of hostile native code. Linux runtime validation and the broader default-rollout gates remain outstanding.
+This registry does not repair Linux's previously identified seccomp address race, io_uring limitations or descriptor passing. An endpoint grant authorizes the peer's full protocol. Passing schema and transport tests does not establish containment of hostile native code. Default promotion does not close the remaining platform and workflow validation gaps.

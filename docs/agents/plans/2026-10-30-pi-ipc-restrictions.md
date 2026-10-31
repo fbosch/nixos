@@ -1,8 +1,16 @@
 # Pi IPC restrictions
 
-Status: partial implementation, not deployed. `packages.<system>.pi-ipc-candidate` selects the restricted policy. The installed system package remains the ordinary launcher. Do not promote the candidate until the remaining workflow and platform checks pass.
+Status: restricted IPC is the configured default for the Nix-owned Pi launcher on Linux and macOS. The user authorized promotion without completed macOS validation. This configuration change does not activate a host or alter running sessions. `packages.<system>.pi-sandbox` and the system-installed launcher select the restricted policy; `pi-ipc-candidate` references the same package.
 
-The [capability registry guide](../pi-ipc-capabilities.md) describes the subsequent shared-runtime implementation. Its native Git fsmonitor probe fails inside nono and remains a rollout blocker. The test counts below record the earlier adapter slice.
+The [capability registry guide](../pi-ipc-capabilities.md) describes the shared-runtime implementation. Its native macOS Git fsmonitor probe still fails inside nono. The user waived that validation gate for default promotion; the failure remains unresolved. The test counts below record earlier implementation stages.
+
+## Default promotion verification
+
+The user authorized the restricted launcher as the default on all supported platforms despite incomplete macOS validation. `mkLauncher` now defaults to restricted IPC, and the existing `pi-ipc-candidate` export references the default launcher. A regression test compares the default launcher with an explicitly restricted build.
+
+On rvn-pc, the default `pi-sandbox` build passed 207 launcher tests and skipped 26. `pi-launcher-routing`, `pi-ipc`, `pi-git-fsmonitor` and `nono-pi-socket-isolation-restricted` built successfully. The Linux default and candidate exports resolve to the same package.
+
+Darwin package evaluation on rvn-pc requires building a Darwin-only patched Pi source derivation and fails with a platform mismatch. No native macOS build or runtime check was performed for promotion. No host was activated, and existing sessions remain unchanged.
 
 ## Implemented slices
 
@@ -74,6 +82,14 @@ Follow-up changes after these probes:
 - Native screenshot follow-up validation passed: `pi-launcher-routing`, `pi-ipc`, both socket-isolation checks, and ordinary/candidate launcher builds. The candidate probe still denied unrelated sockets. Syntax checks, `git diff --check` and the focused prose check passed. LSP checks for the two changed JavaScript files were inconclusive because their language server is disabled. The temporary screenshot files and host pane were removed; installed launchers and existing sessions were not changed.
 - After the user rebuilt and activated, the restarted neighbouring candidate on rvn-pc confirmed `--allow /dev/shm` in its own nono launch. Direct `grim -g '0,0 10x10'` exited 0 and produced a PNG with a valid signature, valid IHDR and 10×10 dimensions. The temporary capture file and directory were removed.
 
+### Context7 controlled comparison (2026-10-31)
+
+- Fresh nono instances used the same pinned Pi runtime, environment, Context7-only MCP configuration and credential-capture recipe. The only profile difference was `linux.af_unix_mediation`: `off` versus `pathname`. Pi's prompt-free MCP connection check passed in both modes. Audit metadata recorded capture exit 0 and credential injection.
+- The exact HTTPS MCP `resolve-library-id` request also passed in both modes, returning HTTP 200 and TypeScript library IDs. These minimal probes did not include the launcher's IPC helpers or the full interactive startup workload.
+- The user restarted the neighbouring candidate during the comparison. A fresh MCP client inside that session connected successfully, but the session's built-in Context7 tools were not registered. Context7 was enabled globally, and the project MCP configuration did not override it.
+- `/mcp reconnect context7` restored the built-in connection and registered its two tools. The actual built-in resolution then succeeded with `/microsoft/typescript-website`. The restricted profile and permissions did not change.
+- Connection recovery is verified; the cause of the original startup 503 and cold-start reliability remain unresolved. The default launcher is unchanged. Temporary probe files were removed; the user closed the temporary host pane.
+
 ### Workspace pane-read follow-up
 
 - `pi-ipc` passes 72 tests, including the pinned native Herdr CLI reading through the broker and rejecting input. The launcher suite passes 207 tests and skips 26. `pi-launcher-routing`, restricted socket isolation, `pi-ipc-candidate` and `pi-sandbox` build from the working tree.
@@ -81,7 +97,15 @@ Follow-up changes after these probes:
 - The initial live broker check ran in the ordinary session; a nested candidate could not initialize its credential proxy because the outer sandbox denied an ephemeral loopback bind. After the user rebuilt and restarted the neighboring candidate, native listing returned only `w1F:p1` and `w1F:pN`. Both `visible` and `recent-unwrapped` reads of `w1F:p1` succeeded with 2,113 bytes / 10 lines and no terminal escapes. Cross-workspace listing/reading, CLI command execution, prompting and pane-input requests returned `PI_IPC_DENIED`. Direct access to the real Herdr socket failed with `EACCES`. Fresh-candidate pane-read verification passed; no permissions were broadened.
 - Active LSP probes for the changed implementation files were unconfirmed because the configured servers were disabled. The explicit Nix tests and package builds supply validation; no LSP-clean claim is made.
 
-## Remaining rollout blockers
+## Local Git fsmonitor follow-up
+
+Git 2.56.0 on rvn-pc advertises native fsmonitor support. The native workflow no longer skips Linux when the required binaries are supplied. The focused `checks.x86_64-linux.pi-git-fsmonitor` check passed one actual-launcher test with no skips, covering daemon start/query/stop and the existing IPC-denial checks. The check remains Linux-only until macOS daemon startup is fixed and verified.
+
+The user declined SSH access to rvn-mac for this follow-up. The earlier macOS `daemon terminated` failure remains unresolved; the Linux pass does not validate the macOS event backend. No launcher permissions or defaults changed.
+
+Comparable upstream reports describe a [denied fsmonitor Unix socket](https://github.com/openai/codex/issues/14372) and a [daemon stdio-inheritance hang](https://github.com/max-sixty/worktrunk/pull/1648). Neither establishes why this fixture daemon terminates on macOS.
+
+## Remaining issues and validation gaps
 
 - Interactive rollout coverage remains partial. In a later candidate session, SSH authentication to `rvn-srv`, agent-backed signing/verification and a broker-produced 10×10 PNG passed. The user confirmed native clipboard copy/paste and image paste. A fresh ordinary-profile `grim` capture remains unverified. devenv and agent-browser retain their documented baseline failures.
 - Lightpanda startup remains unresolved. Its ephemeral loopback TCP connections need a passing real-browser test without unrelated network-policy changes. On rvn-pc the ordinary profile fails too: agent-browser binds `127.0.0.1:0` to pick a Lightpanda port, and Landlock returns `EACCES` because only the profile's `open_port` entries may bind.
@@ -105,4 +129,4 @@ The installed nono 0.80.0 derivation identifies its unpatched source as `/nix/st
 - Existing direct-network exceptions and debugging-port policy remain unchanged. This work does not prove that TCP host services or remote MCP destinations are inaccessible.
 - macOS results establish the exercised Seatbelt denials only. Linux pathname results cannot be inferred from them, and neither platform's negative probes prove all possible aliases or native-code bypasses are closed.
 
-The ordinary Linux profile still has unrestricted Unix IPC mediation. The candidate reduces permitted operations in the tested integrations, but it is not ready to replace that profile by default.
+The restricted policy is now the configured default. The ordinary Linux comparison profile still has unrestricted Unix IPC mediation. Promotion does not establish that all workflow, platform or containment checks have passed.

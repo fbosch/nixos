@@ -81,7 +81,7 @@ let
     };
   };
   mkLauncher =
-    pkgs: rawPi: { ipcRestricted ? false, proxyTestNono ? pkgs.nono }:
+    pkgs: rawPi: { ipcRestricted ? true, proxyTestNono ? pkgs.nono }:
       assert pkgs.lib.assertMsg (pkgs.lib.versionAtLeast pkgs.nono.version "0.80.0")
         "Pi standalone credential proxy and sandbox protection require nono >= 0.80.0";
       let
@@ -254,42 +254,63 @@ in
         packages = lib.mkForce {
           pi-sandbox = launcher;
           pi-raw = mkPi pkgs;
-          # Candidate only: Linux and desktop workflow gates must pass before default rollout.
-          pi-ipc-candidate = mkLauncher pkgs (mkPi pkgs) { ipcRestricted = true; };
+          pi-ipc-candidate = launcher;
           pi-ipc-runtime = mkIpcRuntime pkgs;
         };
-        checks.pi-launcher-routing =
-          pkgs.runCommand "pi-launcher-routing"
-            {
-              PI_TEST_PROFILE = launcherProfile;
-              # Native proxy smoke tests need real Nono, not the launcher-routing stub.
-              PI_TEST_PROBE = "${mkLauncher (pkgs // { nono = routingNono; }) shellProbe { proxyTestNono = pkgs.nono; }}/bin/pi";
-              PI_TEST_FISH = "${pkgs.fish}/bin/fish";
-            }
-            ''
-              ${pkgs.nodejs}/bin/node --test ${../nono/__tests__/routing.test.mjs}
-              touch "$out"
-            '';
-        checks.pi-ipc =
-          pkgs.runCommand "pi-ipc-check"
-            {
-              HERDR_REPORTER_TEST_SOURCE = "${inputs.herdr}/src/integration/assets/pi/herdr-agent-state.ts";
-              HERDR_READ_TEST_BINARY = lib.getExe inputs.herdr.packages.${pkgs.stdenv.hostPlatform.system}.default;
-              ENV_TEST_BINARY = "${pkgs.coreutils}/bin/env";
-            }
-            ''
-              ${pkgs.nodejs}/bin/node --input-type=module -e 'import { loadCapabilities } from "${mkIpcRuntime pkgs}/scripts/ipc-policy.mjs"; loadCapabilities(process.argv[1]);' "${mkIpcManifest pkgs}"
-              ${pkgs.nodejs}/bin/node --test \
-                ${mkIpcRuntime pkgs}/__tests__/ipc-policy.test.mjs \
-                ${mkIpcRuntime pkgs}/__tests__/json-lines-server.test.mjs \
-                ${mkIpcRuntime pkgs}/__tests__/ipc-bootstrap.test.mjs \
-                ${mkIpcRuntime pkgs}/__tests__/ipc-session.test.mjs \
-                ${mkIpcRuntime pkgs}/__tests__/herdr-reporting.test.mjs \
-                ${mkIpcRuntime pkgs}/__tests__/herdr-reading.test.mjs \
-                ${mkIpcRuntime pkgs}/__tests__/desktop-broker.test.mjs
-              touch "$out"
-            '';
+        checks = lib.mkMerge [
+          {
+            pi-launcher-routing =
+              pkgs.runCommand "pi-launcher-routing"
+                {
+                  PI_TEST_PROFILE = launcherProfile;
+                  # Native proxy smoke tests need real Nono, not the launcher-routing stub.
+                  PI_TEST_PROBE = "${mkLauncher (pkgs // { nono = routingNono; }) shellProbe { proxyTestNono = pkgs.nono; }}/bin/pi";
+                  PI_TEST_FISH = "${pkgs.fish}/bin/fish";
+                }
+                ''
+                  ${pkgs.nodejs}/bin/node --test ${../nono/__tests__/routing.test.mjs}
+                  touch "$out"
+                '';
+            pi-ipc =
+              pkgs.runCommand "pi-ipc-check"
+                {
+                  HERDR_REPORTER_TEST_SOURCE = "${inputs.herdr}/src/integration/assets/pi/herdr-agent-state.ts";
+                  HERDR_READ_TEST_BINARY = lib.getExe inputs.herdr.packages.${pkgs.stdenv.hostPlatform.system}.default;
+                  ENV_TEST_BINARY = "${pkgs.coreutils}/bin/env";
+                }
+                ''
+                  ${pkgs.nodejs}/bin/node --input-type=module -e 'import { loadCapabilities } from "${mkIpcRuntime pkgs}/scripts/ipc-policy.mjs"; loadCapabilities(process.argv[1]);' "${mkIpcManifest pkgs}"
+                  ${pkgs.nodejs}/bin/node --test \
+                    ${mkIpcRuntime pkgs}/__tests__/ipc-policy.test.mjs \
+                    ${mkIpcRuntime pkgs}/__tests__/json-lines-server.test.mjs \
+                    ${mkIpcRuntime pkgs}/__tests__/ipc-bootstrap.test.mjs \
+                    ${mkIpcRuntime pkgs}/__tests__/ipc-session.test.mjs \
+                    ${mkIpcRuntime pkgs}/__tests__/herdr-reporting.test.mjs \
+                    ${mkIpcRuntime pkgs}/__tests__/herdr-reading.test.mjs \
+                    ${mkIpcRuntime pkgs}/__tests__/desktop-broker.test.mjs
+                  touch "$out"
+                '';
+          }
+          # shortcut: Add Darwin to this check after its daemon startup is fixed and verified.
+          (lib.mkIf pkgs.stdenv.hostPlatform.isLinux {
+            pi-git-fsmonitor =
+              pkgs.runCommand "pi-git-fsmonitor"
+                {
+                  NONO_TEST_BINARY = "${pkgs.nono}/bin/nono";
+                  GIT_TEST_BINARY = "${pkgs.git}/bin/git";
+                  ENV_TEST_BINARY = "${pkgs.coreutils}/bin/env";
+                }
+                ''
+                  ${pkgs.nodejs}/bin/node --test --test-name-pattern="starts Git fsmonitor" ${mkIpcRuntime pkgs}/__tests__/ipc-workflows.test.mjs
+                  touch "$out"
+                '';
+          })
+        ];
         nix-unit.tests.piIpc = {
+          testDefaultLauncherUsesRestrictedIpc = {
+            expr = launcher.outPath;
+            expected = (mkLauncher pkgs (mkPi pkgs) { ipcRestricted = true; }).outPath;
+          };
           testOrdinaryFsmonitorUsesExistingDarwinEndpoints = {
             expr = config.piIpcRegistry.profiles.ordinary."git-fsmonitor";
             expected = { access = "connect-existing"; platforms = [ "darwin" ]; };

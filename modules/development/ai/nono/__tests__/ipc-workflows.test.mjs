@@ -17,7 +17,7 @@ const base = JSON.parse(readFileSync(new URL("../scripts/profile.json", import.m
 for (const { browser, fsmonitor } of [{ browser: false, fsmonitor: false }, { browser: false, fsmonitor: true }, { browser: true, fsmonitor: false }]) {
   const editor = !browser && !fsmonitor && Boolean(process.env.NVIM_TEST_BINARY);
   test(`actual launcher confines reporting${fsmonitor ? " and starts Git fsmonitor" : browser ? " and starts its own Lightpanda browser" : " and rejects raw-service aliases"}`, {
-    skip: !process.env.NONO_TEST_BINARY || fsmonitor && !(process.platform === "darwin" && process.env.GIT_TEST_BINARY) || browser && !(process.env.AGENT_BROWSER_TEST_BINARY && process.env.LIGHTPANDA_TEST_BINARY),
+    skip: !process.env.NONO_TEST_BINARY || fsmonitor && !process.env.GIT_TEST_BINARY || browser && !(process.env.AGENT_BROWSER_TEST_BINARY && process.env.LIGHTPANDA_TEST_BINARY),
     timeout: 45000,
   }, async () => {
     const root = realpathSync(mkdtempSync(join(process.cwd(), ".pi-e2e-")));
