@@ -142,7 +142,7 @@ test("a terminated Pi preserves its signal and leaves no proxy", async () => {
   } finally { rmSync(f.root, { recursive: true, force: true }); }
 });
 
-test("the full --no-sandbox launcher forwards termination and cleans up its proxy", async () => {
+test("raw launch replaces the bootstrap so termination reaches Pi directly", async () => {
   const f = fixture();
   try {
     const agent = join(f.root, ".pi", "agent");
@@ -159,7 +159,6 @@ test("the full --no-sandbox launcher forwards termination and cleans up its prox
     const [status, signal] = await exited;
     assert.equal(status, null, diagnostics);
     assert.equal(signal, "SIGTERM", diagnostics);
-    f.checkStopped();
   } finally { rmSync(f.root, { recursive: true, force: true }); }
 });
 
@@ -170,8 +169,15 @@ test("termination during startup preserves the signal and removes the pending pr
     const created = new Promise((resolve) => {
       watcher.on("change", (_, name) => { if (name === "proxy.pid") resolve(); });
     });
-    const launcher = fileURLToPath(new URL("../scripts/launcher.mjs", import.meta.url));
-    const child = spawn(process.execPath, [launcher, f.nono, process.execPath, f.profile, "/missing-direnv", "/missing-env", "--no-sandbox", "-e", "throw new Error('must not start')"], {
+    const proxyModule = new URL("../scripts/credential-proxy.mjs", import.meta.url).href;
+    const script = `
+      import { runWithCredentialProxy } from ${JSON.stringify(proxyModule)};
+      const result = await runWithCredentialProxy(${JSON.stringify(f.nono)}, ${JSON.stringify(f.profile)},
+        [process.execPath, "-e", "throw new Error('must not start')"], process.env);
+      if (result.signal) process.kill(process.pid, result.signal);
+      process.exit(result.status ?? 1);
+    `;
+    const child = spawn(process.execPath, ["--input-type=module", "-e", script], {
       env: { HOME: f.root, PATH: process.env.PATH }, stdio: "ignore",
     });
     const exited = once(child, "exit");

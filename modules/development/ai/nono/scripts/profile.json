@@ -7,7 +7,6 @@
             "$HOME/.claude/.credentials.json"
         ],
         "allow": [
-            "$HOME/.pi",
             "$HOME/.claude/projects",
             "$HOME/.npm/_cacache",
             "$HOME/.npm/_logs",
@@ -19,6 +18,7 @@
             }
         ],
         "read": [
+            "$HOME/.pi",
             "$HOME/.agents/skills",
             "$HOME/.local/share/gh/extensions",
             "$HOME/.local/state/pnpm-globals/current/node_modules",

@@ -4,6 +4,7 @@ import { join } from "node:path";
 function sandboxRuntimeEnvironment(home) {
   const cache = join(home, ".cache", "pi");
   return {
+    PI_LOCKFILE_DIR: join(cache, "locks"),
     GH_CONFIG_DIR: join(cache, "gh"),
     npm_config_cache: join(cache, "npm"),
     UV_CACHE_DIR: join(cache, "uv"),
@@ -19,10 +20,17 @@ export function prepareSandboxRuntime(home) {
   }
 }
 
+export function prepareRuntimeLocks(home) {
+  const directory = sandboxRuntimeEnvironment(home).PI_LOCKFILE_DIR;
+  mkdirSync(directory, { recursive: true, mode: 0o700 });
+  return directory;
+}
 export function sandboxRuntimeCommand(home, rawPi, envBinary) {
   // Set child-only config after confinement; supervisor capture keeps the real store.
   const environment = {
     ...sandboxRuntimeEnvironment(home),
+    // Reload code from protected sources, never from a writable cache left by a previous session.
+    JITI_FS_CACHE: "false",
     // Nono strips Node options; restore only this fixed warning filter after confinement.
     NODE_OPTIONS: "--disable-warning=UNDICI-EHPA",
   };

@@ -1,0 +1,11 @@
+diff --git a/scripts/build-coding-agent-bundle.mjs b/scripts/build-coding-agent-bundle.mjs
+--- a/scripts/build-coding-agent-bundle.mjs
++++ b/scripts/build-coding-agent-bundle.mjs
+@@ -20,1 +20,2 @@
+-	"jiti",
++	"jiti",
++	"proper-lockfile",
+@@ -84,1 +85,2 @@
+-		external: ["@silvia-odwyer/photon-node"],
++		// Use the installed lockfile implementation so runtime locks can live outside read-only Pi resources.
++		external: ["@silvia-odwyer/photon-node", "proper-lockfile"],

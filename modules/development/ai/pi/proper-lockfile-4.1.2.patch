@@ -24,3 +24,24 @@ diff --git a/node_modules/proper-lockfile/lib/mtime-precision.js b/node_modules/
  
              callback(null, stat.mtime, precision);
          });
+diff --git a/node_modules/proper-lockfile/lib/lockfile.js b/node_modules/proper-lockfile/lib/lockfile.js
+--- a/node_modules/proper-lockfile/lib/lockfile.js
++++ b/node_modules/proper-lockfile/lib/lockfile.js
+@@ -3,4 +3,9 @@
++const { createHash } = require('crypto');
+ const path = require('path');
++// Read-only Pi resources still need locks; keep those in a shared runtime data directory.
++const lockDirectory = process.env.PI_LOCKFILE_DIR;
++if (lockDirectory && !path.isAbsolute(lockDirectory)) throw new Error('PI_LOCKFILE_DIR must be absolute');
++
+ const fs = require('graceful-fs');
+ const retry = require('retry');
+ const onExit = require('signal-exit');
+@@ -11,3 +16,6 @@
+ function getLockFile(file, options) {
+-    return options.lockfilePath || `${file}.lock`;
++    const lockPath = options.lockfilePath || `${file}.lock`;
++    return lockDirectory
++        ? path.join(lockDirectory, createHash('sha256').update(lockPath).digest('hex') + '.lock')
++        : lockPath;
+ }

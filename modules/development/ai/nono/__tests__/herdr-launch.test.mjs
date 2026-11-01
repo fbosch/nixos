@@ -8,7 +8,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { proxyFixtureSource } from "./fixtures/credential-proxy.mjs";
 const envBinary = process.env.ENV_TEST_BINARY ?? "/usr/bin/env";
 
 const launcher = fileURLToPath(new URL("../scripts/launcher.mjs", import.meta.url));
@@ -35,10 +34,9 @@ function launch(environment, args = []) {
     writeFileSync(path, `#!${process.execPath}
 import { readFileSync } from "node:fs";
 const parentName = process.platform === "linux" ? readFileSync("/proc/" + process.ppid + "/comm", "utf8").trim() : null;
-console.log(JSON.stringify({kind:${JSON.stringify(kind)},parentName,hint:process.env.HERDR_AGENT ?? null,pane:process.env.HERDR_PANE_ID ?? null,socket:process.env.HERDR_SOCKET_PATH ?? null,args:process.argv.slice(2)}));
+console.log(JSON.stringify({pid:process.pid,kind:${JSON.stringify(kind)},parentName,hint:process.env.HERDR_AGENT ?? null,pane:process.env.HERDR_PANE_ID ?? null,socket:process.env.HERDR_SOCKET_PATH ?? null,args:process.argv.slice(2)}));
 `, { mode: 0o700 });
   }
-  if (args[0] === "--no-sandbox") writeFileSync(nono, `#!${process.execPath}\n${proxyFixtureSource()}`, { mode: 0o700 });
   const env = {
     PATH: process.env.PATH,
     HOME: home,
@@ -58,13 +56,14 @@ console.log(JSON.stringify({kind:${JSON.stringify(kind)},parentName,hint:process
   });
   assert.ifError(child.error);
   assert.equal(child.status, 0, child.stderr);
-  return JSON.parse(child.stdout);
+  return { ...JSON.parse(child.stdout), launchedPid: child.pid };
 }
 
 for (const args of [[], ["--no-sandbox", "--version"]]) {
-  test(`host-visible bootstrap identifies as pi for ${args.length === 0 ? "sandboxed" : "direct"} launches`, { skip: process.platform !== "linux" }, () => {
+  test(`Herdr process ownership is preserved for ${args.length === 0 ? "sandboxed" : "direct"} launches`, { skip: process.platform !== "linux" }, () => {
     const actual = launch({ HERDR_ENV: "1" }, args);
-    assert.equal(actual.parentName, "pi");
+    if (args.length === 0) assert.equal(actual.parentName, "pi");
+    else assert.equal(actual.pid, actual.launchedPid);
   });
 }
 

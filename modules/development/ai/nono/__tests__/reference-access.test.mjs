@@ -250,7 +250,7 @@ test("writable launcher grants cannot reach the reference approval store", () =>
   assert.throws(() => f.args(f.project, { PI_HASHLINE_DIR: join(f.home, ".local", "state") }), /host-only path/);
 });
 
-test("explicit Pi state grants remain writable despite overlapping references", () => {
+test("Pi control directories stay read-only while the explicit runtime cache stays writable", () => {
   const f = fixture();
   const cache = join(f.home, ".cache", "pi");
   mkdirSync(cache, { recursive: true });
@@ -259,7 +259,7 @@ test("explicit Pi state grants remain writable despite overlapping references", 
     cache: { path: cache, description: "Cache" },
   } }));
   const args = f.args();
-  assert.ok(paths(args, "--allow").includes(f.agent));
+  assert.ok(!paths(args, "--allow").includes(f.agent));
   assert.ok(paths(args, "--allow").includes(cache));
 });
 

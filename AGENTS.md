@@ -4,10 +4,6 @@ This repository uses a dendritic-style Nix flake layout for NixOS and Home Manag
 
 When command-line diagnostics are needed, ask whether you should run the commands instead of instructing the user to run them. Exception: if the command needs elevated permissions (sudo), instruct the user to run it.
 
-Before running or instructing diagnostic commands, check which machine the agent is currently on by running `hostname`. Run local commands directly if already on the target host; use SSH only if on a different machine.
-
-Do not run `sops` commands directly; they break the TUI. Instruct the user to run them.
-
 ## Cross-host builds and deployment
 
 - Keep the builder and deployment target distinct. For `rvn-pc` → `rvn-srv`, prefer building on `rvn-pc` and use `--flake .#rvn-srv --target-host rvn-srv` so activation targets only the server.

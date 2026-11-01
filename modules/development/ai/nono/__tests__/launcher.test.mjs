@@ -6,6 +6,7 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSy
 import { createServer } from "node:net";
 import { homedir, tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { ensureSshIdentity, launchArguments, launchCommand, prepareJitiCache, prepareNpmCache, referenceApprovalStore } from "../scripts/launcher.mjs";
 import { sandboxRuntimeCommand } from "../scripts/sandbox-runtime.mjs";
 
@@ -31,7 +32,6 @@ test("profile grants temporary-file reads without adding temporary-directory wri
 test("profile grants npm cache and log writes without making all npm state writable", () => {
   const profile = JSON.parse(readFileSync(new URL("../scripts/profile.json", import.meta.url), "utf8"));
   assert.deepEqual(profile.filesystem.allow, [
-    "$HOME/.pi",
     "$HOME/.claude/projects",
     "$HOME/.npm/_cacache",
     "$HOME/.npm/_logs",
@@ -393,11 +393,13 @@ test("always selects absolute nono, immutable profile and distinct raw Pi, prese
   assert.deepEqual(command.slice(1, 4), ["run", "--profile", profile]);
   assert.deepEqual(command.slice(command.indexOf("--") + 1), [
     envBinary, "--",
+    `PI_LOCKFILE_DIR=${join(home, ".cache", "pi", "locks")}`,
     `GH_CONFIG_DIR=${join(home, ".cache", "pi", "gh")}`,
     `npm_config_cache=${join(home, ".cache", "pi", "npm")}`,
     `UV_CACHE_DIR=${join(home, ".cache", "pi", "uv")}`,
     `UV_PYTHON_INSTALL_DIR=${join(home, ".cache", "pi", "uv-python")}`,
     `UV_TOOL_DIR=${join(home, ".cache", "pi", "uv-tools")}`,
+    "JITI_FS_CACHE=false",
     "NODE_OPTIONS=--disable-warning=UNDICI-EHPA", raw, ...args,
   ]);
   assert.notEqual(command[0], raw);
@@ -561,6 +563,36 @@ test("only leading explicit --no-sandbox bypasses policy; other placements reach
   assert.notEqual(nono, raw);
 });
 
+test("raw launcher exec bypasses sandbox prerequisites and preserves the caller environment", () => {
+  const { root, home, cwd, agent, nono, profile } = fixture();
+  writeFileSync(join(agent, "settings.json"), "invalid JSON");
+  writeFileSync(profile, "invalid profile");
+  writeFileSync(join(cwd, ".envrc"), "exit 99");
+  const marker = join(root, "nono-ran");
+  writeFileSync(nono, `#!${process.execPath}\nrequire("node:fs").writeFileSync(${JSON.stringify(marker)}, "ran");process.exit(99);\n`, { mode: 0o700 });
+  const literals = ["--", "--no-sandbox", "æøå", "a b", "value=$HOME"];
+  const script = 'console.log(JSON.stringify({args:process.argv.slice(1),token:process.env.GH_TOKEN,socket:process.env.SSH_AUTH_SOCK,lock:process.env.PI_LOCKFILE_DIR ?? null,proxy:process.env.HTTP_PROXY ?? null}));process.exit(17)';
+  const child = spawnSync(process.execPath, [
+    fileURLToPath(new URL("../scripts/launcher.mjs", import.meta.url)),
+    nono, process.execPath, profile, "/missing-direnv", "/missing-env", "--no-sandbox", "-e", script, ...literals,
+  ], {
+    cwd,
+    env: {
+      HOME: home, PATH: process.env.PATH, PI_CODING_AGENT_DIR: agent,
+      PI_IPC_MANIFEST: "/missing-manifest", PI_NONO_DIAGNOSTICS: "1",
+      XDG_RUNTIME_DIR: "/missing-runtime", SSH_AUTH_SOCK: "relative.sock",
+      HERDR_ENV: "1", HERDR_SOCKET_PATH: "relative-herdr.sock", GH_TOKEN: "synthetic-caller-token", HTTP_PROXY: "http://127.0.0.1:1",
+    },
+    encoding: "utf8", timeout: 10000,
+  });
+  assert.ifError(child.error);
+  assert.equal(child.status, 17, child.stderr);
+  assert.deepEqual(JSON.parse(child.stdout), {
+    args: literals.slice(1), token:"synthetic-caller-token", socket:"relative.sock", lock:null, proxy:"http://127.0.0.1:1",
+  });
+  assert.equal(existsSync(marker), false);
+  assert.equal(existsSync(join(agent, "cache")), false);
+});
 test("global, trusted project and docs-cache references receive canonical read-only grants", () => {
   const { root, home, cwd, agent, raw, profile } = fixture();
   const target = join(root, "target");
@@ -599,7 +631,7 @@ test("retains narrow grants without Podman or SSH private-key access", () => {
   const args = launchArguments(cwd, agent, home, { XDG_CONFIG_HOME: config, XDG_DATA_HOME: data, XDG_CACHE_HOME: cache }, profile, raw, envBinary);
   assert.ok(values(args, "--allow").includes(fff));
   assert.ok(values(args, "--allow").includes(hashline));
-  assert.deepEqual(values(args, "--read"), [realpathSync(allow)]);
+  assert.deepEqual(values(args, "--read"), [realpathSync(allow), realpathSync(agent)]);
   assert.ok(!values(args, "--allow").includes(realpathSync(join(data, "direnv"))));
   assert.ok(!values(args, "--allow").includes(realpathSync(allow)));
   assert.deepEqual(values(args, "--read-file"), [known, typo, gitConfig]);
@@ -805,7 +837,7 @@ test("built entry cannot source shell or Node preload code before confinement", 
   assert.equal(existsSync(marker), false);
 });
 
-test("sandbox startup suppresses only the proxy-agent warning and preserves proxy settings", () => {
+test("sandbox startup sets proxy options while raw startup preserves inherited Node options", () => {
   const { root, home, cwd, agent, nono, profile } = fixture();
   const runtime = join(root, "runtime");
   mkdirSync(runtime);
@@ -836,7 +868,6 @@ test("sandbox startup suppresses only the proxy-agent warning and preserves prox
     }));
   `;
   for (const sandboxed of [true, false]) {
-    if (!sandboxed) writeFileSync(nono, `#!${process.execPath}\n${proxyFixtureSource()}`, { mode: 0o700 });
     const child = spawnSync(process.execPath, [
       launcher, nono, process.execPath, profile, "/missing-direnv", envBinary,
       ...(sandboxed ? [] : ["--no-sandbox"]), "-e", probe,
@@ -848,15 +879,16 @@ test("sandbox startup suppresses only the proxy-agent warning and preserves prox
     });
     assert.ifError(child.error);
     assert.equal(child.status, 0, child.stderr);
-    assert.equal(child.stderr.includes("UNDICI-EHPA"), false, child.stderr);
     assert.match(child.stderr, /PI_TEST_OTHER_WARNING/);
     const actual = JSON.parse(child.stdout);
-    assert.equal(actual.useEnvProxy, "1");
-    assert.equal(actual.nodeOptions, "--disable-warning=UNDICI-EHPA");
-    if (sandboxed) assert.equal(actual.httpsProxy, "http://127.0.0.1:1");
-    else {
-      assert.equal(new URL(actual.httpsProxy).hostname, "127.0.0.1");
-      assert.equal(new URL(actual.httpsProxy).username, "nono");
+    if (sandboxed) {
+      assert.equal(child.stderr.includes("UNDICI-EHPA"), false, child.stderr);
+      assert.equal(actual.useEnvProxy, "1");
+      assert.equal(actual.nodeOptions, "--disable-warning=UNDICI-EHPA");
+      assert.equal(actual.httpsProxy, "http://127.0.0.1:1");
+    } else {
+      assert.match(child.stderr, /UNDICI-EHPA/);
+      assert.deepEqual(actual, {nodeOptions:"--trace-warnings", nodePath:root});
     }
   }
 });

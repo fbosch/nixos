@@ -13,6 +13,7 @@ let
           ./pi-tool-search-ranking.patch
           ./pi-mcp-background.patch
           ./pi-install-esbuild.patch
+          ./pi-runtime-locks.patch
           ./pi-streaming-json.patch
           ./pi-tool-preview-render.patch
           ./pi-markdown-streaming.patch
@@ -42,6 +43,9 @@ let
               lock_target="$out/lib/pi/node_modules/proper-lockfile/lib/mtime-precision.js"
               echo "eb5adf91a21715b50f39438cdcda52043d551ccb5fe530681364c474c7206218  $lock_target" | sha256sum --check --strict
               chmod u+w "$lock_target"
+              runtime_lock_target="$out/lib/pi/node_modules/proper-lockfile/lib/lockfile.js"
+              echo "c517a976f7a31c8b1768cb8e7ac9936aee70299ae762548495016a79d64a6434  $runtime_lock_target" | sha256sum --check --strict
+              chmod u+w "$runtime_lock_target"
               patch --batch --fuzz=0 -d "$out/lib/pi" -p1 < ${./proper-lockfile-4.1.2.patch}
               echo "69ff3da4c35612d691c4e224d22e4128418be3caeabb682ab1ddf963784fb89d  $lock_target" | sha256sum --check --strict
 
@@ -136,6 +140,7 @@ let
             ${runtime}/__tests__/herdr-reporting.test.mjs \
             ${runtime}/__tests__/herdr-reading.test.mjs \
             ${runtime}/__tests__/service-ipc.test.mjs \
+            ${runtime}/__tests__/agent-protection.test.mjs \
             ${runtime}/__tests__/devenv-runtime.test.mjs \
             ${runtime}/__tests__/ipc-workflows.test.mjs \
             ${runtime}/__tests__/launcher.test.mjs \

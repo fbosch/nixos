@@ -96,6 +96,23 @@ in
               ${pkgs.nodejs}/bin/node --test --test-name-pattern="Linux Claude credential" ${runtime}/__tests__/launcher.test.mjs
               touch "$out"
             '';
+        nono-pi-agent-protection =
+          pkgs.runCommand "nono-pi-agent-protection"
+            {
+              NONO_TEST_BINARY = lib.getExe pkgs.nono;
+              PI_RAW_TEST_BINARY = lib.getExe self'.packages.pi-raw;
+              ENV_TEST_BINARY = "${pkgs.coreutils}/bin/env";
+              CURL_TEST_BINARY = lib.getExe pkgs.curl;
+              BASH_TEST_BINARY = "${pkgs.bash}/bin/bash";
+              CAT_TEST_BINARY = "${pkgs.coreutils}/bin/cat";
+              SSH_ADD_TEST_BINARY = "${pkgs.openssh}/bin/ssh-add";
+            }
+            ''
+              mkdir tmp
+              export TMPDIR="$PWD/tmp"
+              ${pkgs.nodejs}/bin/node --test ${runtime}/__tests__/agent-protection.test.mjs
+              touch "$out"
+            '';
         nono-pi-git-worktree =
           pkgs.runCommand "nono-pi-git-worktree"
             {
@@ -257,7 +274,7 @@ in
             ];
           };
         };
-        testPreservesExistingAccess = {
+        testKeepsStateAndCredentialAccessScoped = {
           expr = {
             inherit (profile) filesystem network workdir;
           };
@@ -267,7 +284,6 @@ in
               # Claude OAuth tokens never enter the sandbox; scoped tokens must use a proxy credential route.
               deny = [ "/run/secrets" "/run/secrets.d" "$HOME/.claude/.credentials.json" ];
               allow = [
-                "$HOME/.pi"
                 "$HOME/.claude/projects"
                 "$HOME/.npm/_cacache"
                 "$HOME/.npm/_logs"
@@ -279,6 +295,8 @@ in
                 }
               ];
               read = [
+                # Settings and executable resources are host-managed; the launcher adds only narrow runtime writes.
+                "$HOME/.pi"
                 "$HOME/.agents/skills"
                 "$HOME/.local/share/gh/extensions"
                 "$HOME/.local/state/pnpm-globals/current/node_modules"

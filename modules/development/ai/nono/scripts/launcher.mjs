@@ -5,9 +5,10 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { stripVTControlCharacters } from "node:util";
 import { shellProtection, withProtectedShellProfile } from "./shell-protection.mjs";
+import { agentProtection, prepareAgentRuntime } from "./agent-protection.mjs";
 import { assertReadOnlySshGrants, sshClientArguments } from "./ssh-access.mjs";
 import { assertCredentialSourceGrants, credentialEnvironmentForDirenv, prepareCredentialEnvironment } from "./credentials.mjs";
-import { prepareSandboxRuntime, sandboxRuntimeCommand } from "./sandbox-runtime.mjs";
+import { prepareRuntimeLocks, prepareSandboxRuntime, sandboxRuntimeCommand } from "./sandbox-runtime.mjs";
 import { runWithCredentialProxy } from "./credential-proxy.mjs";
 import { withNonoDiagnostics } from "./nono-diagnostics.mjs";
 import { assertPrivateIpcGrants } from "./private-ipc.mjs";
@@ -285,7 +286,8 @@ function assertRuntimeSecretGrants(args, cwd, home, environment, profile, platfo
 export function launchArguments(cwd, agentDir, home, environment, profile, rawPi, envBinary, platform = process.platform, registry = defaultCapabilities) {
   if (!isAbsolute(profile) || !existingFile(profile)) throw new Error(`Nix nono profile missing: ${profile}`);
   if (!isAbsolute(envBinary) || !existingFile(envBinary)) throw new Error(`Nix env executable missing: ${envBinary}`);
-  const ipcRestricted = readJson(profile, "nono profile")?.linux?.af_unix_mediation === "pathname";
+  const loadedProfile = readJson(profile, "nono profile");
+  const ipcRestricted = loadedProfile?.linux?.af_unix_mediation === "pathname";
   const capabilities = selectCapabilities(registry, ipcRestricted ? "restricted" : "ordinary", platform);
   const needsGitSockets = Object.values(capabilities).some(capability => capability.backend === "endpoint" && capability.discovery === "selected-git-metadata");
   const metadata = gitMetadata(cwd, home);
@@ -317,6 +319,9 @@ export function launchArguments(cwd, agentDir, home, environment, profile, rawPi
   const dataHome = environment.XDG_DATA_HOME || join(home, ".local", "share");
   const cacheHome = environment.XDG_CACHE_HOME || join(home, ".cache");
   const extra = [...sshClientArguments(home, environment), ...serviceSocketArguments(cwd, home, environment, ipcRestricted)];
+  const agent = platform === "linux" ? agentProtection(home, agentDir, environment, loadedProfile) : { protectedPaths: [], runtimePaths: [], authFiles: [] };
+  for (const path of agent.runtimePaths) grants.add(path);
+  for (const path of agent.authFiles) extra.push("--allow-file", path);
   extra.push(...endpointArguments(capabilities, { "selected-git-metadata": [...gitDirectories] }));
   const socketVariables = new Set(Object.values(capabilities).filter(capability => capability.backend === "json-lines").map(capability => capability.socketEnvironment));
   if (!ipcRestricted && environment.HERDR_ENV === "1") socketVariables.add("HERDR_SOCKET_PATH");
@@ -364,7 +369,11 @@ export function launchArguments(cwd, agentDir, home, environment, profile, rawPi
   if (sharedMemory !== undefined) extra.push("--allow", sharedMemory);
   // Seatbelt denies startup writes on macOS; Linux must keep them outside every writable grant instead.
   const approvals = dirname(referenceApprovalStore(home));
-  const hostOnlyPaths = platform === "linux" && existingDirectory(home) !== undefined ? [...shellProtection(home, environment).protectedPaths, approvals] : [approvals];
+  const hostOnlyPaths = [
+    ...(platform === "linux" && existingDirectory(home) !== undefined ? shellProtection(home, environment).protectedPaths : []),
+    ...agent.protectedPaths,
+    approvals,
+  ];
   const canonicalCwd = realpathSync(cwd);
   // A cwd that contains host-only paths is split like any other grant, so nono's whole-directory workdir grant is withheld.
   const splitCwd = platform === "linux" && hostOnlyPaths.some((path) => within(path, canonicalCwd) || within(canonicalCwd, path));
@@ -386,7 +395,6 @@ export function launchArguments(cwd, agentDir, home, environment, profile, rawPi
   }
   assertReadOnlySshGrants(args, cwd);
   const guardEnvironment = { ...environment, TMPDIR: environment.TMPDIR || tmpdir() };
-  const loadedProfile = readJson(profile, "nono profile");
   assertCredentialSourceGrants(args, cwd, home, guardEnvironment, loadedProfile);
   assertRuntimeSecretGrants(args, cwd, home, guardEnvironment, loadedProfile, platform);
   assertHostOnlyGrants(args, cwd, hostOnlyPaths);
@@ -422,10 +430,10 @@ export function prepareNpmCache(home = homedir()) {
 
 export function launchCommand(args, cwd, agentDir, home, environment, nono, rawPi, profile, envBinary, registry = defaultCapabilities) {
   if (!isAbsolute(rawPi) || !existsSync(rawPi)) throw new Error(`Raw Pi executable missing: ${rawPi}`);
+  if (args[0] === "--no-sandbox") return [rawPi, ...args.slice(1)];
   const extension = environment.PI_NONO_DIAGNOSTICS === "1" && environment.PI_NONO_DIAGNOSTICS_FILE
     ? ["--extension", fileURLToPath(new URL("./nono-diagnostics-extension.mjs", import.meta.url))]
     : [];
-  if (args[0] === "--no-sandbox") return [rawPi, ...extension, ...args.slice(1)];
   if (!isAbsolute(nono) || !existsSync(nono)) throw new Error(`nono executable missing: ${nono}`);
   return [nono, ...launchArguments(cwd, agentDir, home, environment, profile, rawPi, envBinary, process.platform, registry), ...extension, ...args];
 }
@@ -482,9 +490,35 @@ export function loadProjectEnvironment(cwd, environment, direnv, run = spawnSync
   return loaded;
 }
 
+function configurePiPaths(environment, home, entryBin) {
+  const configuredAgent = environment.PI_CODING_AGENT_DIR || join(home, ".pi", "agent");
+  const agentDir = resolve(configuredAgent === "~" ? home : configuredAgent.startsWith("~/") ? join(home, configuredAgent.slice(2)) : configuredAgent);
+  environment.PI_CODING_AGENT_DIR = agentDir;
+  const managedBin = join(agentDir, "bin");
+  const legacyBins = new Set([managedBin, join(home, ".pi", "agent", "bin"), join(home, "dotfiles", ".pi", "agent", "bin")]);
+  const pathEntries = (environment.PATH || "").split(delimiter).filter(Boolean);
+  // Pure routing, not a sandbox prerequisite: keep writable launchers behind the immutable entry in both modes.
+  // Keeping the managed bin present prevents the shell helper from prepending it again.
+  environment.PATH = [
+    ...(entryBin ? [entryBin] : []),
+    ...pathEntries.filter(path => path !== entryBin && !legacyBins.has(resolve(path))),
+    ...new Set(pathEntries.filter(path => legacyBins.has(resolve(path)) && resolve(path) !== managedBin)),
+    managedBin,
+  ].join(delimiter);
+  return agentDir;
+}
+
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   try {
     const [nono, rawPi, profile, direnv, envBinary, ...args] = process.argv.slice(2);
+    if (args[0] === "--no-sandbox") {
+      if (!isAbsolute(rawPi) || !existsSync(rawPi)) throw new Error(`Raw Pi executable missing: ${rawPi}`);
+      // Explicit raw mode replaces this process before any sandbox policy, proxy, IPC, or configuration checks.
+      // Kernel restrictions inherited from a parent sandbox still apply.
+      const environment = { ...process.env };
+      configurePiPaths(environment, homedir(), (environment.PATH || "").split(delimiter)[0]);
+      process.execve(rawPi, [rawPi, ...args.slice(1)], environment);
+    }
     // Capture the binary wrapper's manifest before mutable project environment loading.
     const registry = loadCapabilities(process.env.PI_IPC_MANIFEST || undefined);
     let environment = { ...process.env };
@@ -511,24 +545,9 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     if (process.platform === "darwin" && !environment.XDG_RUNTIME_DIR) {
       environment.XDG_RUNTIME_DIR = environment.TMPDIR || tmpdir();
     }
-    const configuredAgent = environment.PI_CODING_AGENT_DIR || join(home, ".pi", "agent");
-    const agentDir = resolve(configuredAgent === "~" ? home : configuredAgent.startsWith("~/") ? join(home, configuredAgent.slice(2)) : configuredAgent);
-    environment.PI_CODING_AGENT_DIR = agentDir;
-    const managedBin = join(agentDir, "bin");
-    const legacyBins = new Set([
-      managedBin,
-      join(home, ".pi", "agent", "bin"),
-      join(home, "dotfiles", ".pi", "agent", "bin"),
-    ]);
-    const pathEntries = (environment.PATH || "").split(delimiter).filter(Boolean);
-    // Keep Pi's managed bin present at the end so getShellEnv cannot prepend it.
-    // The binary entry has already placed its immutable bin first.
-    environment.PATH = [
-      ...(entryBin ? [entryBin] : []),
-      ...pathEntries.filter((path) => path !== entryBin && !legacyBins.has(resolve(path))),
-      ...new Set(pathEntries.filter((path) => legacyBins.has(resolve(path)) && resolve(path) !== managedBin)),
-      managedBin,
-    ].join(delimiter);
+    const agentDir = configurePiPaths(environment, home, entryBin);
+    // Confined sessions share locks outside read-only configuration.
+    environment.PI_LOCKFILE_DIR = prepareRuntimeLocks(home);
     if (args[0] !== "--no-sandbox") {
       // Agent signing is opt-in from the invoking host environment; a project .envrc cannot enable it.
       if (inheritedEnvironment.PI_NONO_SSH_AGENT === "1") environment.PI_NONO_SSH_AGENT = "1";
@@ -537,6 +556,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
         delete environment.SSH_AUTH_SOCK;
       }
       prepareSandboxRuntime(home);
+      if (process.platform === "linux") prepareAgentRuntime(agentDir);
       ensureSshIdentity(environment, home, sshAdd);
     }
     const runPi = (boundEnvironment) => withNonoDiagnostics(boundEnvironment, async (diagnosticEnvironment) => {

@@ -19,6 +19,7 @@ base // {
     af_unix_mediation = "pathname";
     sandbox_policy = "landlock";
   };
+  # Unrestricted proxy forwarding is deliberate; the child sandbox blocks direct egress separately.
   network = base.network // {
     credentials = builtins.attrNames credentials;
     custom_credentials = builtins.mapAttrs
