@@ -89,6 +89,14 @@ in
             ${pkgs.nodejs}/bin/node --test ${runtime}/__tests__/claude-credential.test.mjs ${runtime}/__tests__/claude-proxy.test.mjs
             touch "$out"
           '';
+        nono-pi-desktop-images = pkgs.runCommand "nono-pi-desktop-images"
+          { NONO_TEST_BINARY = lib.getExe pkgs.nono; }
+          ''
+            mkdir tmp
+            export TMPDIR="$PWD/tmp"
+            ${pkgs.nodejs}/bin/node --test ${runtime}/__tests__/desktop-images.test.mjs ${runtime}/__tests__/desktop-broker.test.mjs
+            touch "$out"
+          '';
         nono-pi-credential-filesystem =
           pkgs.runCommand "nono-pi-credential-filesystem"
             {

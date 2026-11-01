@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
 import { once } from "node:events";
+import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { createConnection, createServer } from "node:net";
 import { join } from "node:path";
 import { afterEach, test } from "node:test";
+import { randomBytes, randomUUID } from "node:crypto";
+import { png } from "./fixtures/png.mjs";
 import { createDesktopHandler, desktopAuthority, withDesktopBroker } from "../scripts/desktop-broker.mjs";
 import { createMessageValidator, defaultCapabilities } from "../scripts/ipc-policy.mjs";
 import { main, parseArguments } from "../scripts/pi-desktop.mjs";
@@ -112,6 +115,40 @@ test("desktop authority requires a real Wayland socket and absolute executables"
   assert.throws(() => desktopAuthority({ ...f.inherited, PI_DESKTOP_PATH: "bin" }), /absolute directory/);
 });
 
+test("image opening uses the inherited fixed viewer and bus, not project values", async () => {
+  const f = await fixture();
+  const bus = createServer(socket => socket.destroy());
+  servers.push(bus);
+  const busPath = join(f.runtime, "bus");
+  bus.listen(busPath); await once(bus, "listening");
+  const viewer = tool(join(f.root, "viewer"), `
+    const args = process.argv.slice(2);
+    fs.writeFileSync(${JSON.stringify(f.record)}, JSON.stringify({args, env:process.env, image:fs.readFileSync(args[1]).toString("base64")}));
+  `);
+  const inherited = {...f.inherited,PI_DESKTOP_IMAGE_VIEWER:viewer,DBUS_SESSION_BUS_ADDRESS:`unix:path=${busPath}`};
+  let path;
+  await withDesktopBroker({PI_DESKTOP_IMAGE_VIEWER:"/untrusted",DBUS_SESSION_BUS_ADDRESS:"/untrusted",SECRET:"not forwarded"}, inherited, f.home, capability, async environment => {
+    const bytes=png();
+    const response=await exchange(environment.PI_DESKTOP_SOCKET,{id:1,method:"image.open",params:{imageId:randomUUID(),offset:0,totalBytes:bytes.length,data:bytes.toString("base64")}});
+    assert.equal(response.ok,true);
+    assert.deepEqual(response.result,{complete:true});
+    const record=f.recorded();
+    assert.equal(record.args[0],"--");
+    path=record.args[1];
+    assert.ok(path.startsWith(join(f.home,".pi-ipc")+"/"));
+    assert.deepEqual(Buffer.from(record.image,"base64"),bytes);
+    assert.equal(record.env.DBUS_SESSION_BUS_ADDRESS,`unix:path=${busPath}`);
+    assert.equal(record.env.SECRET,undefined);
+    assert.equal(record.env.NODE_OPTIONS,undefined);
+    assert.equal(record.env.GSETTINGS_BACKEND,"memory");
+    for (const params of [{path:"/etc/passwd"},{url:"https://example.com/a.png"},{imageId:randomUUID(),offset:0,totalBytes:9,data:"PHN2Zy8+"},{imageId:randomUUID(),offset:0,totalBytes:bytes.length,data:bytes.toString("base64"),command:"sh"}]) {
+      const denied=await exchange(environment.PI_DESKTOP_SOCKET,{id:2,method:"image.open",params});
+      assert.equal(denied.ok,false);
+    }
+  });
+  assert.equal(existsSync(path),false,"helper shutdown removes owned image files");
+});
+
 test("the broker exports a private endpoint that serves pi-desktop and rejects other methods", async () => {
   const f = await fixture();
   let endpoint;
@@ -129,6 +166,69 @@ test("the broker exports a private endpoint that serves pi-desktop and rejects o
   assert.equal(existsSync(endpoint), false);
 });
 
+test("a fresh sandbox can open brokered images but cannot read broker files or connect to session D-Bus", {
+  skip: process.platform !== "linux" || !process.env.NONO_TEST_BINARY,
+  timeout: 20000,
+}, async () => {
+  const f = await fixture();
+  let busConnections=0;
+  const bus=createServer(socket=>{busConnections++;socket.end();});
+  servers.push(bus);
+  const busPath=join(f.runtime,"bus");bus.listen(busPath);await once(bus,"listening");
+  const viewer=tool(join(f.root,"image-viewer"), `
+    const socket=require("node:net").createConnection(process.env.DBUS_SESSION_BUS_ADDRESS.slice("unix:path=".length));
+    socket.once("error",()=>{process.exitCode=1;});
+    socket.once("connect",()=>{fs.writeFileSync(${JSON.stringify(f.record)},JSON.stringify({path:process.argv[3],bytes:fs.readFileSync(process.argv[3]).length}));socket.end();});
+  `);
+  const inherited={...f.inherited,PI_DESKTOP_IMAGE_VIEWER:viewer,DBUS_SESSION_BUS_ADDRESS:`unix:path=${busPath}`};
+  const work=join(f.root,"work");mkdirSync(work);
+  const temporary=join(f.root,"tmp");mkdirSync(temporary);
+  const policy=join(f.root,"confined.json");
+  writeFileSync(policy,JSON.stringify({extends:"default",filesystem:{read:["/nix/store"],allow:[work]},network:{block:true},linux:{af_unix_mediation:"pathname",sandbox_policy:"landlock"}}));
+  await withDesktopBroker({},inherited,f.home,capability,async environment=>{
+    const first=png();
+    const seed=await exchange(environment.PI_DESKTOP_SOCKET,{id:"seed",method:"image.open",params:{imageId:randomUUID(),offset:0,totalBytes:first.length,data:first.toString("base64")}});
+    assert.equal(seed.ok,true);
+    const privateFile=f.recorded().path;
+    const width=200,height=200,raster=randomBytes((width*4+1)*height);
+    for(let row=0;row<height;row++)raster[row*(width*4+1)]=0;
+    const bytes=png({width,height,raster});
+    const script=join(work,"probe.cjs");
+    writeFileSync(script,`
+      const assert=require("node:assert/strict"),fs=require("node:fs"),net=require("node:net");
+      const endpoint=process.env.PI_DESKTOP_SOCKET;
+      const bytes=Buffer.from(${JSON.stringify(bytes.toString("base64"))},"base64");
+      const request=params=>new Promise((resolve,reject)=>{
+        const socket=net.createConnection(endpoint);let input="";socket.on("error",reject);
+        socket.on("connect",()=>socket.write(JSON.stringify({id:1,method:"image.open",params})+"\\n"));
+        socket.on("data",chunk=>input+=chunk);socket.on("end",()=>resolve(JSON.parse(input)));
+      });
+      (async()=>{
+        const imageId=require("node:crypto").randomUUID();
+        for(let offset=0;offset<bytes.length;offset+=32768){
+          const part=bytes.subarray(offset,offset+32768);
+          const response=await request({imageId,offset,totalBytes:bytes.length,data:part.toString("base64")});
+          assert.equal(response.ok,true);assert.equal(response.result.complete,offset+part.length===bytes.length);
+        }
+        assert.throws(()=>fs.readFileSync(${JSON.stringify(privateFile)}),e=>["EACCES","EPERM"].includes(e.code));
+        await new Promise((resolve,reject)=>{
+          const socket=net.createConnection(${JSON.stringify(busPath)});
+          socket.on("connect",()=>{socket.destroy();reject(new Error("session bus exposed"));});
+          socket.on("error",error=>["EACCES","EPERM"].includes(error.code)?resolve():reject(error));
+        });
+        console.log("broker image opened; private files and D-Bus remain denied");
+      })().catch(error=>{console.error(error);process.exitCode=1;});
+    `);
+    const child=spawn(process.env.NONO_TEST_BINARY,["run","--profile",policy,"--allow-unix-socket",environment.PI_DESKTOP_SOCKET,"--",process.execPath,script],{
+      cwd:work,env:{HOME:f.home,PATH:process.env.PATH,TMPDIR:temporary,PI_DESKTOP_SOCKET:environment.PI_DESKTOP_SOCKET},stdio:["ignore","pipe","pipe"],
+    });
+    let output="";child.stdout.on("data",chunk=>output+=chunk);child.stderr.on("data",chunk=>output+=chunk);
+    const [status,signal]=await once(child,"exit");
+    assert.equal(signal,null,output);assert.equal(status,0,output);
+    assert.equal(f.recorded().bytes,bytes.length);
+    assert.equal(busConnections,2,"only the host-side viewer connects to D-Bus");
+  });
+});
 test("without an inherited desktop session the broker is not exported", async () => {
   const f = await fixture();
   let seen;

@@ -376,6 +376,20 @@
           },
           "bindings": {}
         },
+        "image.open": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "imageId": { "type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" },
+              "offset": { "type": "integer", "minimum": 0, "maximum": 33554432 },
+              "totalBytes": { "type": "integer", "minimum": 1, "maximum": 33554432 },
+              "data": { "type": "string", "minLength": 4, "maxLength": 43692, "pattern": "^[A-Za-z0-9+/]+={0,2}$" }
+            },
+            "required": ["imageId", "offset", "totalBytes", "data"],
+            "additionalProperties": false
+          },
+          "bindings": {}
+        },
         "screenshot.capture": {
           "schema": {
             "type": "object",

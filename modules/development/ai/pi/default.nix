@@ -94,7 +94,7 @@ let
         manifest = mkIpcManifest pkgs;
         # The desktop broker runs these from fixed store paths, never from the session PATH.
         desktopTools = pkgs.lib.optionalString pkgs.stdenv.hostPlatform.isLinux
-          "--set PI_DESKTOP_WL_COPY ${pkgs.wl-clipboard}/bin/wl-copy --set PI_DESKTOP_GRIM ${pkgs.grim}/bin/grim --set PI_DESKTOP_PATH ${pkgs.coreutils}/bin";
+          "--set PI_DESKTOP_WL_COPY ${pkgs.wl-clipboard}/bin/wl-copy --set PI_DESKTOP_GRIM ${pkgs.grim}/bin/grim --set PI_DESKTOP_IMAGE_VIEWER ${pkgs.loupe}/bin/loupe --set PI_DESKTOP_PATH ${pkgs.coreutils}/bin";
         profile = pkgs.writeText "pi-nono-profile.json" (
           builtins.toJSON (config.flake.lib.mkPiCredentialProfile { inherit pkgs ipcRestricted; })
         );
@@ -135,6 +135,7 @@ let
             ${runtime}/__tests__/credential-proxy.test.mjs \
             ${runtime}/__tests__/nono-diagnostics.test.mjs \
             ${runtime}/__tests__/desktop-broker.test.mjs \
+            ${runtime}/__tests__/desktop-images.test.mjs \
             ${runtime}/__tests__/github-auth.test.mjs \
             ${runtime}/__tests__/direnv-bootstrap.test.mjs \
             ${runtime}/__tests__/git-worktree.test.mjs \
