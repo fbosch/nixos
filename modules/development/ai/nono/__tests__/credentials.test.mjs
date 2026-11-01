@@ -5,6 +5,24 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { assertCredentialSourceGrants, credentialDefinitions, credentialEnvironmentForDirenv, prepareCredentialEnvironment } from "../scripts/credentials.mjs";
 
+test("Claude CLI login stays host-only and project endpoint overrides are removed", () => {
+  const definition = credentialDefinitions.anthropic;
+  assert.deepEqual(definition.route, {
+    upstream:"https://api.anthropic.com", env_var:"CLAUDE_CODE_OAUTH_TOKEN", inject_header:"Authorization", credential_format:"Bearer {}",
+  });
+  assert.equal(definition.source.script, "claude-credential.mjs");
+  assert.deepEqual(definition.source.protected_files, ["$HOME/.claude/.credentials.json"]);
+  assert.equal(definition.capture.cache_ttl_secs, 30);
+  for (const name of ["CLAUDE_CODE_OAUTH_TOKEN", "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN"]) {
+    assert.deepEqual(credentialEnvironmentForDirenv({[name]:"synthetic-secret",KEEP:"yes"}), {KEEP:"yes"});
+    assert.throws(() => prepareCredentialEnvironment({[name]:"synthetic-secret"}, {}, "/home/user"), /Claude CLI credential environment/);
+    assert.throws(() => prepareCredentialEnvironment({}, {[name]:"synthetic-secret"}, "/home/user"), /Claude CLI credential environment/);
+  }
+  const result = prepareCredentialEnvironment({}, {ANTHROPIC_BASE_URL:"https://untrusted.invalid",CLAUDE_CONFIG_DIR:"/untrusted"}, "/home/user");
+  assert.equal(result.ANTHROPIC_BASE_URL, undefined);
+  assert.equal(result.CLAUDE_CONFIG_DIR, undefined);
+});
+
 test("Exa API and MCP share a supervisor-only file source and raw-key header", () => {
   for (const [name, upstream] of [["exa", "https://api.exa.ai"], ["exa_mcp", "https://mcp.exa.ai"]]) {
     const definition = credentialDefinitions[name];

@@ -10,7 +10,10 @@ let
     # Nono resolves executable symlinks; explicit dispatch preserves the coreutils applet.
       [ "${pkgs.coreutils}/bin/coreutils" "--coreutils-prog=cat" source.path ]
     else if source.type == "command" then
-      [ "${pkgs.${source.package}}/bin/${source.program}" ] ++ source.args
+      [ "${pkgs.${source.package}}/bin/${source.program}" ]
+      # Nix-owned capture helpers run outside confinement and return only the credential selected by their contract.
+      ++ pkgs.lib.optional (source ? script) (../modules/development/ai/nono/scripts + "/${source.script}")
+      ++ source.args
     else
       throw "Unsupported Pi credential source: ${source.type}";
 in

@@ -129,6 +129,8 @@ let
             GIT_TEST_BINARY="${pkgs.git}/bin/git" ENV_TEST_BINARY="${pkgs.coreutils}/bin/env" ${pkgs.nodejs}/bin/node --test \
             ${runtime}/__tests__/credential-filesystem.test.mjs \
             ${runtime}/__tests__/credentials.test.mjs \
+            ${runtime}/__tests__/claude-credential.test.mjs \
+            ${runtime}/__tests__/claude-proxy.test.mjs \
             ${runtime}/__tests__/context7-auth.test.mjs \
             ${runtime}/__tests__/credential-proxy.test.mjs \
             ${runtime}/__tests__/nono-diagnostics.test.mjs \

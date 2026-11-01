@@ -1,4 +1,4 @@
-{ config, ... }:
+{ config, inputs, ... }:
 let
   piProfile = pkgs: config.flake.lib.mkPiCredentialProfile { inherit pkgs; };
   nixBuildAssertions =
@@ -78,6 +78,17 @@ in
             touch "$out"
           '';
       } // lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
+        nono-pi-claude-proxy = pkgs.runCommand "nono-pi-claude-proxy"
+          {
+            NONO_PROXY_TEST_BINARY = lib.getExe pkgs.nono;
+            CLAUDE_TEST_BINARY = lib.getExe inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.claude-code;
+          }
+          ''
+            mkdir tmp
+            export TMPDIR="$PWD/tmp"
+            ${pkgs.nodejs}/bin/node --test ${runtime}/__tests__/claude-credential.test.mjs ${runtime}/__tests__/claude-proxy.test.mjs
+            touch "$out"
+          '';
         nono-pi-credential-filesystem =
           pkgs.runCommand "nono-pi-credential-filesystem"
             {
@@ -338,8 +349,15 @@ in
             network = {
               block = false;
               open_port = [ 9222 2828 ];
-              credentials = [ "context7" "exa" "exa_mcp" "github" ];
+              credentials = [ "anthropic" "context7" "exa" "exa_mcp" "github" ];
               custom_credentials = {
+                anthropic = {
+                  upstream = "https://api.anthropic.com";
+                  credential_key = "cmd://anthropic";
+                  env_var = "CLAUDE_CODE_OAUTH_TOKEN";
+                  inject_header = "Authorization";
+                  credential_format = "Bearer {}";
+                };
                 context7 = {
                   upstream = "https://mcp.context7.com";
                   credential_key = "cmd://context7";
@@ -369,6 +387,14 @@ in
               };
             };
             workdir.access = "readwrite";
+          };
+        };
+        testCapturesClaudeFromHostOnlyHelper = {
+          expr = profile.credential_capture.anthropic;
+          expected = {
+            command = [ "${pkgs.nodejs}/bin/node" "${./scripts/claude-credential.mjs}" ];
+            timeout_secs = 5;
+            cache_ttl_secs = 30;
           };
         };
         testCapturesGithubWithPackagedCli = {
@@ -420,7 +446,7 @@ in
               capture = generated.credential_capture.docs;
             };
           expected = {
-            names = [ "context7" "docs" "exa" "exa_mcp" "github" ];
+            names = [ "anthropic" "context7" "docs" "exa" "exa_mcp" "github" ];
             route = { upstream = "https://docs.example.test"; env_var = "DOCS_API_KEY"; inject_header = "x-api-key"; credential_key = "cmd://docs"; };
             capture = {
               command = [ "${pkgs.coreutils}/bin/coreutils" "--coreutils-prog=cat" "/run/secrets/docs-api-key" ];

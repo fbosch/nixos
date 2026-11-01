@@ -47,6 +47,22 @@ On macOS, nono manages its credential proxy within the native launch path. The l
 
 This deliberately retains an exfiltration channel for data the agent can read. Direct TCP access to ports 22, 80, and 443 remains denied. The existing browser-port exceptions were not changed in this pass.
 
+## Claude Bridge authentication
+
+Sandboxed Claude Bridge uses the existing Claude CLI login through a host-side capture command. No SOPS secret or additional API key is required. This is the same login, not a separately revocable credential.
+
+The Nix-owned `claude-credential.mjs` helper reads `~/.claude/.credentials.json` outside confinement and returns only `claudeAiOauth.accessToken`. It rejects unsafe permissions, symlinked or hard-linked files, malformed metadata, and tokens with at most 60 seconds remaining. It does not modify the file or return the refresh token. The proxy caches the access token for at most 30 seconds.
+
+The `anthropic` route has the fixed upstream `https://api.anthropic.com`. The child receives a session placeholder in `CLAUDE_CODE_OAUTH_TOKEN` and the proxy's local `/anthropic` route in `ANTHROPIC_BASE_URL`. The proxy validates that placeholder and replaces its authorization header before forwarding. Raw credential environment variables are rejected; project-selected endpoint and Claude configuration-directory overrides are removed. The credential file remains denied, including in configuration-repository editing sessions.
+
+The agent can use the authenticated Anthropic API through this route and consume the account's quota. The route protects the token from disclosure; it does not make model use unprivileged. It does not grant filesystem access to the login store or provide the refresh token to Claude Bridge.
+
+Claude CLI retains ownership of login and refresh. If its stored access token expires, refresh the login from a host terminal with Claude CLI. Capture then picks up the updated store after its cache expires. The helper does not perform an automatic OAuth refresh or interactive login. Native macOS Keychain-only authentication is not implemented by this file-based helper and has not been tested.
+
+Activate the rebuilt launcher and start a new Pi session to receive the new route and environment. Existing sessions do not acquire it through `/reload`. Host-launched `--no-sandbox` sessions continue to use normal Claude CLI authentication directly.
+
+`nono-pi-claude-proxy` tests the real installed Claude CLI against a local synthetic Anthropic server inside a fresh Linux sandbox. The response completes with a placeholder credential, the upstream sees the captured access token, direct credential-file access and capture-helper execution inside confinement cannot recover it, incorrect placeholders are rejected, and redirects are not followed to an unrelated server. The test sends no request to Anthropic and uses no real login data. A full live Claude Bridge session after activation remains to be verified.
+
 ## Unresolved process metadata
 
 Nono 0.80 widens its `/proc/self` read grant to `/proc` so descendants can read their own process metadata. The requested profile-only fixes did not work:
@@ -103,6 +119,7 @@ nix build --offline --no-link \
   .#checks.x86_64-linux.nono-pi-agent-protection \
   .#checks.x86_64-linux.nono-pi-reference-access \
   .#checks.x86_64-linux.nono-pi-github-access \
+  .#checks.x86_64-linux.nono-pi-claude-proxy \
   .#checks.x86_64-linux.nono-pi-ssh-access \
   .#checks.x86_64-linux.nono-pi-credential-filesystem \
   .#checks.x86_64-linux.nono-pi-socket-isolation-restricted \

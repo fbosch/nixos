@@ -72,6 +72,28 @@ test("unsandboxed Pi receives proxy credentials only after a complete startup ha
   } finally { rmSync(f.root, { recursive: true, force: true }); }
 });
 
+test("Claude placeholder and base URL replace inherited routing without exposing a login token", async () => {
+  const f = fixture();
+  writeFileSync(f.profile, JSON.stringify({network:{credentials:["anthropic"],custom_credentials:{
+    anthropic:{upstream:"https://api.anthropic.com",env_var:"CLAUDE_CODE_OAUTH_TOKEN",inject_header:"Authorization",credential_format:"Bearer {}"},
+  }}}));
+  try {
+    const result = await runWithCredentialProxy(f.nono, f.profile, [process.execPath, "-e", `require("node:fs").writeFileSync(${JSON.stringify(f.output)},JSON.stringify(process.env))`], {
+      ...f.environment, ANTHROPIC_BASE_URL:"https://untrusted.invalid",
+    });
+    assert.equal(result.status,0);
+    const child = JSON.parse(readFileSync(f.output,"utf8"));
+    const proxy = JSON.parse(readFileSync(f.recordFile,"utf8"));
+    assert.equal(child.CLAUDE_CODE_OAUTH_TOKEN,proxy.token);
+    const base = new URL(child.ANTHROPIC_BASE_URL);
+    assert.equal(base.protocol,"http:");
+    assert.equal(base.hostname,"127.0.0.1");
+    assert.equal(base.port,new URL(child.HTTP_PROXY).port);
+    assert.equal(base.pathname,"/anthropic");
+    assert.equal(child.NONO_PROXY_PASS,undefined);
+    f.checkStopped();
+  } finally { rmSync(f.root,{recursive:true,force:true}); }
+});
 for (const [options, message] of [
   [{ fail: true }, /exited before readiness/],
   [{ invalidHost: true }, /Invalid Nono proxy startup/],
