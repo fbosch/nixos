@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { randomBytes, randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync } from "node:fs";
+import { existsSync, linkSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, test } from "node:test";
@@ -105,13 +105,146 @@ test("upload budgets and deadlines bound idle allocations", async () => {
   await assert.rejects(f.opener.open({imageId:randomUUID(),offset:0,totalBytes:65536,data}),/limit/);
 });
 
+test("repeated validated images reuse one private file and refresh inactivity expiry", async () => {
+  const opened=[];
+  const f=fixture(async path=>{opened.push(path);});
+  const image=png();
+  await upload(f.opener,image);
+  const firstLease=[...f.timers][0];
+  const firstMetadata=statSync(opened[0]);
+  for(let index=0;index<30;index++)await upload(f.opener,image);
+  assert.equal(new Set(opened).size,1);
+  assert.equal(readdirSync(f.directory).length,1);
+  assert.equal(statSync(opened[0]).ino,firstMetadata.ino,"cache hits do not rewrite the file");
+  assert.equal(f.timers.size,1);
+  assert.ok(!f.timers.has(firstLease),"reuse replaces the old lease");
+  firstLease.fn();
+  assert.equal(existsSync(opened[0]),true,"a stale expiry callback cannot remove a reused file");
+  [...f.timers][0].fn();
+  assert.equal(existsSync(opened[0]),false);
+  assert.equal(f.timers.size,0);
+  await upload(f.opener,image);
+  assert.notEqual(opened.at(-1),opened[0],"an expired file is recreated with a fresh private name");
+  firstLease.fn();
+  assert.equal(existsSync(opened.at(-1)),true,"old callbacks cannot delete the replacement entry");
+});
+
+test("the cache key uses validated PNG bytes rather than upload IDs or discarded metadata", async () => {
+  const opened=[];
+  const f=fixture(async path=>{opened.push(path);});
+  const id=randomUUID();
+  await upload(f.opener,png(),id);
+  await upload(f.opener,png({ancillary:[chunk("tEXt",Buffer.from("different metadata"))]}));
+  assert.equal(opened[0],opened[1]);
+  await upload(f.opener,png({raster:Buffer.from([0,1,2,3,255])}),id);
+  assert.notEqual(opened[0],opened[2],"reusing a client ID cannot select a cached image");
+  const invalid=Buffer.from(png());invalid[invalid.length-1]^=1;
+  await assert.rejects(upload(f.opener,invalid,id));
+  assert.equal(opened.length,3,"a prior cache hit cannot bypass validation");
+});
+
+test("concurrent clicks share storage and an unsuccessful launch cannot remove a successful peer's image", async () => {
+  const launches=[];
+  const f=fixture(path=>new Promise((resolve,reject)=>launches.push({path,resolve,reject})));
+  const first=upload(f.opener,png());
+  const second=upload(f.opener,png());
+  assert.equal(launches.length,2);
+  assert.equal(launches[0].path,launches[1].path);
+  assert.equal(readdirSync(f.directory).length,1);
+  launches[1].resolve();
+  await second;
+  launches[0].reject(new Error("first viewer failed"));
+  await assert.rejects(first,/first viewer failed/);
+  assert.ok(existsSync(launches[1].path));
+  assert.equal(f.timers.size,1);
+});
+
+test("failed opens clean up unused entries without discarding previously opened images", async () => {
+  const opened=[];
+  let fail=true;
+  const f=fixture(async path=>{opened.push(path);if(fail)throw new Error("viewer failed");});
+  await assert.rejects(upload(f.opener,png()),/viewer failed/);
+  assert.deepEqual(readdirSync(f.directory),[]);
+  fail=false;
+  await upload(f.opener,png());
+  assert.notEqual(opened[0],opened[1]);
+  fail=true;
+  await assert.rejects(upload(f.opener,png()),/viewer failed/);
+  assert.equal(opened[1],opened[2]);
+  assert.ok(existsSync(opened[1]));
+});
+
+test("cache contents are private to each broker instance", async () => {
+  const paths=[];
+  const first=fixture(async path=>{paths.push(path);});
+  const second=fixture(async path=>{paths.push(path);});
+  await upload(first.opener,png());
+  await upload(second.opener,png());
+  assert.notEqual(paths[0],paths[1]);
+  first.opener.close();
+  assert.ok(existsSync(paths[1]));
+});
+
+for (const change of ["deleted", "modified", "symlinked", "hard-linked"]) {
+  test(`${change} cached files are not reused`, async () => {
+    const opened=[];
+    const f=fixture(async path=>{opened.push(path);});
+    const image=png();
+    await upload(f.opener,image);
+    const first=opened[0];
+    const external=join(f.root,"external");
+    if(change==="deleted") rmSync(first);
+    if(change==="modified") writeFileSync(first,"changed");
+    if(change==="symlinked") {
+      writeFileSync(external,"private external data");
+      rmSync(first);
+      symlinkSync(external,first);
+    }
+    if(change==="hard-linked") linkSync(first,external);
+    await upload(f.opener,image);
+    assert.notEqual(opened[1],first);
+    assert.equal(existsSync(first),false);
+    assert.deepEqual(readFileSync(opened[1]),image);
+    assert.equal(statSync(opened[1]).nlink,1);
+    assert.equal(readdirSync(f.directory).length,1);
+    if(change==="symlinked") assert.equal(readFileSync(external,"utf8"),"private external data");
+    if(change==="hard-linked") assert.deepEqual(readFileSync(external),image);
+  });
+}
+
+test("in-flight reuse prevents expiry and shutdown cannot rearm the cache", async () => {
+  let resolve;
+  let pause=false;
+  const opened=[];
+  const f=fixture(path=>{
+    opened.push(path);
+    return pause ? new Promise(done=>{resolve=done;}) : Promise.resolve();
+  });
+  await upload(f.opener,png());
+  const oldLease=[...f.timers][0];
+  pause=true;
+  const pending=upload(f.opener,png());
+  oldLease.fn();
+  assert.equal(opened[0],opened[1]);
+  assert.ok(existsSync(opened[0]));
+  assert.equal(f.timers.size,0,"in-flight opens hold the file instead of racing an expiry timer");
+  f.opener.close();
+  resolve();
+  await pending;
+  assert.equal(existsSync(f.directory),false);
+  assert.equal(f.timers.size,0,"shutdown cannot leave a late timer or cache entry");
+});
+
 test("viewer errors, file leases and shutdown remove owned files", async () => {
   const failing=fixture(async()=>{throw new Error("viewer failed");});
   await assert.rejects(upload(failing.opener,png()),/viewer failed/);
   assert.deepEqual(readdirSync(failing.directory),[]);
   const f=fixture();
-  for(let index=0;index<24;index++)await upload(f.opener,png());
-  await assert.rejects(upload(f.opener,png()),/Open-image limit/);
+  const uniqueImage = index => png({raster:Buffer.from([0,index,0,0,255])});
+  for(let index=0;index<24;index++)await upload(f.opener,uniqueImage(index));
+  await upload(f.opener,uniqueImage(0));
+  assert.equal(readdirSync(f.directory).length,24,"a cache hit is allowed when all unique-file slots are occupied");
+  await assert.rejects(upload(f.opener,uniqueImage(24)),/Open-image limit/);
   for(const timer of [...f.timers]){assert.equal(timer.ms,900000);timer.fn();}
   assert.deepEqual(readdirSync(f.directory),[]);
   assert.equal(f.timers.size,0);

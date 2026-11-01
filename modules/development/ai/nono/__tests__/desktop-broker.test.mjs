@@ -145,6 +145,9 @@ test("image opening uses the inherited fixed viewer and bus, not project values"
     assert.equal(record.env.SECRET,undefined);
     assert.equal(record.env.NODE_OPTIONS,undefined);
     assert.equal(record.env.GSETTINGS_BACKEND,"memory");
+    const repeated=await exchange(environment.PI_DESKTOP_SOCKET,{id:3,method:"image.open",params:{imageId:randomUUID(),offset:0,totalBytes:bytes.length,data:bytes.toString("base64")}});
+    assert.equal(repeated.ok,true);
+    assert.equal(f.recorded().args[1],path,"repeat broker requests reuse the same private file");
     for (const params of [{path:"/etc/passwd"},{url:"https://example.com/a.png"},{imageId:randomUUID(),offset:0,totalBytes:9,data:"PHN2Zy8+"},{imageId:randomUUID(),offset:0,totalBytes:bytes.length,data:bytes.toString("base64"),command:"sh"}]) {
       const denied=await exchange(environment.PI_DESKTOP_SOCKET,{id:2,method:"image.open",params});
       assert.equal(denied.ok,false);

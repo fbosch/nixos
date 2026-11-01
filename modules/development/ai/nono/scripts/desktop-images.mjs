@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { lstatSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { maxImageBytes, validatedPng } from "./desktop-png.mjs";
@@ -26,13 +26,37 @@ export function createImageOpener(directory, launch, {setTimer = setTimeout, cle
     reserved -= upload.total;
     uploads.delete(id);
   }
-  function dropFile(path) {
-    const file = files.get(path);
-    if (!file) return;
-    clearTimer(file.timer);
+  function cancelExpiry(file) {
+    file.lease = undefined;
+    if (file.timer !== undefined) clearTimer(file.timer);
+    file.timer = undefined;
+  }
+  function dropFile(digest, file) {
+    if (files.get(digest) !== file) return;
+    cancelExpiry(file);
     stored -= file.bytes;
-    files.delete(path);
-    rmSync(path, {force:true});
+    files.delete(digest);
+    rmSync(file.path, {force:true});
+  }
+  function armExpiry(digest, file) {
+    const lease = {};
+    file.lease = lease;
+    file.timer = setTimer(() => {
+      // A canceled callback must not delete an entry after a later click has renewed it.
+      if (file.lease === lease) dropFile(digest, file);
+    }, fileLifetimeMs);
+    file.timer.unref?.();
+  }
+  function unchangedFile(file) {
+    try {
+      const current = lstatSync(file.path, {bigint:true});
+      // The viewer may edit or replace its file; never reuse changed data or follow a replacement symlink.
+      return current.isFile() && current.nlink === 1n &&
+        ["dev", "ino", "size", "mtimeNs", "ctimeNs", "mode", "uid", "gid"].every(key => current[key] === file.metadata[key]);
+    } catch (error) {
+      if (error.code === "ENOENT") return false;
+      throw error;
+    }
   }
   function prepareDirectory() {
     if (ready) return;
@@ -69,27 +93,43 @@ export function createImageOpener(directory, launch, {setTimer = setTimeout, cle
       if (upload.received < upload.total) return {complete:false};
       dropUpload(imageId);
       const png = validatedPng(Buffer.concat(upload.chunks, upload.total));
-      if (files.size >= maxFiles || stored + png.length > maxFileBytes) throw new Error("Open-image limit exceeded");
-      prepareDirectory();
-      const path = join(directory, `${randomUUID()}.png`);
-      writeFileSync(path, png, {flag:"wx", mode:0o600});
-      const file = {bytes:png.length, timer:setTimer(() => dropFile(path), fileLifetimeMs)};
-      file.timer.unref?.();
-      files.set(path, file);
-      stored += png.length;
+      // Hash only the fully validated, metadata-stripped PNG, never client IDs or unvalidated uploads.
+      const digest = createHash("sha256").update(png).digest("hex");
+      let file = files.get(digest);
+      if (file && !unchangedFile(file)) {
+        if (file.pending > 0) throw new Error("Cached image changed while opening");
+        dropFile(digest, file);
+        file = undefined;
+      }
+      if (!file) {
+        if (files.size >= maxFiles || stored + png.length > maxFileBytes) throw new Error("Open-image limit exceeded");
+        prepareDirectory();
+        const path = join(directory, `${randomUUID()}.png`);
+        writeFileSync(path, png, {flag:"wx", mode:0o600});
+        file = {path, bytes:png.length, metadata:lstatSync(path, {bigint:true}), pending:0, launched:false, timer:undefined, lease:undefined};
+        files.set(digest, file);
+        stored += png.length;
+      }
+      cancelExpiry(file);
+      file.pending++;
       try {
-        await launch(path);
+        await launch(file.path);
+        file.launched = true;
         return {complete:true};
-      } catch (error) {
-        dropFile(path);
-        throw error;
+      } finally {
+        file.pending--;
+        // Concurrent clicks share storage: one launch failure must not delete an image used by another launch.
+        if (file.pending === 0 && files.get(digest) === file) {
+          if (file.launched) armExpiry(digest, file);
+          else dropFile(digest, file);
+        }
       }
     },
     close() {
       if (closed) return;
       closed = true;
       for (const id of uploads.keys()) dropUpload(id);
-      for (const path of files.keys()) dropFile(path);
+      for (const [digest, file] of files) dropFile(digest, file);
       if (ready) rmSync(directory, {recursive:true,force:true});
     },
   };

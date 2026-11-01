@@ -37,7 +37,11 @@ The extension converts the displayed image to PNG and sends `image.open` request
 
 The broker checks PNG signatures, chunk CRCs and ordering, raster dimensions, decompressed length, and scanline filters. It accepts non-interlaced 8-bit rasters up to 32 MiB encoded and 16 megapixels, with neither dimension above 8192. Ancillary metadata is removed before opening. The result is a static PNG representation, not the original animated file or its metadata.
 
-Accepted files are created with mode 0600 inside the helper's private IPC directory, outside sandbox-writable temporary paths. At most 24 files and 128 MiB are retained. Files expire after 15 minutes and are removed on normal broker shutdown. A pinned Loupe executable receives only the captured desktop connection, private runtime directories, a fixed PATH, and pinned MIME data. `XDG_DATA_DIRS` includes the packaged shared MIME database because NixOS has no usable `/usr/share/mime` default. Project environment values do not choose the viewer, its MIME database, or its session bus.
+Accepted files are created with mode 0600 inside the helper's private IPC directory, outside sandbox-writable temporary paths.
+
+A per-session cache keys files by the SHA-256 of the validated, metadata-stripped PNG. Repeated clicks reuse the same file without consuming another slot. Each upload is still validated, and changed or replaced cache files are recreated. At most 24 unique files and 128 MiB are retained. Reuse refreshes a 15-minute inactivity lease; in-flight opens hold the file until launch completes. Normal broker shutdown removes the cache, and nothing is shared across sessions.
+
+A pinned Loupe executable receives only the captured desktop connection, private runtime directories, a fixed PATH, and pinned MIME data. `XDG_DATA_DIRS` includes the packaged shared MIME database because NixOS has no usable `/usr/share/mime` default. Project environment values do not choose the viewer, its MIME database, or its session bus.
 
 This capability permits an agent to request image windows; it does not attest that a human clicked. Resource limits bound uploads and retained files, but opening untrusted raster images still relies on the viewer's decoder security. Launch acknowledgement does not prove a window has rendered correctly.
 
