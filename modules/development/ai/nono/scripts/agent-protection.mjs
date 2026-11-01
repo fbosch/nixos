@@ -8,8 +8,15 @@ const runtimeDirectories = new Set(["sessions", "cache", "session-history", "tas
 const requiredControls = ["settings.json", "extensions", "npm", "git", "lib", "mcp.json", "models.json", "trust.json"];
 const within = (path, root) => root === sep || path === root || path.startsWith(`${root}${sep}`);
 
-export function agentProtection(home, agentDir, environment = {}, profile = {}) {
+export function agentDirectories(home, agentDir) {
   const roots = [...new Set([join(home, ".pi", "agent"), agentDir].filter(path => existsSync(path)).map(path => realpathSync(path)))];
+  const canonicalHome = existsSync(home) ? realpathSync(home) : home;
+  if (roots.some(root => within(canonicalHome, root))) throw new Error("Pi agent directory must not resolve to the home directory or an ancestor");
+  return roots;
+}
+
+export function agentProtection(home, agentDir, environment = {}, profile = {}) {
+  const roots = agentDirectories(home, agentDir);
   const canonicalHome = existsSync(home) ? realpathSync(home) : home;
   // These broad Linux default grants cannot be narrowed by splitting launcher arguments.
   const inheritedWrites = [join(home, ".cache"), ...(!within(canonicalHome, "/tmp") ? ["/tmp"] : [])];

@@ -110,7 +110,7 @@ in
             ''
               mkdir tmp
               export TMPDIR="$PWD/tmp"
-              ${pkgs.nodejs}/bin/node --test ${runtime}/__tests__/agent-protection.test.mjs
+              ${pkgs.nodejs}/bin/node --test ${runtime}/__tests__/agent-protection.test.mjs ${runtime}/__tests__/config-editing.test.mjs
               touch "$out"
             '';
         nono-pi-git-worktree =

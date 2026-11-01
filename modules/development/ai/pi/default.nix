@@ -141,6 +141,7 @@ let
             ${runtime}/__tests__/herdr-reading.test.mjs \
             ${runtime}/__tests__/service-ipc.test.mjs \
             ${runtime}/__tests__/agent-protection.test.mjs \
+            ${runtime}/__tests__/config-editing.test.mjs \
             ${runtime}/__tests__/devenv-runtime.test.mjs \
             ${runtime}/__tests__/ipc-workflows.test.mjs \
             ${runtime}/__tests__/launcher.test.mjs \

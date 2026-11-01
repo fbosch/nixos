@@ -14,7 +14,7 @@ function fixture() {
   const home = join(root, "home");
   const agent = join(home, "dotfiles", ".pi", "agent");
   const defaultAgent = join(home, ".pi", "agent");
-  const work = join(home, "nixos");
+  const work = join(home, "project");
   const temporary = join(root, "tmp");
   for (const path of [agent, defaultAgent, work, temporary]) mkdirSync(path, { recursive: true });
   mkdirSync(join(work, ".git"));

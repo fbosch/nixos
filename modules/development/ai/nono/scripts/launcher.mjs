@@ -5,7 +5,7 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { stripVTControlCharacters } from "node:util";
 import { shellProtection, withProtectedShellProfile } from "./shell-protection.mjs";
-import { agentProtection, prepareAgentRuntime } from "./agent-protection.mjs";
+import { agentDirectories, agentProtection, prepareAgentRuntime } from "./agent-protection.mjs";
 import { assertReadOnlySshGrants, sshClientArguments } from "./ssh-access.mjs";
 import { assertCredentialSourceGrants, credentialEnvironmentForDirenv, prepareCredentialEnvironment } from "./credentials.mjs";
 import { prepareRuntimeLocks, prepareSandboxRuntime, sandboxRuntimeCommand } from "./sandbox-runtime.mjs";
@@ -177,7 +177,13 @@ function gitMetadata(cwd, home) {
         throw new Error("Git metadata must not resolve to the home directory or a checkout ancestor");
       }
       // Indexes, locks, refs and objects need writes; granting only worktrees/<name> is insufficient.
-      return { roots: within(metadata, canonicalCwd) ? [] : [metadata], directory: gitDir ?? metadata };
+      return {
+        roots: within(metadata, canonicalCwd) ? [] : [metadata],
+        directory: gitDir ?? metadata,
+        commonDirectory: metadata,
+        checkoutRoot: root,
+        worktree: gitDir !== undefined,
+      };
     } catch (error) {
       throw new Error(`Cannot resolve Git metadata from ${marker}: ${error.message}`);
     }
@@ -195,10 +201,18 @@ function pairedRepositoryRoots(home) {
   return roots;
 }
 
-function writableReferenceRoots(cwd, home) {
+function writableReferenceRoots(cwd, home, metadata) {
   const roots = pairedRepositoryRoots(home);
   const canonicalCwd = realpathSync(cwd);
-  return roots.some((root) => within(canonicalCwd, root)) ? roots : [];
+  if (roots.some(root => within(canonicalCwd, root))) return roots;
+  if (!metadata.worktree) return [];
+  // Only a registered worktree of a fixed configuration repository receives editing authority.
+  for (const root of roots) {
+    if (!existsSync(join(root, ".git"))) continue;
+    const trusted = gitMetadata(root, home);
+    if (trusted.checkoutRoot === root && trusted.commonDirectory === metadata.commonDirectory) return roots;
+  }
+  return [];
 }
 
 // Reference settings are sandbox-writable, so grants beyond cwd and the paired repositories need a host-only approval.
@@ -294,7 +308,7 @@ export function launchArguments(cwd, agentDir, home, environment, profile, rawPi
   const grants = new Set(metadata.roots);
   const gitDirectories = new Set(metadata.directory ? [metadata.directory] : []);
   const reads = new Set();
-  const writableRoots = writableReferenceRoots(cwd, home);
+  const writableRoots = writableReferenceRoots(cwd, home, metadata);
   const approvedRoots = [realpathSync(cwd), ...pairedRepositoryRoots(home), ...approvedReferenceRoots(home)];
   for (const reference of references(cwd, agentDir, home)) {
     const path = existingDirectory(reference.path);
@@ -319,7 +333,15 @@ export function launchArguments(cwd, agentDir, home, environment, profile, rawPi
   const dataHome = environment.XDG_DATA_HOME || join(home, ".local", "share");
   const cacheHome = environment.XDG_CACHE_HOME || join(home, ".cache");
   const extra = [...sshClientArguments(home, environment), ...serviceSocketArguments(cwd, home, environment, ipcRestricted)];
-  const agent = platform === "linux" ? agentProtection(home, agentDir, environment, loadedProfile) : { protectedPaths: [], runtimePaths: [], authFiles: [] };
+  let agent = { protectedPaths: [], runtimePaths: [], authFiles: [] };
+  if (platform === "linux") {
+    if (writableRoots.length > 0) {
+      // Configuration sessions may persist Pi changes; all other host-only guards still apply.
+      for (const root of agentDirectories(home, agentDir)) grants.add(root);
+    } else {
+      agent = agentProtection(home, agentDir, environment, loadedProfile);
+    }
+  }
   for (const path of agent.runtimePaths) grants.add(path);
   for (const path of agent.authFiles) extra.push("--allow-file", path);
   extra.push(...endpointArguments(capabilities, { "selected-git-metadata": [...gitDirectories] }));
