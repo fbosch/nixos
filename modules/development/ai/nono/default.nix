@@ -90,7 +90,11 @@ in
             touch "$out"
           '';
         nono-pi-desktop-images = pkgs.runCommand "nono-pi-desktop-images"
-          { NONO_TEST_BINARY = lib.getExe pkgs.nono; }
+          {
+            NONO_TEST_BINARY = lib.getExe pkgs.nono;
+            GIO_TEST_BINARY = "${pkgs.glib.bin}/bin/gio";
+            MIME_TEST_DATA = "${pkgs.shared-mime-info}/share";
+          }
           ''
             mkdir tmp
             export TMPDIR="$PWD/tmp"

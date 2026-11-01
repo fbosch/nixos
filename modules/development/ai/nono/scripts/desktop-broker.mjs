@@ -28,7 +28,9 @@ export function desktopAuthority(inherited) {
     const bus = inherited.DBUS_SESSION_BUS_ADDRESS;
     const match = /^unix:path=([^,;]+)(?:,guid=[0-9a-f]{32})?$/.exec(bus);
     if (!executable(viewer) || !match || !isAbsolute(match[1]) || !statSync(match[1]).isSocket()) throw new Error("Invalid inherited image-viewer authority");
-    image = { viewer, bus };
+    const data = inherited.PI_DESKTOP_IMAGE_DATA;
+    if (typeof data !== "string" || !isAbsolute(data) || !statSync(join(data, "mime", "mime.cache")).isFile()) throw new Error("Image viewer requires a pinned MIME database");
+    image = { viewer, bus, data };
   }
   return { display, runtime, wlCopy, grim, path, image };
 }
@@ -69,6 +71,8 @@ function launchImage(path, authority, directory) {
         WAYLAND_DISPLAY: authority.display, XDG_RUNTIME_DIR: authority.runtime, PATH: authority.path,
         DBUS_SESSION_BUS_ADDRESS: authority.image.bus, HOME: directory,
         XDG_CONFIG_HOME: directory, XDG_CACHE_HOME: directory,
+        // NixOS has no /usr/share/mime; preserve only the pinned MIME data, not the host XDG search path.
+        XDG_DATA_DIRS: authority.image.data,
         GSETTINGS_BACKEND: "memory", GIO_USE_VFS: "local", LANG: "C.UTF-8",
       },
     });

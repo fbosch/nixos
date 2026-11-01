@@ -29,6 +29,20 @@ To edit Pi resources:
 
 Runtime data remains mutable and can be corrupted by an agent. Arbitrary project files and host-executed development scripts are separate trust boundaries. This change does not make those files trusted, prevent all denial of service, or prevent a host process from modifying Pi's resources.
 
+## Image opening on Linux
+
+Sandboxed image clicks use the existing desktop broker instead of launching `xdg-open` inside confinement. The agent still cannot connect directly to session D-Bus. Unsandboxed Linux sessions keep the native opener, and macOS retains its existing `open` path.
+
+The extension converts the displayed image to PNG and sends `image.open` requests containing an upload ID, byte offset, total byte count, and base64 data. Requests accept no file path, URL, command, or environment. Fixed 32 KiB chunks stay within the existing 64 KiB IPC frame limit. The broker allows four pending uploads with at most 64 MiB reserved in total; unfinished uploads expire after 60 seconds.
+
+The broker checks PNG signatures, chunk CRCs and ordering, raster dimensions, decompressed length, and scanline filters. It accepts non-interlaced 8-bit rasters up to 32 MiB encoded and 16 megapixels, with neither dimension above 8192. Ancillary metadata is removed before opening. The result is a static PNG representation, not the original animated file or its metadata.
+
+Accepted files are created with mode 0600 inside the helper's private IPC directory, outside sandbox-writable temporary paths. At most 24 files and 128 MiB are retained. Files expire after 15 minutes and are removed on normal broker shutdown. A pinned Loupe executable receives only the captured desktop connection, private runtime directories, a fixed PATH, and pinned MIME data. `XDG_DATA_DIRS` includes the packaged shared MIME database because NixOS has no usable `/usr/share/mime` default. Project environment values do not choose the viewer, its MIME database, or its session bus.
+
+This capability permits an agent to request image windows; it does not attest that a human clicked. Resource limits bound uploads and retained files, but opening untrusted raster images still relies on the viewer's decoder security. Launch acknowledgement does not prove a window has rendered correctly.
+
+After updating the launcher, restart Pi rather than using `/reload`. When changing the viewer environment, quit existing Loupe instances too, since a new request may reuse an existing process. Native tests verify broker delivery, private-file and D-Bus denial, cleanup, and GLib MIME detection. Actual GUI display still requires a fresh desktop-session check.
+
 ## Explicit raw launch
 
 A leading `--no-sandbox` replaces the launcher process with raw Pi before sandbox setup. It skips policy and IPC-manifest validation, project-environment loading, sandbox resource checks, helper brokers, diagnostics injection, and credential-proxy startup. Pure agent-directory and PATH normalization still keeps the immutable launcher ahead of writable shims. Raw Pi retains its own normal configuration and authentication requirements.
@@ -122,6 +136,7 @@ nix build --offline --no-link \
   .#checks.x86_64-linux.nono-pi-claude-proxy \
   .#checks.x86_64-linux.nono-pi-ssh-access \
   .#checks.x86_64-linux.nono-pi-credential-filesystem \
+  .#checks.x86_64-linux.nono-pi-desktop-images \
   .#checks.x86_64-linux.nono-pi-socket-isolation-restricted \
   .#checks.x86_64-linux.pi-ipc \
   .#checks.x86_64-linux.pi-launcher-routing

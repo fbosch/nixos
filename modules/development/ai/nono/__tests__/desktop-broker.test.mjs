@@ -39,7 +39,10 @@ async function fixture({ grimBody } = {}) {
   await once(display, "listening");
   const wlCopy = tool(join(root, "wl-copy"), `fs.writeFileSync(${JSON.stringify(record)}, JSON.stringify({ args: process.argv.slice(2), env: Object.keys(process.env).sort(), input: fs.readFileSync(0, "utf8") }));`);
   const grim = tool(join(root, "grim"), grimBody ?? `fs.writeFileSync(${JSON.stringify(record)}, JSON.stringify({ args: process.argv.slice(2) })); process.stdout.write(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0, 255]));`);
-  const inherited = { WAYLAND_DISPLAY: "wl", XDG_RUNTIME_DIR: runtime, PI_DESKTOP_WL_COPY: wlCopy, PI_DESKTOP_GRIM: grim, PI_DESKTOP_PATH: root };
+  const imageData = join(root, "data");
+  mkdirSync(join(imageData, "mime"), { recursive: true });
+  writeFileSync(join(imageData, "mime", "mime.cache"), "fixture");
+  const inherited = { WAYLAND_DISPLAY: "wl", XDG_RUNTIME_DIR: runtime, PI_DESKTOP_WL_COPY: wlCopy, PI_DESKTOP_GRIM: grim, PI_DESKTOP_PATH: root, PI_DESKTOP_IMAGE_DATA: imageData };
   return { root, home, runtime, record, inherited, recorded: () => JSON.parse(readFileSync(record, "utf8")) };
 }
 
@@ -127,7 +130,7 @@ test("image opening uses the inherited fixed viewer and bus, not project values"
   `);
   const inherited = {...f.inherited,PI_DESKTOP_IMAGE_VIEWER:viewer,DBUS_SESSION_BUS_ADDRESS:`unix:path=${busPath}`};
   let path;
-  await withDesktopBroker({PI_DESKTOP_IMAGE_VIEWER:"/untrusted",DBUS_SESSION_BUS_ADDRESS:"/untrusted",SECRET:"not forwarded"}, inherited, f.home, capability, async environment => {
+  await withDesktopBroker({PI_DESKTOP_IMAGE_VIEWER:"/untrusted",DBUS_SESSION_BUS_ADDRESS:"/untrusted",PI_DESKTOP_IMAGE_DATA:"/untrusted", XDG_DATA_DIRS:"/untrusted", SECRET:"not forwarded"}, inherited, f.home, capability, async environment => {
     const bytes=png();
     const response=await exchange(environment.PI_DESKTOP_SOCKET,{id:1,method:"image.open",params:{imageId:randomUUID(),offset:0,totalBytes:bytes.length,data:bytes.toString("base64")}});
     assert.equal(response.ok,true);
@@ -138,6 +141,7 @@ test("image opening uses the inherited fixed viewer and bus, not project values"
     assert.ok(path.startsWith(join(f.home,".pi-ipc")+"/"));
     assert.deepEqual(Buffer.from(record.image,"base64"),bytes);
     assert.equal(record.env.DBUS_SESSION_BUS_ADDRESS,`unix:path=${busPath}`);
+    assert.equal(record.env.XDG_DATA_DIRS, f.inherited.PI_DESKTOP_IMAGE_DATA);
     assert.equal(record.env.SECRET,undefined);
     assert.equal(record.env.NODE_OPTIONS,undefined);
     assert.equal(record.env.GSETTINGS_BACKEND,"memory");
@@ -166,6 +170,27 @@ test("the broker exports a private endpoint that serves pi-desktop and rejects o
   assert.equal(existsSync(endpoint), false);
 });
 
+test("the sanitized image viewer identifies PNG using the pinned MIME database", {
+  skip: !process.env.GIO_TEST_BINARY || !process.env.MIME_TEST_DATA,
+}, async () => {
+  const f = await fixture();
+  const bus = createServer(socket => socket.end());
+  servers.push(bus);
+  const busPath = join(f.runtime, "bus");
+  bus.listen(busPath); await once(bus, "listening");
+  const viewer = tool(join(f.root, "mime-viewer"), `
+    const result = require("node:child_process").spawnSync(${JSON.stringify(process.env.GIO_TEST_BINARY)}, ["info", "-a", "standard::content-type", process.argv[3]], {env:process.env,encoding:"utf8"});
+    if (result.status !== 0) process.exit(1);
+    fs.writeFileSync(${JSON.stringify(f.record)}, JSON.stringify({mime:result.stdout.match(/standard::content-type: (.+)/)?.[1]}));
+  `);
+  const inherited = {...f.inherited,PI_DESKTOP_IMAGE_VIEWER:viewer,PI_DESKTOP_IMAGE_DATA:process.env.MIME_TEST_DATA,DBUS_SESSION_BUS_ADDRESS:`unix:path=${busPath}`};
+  await withDesktopBroker({}, inherited, f.home, capability, async environment => {
+    const bytes = png();
+    const result = await exchange(environment.PI_DESKTOP_SOCKET,{id:"mime",method:"image.open",params:{imageId:randomUUID(),offset:0,totalBytes:bytes.length,data:bytes.toString("base64")}});
+    assert.equal(result.ok,true);
+    assert.equal(f.recorded().mime,"image/png");
+  });
+});
 test("a fresh sandbox can open brokered images but cannot read broker files or connect to session D-Bus", {
   skip: process.platform !== "linux" || !process.env.NONO_TEST_BINARY,
   timeout: 20000,
