@@ -102,6 +102,7 @@
       services.flatpak.packages = [
         "org.freedesktop.Platform.VulkanLayer.vkBasalt//25.08" # Vulkan post-processing
         "org.freedesktop.Platform.VulkanLayer.MangoHud//25.08" # MangoHud overlay
+        "io.github.limo_app.limo"
         "io.mgba.mGBA" # GBA emulator
       ];
 
