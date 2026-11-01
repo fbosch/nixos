@@ -6,10 +6,11 @@ import { afterEach, test } from "node:test";
 import { once } from "node:events";
 import { createServer } from "node:net";
 import { agentProtection, prepareAgentRuntime } from "../scripts/agent-protection.mjs";
+import { withProtectedShellProfile } from "../scripts/shell-protection.mjs";
 
 const roots = [];
 function fixture() {
-  const root = realpathSync(mkdtempSync(join(process.cwd(), ".pi-controls-")));
+  const root = realpathSync(mkdtempSync(join(process.platform === "darwin" ? "/tmp" : process.cwd(), ".pi-controls-")));
   roots.push(root);
   const home = join(root, "home");
   const agent = join(home, "dotfiles", ".pi", "agent");
@@ -68,13 +69,13 @@ test("linked extension dependencies remain protected outside the agent directory
   assert.ok(agentProtection(f.home, f.agent).protectedPaths.includes(external));
 });
 
-test("a writable cache cannot supply persistent extension code", () => {
+test("Linux rejects executable resources beneath an unsplittable writable cache grant", () => {
   const f = fixture();
   const cache = join(f.home, ".cache", "plugin");
   mkdirSync(cache, { recursive: true });
   writeFileSync(join(cache, "index.mjs"), "export default {};");
   symlinkSync(cache, join(f.agent, "extensions", "cached"));
-  assert.throws(() => agentProtection(f.home, f.agent), /writable profile or default-group grant/);
+  assert.throws(() => agentProtection(f.home, f.agent, {}, {}, "linux"), /writable profile or default-group grant/);
 });
 test("dangling Stow targets are protected before they are created", () => {
   const f = fixture();
@@ -110,8 +111,8 @@ test("auth state cannot select a control file through a symlink", () => {
   assert.throws(() => agentProtection(f.home, f.agent), /auth state must be a regular file/);
 });
 
-test("fresh Linux sandbox denies control writes and loads an approved Pi extension", {
-  skip: process.platform !== "linux" || !process.env.NONO_TEST_BINARY || !process.env.PI_RAW_TEST_BINARY,
+test("fresh native sandbox denies control writes and loads an approved Pi extension", {
+  skip: !["linux", "darwin"].includes(process.platform) || !process.env.NONO_TEST_BINARY || !process.env.PI_RAW_TEST_BINARY,
   timeout: 60000,
 }, async t => {
   const f = fixture();
@@ -131,6 +132,8 @@ test("fresh Linux sandbox denies control writes and loads an approved Pi extensi
   const { prepareSandboxRuntime } = await import("../scripts/sandbox-runtime.mjs");
   prepareSandboxRuntime(f.home);
   const profile = JSON.parse(readFileSync(new URL("../scripts/profile.json", import.meta.url), "utf8"));
+  // Short macOS socket fixtures use /tmp; keep synthetic HOME outside explicit temporary read grants.
+  profile.filesystem.read = profile.filesystem.read.filter(path => path !== "/tmp");
   profile.network = { block: true };
   profile.linux.af_unix_mediation = "pathname";
   const profilePath = join(f.root, "offline.json");
@@ -156,6 +159,8 @@ test("fresh Linux sandbox denies control writes and loads an approved Pi extensi
       assert.throws(() => fs.mkdirSync(path.join(base, "extensions", "planted")), denied);
       assert.throws(() => fs.appendFileSync(path.join(base, "extensions", "existing.mjs"), "p"), denied);
     }
+    fs.writeFileSync(path.join(agent, "auth.json"), "{}");
+    assert.equal(fs.readFileSync(path.join(agent, "auth.json"), "utf8"), "{}");
     fs.writeFileSync(path.join(agent, "sessions", "fixture-session"), "session data");
     fs.writeFileSync(path.join(agent, "cache", "fixture-data"), "cache data");
     for (const name of ["frecency", "history"]) {
@@ -184,18 +189,20 @@ test("fresh Linux sandbox denies control writes and loads an approved Pi extensi
     checkDenied("claudeCredentials", run(process.env.CAT_TEST_BINARY, [path.join(process.env.HOME, ".claude", ".credentials.json")]));
     checkDenied("sshAgent", run(process.env.SSH_ADD_TEST_BINARY, ["-l"], {SSH_AUTH_SOCK:process.env.TEST_AGENT_SOCKET}));
     checkDenied("fishConfig", run(process.env.BASH_TEST_BINARY, ["-c", 'echo p >> "$HOME/.config/fish/config.fish"']));
-    checkDenied("corePattern", run(process.env.BASH_TEST_BINARY, ["-c", "echo p >> /proc/sys/kernel/core_pattern"]));
-    const proc = run(process.env.CAT_TEST_BINARY, ["/proc/1/cmdline"]);
-    report.otherProcessCmdline = {status:proc.status, denied:proc.status !== 0};
-    const comm = run(process.env.CAT_TEST_BINARY, ["/proc/1/comm"]);
-    report.otherProcessComm = {status:comm.status, denied:comm.status !== 0};
-    checkDenied("otherProcessEnviron", run(process.env.CAT_TEST_BINARY, ["/proc/1/environ"]));
-    const self = run(process.env.CAT_TEST_BINARY, ["/proc/self/cmdline"]);
-    assert.equal(self.status, 0, self.stderr);
-    report.selfCmdline = {status:self.status, readable:true};
+    if (process.platform === "linux") {
+      checkDenied("corePattern", run(process.env.BASH_TEST_BINARY, ["-c", "echo p >> /proc/sys/kernel/core_pattern"]));
+      const proc = run(process.env.CAT_TEST_BINARY, ["/proc/1/cmdline"]);
+      report.otherProcessCmdline = {status:proc.status, denied:proc.status !== 0};
+      const comm = run(process.env.CAT_TEST_BINARY, ["/proc/1/comm"]);
+      report.otherProcessComm = {status:comm.status, denied:comm.status !== 0};
+      checkDenied("otherProcessEnviron", run(process.env.CAT_TEST_BINARY, ["/proc/1/environ"]));
+      const self = run(process.env.CAT_TEST_BINARY, ["/proc/self/cmdline"]);
+      assert.equal(self.status, 0, self.stderr);
+      report.selfCmdline = {status:self.status, readable:true};
+    }
     // DNS is unavailable in a Nix build; check TCP errno separately so curl's 000 cannot be a false pass.
     Promise.all([22, 80, 443].map(port => new Promise(resolve => {
-      const socket = require("node:net").connect({host:"127.0.0.1", port});
+      const socket = require("node:net").connect({host:process.platform === "darwin" ? "192.0.2.1" : "127.0.0.1", port});
       const finish = code => { socket.destroy(); resolve({port, code}); };
       socket.once("connect", () => finish("connected"));
       socket.once("error", error => finish(error.code));
@@ -214,13 +221,18 @@ test("fresh Linux sandbox denies control writes and loads an approved Pi extensi
     assert.match(pi.stdout, /approved-lockdown-proof/, pi.stdout + pi.stderr);
     console.log("settings and extension writes denied; approved extension loaded; runtime data writable");
   `;
-  const child = spawnSync(process.env.NONO_TEST_BINARY, [...args, "-e", probe, f.agent, f.defaultAgent, process.env.PI_RAW_TEST_BINARY], {
-    cwd: f.work, env: environment, encoding: "utf8", timeout: 45000,
-  });
-  assert.ifError(child.error);
-  assert.equal(child.status, 0, child.stdout + child.stderr);
-  assert.match(child.stdout, /approved extension loaded/);
-  const report = child.stdout.split("\n").find(line => line.startsWith("DENIAL_PROBE_REPORT "));
-  assert.ok(report);
-  t.diagnostic(report);
+  const controls = agentProtection(f.home, f.agent, environment, profile).protectedPaths;
+  withProtectedShellProfile(profilePath, f.home, environment, selectedProfile => {
+    const prepared = [...args];
+    prepared[prepared.indexOf("--profile") + 1] = selectedProfile;
+    const child = spawnSync(process.env.NONO_TEST_BINARY, [...prepared, "-e", probe, f.agent, f.defaultAgent, process.env.PI_RAW_TEST_BINARY], {
+      cwd: f.work, env: environment, encoding: "utf8", timeout: 45000,
+    });
+    assert.ifError(child.error);
+    assert.equal(child.status, 0, child.stdout + child.stderr);
+    assert.match(child.stdout, /approved extension loaded/);
+    const report = child.stdout.split("\n").find(line => line.startsWith("DENIAL_PROBE_REPORT "));
+    assert.ok(report);
+    t.diagnostic(report);
+  }, process.platform, controls);
 });

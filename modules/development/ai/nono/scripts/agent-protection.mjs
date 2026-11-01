@@ -15,14 +15,15 @@ export function agentDirectories(home, agentDir) {
   return roots;
 }
 
-export function agentProtection(home, agentDir, environment = {}, profile = {}) {
+export function agentProtection(home, agentDir, environment = {}, profile = {}, platform = process.platform) {
   const roots = agentDirectories(home, agentDir);
   const canonicalHome = existsSync(home) ? realpathSync(home) : home;
   // These broad Linux default grants cannot be narrowed by splitting launcher arguments.
-  const inheritedWrites = [join(home, ".cache"), ...(!within(canonicalHome, "/tmp") ? ["/tmp"] : [])];
+  const systemTemporary = canonicalCredentialPath("/tmp", "Pi control");
+  const inheritedWrites = [join(home, ".cache"), ...(!within(canonicalHome, systemTemporary) ? [systemTemporary] : [])];
   for (const field of ["allow", "write", "allow_file", "write_file"]) {
     for (const entry of profile.filesystem?.[field] ?? []) {
-      if (typeof entry !== "string" && entry.when && entry.when !== "linux") continue;
+      if (typeof entry !== "string" && entry.when && entry.when !== (platform === "darwin" ? "macos" : platform)) continue;
       const template = typeof entry === "string" ? entry : entry.path;
       inheritedWrites.push(template.replace(/\$(?:\{(\w+)\}|(\w+))/g, (_, braced, bare) => {
         const name = braced || bare;
@@ -32,7 +33,8 @@ export function agentProtection(home, agentDir, environment = {}, profile = {}) 
       }));
     }
   }
-  const fixedWrites = inheritedWrites.map(path => canonicalCredentialPath(path, "Pi control"));
+  // Seatbelt can subtract write denials from broad grants; Landlock must reject such overlaps.
+  const fixedWrites = platform === "linux" ? inheritedWrites.map(path => canonicalCredentialPath(path, "Pi control")) : [];
   const protectedPaths = new Set();
   const runtimePaths = new Set();
   const authFiles = new Set();

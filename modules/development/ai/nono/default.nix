@@ -54,8 +54,30 @@ in
       );
     in
     {
-      # Unix socket mediation stays off for desktop compatibility; host IPC is not isolated.
-      checks = lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
+      checks = {
+        # Run on each native OS: platform-forced argument tests do not prove kernel enforcement.
+        nono-pi-platform-parity = pkgs.runCommand "nono-pi-platform-parity"
+          {
+            NONO_TEST_BINARY = lib.getExe pkgs.nono;
+            NONO_PROFILE_TEST_BINARY = lib.getExe pkgs.nono;
+            PI_RAW_TEST_BINARY = lib.getExe self'.packages.pi-raw;
+            ENV_TEST_BINARY = "${pkgs.coreutils}/bin/env";
+            CURL_TEST_BINARY = lib.getExe pkgs.curl;
+            BASH_TEST_BINARY = "${pkgs.bash}/bin/bash";
+            CAT_TEST_BINARY = "${pkgs.coreutils}/bin/cat";
+            SSH_ADD_TEST_BINARY = "${pkgs.openssh}/bin/ssh-add";
+          }
+          ''
+            mkdir tmp
+            export TMPDIR="$PWD/tmp"
+            ${pkgs.nodejs}/bin/node --test \
+              ${runtime}/__tests__/platform-parity.test.mjs \
+              ${runtime}/__tests__/agent-protection.test.mjs \
+              ${runtime}/__tests__/config-editing.test.mjs \
+              ${runtime}/__tests__/shell-protection.test.mjs
+            touch "$out"
+          '';
+      } // lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
         nono-pi-credential-filesystem =
           pkgs.runCommand "nono-pi-credential-filesystem"
             {

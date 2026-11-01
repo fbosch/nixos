@@ -3,11 +3,11 @@ let
   mkPi =
     pkgs:
     let
-      system = pkgs.stdenv.hostPlatform.system;
       source = pkgs.applyPatches {
         name = "pi-source-with-local-overlays";
         src = inputs.pi;
         patches = [
+          ./pi-schema-package.patch
           ./pi-selector-overlays.patch
           ./pi-auth-startup.patch
           ./pi-tool-search-ranking.patch
@@ -26,7 +26,8 @@ let
           "-p1"
         ];
       };
-      upstreamPi = inputs.pi.packages.${system}.default.override { inherit source; };
+      # Evaluate the patched builder so every pinned Pi workspace is supplied locally.
+      upstreamPi = pkgs.callPackage (source + "/nix/package.nix") { inherit source; };
       pi = upstreamPi.overrideAttrs (
         previous:
           assert pkgs.lib.assertMsg
@@ -142,9 +143,11 @@ let
             ${runtime}/__tests__/service-ipc.test.mjs \
             ${runtime}/__tests__/agent-protection.test.mjs \
             ${runtime}/__tests__/config-editing.test.mjs \
+            ${runtime}/__tests__/platform-parity.test.mjs \
             ${runtime}/__tests__/devenv-runtime.test.mjs \
             ${runtime}/__tests__/ipc-workflows.test.mjs \
             ${runtime}/__tests__/launcher.test.mjs \
+            ${runtime}/__tests__/launch-mode.test.mjs \
             ${runtime}/__tests__/macos-browser-startup.test.mjs \
             ${runtime}/__tests__/reference-access.test.mjs \
             ${runtime}/__tests__/shell-protection.test.mjs \
@@ -291,6 +294,7 @@ in
                   ${pkgs.nodejs}/bin/node --input-type=module -e 'import { loadCapabilities } from "${mkIpcRuntime pkgs}/scripts/ipc-policy.mjs"; loadCapabilities(process.argv[1]);' "${mkIpcManifest pkgs}"
                   ${pkgs.nodejs}/bin/node --test \
                     ${mkIpcRuntime pkgs}/__tests__/ipc-policy.test.mjs \
+                    ${mkIpcRuntime pkgs}/__tests__/launch-mode.test.mjs \
                     ${mkIpcRuntime pkgs}/__tests__/json-lines-server.test.mjs \
                     ${mkIpcRuntime pkgs}/__tests__/ipc-bootstrap.test.mjs \
                     ${mkIpcRuntime pkgs}/__tests__/ipc-session.test.mjs \

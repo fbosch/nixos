@@ -399,6 +399,7 @@ test("always selects absolute nono, immutable profile and distinct raw Pi, prese
     `UV_CACHE_DIR=${join(home, ".cache", "pi", "uv")}`,
     `UV_PYTHON_INSTALL_DIR=${join(home, ".cache", "pi", "uv-python")}`,
     `UV_TOOL_DIR=${join(home, ".cache", "pi", "uv-tools")}`,
+    "PI_NONO_MODE=sandboxed",
     "JITI_FS_CACHE=false",
     "NODE_OPTIONS=--disable-warning=UNDICI-EHPA", raw, ...args,
   ]);

@@ -60,16 +60,19 @@ for (const [name, text] of fixtures) {
   });
 }
 
-test("completed blocks reuse lexing and highlighting across growing component instances", () => {
+test("completed blocks reuse lexing and highlighting while the same component grows and resizes", () => {
   let highlights = 0;
   const colors = theme(() => highlights++).value;
   const source = "# Reuse\n\n```js\nconst reusable = 1;\n```\n\n## Next\n\nThe tail";
   const before = lexMarkdownForTest(source);
-  new Markdown(source, 1, 0, colors).render(80);
+  const markdown = new Markdown(source, 1, 0, colors);
+  markdown.render(80);
   const initial = highlights;
   const after = lexMarkdownForTest(source + " grows");
   assert.equal(after[0], before[0]);
-  new Markdown(source + " grows", 1, 0, colors).render(80);
+  markdown.setText(source + " grows");
+  markdown.render(80);
+  markdown.render(24);
   assert.equal(highlights, initial);
   assert.equal(initial, 1);
 });
@@ -131,11 +134,17 @@ test("assistant completion reparses text and thinking while preserving transform
     if (node.options && typeof node.setText === "function") return [node];
     return [...(node.children ?? []), ...(node.child ? [node.child] : [])].flatMap(markdownNodes);
   }
+  let previousNodes;
   for (const streaming of [true, false]) {
     contexts.length = 0;
     component.updateContent(message, streaming);
     const nodes = markdownNodes(component);
     assert.equal(nodes.length, 2);
+    if (previousNodes) {
+      assert.equal(nodes[0], previousNodes[0], "upstream reuses the thinking component");
+      assert.equal(nodes[1], previousNodes[1], "upstream reuses the text component");
+    }
+    previousNodes = nodes;
     assert.deepEqual(nodes.map(node => node.options.complete), [!streaming, !streaming]);
     component.render(80);
     assert.equal(contexts.length, 2);
@@ -144,6 +153,27 @@ test("assistant completion reparses text and thinking while preserving transform
       assert.equal(context.messageId, "message-id");
       assert.equal(context.timestamp, "2026-01-01T00:00:00Z");
     }
+  }
+});
+
+test("completion with unchanged text reparses a reused Markdown component", () => {
+  const colors = theme().value;
+  for (const [, text] of fixtures) {
+    const markdown = new Markdown("", 1, 0, colors, undefined, {complete:false});
+    for (let end = 1; end <= text.length; end += 7) {
+      markdown.setText(text.slice(0, end));
+      markdown.render(48);
+    }
+    markdown.setText(text);
+    markdown.render(48);
+    const streamedTokens = markdown.cachedTokens?.deref();
+    markdown.setComplete(true);
+    assert.equal(markdown.cachedTokens, undefined, "completion discards the partial parse even without another token");
+    assert.deepEqual(markdown.render(48), fullRender(text, 48, colors));
+    assert.notEqual(markdown.cachedTokens?.deref(), streamedTokens);
+    markdown.setComplete(false);
+    markdown.setText(text + "\n\ncontinued");
+    assert.deepEqual(markdown.render(48), fullRender(text + "\n\ncontinued", 48, colors));
   }
 });
 

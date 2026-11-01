@@ -6,6 +6,13 @@ const MAX_READ_BYTES = 65536;
 function notice(line) {
   const match = /^\s*(?:\d{4}-\d{2}-\d{2}T\S+\s+)?(WARN|ERROR)\s+(.*)$/.exec(stripVTControlCharacters(line));
   if (!match) return undefined;
+  // Azure access is optional; Nono skips a missing bypass without weakening its deny rule.
+  // Keep the original record in the private log, but do not turn this exact notice into a Pi warning.
+  if (match[1] === "WARN" &&
+      match[2].startsWith('filesystem.bypass_protection entry "$HOME/.azure" expanded to ') &&
+      match[2].endsWith(" which does not exist on this system; skipping. The deny rule remains in force. If you meant to bypass a deny on this path, check for typos or platform-specific path differences.")) {
+    return undefined;
+  }
   const level = match[1] === "ERROR" ? "error" : "warning";
   const message = match[2].includes("failed to wait for credential capture command")
     ? "Nono could not wait for the credential capture command."

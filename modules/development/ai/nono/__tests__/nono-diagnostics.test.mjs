@@ -95,6 +95,44 @@ process.stderr.write("PI_STDERR_MARKER\\n");
   });
 }
 
+const absentAzureWarning = 'filesystem.bypass_protection entry "$HOME/.azure" expanded to /fixture/home/.azure which does not exist on this system; skipping. The deny rule remains in force. If you meant to bypass a deny on this path, check for typos or platform-specific path differences.';
+
+for (const decoration of [line => line, line => `2026-10-31T11:30:04Z \u001b[33m${line}\u001b[0m`]) {
+  test("a missing optional Azure directory stays in the log without notifying the user", async () => {
+    await withNonoDiagnostics({}, async environment => {
+      const path = environment.PI_NONO_DIAGNOSTICS_FILE;
+      const original = `${decoration(`WARN ${absentAzureWarning}`)}\n`;
+      writeFileSync(path, original);
+      const messages = [];
+      const seen = new Set();
+      const dispose = watchNonoDiagnostics(path, (message, level) => messages.push({message,level}), seen);
+      dispose();
+      assert.deepEqual(messages, []);
+      assert.equal(seen.size, 0, "optional-path noise must not consume the generic warning deduplication key");
+      assert.equal(readFileSync(path, "utf8"), original);
+    });
+  });
+}
+
+for (const [label, line, level] of [
+  ["other missing bypass", `WARN ${absentAzureWarning.replace("$HOME/.azure", "$HOME/.ssh")}`, "warning"],
+  ["similar Azure path", `WARN ${absentAzureWarning.replace("$HOME/.azure", "$HOME/.azure-extra")}`, "warning"],
+  ["additional failure", `WARN ${absentAzureWarning} Additional failure.`, "warning"],
+  ["error severity", `ERROR ${absentAzureWarning}`, "error"],
+  ["NSCD denial", "WARN connect /run/nscd/socket (no matching unix_socket capability)", "warning"],
+]) {
+  test(`${label} still notifies after optional Azure startup noise`, async () => {
+    await withNonoDiagnostics({}, async environment => {
+      const path = environment.PI_NONO_DIAGNOSTICS_FILE;
+      writeFileSync(path, `WARN ${absentAzureWarning}\n${line}\n`);
+      const messages = [];
+      const dispose = watchNonoDiagnostics(path, (message, severity) => messages.push({message,level:severity}));
+      dispose();
+      assert.deepEqual(messages, [{message:level === "error" ? "Nono reported an error." : "Nono reported a warning.", level}]);
+    });
+  });
+}
+
 test("the watcher waits for complete records and stops notifying after disposal", async () => {
   await withNonoDiagnostics({}, async environment => {
     const path = environment.PI_NONO_DIAGNOSTICS_FILE;

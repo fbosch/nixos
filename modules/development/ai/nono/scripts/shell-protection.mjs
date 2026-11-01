@@ -38,7 +38,7 @@ function startupPaths(home, environment) {
   ];
 }
 
-export function shellProtection(home, environment = {}) {
+export function shellProtection(home, environment = {}, additionalPaths = []) {
   if (!isAbsolute(home)) throw new Error(`Home directory must be absolute: ${home}`);
   if (home.split(sep).includes("..")) throw new Error(`Home directory contains parent traversal: ${home}`);
   const canonicalHome = realpathSync.native(home);
@@ -123,6 +123,8 @@ export function shellProtection(home, environment = {}) {
   }
 
   for (const path of startupPaths(home, environment)) protect(path);
+  // Agent controls are already recursively checked by the launch plan; retain their alias and ancestor denials.
+  for (const path of additionalPaths) protect(path, false);
   const profileDirectory = join(canonicalHome, ".local", "state", "nono", "pi-profiles");
   // This is authority-bearing launch state, not a writable cache. Every session protects it.
   protect(profileDirectory, false);
@@ -157,7 +159,7 @@ function privateProfileDirectory(home) {
   return path;
 }
 
-export function withProtectedShellProfile(profilePath, home, environment, run, platform = process.platform) {
+export function withProtectedShellProfile(profilePath, home, environment, run, platform = process.platform, additionalPaths = []) {
   // Linux needs a different boundary: Landlock cannot subtract writes from an ancestor grant.
   if (platform !== "darwin") return run(profilePath);
   let profile;
@@ -176,7 +178,7 @@ export function withProtectedShellProfile(profilePath, home, environment, run, p
     throw new Error("Invalid Pi nono profile rule lists.");
   }
   const directory = privateProfileDirectory(home);
-  const protection = shellProtection(home, environment);
+  const protection = shellProtection(home, environment, additionalPaths);
   if (directory !== protection.profileDirectory) throw new Error("Pi profile directory changed during startup.");
   const session = mkdtempSync(join(directory, "session-"));
   try {

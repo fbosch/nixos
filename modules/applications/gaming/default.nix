@@ -18,7 +18,7 @@
 
       wowup-cf-wayland = pkgs.symlinkJoin {
         name = "wowup-cf-wayland";
-        paths = [ pkgs.local.wowup-cf ];
+        paths = [ pkgs.wowup-cf ];
         nativeBuildInputs = [ pkgs.makeWrapper ];
         postBuild = ''
           wrapProgram $out/bin/wowup-cf \
@@ -117,7 +117,7 @@
         terminal = false;
         settings = {
           StartupWMClass = "WowUp-CF";
-          X-AppImage-Version = pkgs.local.wowup-cf.version;
+          X-AppImage-Version = pkgs.wowup-cf.version;
         };
       };
     };

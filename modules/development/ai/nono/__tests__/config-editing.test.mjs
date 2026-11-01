@@ -6,8 +6,9 @@ import { createServer } from "node:net";
 import { dirname, join } from "node:path";
 import { afterEach, test } from "node:test";
 import { launchArguments, referenceApprovalStore } from "../scripts/launcher.mjs";
-import { prepareAgentRuntime } from "../scripts/agent-protection.mjs";
+import { agentProtection, prepareAgentRuntime } from "../scripts/agent-protection.mjs";
 import { prepareSandboxRuntime } from "../scripts/sandbox-runtime.mjs";
+import { withProtectedShellProfile } from "../scripts/shell-protection.mjs";
 
 const roots = [];
 const envBinary = process.env.ENV_TEST_BINARY || "/usr/bin/env";
@@ -19,7 +20,7 @@ function repository(path) {
   return common;
 }
 function fixture() {
-  const root = realpathSync(mkdtempSync(join(process.cwd(), ".pi-edit-scope-")));
+  const root = realpathSync(mkdtempSync(join(process.platform === "darwin" ? "/tmp" : process.cwd(), ".pi-edit-scope-")));
   roots.push(root);
   const home = join(root, "home");
   const dotfiles = join(home, "dotfiles");
@@ -39,9 +40,9 @@ function fixture() {
   }}));
   for (const name of ["instructions", "extensions", "settings.json"]) symlinkSync(join(agent, name), join(defaultAgent, name));
   const profile = join(root, "profile.json");
-  writeFileSync(profile, JSON.stringify({...profileSource,network:{block:true},linux:{...profileSource.linux,af_unix_mediation:"pathname"}}));
+  writeFileSync(profile, JSON.stringify({...profileSource,filesystem:{...profileSource.filesystem,read:profileSource.filesystem.read.filter(path=>path!=="/tmp")},network:{block:true},linux:{...profileSource.linux,af_unix_mediation:"pathname"}}));
   const environment = {HOME:home,PATH:process.env.PATH,TMPDIR:join(root,"tmp"),XDG_CACHE_HOME:join(home,".cache"),XDG_STATE_HOME:join(root,"state")};
-  const args = cwd => launchArguments(cwd, agent, home, environment, profile, process.execPath, envBinary);
+  const args = (cwd, platform = process.platform) => launchArguments(cwd, agent, home, environment, profile, process.execPath, envBinary, platform);
   const worktree = (checkout, name) => {
     const path = join(root, "worktrees", name);
     const metadata = join(checkout, ".git", "worktrees", name);
@@ -62,35 +63,37 @@ function canWriteInstructions(args, agent) {
   return values(args, "--allow").some(root => covers(root, directory));
 }
 
-for (const name of ["dotfiles", "nixos"]) {
-  test(`${name} and its subdirectories permit Pi setup edits`, () => {
+for (const platform of ["linux", "darwin"]) {
+  for (const name of ["dotfiles", "nixos"]) {
+    test(`${platform}: ${name} and its subdirectories permit Pi setup edits`, () => {
+      const f = fixture();
+      const nested = join(f[name], "src");
+      mkdirSync(nested);
+      for (const cwd of [f[name], nested]) {
+        const args = f.args(cwd, platform);
+        assert.ok(canWriteInstructions(args, f.agent));
+        assert.ok(values(args, "--allow").some(root => covers(root, f.defaultAgent)));
+      }
+    });
+    test(`${platform}: registered ${name} worktrees and their aliases permit Pi setup edits`, () => {
+      const f = fixture();
+      const {path} = f.worktree(f[name], `${name}-branch`);
+      const nested = join(path, "src");
+      const alias = join(f.root, "alias");
+      mkdirSync(nested);
+      symlinkSync(path, alias);
+      for (const cwd of [path, nested, alias]) assert.ok(canWriteInstructions(f.args(cwd, platform), f.agent));
+    });
+  }
+
+  test(`${platform}: unrelated repositories, lookalikes, and their worktrees retain Pi lockdown`, () => {
     const f = fixture();
-    const nested = join(f[name], "src");
-    mkdirSync(nested);
-    for (const cwd of [f[name], nested]) {
-      const args = f.args(cwd);
-      assert.ok(canWriteInstructions(args, f.agent));
-      assert.ok(values(args, "--allow").some(root => covers(root, f.defaultAgent)));
-    }
-  });
-  test(`registered ${name} worktrees and their aliases permit Pi setup edits`, () => {
-    const f = fixture();
-    const {path} = f.worktree(f[name], `${name}-branch`);
-    const nested = join(path, "src");
-    const alias = join(f.root, "alias");
-    mkdirSync(nested);
-    symlinkSync(path, alias);
-    for (const cwd of [path, nested, alias]) assert.ok(canWriteInstructions(f.args(cwd), f.agent));
+    const lookalike = join(f.home, "dotfiles-other");
+    repository(lookalike);
+    const {path} = f.worktree(f.project, "project-branch");
+    for (const cwd of [f.project, lookalike, path]) assert.equal(canWriteInstructions(f.args(cwd, platform), f.agent), false);
   });
 }
-
-test("unrelated repositories, lookalikes, and their worktrees retain Pi lockdown", () => {
-  const f = fixture();
-  const lookalike = join(f.home, "dotfiles-other");
-  repository(lookalike);
-  const {path} = f.worktree(f.project, "project-branch");
-  for (const cwd of [f.project, lookalike, path]) assert.equal(canWriteInstructions(f.args(cwd), f.agent), false);
-});
 
 test("a forged worktree pointer cannot select another checkout's editing scope", () => {
   const f = fixture();
@@ -108,7 +111,7 @@ test("editing scope cannot turn the home directory into a writable Pi directory"
 
 for (const scenario of ["dotfiles", "nixos", "worktree", "unrelated"]) {
   test(`fresh sandbox ${scenario}: atomic Pi edits follow launch scope and other protections remain`, {
-    skip:process.platform !== "linux" || !process.env.NONO_TEST_BINARY,
+    skip:!["linux", "darwin"].includes(process.platform) || !process.env.NONO_TEST_BINARY,
     timeout:30000,
   }, async t => {
     const f = fixture();
@@ -163,18 +166,23 @@ for (const scenario of ["dotfiles", "nixos", "worktree", "unrelated"]) {
       assert.throws(() => fs.readFileSync(path.join(home,".claude",".credentials.json")),denied);
       assert.throws(() => fs.appendFileSync(path.join(home,".config","fish","config.fish"),"p"),denied);
       assert.throws(() => fs.appendFileSync(approvals,"p"),denied);
-      const endpoints = [...[22,80,443].map(port=>({host:"127.0.0.1",port})), {path:socket}];
+      const endpoints = [...[22,80,443].map(port=>({host:process.platform === "darwin" ? "192.0.2.1" : "127.0.0.1",port})), {path:socket}];
       Promise.all(endpoints.map(endpoint => new Promise(resolve => {
         const socket=net.connect(endpoint);
         const finish=code=>{socket.destroy();resolve(code);};
         socket.once("connect",()=>finish("connected"));socket.once("error",e=>finish(e.code));socket.setTimeout(2000,()=>finish("timeout"));
       }))).then(codes=>{for(const code of codes)assert.ok(["EACCES","EPERM"].includes(code),code);console.log("scope and retained denials passed");}).catch(e=>{console.error(e);process.exitCode=1;});
     `;
-    const child = spawnSync(process.env.NONO_TEST_BINARY,[...args,"-e",script,f.agent,f.defaultAgent,f.dotfiles,f.home,referenceApprovalStore(f.home),editable?"yes":"no",socket],{
-      cwd,env:f.environment,encoding:"utf8",timeout:20000,
-    });
-    assert.ifError(child.error);
-    assert.equal(child.status,0,child.stdout+child.stderr);
-    assert.match(child.stdout,/scope and retained denials passed/);
+    const controls = editable ? [] : agentProtection(f.home, f.agent, f.environment, JSON.parse(readFileSync(f.profile, "utf8"))).protectedPaths;
+    withProtectedShellProfile(f.profile, f.home, f.environment, selectedProfile => {
+      const prepared = [...args];
+      prepared[prepared.indexOf("--profile") + 1] = selectedProfile;
+      const child = spawnSync(process.env.NONO_TEST_BINARY,[...prepared,"-e",script,f.agent,f.defaultAgent,f.dotfiles,f.home,referenceApprovalStore(f.home),editable?"yes":"no",socket],{
+        cwd,env:f.environment,encoding:"utf8",timeout:20000,
+      });
+      assert.ifError(child.error);
+      assert.equal(child.status,0,child.stdout+child.stderr);
+      assert.match(child.stdout,/scope and retained denials passed/);
+    }, process.platform, [...controls, dirname(referenceApprovalStore(f.home))]);
   });
 }

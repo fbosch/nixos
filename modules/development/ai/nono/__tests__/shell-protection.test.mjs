@@ -199,9 +199,14 @@ test("launcher supplies the generated policy to nono and --no-sandbox skips prot
   mkdirSync(cwd);
   environment.TMPDIR = environment.XDG_RUNTIME_DIR;
   for (const name of ["GH_TOKEN", "GITHUB_TOKEN", "GITHUB_PERSONAL_ACCESS_TOKEN", "GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN"]) delete environment[name];
+  // This synthetic HOME is under /tmp; do not grant that ancestor to the bootstrap fixture.
+  const fixtureProfile = join(root, "profile.json");
+  const policy = JSON.parse(readFileSync(baseProfile, "utf8"));
+  policy.filesystem.read = policy.filesystem.read.filter(path => path !== "/tmp");
+  writeFileSync(fixtureProfile, JSON.stringify(policy));
   const nono = join(root, "nono-fixture.mjs");
   writeFileSync(nono, `#!${process.execPath}\nimport {readFileSync} from 'node:fs';const p=process.argv[process.argv.indexOf('--profile')+1];console.log(JSON.stringify({path:p,profile:JSON.parse(readFileSync(p,'utf8'))}));\n`, { mode: 0o700 });
-  const child = spawnSync(process.execPath, [launcher, nono, "/usr/bin/true", baseProfile, "/missing-direnv", envBinary], { cwd, env: environment, encoding: "utf8" });
+  const child = spawnSync(process.execPath, [launcher, nono, "/usr/bin/true", fixtureProfile, "/missing-direnv", envBinary], { cwd, env: environment, encoding: "utf8" });
   assert.equal(child.status, 0, child.stderr);
   const actual = JSON.parse(child.stdout);
   assert.match(actual.profile.unsafe_macos_seatbelt_rules.at(-1), /^\(deny file-write\*/);

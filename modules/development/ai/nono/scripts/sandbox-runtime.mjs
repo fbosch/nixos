@@ -29,6 +29,8 @@ export function sandboxRuntimeCommand(home, rawPi, envBinary) {
   // Set child-only config after confinement; supervisor capture keeps the real store.
   const environment = {
     ...sandboxRuntimeEnvironment(home),
+    // A nested sandbox launch must not retain a parent raw-launch notice.
+    PI_NONO_MODE: "sandboxed",
     // Reload code from protected sources, never from a writable cache left by a previous session.
     JITI_FS_CACHE: "false",
     // Nono strips Node options; restore only this fixed warning filter after confinement.

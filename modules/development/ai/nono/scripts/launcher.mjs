@@ -297,7 +297,11 @@ function assertRuntimeSecretGrants(args, cwd, home, environment, profile, platfo
   assertCredentialGrants(args, cwd, home, environment, profile, secrets, "Runtime secret");
 }
 
-export function launchArguments(cwd, agentDir, home, environment, profile, rawPi, envBinary, platform = process.platform, registry = defaultCapabilities) {
+export function launchArguments(...parameters) {
+  return planLaunchArguments(...parameters).args;
+}
+
+function planLaunchArguments(cwd, agentDir, home, environment, profile, rawPi, envBinary, platform = process.platform, registry = defaultCapabilities) {
   if (!isAbsolute(profile) || !existingFile(profile)) throw new Error(`Nix nono profile missing: ${profile}`);
   if (!isAbsolute(envBinary) || !existingFile(envBinary)) throw new Error(`Nix env executable missing: ${envBinary}`);
   const loadedProfile = readJson(profile, "nono profile");
@@ -334,13 +338,11 @@ export function launchArguments(cwd, agentDir, home, environment, profile, rawPi
   const cacheHome = environment.XDG_CACHE_HOME || join(home, ".cache");
   const extra = [...sshClientArguments(home, environment), ...serviceSocketArguments(cwd, home, environment, ipcRestricted)];
   let agent = { protectedPaths: [], runtimePaths: [], authFiles: [] };
-  if (platform === "linux") {
-    if (writableRoots.length > 0) {
-      // Configuration sessions may persist Pi changes; all other host-only guards still apply.
-      for (const root of agentDirectories(home, agentDir)) grants.add(root);
-    } else {
-      agent = agentProtection(home, agentDir, environment, loadedProfile);
-    }
+  if (writableRoots.length > 0) {
+    // Configuration sessions may persist Pi changes on either OS; other host-only guards still apply.
+    for (const root of agentDirectories(home, agentDir)) grants.add(root);
+  } else {
+    agent = agentProtection(home, agentDir, environment, loadedProfile, platform);
   }
   for (const path of agent.runtimePaths) grants.add(path);
   for (const path of agent.authFiles) extra.push("--allow-file", path);
@@ -401,7 +403,7 @@ export function launchArguments(cwd, agentDir, home, environment, profile, rawPi
   const splitCwd = platform === "linux" && hostOnlyPaths.some((path) => within(path, canonicalCwd) || within(canonicalCwd, path));
   if (splitCwd) grants.add(canonicalCwd);
   const split = { allow: [], files: [], reads: [] };
-  for (const path of grants) splitWritableGrant(path, platform === "linux" ? hostOnlyPaths : [], split);
+  for (const path of grants) splitWritableGrant(path, platform === "linux" ? hostOnlyPaths : agent.protectedPaths, split);
   const args = [
     "run", "--profile", profile, ...(splitCwd ? [] : ["--allow-cwd"]), "--suppress-save-prompt", "/",
     ...(platform === "darwin" ? ["--trust-proxy-ca"] : []),
@@ -419,8 +421,8 @@ export function launchArguments(cwd, agentDir, home, environment, profile, rawPi
   const guardEnvironment = { ...environment, TMPDIR: environment.TMPDIR || tmpdir() };
   assertCredentialSourceGrants(args, cwd, home, guardEnvironment, loadedProfile);
   assertRuntimeSecretGrants(args, cwd, home, guardEnvironment, loadedProfile, platform);
-  assertHostOnlyGrants(args, cwd, hostOnlyPaths);
-  return args;
+  assertHostOnlyGrants(args, cwd, platform === "linux" ? hostOnlyPaths : [approvals]);
+  return { args, protectedPaths: [...agent.protectedPaths, approvals] };
 }
 
 export function prepareJitiCache(temporaryDirectory = tmpdir(), platform = process.platform) {
@@ -450,14 +452,19 @@ export function prepareNpmCache(home = homedir()) {
   }
 }
 
-export function launchCommand(args, cwd, agentDir, home, environment, nono, rawPi, profile, envBinary, registry = defaultCapabilities) {
+export function launchCommand(...parameters) {
+  return planLaunchCommand(...parameters).command;
+}
+
+function planLaunchCommand(args, cwd, agentDir, home, environment, nono, rawPi, profile, envBinary, registry = defaultCapabilities) {
   if (!isAbsolute(rawPi) || !existsSync(rawPi)) throw new Error(`Raw Pi executable missing: ${rawPi}`);
-  if (args[0] === "--no-sandbox") return [rawPi, ...args.slice(1)];
+  if (args[0] === "--no-sandbox") return { command: [rawPi, ...args.slice(1)], protectedPaths: [] };
   const extension = environment.PI_NONO_DIAGNOSTICS === "1" && environment.PI_NONO_DIAGNOSTICS_FILE
     ? ["--extension", fileURLToPath(new URL("./nono-diagnostics-extension.mjs", import.meta.url))]
     : [];
   if (!isAbsolute(nono) || !existsSync(nono)) throw new Error(`nono executable missing: ${nono}`);
-  return [nono, ...launchArguments(cwd, agentDir, home, environment, profile, rawPi, envBinary, process.platform, registry), ...extension, ...args];
+  const plan = planLaunchArguments(cwd, agentDir, home, environment, profile, rawPi, envBinary, process.platform, registry);
+  return { command: [nono, ...plan.args, ...extension, ...args], protectedPaths: plan.protectedPaths };
 }
 
 export function loadProjectEnvironment(cwd, environment, direnv, run = spawnSync) {
@@ -538,6 +545,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
       // Explicit raw mode replaces this process before any sandbox policy, proxy, IPC, or configuration checks.
       // Kernel restrictions inherited from a parent sandbox still apply.
       const environment = { ...process.env };
+      environment.PI_NONO_MODE = "disabled";
       configurePiPaths(environment, homedir(), (environment.PATH || "").split(delimiter)[0]);
       process.execve(rawPi, [rawPi, ...args.slice(1)], environment);
     }
@@ -578,13 +586,13 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
         delete environment.SSH_AUTH_SOCK;
       }
       prepareSandboxRuntime(home);
-      if (process.platform === "linux") prepareAgentRuntime(agentDir);
+      prepareAgentRuntime(agentDir);
       ensureSshIdentity(environment, home, sshAdd);
     }
     const runPi = (boundEnvironment) => withNonoDiagnostics(boundEnvironment, async (diagnosticEnvironment) => {
       environment = diagnosticEnvironment;
       environment.PI_NONO_DIAGNOSTICS = inheritedEnvironment.PI_NONO_DIAGNOSTICS === "1" ? "1" : "0";
-      const command = launchCommand(args, process.cwd(), agentDir, home, environment, nono, rawPi, profile, envBinary, registry);
+      const { command, protectedPaths } = planLaunchCommand(args, process.cwd(), agentDir, home, environment, nono, rawPi, profile, envBinary, registry);
       if (command[0] === nono) command.splice(2, 0, "--log-file", environment.PI_NONO_DIAGNOSTICS_FILE);
       // Herdr must identify the host-visible bootstrap even when nono hides the child process.
       process.title = "pi";
@@ -600,7 +608,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
         if (process.platform === "linux" && readJson(profile, "nono profile")?.network?.credentials?.length) {
           return runWithCredentialProxy(nono, profile, command, environment, { sandboxed: true });
         }
-        return withProtectedShellProfile(profile, home, environment, run);
+        return withProtectedShellProfile(profile, home, environment, run, process.platform, protectedPaths);
       }
       return runWithCredentialProxy(nono, profile, command, environment);
     });
