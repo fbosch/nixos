@@ -4,7 +4,7 @@ import { delimiter, dirname, isAbsolute, join, resolve, sep } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { stripVTControlCharacters } from "node:util";
-import { withProtectedShellProfile } from "./shell-protection.mjs";
+import { shellProtection, withProtectedShellProfile } from "./shell-protection.mjs";
 import { assertReadOnlySshGrants, sshClientArguments } from "./ssh-access.mjs";
 import { assertCredentialSourceGrants, credentialEnvironmentForDirenv, prepareCredentialEnvironment } from "./credentials.mjs";
 import { prepareSandboxRuntime, sandboxRuntimeCommand } from "./sandbox-runtime.mjs";
@@ -183,7 +183,7 @@ function gitMetadata(cwd, home) {
   }
 }
 
-function writableReferenceRoots(cwd, home) {
+function pairedRepositoryRoots(home) {
   // These exceptions are packaged by Nix, never selected by mutable reference names or settings.
   const roots = ["dotfiles", "nixos"].map((name) => existingDirectory(join(home, name))).filter(Boolean);
   if (roots.length === 0) return [];
@@ -191,8 +191,37 @@ function writableReferenceRoots(cwd, home) {
   if (roots.some((root) => within(canonicalHome, root))) {
     throw new Error("Paired repository paths must not resolve to the home directory or an ancestor.");
   }
+  return roots;
+}
+
+function writableReferenceRoots(cwd, home) {
+  const roots = pairedRepositoryRoots(home);
   const canonicalCwd = realpathSync(cwd);
   return roots.some((root) => within(canonicalCwd, root)) ? roots : [];
+}
+
+// Reference settings are sandbox-writable, so grants beyond cwd and the paired repositories need a host-only approval.
+export function referenceApprovalStore(home) {
+  return join(existingDirectory(home) ?? resolve(home), ".local", "state", "pi-sandbox", "approved-references.json");
+}
+
+function approvedReferenceRoots(home) {
+  const store = referenceApprovalStore(home);
+  let entry;
+  try {
+    entry = lstatSync(store);
+  } catch (error) {
+    if (error.code === "ENOENT") return [];
+    throw error;
+  }
+  if (!entry.isFile() || entry.uid !== process.getuid() || (entry.mode & 0o022) !== 0) {
+    throw new Error(`Reference approvals must be a user-owned regular file without group or world write access: ${store}`);
+  }
+  const approvals = readJson(store, "reference approvals");
+  if (!Array.isArray(approvals) || !approvals.every((path) => typeof path === "string" && isAbsolute(path))) {
+    throw new Error(`Reference approvals must be a JSON array of absolute paths: ${store}`);
+  }
+  return approvals.flatMap((path) => existsSync(path) ? [realpathSync(path)] : []);
 }
 
 // sops-nix Home Manager decrypts user secrets into %r/secrets.d and links the active generation from %r/secrets.
@@ -213,6 +242,39 @@ function runtimeDirectoryArguments(runtime, platform) {
   });
 }
 
+// Landlock cannot subtract a child from a writable grant, so a root containing protected paths is split into its siblings.
+function splitWritableGrant(root, protectedPaths, split) {
+  if (protectedPaths.some((path) => within(root, path))) {
+    split.reads.push(root);
+    return;
+  }
+  const inside = protectedPaths.filter((path) => within(path, root));
+  if (inside.length === 0) {
+    split.allow.push(root);
+    return;
+  }
+  // The split level itself stays read-only: no new entries can appear beside protected ones.
+  split.reads.push(root);
+  for (const entry of readdirSync(root, { withFileTypes: true })) {
+    const path = join(root, entry.name);
+    // A grant follows symlinks, so an aliased entry could re-expose a protected target.
+    if (entry.isSymbolicLink()) continue;
+    if (entry.isDirectory()) splitWritableGrant(path, inside, split);
+    else if (entry.isFile() && !inside.includes(path)) split.files.push(path);
+  }
+}
+
+function assertHostOnlyGrants(args, cwd, hostOnlyPaths) {
+  const separator = args.indexOf("--");
+  const writable = [...(args.slice(0, separator).includes("--allow-cwd") ? [cwd] : []), ...args.slice(0, separator).flatMap((part, index, all) => ["--allow", "--allow-file"].includes(part) ? [all[index + 1]] : [])];
+  for (const path of writable) {
+    const grant = existsSync(path) ? realpathSync(path) : path;
+    const conflict = hostOnlyPaths.find((hostOnly) => within(hostOnly, grant) || within(grant, hostOnly));
+    // Shell startup files and reference approvals act on the host; no writable grant may reach them.
+    if (conflict !== undefined) throw new Error(`Writable launcher grant covers host-only path ${conflict}: ${path}; launch Pi from a directory that does not contain it.`);
+  }
+}
+
 function assertRuntimeSecretGrants(args, cwd, home, environment, profile, platform) {
   const runtime = platform === "linux" && environment.XDG_RUNTIME_DIR ? existingDirectory(environment.XDG_RUNTIME_DIR) : undefined;
   if (runtime === undefined) return;
@@ -231,13 +293,18 @@ export function launchArguments(cwd, agentDir, home, environment, profile, rawPi
   const gitDirectories = new Set(metadata.directory ? [metadata.directory] : []);
   const reads = new Set();
   const writableRoots = writableReferenceRoots(cwd, home);
+  const approvedRoots = [realpathSync(cwd), ...pairedRepositoryRoots(home), ...approvedReferenceRoots(home)];
   for (const reference of references(cwd, agentDir, home)) {
     const path = existingDirectory(reference.path);
-    if (needsGitSockets && path !== undefined) {
+    if (path === undefined) continue;
+    if (!approvedRoots.some((root) => within(path, root))) {
+      console.warn(`pi sandbox launch: skipping unapproved reference ${JSON.stringify(reference.name)} (${path}); approve it on the host by adding the path to ${referenceApprovalStore(home)}.`);
+      continue;
+    }
+    if (needsGitSockets) {
       const directory = gitMetadata(path, home).directory;
       if (directory) gitDirectories.add(directory);
     }
-    if (path === undefined) continue;
     const destinations = writableRoots.some((root) => within(path, root)) ? grants : reads;
     destinations.add(path);
   }
@@ -295,14 +362,23 @@ export function launchArguments(cwd, agentDir, home, environment, profile, rawPi
   // Both profiles permit native screenshots and the accompanying access to unrelated same-user shared memory.
   const sharedMemory = platform === "linux" ? existingDirectory("/dev/shm") : undefined;
   if (sharedMemory !== undefined) extra.push("--allow", sharedMemory);
+  // Seatbelt denies startup writes on macOS; Linux must keep them outside every writable grant instead.
+  const approvals = dirname(referenceApprovalStore(home));
+  const hostOnlyPaths = platform === "linux" && existingDirectory(home) !== undefined ? [...shellProtection(home, environment).protectedPaths, approvals] : [approvals];
+  const canonicalCwd = realpathSync(cwd);
+  // A cwd that contains host-only paths is split like any other grant, so nono's whole-directory workdir grant is withheld.
+  const splitCwd = platform === "linux" && hostOnlyPaths.some((path) => within(path, canonicalCwd) || within(canonicalCwd, path));
+  if (splitCwd) grants.add(canonicalCwd);
+  const split = { allow: [], files: [], reads: [] };
+  for (const path of grants) splitWritableGrant(path, platform === "linux" ? hostOnlyPaths : [], split);
   const args = [
-    "run", "--profile", profile, "--allow-cwd", "--suppress-save-prompt", "/",
+    "run", "--profile", profile, ...(splitCwd ? [] : ["--allow-cwd"]), "--suppress-save-prompt", "/",
     ...(platform === "darwin" ? ["--trust-proxy-ca"] : []),
-    // SSH bypasses the HTTP proxy; Linux also permits raw web clients with Landlock.
-    ...(platform === "linux" ? ["--allow-connect-port", "22", "--allow-connect-port", "80", "--allow-connect-port", "443"] : []),
+    // No direct-egress ports: Landlock port grants admit every host, so all traffic must cross the nono proxy.
     ...extra,
-    ...[...reads].filter((path) => !grants.has(path)).flatMap((path) => ["--read", path]),
-    ...[...grants].flatMap((path) => ["--allow", path]),
+    ...[...new Set([...reads, ...split.reads])].filter((path) => !split.allow.includes(path)).flatMap((path) => ["--read", path]),
+    ...split.allow.flatMap((path) => ["--allow", path]),
+    ...split.files.flatMap((path) => ["--allow-file", path]),
     "--", ...sandboxRuntimeCommand(home, rawPi, envBinary),
   ];
   if ([...socketVariables].some(variable => Boolean(environment[variable])) || environment.PI_NVIM_ASK_SOCKET || environment.AGENT_BROWSER_SOCKET_DIR) {
@@ -313,6 +389,7 @@ export function launchArguments(cwd, agentDir, home, environment, profile, rawPi
   const loadedProfile = readJson(profile, "nono profile");
   assertCredentialSourceGrants(args, cwd, home, guardEnvironment, loadedProfile);
   assertRuntimeSecretGrants(args, cwd, home, guardEnvironment, loadedProfile, platform);
+  assertHostOnlyGrants(args, cwd, hostOnlyPaths);
   return args;
 }
 
@@ -453,6 +530,12 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
       managedBin,
     ].join(delimiter);
     if (args[0] !== "--no-sandbox") {
+      // Agent signing is opt-in from the invoking host environment; a project .envrc cannot enable it.
+      if (inheritedEnvironment.PI_NONO_SSH_AGENT === "1") environment.PI_NONO_SSH_AGENT = "1";
+      else {
+        delete environment.PI_NONO_SSH_AGENT;
+        delete environment.SSH_AUTH_SOCK;
+      }
       prepareSandboxRuntime(home);
       ensureSshIdentity(environment, home, sshAdd);
     }

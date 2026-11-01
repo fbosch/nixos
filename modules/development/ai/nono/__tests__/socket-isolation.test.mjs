@@ -151,7 +151,7 @@ test("selected socket grants preserve stdio/HTTP and reject unrelated endpoints 
       PATH: process.env.PATH, HOME: home, TMPDIR: join(root, "tmp"),
       XDG_STATE_HOME: join(root, "state"), XDG_CACHE_HOME: join(root, "cache"),
       XDG_DATA_HOME: join(root, "data"), XDG_CONFIG_HOME: join(root, "config"),
-      XDG_RUNTIME_DIR: runtime, SSH_AUTH_SOCK: permitted[0], PI_NVIM_ASK_SOCKET: permitted[1], AGENT_BROWSER_SOCKET_DIR: browser, NO_COLOR: "1",
+      XDG_RUNTIME_DIR: runtime, SSH_AUTH_SOCK: permitted[0], PI_NONO_SSH_AGENT: "1", PI_NVIM_ASK_SOCKET: permitted[1], AGENT_BROWSER_SOCKET_DIR: browser, NO_COLOR: "1",
       WAYLAND_DISPLAY: "wayland-1",
     };
     const args = launchArguments(work, join(home, ".pi", "agent"), home, environment,

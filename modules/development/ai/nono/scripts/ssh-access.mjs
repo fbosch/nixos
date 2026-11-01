@@ -38,7 +38,8 @@ export function sshClientArguments(home, environment) {
     throw new Error(`Cannot grant SSH client access: ${error.message}`);
   }
 
-  const socket = environment.SSH_AUTH_SOCK;
+  // The agent signs as the host user; only the launcher's host-side opt-in may expose it.
+  const socket = environment.PI_NONO_SSH_AGENT === "1" ? environment.SSH_AUTH_SOCK : undefined;
   if (socket) {
     try {
       if (!isAbsolute(socket)) throw new Error("must be absolute");

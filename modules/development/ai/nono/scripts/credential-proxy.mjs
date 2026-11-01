@@ -129,6 +129,8 @@ function sandboxCommand(nono, command, profile, connection, directory) {
   }
   // Capture belongs to the standalone proxy, never the sandbox supervisor's orphan reaper.
   const sandboxProfile = { ...profile, network, credential_capture: {} };
+  // A launcher that grants the working directory itself omits --allow-cwd; nono must not re-add it whole.
+  if (!command.slice(0, command.indexOf("--")).includes("--allow-cwd")) sandboxProfile.workdir = { access: "none" };
   const profilePath = join(directory, "sandbox.json");
   writeFileSync(profilePath, JSON.stringify(sandboxProfile), { mode: 0o600, flag: "wx" });
   const result = [...command];

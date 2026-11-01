@@ -5,8 +5,8 @@ import { once } from "node:events";
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { homedir, tmpdir } from "node:os";
-import { join } from "node:path";
-import { ensureSshIdentity, launchArguments, launchCommand, prepareJitiCache, prepareNpmCache } from "../scripts/launcher.mjs";
+import { dirname, join } from "node:path";
+import { ensureSshIdentity, launchArguments, launchCommand, prepareJitiCache, prepareNpmCache, referenceApprovalStore } from "../scripts/launcher.mjs";
 import { sandboxRuntimeCommand } from "../scripts/sandbox-runtime.mjs";
 
 import { proxyFixtureSource } from "./fixtures/credential-proxy.mjs";
@@ -41,10 +41,11 @@ test("profile grants npm cache and log writes without making all npm state writa
   ]);
 });
 
-test("profile grants Claude sessions and read-only login without exposing all Claude state", () => {
+test("profile grants Claude sessions and denies the Claude OAuth credential file", () => {
   const profile = JSON.parse(readFileSync(new URL("../scripts/profile.json", import.meta.url), "utf8"));
   assert.ok(profile.filesystem.allow.includes("$HOME/.claude/projects"));
-  assert.ok(profile.filesystem.read.includes("$HOME/.claude/.credentials.json"));
+  assert.ok(profile.filesystem.deny.includes("$HOME/.claude/.credentials.json"));
+  assert.ok(!profile.filesystem.read.includes("$HOME/.claude/.credentials.json"));
   assert.ok(!profile.filesystem.allow.includes("$HOME/.claude/.credentials.json"));
   for (const path of ["$HOME", "$HOME/.claude"]) {
     assert.ok(!profile.filesystem.allow.includes(path));
@@ -52,7 +53,7 @@ test("profile grants Claude sessions and read-only login without exposing all Cl
   }
 });
 
-test("Linux Claude login reads are allowed while credential writes and neighboring state stay denied", {
+test("Linux Claude credential reads and writes are denied while session storage stays writable", {
   skip: process.platform !== "linux" || !process.env.NONO_TEST_BINARY,
 }, () => {
   // Keep synthetic HOME outside /tmp and the writable CWD so grants cannot mask denials.
@@ -80,7 +81,7 @@ test("Linux Claude login reads are allowed while credential writes and neighbori
       const claude = process.argv[1];
       const credential = path.join(claude, ".credentials.json");
       const denied = error => ["EACCES", "EPERM"].includes(error.code);
-      assert.equal(fs.readFileSync(credential, "utf8"), "synthetic-credential");
+      assert.throws(() => fs.readFileSync(credential, "utf8"), denied);
       assert.throws(() => fs.writeFileSync(credential, "changed"), denied);
       assert.throws(() => fs.writeFileSync(path.join(claude, "refresh.tmp"), "changed"), denied);
       assert.throws(() => fs.readFileSync(path.join(claude, "neighbor-secret")), denied);
@@ -154,6 +155,13 @@ test("Linux launches managed global package shims while protecting packages and 
   assert.equal(child.status, 0, child.stderr);
 });
 
+// Reference approvals are host-only; tests with external references record them as the user would.
+function approveReferences(home, ...paths) {
+  const store = referenceApprovalStore(home);
+  mkdirSync(dirname(store), { recursive: true, mode: 0o700 });
+  writeFileSync(store, JSON.stringify(paths), { mode: 0o600 });
+}
+
 const created = [];
 function fixture(base = tmpdir()) {
   const root = mkdtempSync(join(base, "pi-launch-test-"));
@@ -184,6 +192,7 @@ test("macOS grants only existing fsmonitor sockets in the checkout and reference
   writeFileSync(join(agent, "settings.json"), JSON.stringify({
     references: { ref: { path: reference, description: "Fixture repository" } },
   }));
+  approveReferences(home, reference);
   const sockets = [cwd, reference].map(directory => join(directory, ".git", "fsmonitor--daemon.ipc"));
   const servers = [];
   try {
@@ -446,9 +455,9 @@ test("sandbox runtime state is prepared before grants and separated from supervi
   assert.equal(readFileSync(join(cache, "uv-tools", "state"), "utf8"), "preserved");
 });
 
-for (const [name, access] of [
-  ["SSH_AUTH_SOCK", "SSH agent access"],
-  ["XDG_RUNTIME_DIR", "runtime-directory access"],
+for (const [name, access, optIn] of [
+  ["SSH_AUTH_SOCK", "SSH agent access", { PI_NONO_SSH_AGENT: "1" }],
+  ["XDG_RUNTIME_DIR", "runtime-directory access", {}],
 ]) {
   test(`sandbox launcher starts nono despite a missing ${name}`, () => {
     const { root, home, cwd, agent, nono, profile } = fixture();
@@ -464,7 +473,7 @@ for (const [name, access] of [
       cwd,
       env: {
         HOME: home, PATH: process.env.PATH, PI_CODING_AGENT_DIR: agent,
-        TMPDIR: runtime, XDG_RUNTIME_DIR: runtime, [name]: missing,
+        TMPDIR: runtime, XDG_RUNTIME_DIR: runtime, [name]: missing, ...optIn,
       },
       encoding: "utf8", timeout: 15000,
     });
@@ -478,6 +487,41 @@ for (const [name, access] of [
     assert.deepEqual(args.slice(-2), [process.execPath, "--version"]);
   });
 }
+
+test("sandbox launcher withholds the SSH agent unless the invoking host opts in", async () => {
+  const { root, home, cwd, agent, nono, profile } = fixture();
+  const runtime = join(root, "runtime");
+  mkdirSync(runtime);
+  const socket = join(root, "agent.sock");
+  const server = createServer(connection => connection.end());
+  server.listen(socket);
+  await once(server, "listening");
+  try {
+    writeFileSync(nono, `#!${process.execPath}\nconsole.log(JSON.stringify({ args: process.argv.slice(2), socket: process.env.SSH_AUTH_SOCK ?? null }));\n`);
+    chmodSync(nono, 0o700);
+    const launch = extra => {
+      const child = spawnSync(process.execPath, [
+        new URL("../scripts/launcher.mjs", import.meta.url).pathname,
+        nono, process.execPath, profile, "/missing-direnv", envBinary, "--version",
+      ], {
+        cwd,
+        env: { HOME: home, PATH: process.env.PATH, PI_CODING_AGENT_DIR: agent, TMPDIR: runtime, XDG_RUNTIME_DIR: runtime, SSH_AUTH_SOCK: socket, ...extra },
+        encoding: "utf8", timeout: 15000,
+      });
+      assert.ifError(child.error);
+      assert.equal(child.status, 0, child.stderr);
+      return JSON.parse(child.stdout);
+    };
+    const withheld = launch({});
+    assert.ok(!withheld.args.includes(socket));
+    assert.equal(withheld.socket, null);
+    const granted = launch({ PI_NONO_SSH_AGENT: "1" });
+    assert.deepEqual(values(granted.args, "--allow-unix-socket"), [socket]);
+    assert.equal(granted.socket, socket);
+  } finally {
+    await new Promise(resolve => server.close(resolve));
+  }
+});
 
 test("unavailable socket enforcement fails visibly without retrying raw Pi", () => {
   const { root, home, cwd, agent, nono, raw, profile } = fixture();
@@ -817,13 +861,14 @@ test("sandbox startup suppresses only the proxy-agent warning and preserves prox
   }
 });
 
-test("direct SSH/web exceptions and proxy flags are scoped across OS paths", () => {
+test("no OS path adds direct-egress ports; proxy flags stay platform-scoped", () => {
   const { cwd, agent, home, raw, profile } = fixture();
   const policy = JSON.parse(readFileSync(new URL("../scripts/profile.json", import.meta.url), "utf8"));
   assert.deepEqual(policy.network.open_port, [9222, 2828]);
   for (const port of [22, 80, 443]) {
-    assert.ok(policy.unsafe_macos_seatbelt_rules.includes(`(allow network-outbound (remote tcp "*:${port}"))`));
+    assert.ok(!policy.unsafe_macos_seatbelt_rules.includes(`(allow network-outbound (remote tcp "*:${port}"))`));
   }
+  assert.ok(!policy.unsafe_macos_seatbelt_rules.some(rule => /network-outbound \(remote tcp "\*:/.test(rule)));
   assert.ok(!policy.filesystem.read.includes("$HOME/.config/gh"));
   assert.ok(policy.filesystem.read.includes("$HOME/.local/share/gh/extensions"));
   const darwin = launchArguments(cwd, agent, home, {}, profile, raw, envBinary, "darwin");
@@ -831,7 +876,7 @@ test("direct SSH/web exceptions and proxy flags are scoped across OS paths", () 
   assert.ok(darwin.includes("--trust-proxy-ca"));
   assert.ok(!linux.includes("--trust-proxy-ca"));
   assert.equal(policy.linux.sandbox_policy, "landlock");
-  assert.deepEqual(values(linux, "--allow-connect-port"), ["22", "80", "443"]);
+  assert.deepEqual(values(linux, "--allow-connect-port"), []);
   assert.deepEqual(values(darwin, "--allow-connect-port"), []);
   assert.deepEqual(policy.network.allow_domain ?? [], []);
 });
@@ -844,6 +889,7 @@ test("dynamic grants reject the GitHub store through runtime, reference, cwd, an
   const args = (directory, env = {}) => launchArguments(directory, agent, home, env, profile, raw, envBinary);
   assert.throws(() => args(cwd, { XDG_RUNTIME_DIR: config }), /GitHub credential/);
   writeFileSync(join(agent, "settings.json"), JSON.stringify({ references: { config: { path: config, description: "fixture" } } }));
+  approveReferences(home, config);
   assert.throws(() => args(cwd), /GitHub credential/);
   rmSync(join(agent, "settings.json"));
   assert.throws(() => args(store), /GitHub credential/);

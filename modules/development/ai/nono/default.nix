@@ -81,6 +81,21 @@ in
               ${pkgs.nodejs}/bin/node --test ${runtime}/__tests__/ssh-access.test.mjs
               touch "$out"
             '';
+        # Reference approval, shell-startup splitting and Claude credential denial need real Landlock runs.
+        nono-pi-reference-access =
+          pkgs.runCommand "nono-pi-reference-access"
+            {
+              NONO_TEST_BINARY = lib.getExe pkgs.nono;
+              ENV_TEST_BINARY = "${pkgs.coreutils}/bin/env";
+            }
+            ''
+              # Keep TMPDIR outside /build so the profile's TMPDIR read grant cannot mask fixture denials.
+              mkdir tmp
+              export TMPDIR="$PWD/tmp"
+              ${pkgs.nodejs}/bin/node --test ${runtime}/__tests__/reference-access.test.mjs
+              ${pkgs.nodejs}/bin/node --test --test-name-pattern="Linux Claude credential" ${runtime}/__tests__/launcher.test.mjs
+              touch "$out"
+            '';
         nono-pi-git-worktree =
           pkgs.runCommand "nono-pi-git-worktree"
             {
@@ -249,7 +264,8 @@ in
           expected = {
             filesystem = {
               # The stable parent also denies new generations after SOPS rotates its symlink.
-              deny = [ "/run/secrets" "/run/secrets.d" ];
+              # Claude OAuth tokens never enter the sandbox; scoped tokens must use a proxy credential route.
+              deny = [ "/run/secrets" "/run/secrets.d" "$HOME/.claude/.credentials.json" ];
               allow = [
                 "$HOME/.pi"
                 "$HOME/.claude/projects"
@@ -263,7 +279,6 @@ in
                 }
               ];
               read = [
-                "$HOME/.claude/.credentials.json"
                 "$HOME/.agents/skills"
                 "$HOME/.local/share/gh/extensions"
                 "$HOME/.local/state/pnpm-globals/current/node_modules"
@@ -390,10 +405,10 @@ in
         };
         # Chromium's power monitor needs RootDomainUserClient; its children exchange
         # ports through bundle-specific, PID-suffixed Mach rendezvous services.
+        # Outbound stays loopback-only so remote traffic cannot bypass the nono proxy on 22/80/443.
         testKeepsMacosRuntimeRulesScoped = {
           expr = profile.unsafe_macos_seatbelt_rules;
           expected = [
-            ''(allow network-outbound (remote tcp "*:22"))''
             ''(allow network-outbound (remote tcp "localhost:*"))''
             "(allow ipc-sysv-sem)"
             "(allow lsopen)"

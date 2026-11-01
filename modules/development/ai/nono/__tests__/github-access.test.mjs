@@ -99,7 +99,7 @@ test("GitHub CLI and MCP caches work while credentials and neighboring secrets s
   }
 });
 
-test("direct SSH and platform web exceptions coexist with the isolated GitHub credential proxy", {
+test("direct SSH and web ports are denied while the isolated GitHub credential proxy stays reachable", {
   skip: process.platform === "darwin" && process.env.NONO_CAP_FILE
     ? "macOS runtime checks require a runner outside Nono"
     : !process.env.NONO_TEST_BINARY,
@@ -151,8 +151,11 @@ test("direct SSH and platform web exceptions coexist with the isolated GitHub cr
         socket.once("error", (error) => resolve(error.code));
       });
       (async () => {
-        // Refusal from an empty loopback port proves connect reached the network stack.
-        for (const port of [22, 80, 443]) assert.match(await connect(port), /^(connected|ECONNREFUSED)$/, String(port));
+        // Landlock port rules admit every host, so a loopback denial proves the port is closed for all destinations.
+        for (const port of [22, 80, 443]) {
+          if (process.platform === "linux") assert.match(await connect(port), /^(EACCES|EPERM)$/, String(port));
+          assert.match(await connect(port, "192.0.2.1"), /^(EACCES|EPERM)$/, "192.0.2.1:" + port);
+        }
         if (process.platform === "linux") assert.match(await connect(23), /^(EACCES|EPERM)$/);
         assert.match(await connect(23, "192.0.2.1"), /^(EACCES|EPERM)$/);
         const key = require("node:path").join(process.env.HOME, ".ssh", "id_ed25519");

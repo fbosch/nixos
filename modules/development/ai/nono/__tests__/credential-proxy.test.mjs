@@ -299,6 +299,8 @@ test("sandbox proxy retains filesystem policy and grants only its port and publi
     assert.deepEqual(actual.profile.security, original.security);
     assert.deepEqual(actual.profile.network, { block: true, credentials: [], network_profile: null, open_port: [9222] });
     assert.deepEqual(actual.profile.credential_capture, {});
+    // The fixture command omits --allow-cwd, as the launcher does when it splits the working directory itself.
+    assert.deepEqual(actual.profile.workdir, { access: "none" });
     assert.deepEqual(actual.args.slice(actual.args.indexOf("--") - 4, actual.args.indexOf("--")), ["--allow-connect-port", actual.proxyPort, "--read-file", actual.bundle]);
     assert.equal(actual.bundleContents, "fixture public CA bundle");
     assert.equal(actual.extraCa, actual.bundle);

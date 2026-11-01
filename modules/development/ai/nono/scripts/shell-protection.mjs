@@ -134,6 +134,7 @@ export function shellProtection(home, environment = {}) {
   ];
   return {
     profileDirectory,
+    protectedPaths: minimalRoots,
     readPaths: [...reads].filter((path) => ![...reads].some((other) => other !== path && within(path, other))).sort(),
     rules: [`(deny file-write* ${filters.join(" ")})`],
   };

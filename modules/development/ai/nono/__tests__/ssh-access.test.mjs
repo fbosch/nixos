@@ -112,7 +112,7 @@ test("SSH_AUTH_SOCK grants only connect access to the selected existing agent so
   server.listen(socket);
   await once(server, "listening");
   try {
-    const args = f.args({ SSH_AUTH_SOCK: socket });
+    const args = f.args({ SSH_AUTH_SOCK: socket, PI_NONO_SSH_AGENT: "1" });
     assert.deepEqual(paths(args, "--allow-unix-socket"), [socket]);
     assert.deepEqual(paths(args, "--bypass-protection"), [socket]);
     assert.ok(!paths(args, "--allow").includes(f.root));
@@ -123,6 +123,24 @@ test("SSH_AUTH_SOCK grants only connect access to the selected existing agent so
   }
 });
 
+test("SSH agent socket is withheld unless the host launch opts in", async () => {
+  const f = fixture();
+  const socket = join(f.root, "agent.sock");
+  const server = createServer(connection => connection.end());
+  server.listen(socket);
+  await once(server, "listening");
+  try {
+    for (const optIn of [undefined, "", "0", "true"]) {
+      const args = f.args({ SSH_AUTH_SOCK: socket, ...(optIn === undefined ? {} : { PI_NONO_SSH_AGENT: optIn }) });
+      assert.deepEqual(paths(args, "--allow-unix-socket"), [], String(optIn));
+      assert.ok(!paths(args, "--bypass-protection").includes(socket), String(optIn));
+    }
+    // Without the opt-in an invalid agent path is ignored rather than validated.
+    assert.doesNotThrow(() => f.args({ SSH_AUTH_SOCK: "relative.sock" }));
+  } finally {
+    await new Promise(resolve => server.close(resolve));
+  }
+});
 test("missing SSH_AUTH_SOCK paths warn and preserve grants without adding agent access", t => {
   const f = fixture();
   mkdirSync(f.ssh);
@@ -135,7 +153,7 @@ test("missing SSH_AUTH_SOCK paths warn and preserve grants without adding agent 
   symlinkSync(missing, dangling);
   const sockets = [missing, join(f.root, "missing-agent", "agent.sock"), dangling];
   for (const socket of sockets) {
-    assert.deepEqual(f.args({ SSH_AUTH_SOCK: socket }), expected);
+    assert.deepEqual(f.args({ SSH_AUTH_SOCK: socket, PI_NONO_SSH_AGENT: "1" }), expected);
   }
   assert.equal(warning.mock.callCount(), sockets.length);
   for (const [index, call] of warning.mock.calls.entries()) {
@@ -148,9 +166,9 @@ test("invalid SSH agent paths fail loudly instead of granting a file or a direct
   const f = fixture();
   const file = join(f.root, "not-a-socket");
   writeFileSync(file, "fixture");
-  assert.throws(() => f.args({ SSH_AUTH_SOCK: "relative.sock" }), /SSH_AUTH_SOCK.*absolute/);
-  assert.throws(() => f.args({ SSH_AUTH_SOCK: file }), /SSH_AUTH_SOCK.*socket/);
-  assert.throws(() => f.args({ SSH_AUTH_SOCK: f.root }), /SSH_AUTH_SOCK.*socket/);
+  assert.throws(() => f.args({ SSH_AUTH_SOCK: "relative.sock", PI_NONO_SSH_AGENT: "1" }), /SSH_AUTH_SOCK.*absolute/);
+  assert.throws(() => f.args({ SSH_AUTH_SOCK: file, PI_NONO_SSH_AGENT: "1" }), /SSH_AUTH_SOCK.*socket/);
+  assert.throws(() => f.args({ SSH_AUTH_SOCK: f.root, PI_NONO_SSH_AGENT: "1" }), /SSH_AUTH_SOCK.*socket/);
 });
 
 function sshFixture() {
@@ -184,6 +202,7 @@ test("Nono starts without a missing SSH agent and keeps private-key reads denied
 }, async t => {
   const f = sshFixture();
   f.environment.SSH_AUTH_SOCK = join(f.home, ".config", "herdr", "herdr.sock.agent");
+  f.environment.PI_NONO_SSH_AGENT = "1";
   const warning = t.mock.method(console, "warn", () => {});
   const args = f.args(f.environment);
   const result = await runSandbox(process.env.NONO_TEST_BINARY, [
@@ -242,6 +261,7 @@ test("Nono resolves an exact agent socket exemption inside the protected SSH dir
   await once(server, "listening");
   try {
     f.environment.SSH_AUTH_SOCK = socket;
+    f.environment.PI_NONO_SSH_AGENT = "1";
     const args = f.args(f.environment);
     args.splice(args.indexOf("--"), 0, "--dry-run");
     const result = spawnSync(process.env.NONO_TEST_BINARY, args, { cwd: f.cwd, env: f.environment, encoding: "utf8", timeout: 10000 });
@@ -294,6 +314,7 @@ test("Nono permits OpenSSH host verification and agent queries without private-k
   await once(server, "listening");
   try {
     f.environment.SSH_AUTH_SOCK = socket;
+    f.environment.PI_NONO_SSH_AGENT = "1";
     const probe = fileURLToPath(new URL("./fixtures/ssh-access-probe.mjs", import.meta.url));
     const args = f.args(f.environment);
     args.splice(args.indexOf("--"), 0, "--read-file", probe);
