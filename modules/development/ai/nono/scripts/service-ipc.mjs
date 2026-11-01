@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { existsSync, lstatSync, mkdirSync, readdirSync, realpathSync, rmSync, statSync } from "node:fs";
+import { closeSync, constants, existsSync, fchmodSync, fstatSync, lstatSync, mkdirSync, openSync, readdirSync, realpathSync, rmSync, statSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, sep } from "node:path";
 import { privateIpcDirectory } from "./private-ipc.mjs";
 
@@ -77,7 +77,18 @@ export function serviceSocketArguments(cwd, home, environment, restricted) {
   // Native process-manager endpoints are created lazily under processes/.
   mkdirSync(runtime, { mode: 0o700, recursive: true });
   const entry = lstatSync(runtime);
-  if (!entry.isDirectory() || entry.uid !== process.getuid() || (entry.mode & 0o077) !== 0) throw new Error("Devenv runtime must be a private, user-owned directory without symlinks");
+  const invalidRuntime = "Devenv runtime must be a private, user-owned directory without symlinks";
+  if (!entry.isDirectory() || entry.uid !== process.getuid()) throw new Error(invalidRuntime);
+  if ((entry.mode & 0o077) !== 0) {
+    // Match Devenv's create_runtime_dir: secure legacy directories without following a replaced symlink.
+    const descriptor = openSync(runtime, constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW);
+    try {
+      if (fstatSync(descriptor).uid !== process.getuid()) throw new Error(invalidRuntime);
+      fchmodSync(descriptor, 0o700);
+    } finally {
+      closeSync(descriptor);
+    }
+  }
   mkdirSync(join(runtime, "processes"), { mode: 0o700, recursive: true });
   args.push("--allow", runtime, "--allow-unix-socket-dir-bind", runtime);
   // Existing service directories get direct-child grants, never a subtree grant.

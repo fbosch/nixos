@@ -136,6 +136,7 @@ let
             ${runtime}/__tests__/herdr-reporting.test.mjs \
             ${runtime}/__tests__/herdr-reading.test.mjs \
             ${runtime}/__tests__/service-ipc.test.mjs \
+            ${runtime}/__tests__/devenv-runtime.test.mjs \
             ${runtime}/__tests__/ipc-workflows.test.mjs \
             ${runtime}/__tests__/launcher.test.mjs \
             ${runtime}/__tests__/macos-browser-startup.test.mjs \
