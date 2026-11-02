@@ -2,7 +2,10 @@
   "mcpServers": {
     "nixos": {
       "command": "uvx",
-      "args": ["mcp-nixos"]
+      "args": ["mcp-nixos"],
+      "env": {
+        "FASTMCP_CHECK_FOR_UPDATES": "off"
+      }
     },
     "shared-todo": {
       "url": "http://192.168.1.46:8092/mcp",
