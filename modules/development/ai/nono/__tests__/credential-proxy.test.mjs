@@ -379,8 +379,9 @@ test("Linux launcher selects the standalone proxy without bypassing nono run", {
   `, { mode: 0o700 });
   try {
     const launcher = fileURLToPath(new URL("../scripts/launcher.mjs", import.meta.url));
+    // Proxy plumbing only; model-executor-launch.test.mjs covers the executor default and fail-closed setup.
     const child = spawn(process.execPath, [launcher, f.nono, process.execPath, f.profile, "/missing-direnv", process.env.ENV_TEST_BINARY ?? "/usr/bin/env", "--version"], {
-      cwd: work, env: { HOME: home, PATH: process.env.PATH, TMPDIR: temporary, PI_CODING_AGENT_DIR: agent }, stdio: ["ignore", "pipe", "pipe"],
+      cwd: work, env: { HOME: home, PATH: process.env.PATH, TMPDIR: temporary, PI_CODING_AGENT_DIR: agent, PI_MODEL_EXECUTOR: "0" }, stdio: ["ignore", "pipe", "pipe"],
     });
     const exited = once(child, "exit");
     let stderr = "";
