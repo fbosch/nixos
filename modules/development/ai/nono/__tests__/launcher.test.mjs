@@ -437,7 +437,7 @@ test("sandbox runtime state is prepared before grants and separated from supervi
   `;
   const args = [new URL("../scripts/launcher.mjs", import.meta.url).pathname, nono, process.execPath, profile, "/missing-direnv", envBinary, "-e", probe];
   const environment = {
-    HOME: home, PATH: process.env.PATH, TMPDIR: runtime, XDG_RUNTIME_DIR: runtime, PI_CODING_AGENT_DIR: agent,
+    HOME: home, PATH: process.env.PATH, TMPDIR: runtime, XDG_RUNTIME_DIR: runtime, PI_CODING_AGENT_DIR: agent, PI_MODEL_EXECUTOR: "0",
     GH_CONFIG_DIR: "/project/credentials", npm_config_cache: "/host/npm", UV_CACHE_DIR: "/host/uv",
     UV_PYTHON_INSTALL_DIR: "/host/python", UV_TOOL_DIR: "/host/tools", OTHER: "preserved",
   };
@@ -475,7 +475,7 @@ for (const [name, access, optIn] of [
     ], {
       cwd,
       env: {
-        HOME: home, PATH: process.env.PATH, PI_CODING_AGENT_DIR: agent,
+        HOME: home, PATH: process.env.PATH, PI_CODING_AGENT_DIR: agent, PI_MODEL_EXECUTOR: "0",
         TMPDIR: runtime, XDG_RUNTIME_DIR: runtime, [name]: missing, ...optIn,
       },
       encoding: "utf8", timeout: 15000,
@@ -508,7 +508,7 @@ test("sandbox launcher withholds the SSH agent unless the invoking host opts in"
         nono, process.execPath, profile, "/missing-direnv", envBinary, "--version",
       ], {
         cwd,
-        env: { HOME: home, PATH: process.env.PATH, PI_CODING_AGENT_DIR: agent, TMPDIR: runtime, XDG_RUNTIME_DIR: runtime, SSH_AUTH_SOCK: socket, ...extra },
+        env: { HOME: home, PATH: process.env.PATH, PI_CODING_AGENT_DIR: agent, PI_MODEL_EXECUTOR: "0", TMPDIR: runtime, XDG_RUNTIME_DIR: runtime, SSH_AUTH_SOCK: socket, ...extra },
         encoding: "utf8", timeout: 15000,
       });
       assert.ifError(child.error);
@@ -536,7 +536,7 @@ test("unavailable socket enforcement fails visibly without retrying raw Pi", () 
   const child = spawnSync(process.execPath, [
     new URL("../scripts/launcher.mjs", import.meta.url).pathname,
     nono, raw, profile, "/missing-direnv", envBinary,
-  ], { cwd, env: { HOME: home, PATH: process.env.PATH, PI_CODING_AGENT_DIR: agent }, encoding: "utf8", timeout: 15000 });
+  ], { cwd, env: { HOME: home, PATH: process.env.PATH, PI_CODING_AGENT_DIR: agent, PI_MODEL_EXECUTOR: "0" }, encoding: "utf8", timeout: 15000 });
   assert.ifError(child.error);
   assert.equal(child.status, 126, child.stderr);
   assert.match(child.stderr, /seccomp-notify required but unavailable/);
@@ -874,7 +874,7 @@ test("sandbox startup sets proxy options while raw startup preserves inherited N
       ...(sandboxed ? [] : ["--no-sandbox"]), "-e", probe,
     ], {
       cwd,
-      env: { HOME: home, PATH: process.env.PATH, TMPDIR: runtime, XDG_RUNTIME_DIR: runtime, PI_CODING_AGENT_DIR: agent, NODE_OPTIONS: "--trace-warnings", NODE_PATH: root },
+      env: { HOME: home, PATH: process.env.PATH, TMPDIR: runtime, XDG_RUNTIME_DIR: runtime, PI_CODING_AGENT_DIR: agent, PI_MODEL_EXECUTOR: "0", NODE_OPTIONS: "--trace-warnings", NODE_PATH: root },
       encoding: "utf8",
       timeout: 15000,
     });

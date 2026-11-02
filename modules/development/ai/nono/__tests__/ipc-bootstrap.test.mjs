@@ -18,7 +18,7 @@ function fixture() {
   writeFileSync(nono, `#!${process.execPath}\nimport { writeFileSync } from "node:fs"; writeFileSync(${JSON.stringify(marker)}, "executed"); console.log(JSON.stringify(process.argv.slice(2)));\n`, { mode: 0o700 });
   writeFileSync(raw, "fixture");
   const run = () => spawnSync(process.execPath, [fileURLToPath(new URL("../scripts/launcher.mjs", import.meta.url)), nono, raw, profile, direnv, process.env.ENV_TEST_BINARY ?? "/usr/bin/env"], {
-    cwd, env: { PATH: process.env.PATH, HOME: home, PI_CODING_AGENT_DIR: agent, PI_IPC_MANIFEST: manifest }, encoding: "utf8", timeout: 10000,
+    cwd, env: { PATH: process.env.PATH, HOME: home, PI_CODING_AGENT_DIR: agent, PI_MODEL_EXECUTOR: "0", PI_IPC_MANIFEST: manifest }, encoding: "utf8", timeout: 10000,
   });
   return { root, cwd, manifest, direnv, marker, run };
 }

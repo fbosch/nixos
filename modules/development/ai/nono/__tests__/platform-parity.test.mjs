@@ -31,7 +31,7 @@ function fixture() {
   const environment = {
     HOME:home, PATH:process.env.PATH, TMPDIR:join(root,"tmp"),
     XDG_RUNTIME_DIR:join(root,"runtime"), XDG_STATE_HOME:join(root,"state"),
-    PI_CODING_AGENT_DIR:agent, PI_NONO_DIAGNOSTICS:"0", NO_COLOR:"1",
+    PI_CODING_AGENT_DIR:agent, PI_MODEL_EXECUTOR:"0", PI_NONO_DIAGNOSTICS:"0", NO_COLOR:"1",
   };
   return {root,home,config,agent,defaultAgent,work,profile,environment};
 }

@@ -88,7 +88,7 @@ let
     };
   };
   mkLauncher =
-    pkgs: rawPi: { ipcRestricted ? true, proxyTestNono ? pkgs.nono }:
+    pkgs: rawPi: { ipcRestricted ? true, proxyTestNono ? pkgs.nono, executorPi ? rawPi }:
       assert pkgs.lib.assertMsg (pkgs.lib.versionAtLeast pkgs.nono.version "0.80.0")
         "Pi standalone credential proxy and sandbox protection require nono >= 0.80.0";
       let
@@ -123,7 +123,7 @@ let
             --set PI_IPC_MANIFEST "${manifest}" ${desktopTools} \
             --set PI_NONO_DIAGNOSTICS 1 \
             --set PI_SSH_ADD ${pkgs.openssh}/bin/ssh-add \
-            --set PI_MODEL_EXECUTOR_PACKAGE ${rawPi}/lib/pi/node_modules/@earendil-works/pi-coding-agent ${executorModelsFlag} \
+            --set PI_MODEL_EXECUTOR_PACKAGE ${executorPi}/lib/pi/node_modules/@earendil-works/pi-coding-agent ${executorModelsFlag} \
             --prefix PATH : "$out/bin" \
             --add-flags "${runtime}/scripts/launcher.mjs ${pkgs.nono}/bin/nono ${rawPi}/bin/pi ${profile} ${pkgs.direnv}/bin/direnv ${pkgs.coreutils}/bin/env"
           makeBinaryWrapper ${pkgs.nodejs}/bin/node "$out/bin/pi-desktop" \
@@ -288,8 +288,9 @@ in
               pkgs.runCommand "pi-launcher-routing"
                 {
                   PI_TEST_PROFILE = launcherProfile;
-                  # Native proxy smoke tests need real Nono, not the launcher-routing stub.
-                  PI_TEST_PROBE = "${mkLauncher (pkgs // { nono = routingNono; }) shellProbe { proxyTestNono = pkgs.nono; }}/bin/pi";
+                  # Native proxy smoke tests need real Nono, not the launcher-routing stub. The shell probe
+                  # stands in for raw Pi, so the default model executor runs from the real Pi package.
+                  PI_TEST_PROBE = "${mkLauncher (pkgs // { nono = routingNono; }) shellProbe { proxyTestNono = pkgs.nono; executorPi = mkPi pkgs; }}/bin/pi";
                   PI_TEST_FISH = "${pkgs.fish}/bin/fish";
                 }
                 ''

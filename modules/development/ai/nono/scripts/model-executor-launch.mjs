@@ -7,6 +7,12 @@ import { credentialStoreDirectory } from "./credential-store.mjs";
 import { privateIpcBase, privateIpcDirectory } from "./private-ipc.mjs";
 
 export const MODEL_EXECUTOR_SOCKET = "PI_MODEL_EXECUTOR_SOCKET";
+const OPT_OUT = "set PI_MODEL_EXECUTOR=0 to launch without it; the sandbox can then read the credential files";
+
+/** Sandboxed sessions use the executor unless the invoking host environment sets PI_MODEL_EXECUTOR=0. */
+export function modelExecutorEnabled(inherited) {
+  return inherited.PI_MODEL_EXECUTOR !== "0";
+}
 
 /**
  * The executor sees the invoking host environment, not project direnv values, plus the session's
@@ -25,7 +31,7 @@ export function modelExecutorEnvironment(inherited, agentDir) {
  */
 export async function withModelExecutor(environment, executorEnvironment, home, packageDir, run, modelsPath) {
   if (!packageDir || !isAbsolute(packageDir) || !existsSync(join(packageDir, "dist", "core", "model-executor.js"))) {
-    throw new Error(`Pi model executor package missing: ${packageDir}`);
+    throw new Error(`Pi model executor package missing: ${packageDir}; ${OPT_OUT}`);
   }
   if (modelsPath !== undefined && (!modelsPath.startsWith("/nix/store/") || !existsSync(modelsPath))) {
     throw new Error(`Pi model executor models.json must be an existing Nix store path: ${modelsPath}`);
@@ -54,9 +60,9 @@ export async function withModelExecutor(environment, executorEnvironment, home, 
   try {
     const endpoint = await new Promise((resolve, reject) => {
       let input = "";
-      timer = setTimeout(() => reject(new Error("Pi model executor startup timed out")), 10000);
+      timer = setTimeout(() => reject(new Error(`Pi model executor startup timed out; ${OPT_OUT}`)), 10000);
       helper.once("error", reject);
-      helper.once("exit", () => reject(new Error(`Pi model executor exited before readiness: ${diagnostics()}`)));
+      helper.once("exit", () => reject(new Error(`Pi model executor exited before readiness: ${diagnostics()}\n${OPT_OUT}`)));
       helper.stdout.on("data", chunk => {
         input += chunk.toString();
         if (input.length > 4096) return reject(new Error("Invalid Pi model executor readiness frame"));

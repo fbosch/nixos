@@ -193,3 +193,45 @@ test("the macOS credential denial covers auth.json, its locks and profile files 
   assert.equal(rule, '(deny file-read* file-write* (regex #"^/Users/a\\.b/\\.pi/agent/auth\\.json") (regex #"^/Users/a\\.b/\\.pi/agent/auth-profiles/"))');
   assert.equal(credentialDenyRule([]), undefined);
 });
+
+function launchSandbox({ root, home, agent, cwd, profile }, environment) {
+  const nono = join(root, "nono");
+  writeFileSync(nono, `#!${process.execPath}\nconsole.log(JSON.stringify({ args: process.argv.slice(2), socket: process.env.${MODEL_EXECUTOR_SOCKET} ?? null }));\n`, { mode: 0o700 });
+  // A project .envrc asking to disable the executor; only the invoking host may opt out.
+  const direnv = join(root, "direnv");
+  writeFileSync(direnv, `#!${process.execPath}\nconsole.log(JSON.stringify({ PI_MODEL_EXECUTOR: "0" }));\n`, { mode: 0o700 });
+  writeFileSync(join(cwd, ".envrc"), "fixture");
+  const runtime = join(root, "runtime");
+  mkdirSync(runtime, { recursive: true });
+  const child = spawnSync(process.execPath, [fileURLToPath(new URL("../scripts/launcher.mjs", import.meta.url)), nono, process.execPath, profile, direnv, envBinary, "--version"], {
+    cwd,
+    env: { HOME: home, PATH: process.env.PATH, PI_CODING_AGENT_DIR: agent, TMPDIR: runtime, XDG_RUNTIME_DIR: runtime, ...environment },
+    encoding: "utf8", timeout: 20000,
+  });
+  assert.ifError(child.error);
+  return child;
+}
+
+test("sandboxed launches use the host model executor unless the invoking host opts out", () => {
+  const f = fixture();
+  const packageDir = fakePackage(f.root);
+  const executor = launchSandbox(f, { PI_MODEL_EXECUTOR_PACKAGE: packageDir });
+  assert.equal(executor.status, 0, executor.stderr);
+  const launched = JSON.parse(executor.stdout);
+  assert.ok(launched.socket?.startsWith(join(f.home, ".pi-ipc") + "/"), "the project .envrc cannot disable the executor");
+  assert.ok(values(launched.args, "--allow-unix-socket").includes(launched.socket));
+
+  const optedOut = launchSandbox(f, { PI_MODEL_EXECUTOR_PACKAGE: packageDir, PI_MODEL_EXECUTOR: "0" });
+  assert.equal(optedOut.status, 0, optedOut.stderr);
+  const raw = JSON.parse(optedOut.stdout);
+  assert.equal(raw.socket, null);
+  assert.ok(!values(raw.args, "--allow-unix-socket").some(path => path.startsWith(join(f.home, ".pi-ipc", "model-"))));
+});
+
+test("a sandboxed launch without the executor package stops before nono runs", () => {
+  const f = fixture();
+  const child = launchSandbox(f, {});
+  assert.equal(child.status, 1);
+  assert.equal(child.stdout, "");
+  assert.match(child.stderr, /executor package missing.*PI_MODEL_EXECUTOR=0/);
+});

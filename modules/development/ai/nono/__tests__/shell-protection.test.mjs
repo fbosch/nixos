@@ -33,6 +33,7 @@ function fixture(name = "home") {
     ...process.env,
     HOME: home,
     PI_CODING_AGENT_DIR: join(home, ".pi", "agent"),
+    PI_MODEL_EXECUTOR: "0",
     XDG_CONFIG_HOME: join(home, ".config"),
     XDG_CACHE_HOME: join(home, ".cache"),
     XDG_DATA_HOME: join(home, ".local", "share"),

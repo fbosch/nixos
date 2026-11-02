@@ -41,6 +41,8 @@ console.log(JSON.stringify({pid:process.pid,kind:${JSON.stringify(kind)},parentN
     PATH: process.env.PATH,
     HOME: home,
     PI_CODING_AGENT_DIR: agent,
+    // Launch plumbing only; the default host model executor has its own tests.
+    PI_MODEL_EXECUTOR: "0",
     XDG_CONFIG_HOME: join(home, ".config"),
     XDG_CACHE_HOME: join(home, ".cache"),
     XDG_DATA_HOME: join(home, ".local", "share"),

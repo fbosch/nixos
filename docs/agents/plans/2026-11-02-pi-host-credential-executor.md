@@ -1,6 +1,6 @@
 # Pi host credential executor
 
-Status: all six slices implemented and tested in Nix builds on aarch64-darwin, and checked through real nono on rvn-mac with the real profile setup. With `PI_MODEL_EXECUTOR=1`, macOS sandboxed sessions, ordinary and configuration-repository, can neither read nor write `auth.json` or `auth-profiles/*.json`. Linux protection relies on the credential store migration (slice 6); it is not yet built or tested on Linux. The executor is still opt-in.
+Status: all six slices implemented and tested in Nix builds on aarch64-darwin, and checked through real nono on rvn-mac with the real profile setup after the credential store migration. Every sandboxed session now uses the executor; the invoking host can opt out with `PI_MODEL_EXECUTOR=0`. macOS sandboxed sessions, ordinary and configuration-repository, can neither read nor write `auth.json` or `auth-profiles/*.json`. Linux protection relies on the credential store migration (slice 6); it is not yet built or tested on Linux.
 
 ## Goal
 
@@ -121,7 +121,7 @@ Each slice ends with passing tests and leaves the launcher deployable. The crede
    - The wire protocol is newline-delimited JSON, one request per connection, 64 MiB per frame. Structural events carry the whole partial message; text, thinking, and tool-call deltas carry only the delta, so streaming stays linear in output size. Closing the connection or sending `cancel` aborts the provider request.
    - The executor relays an allowlist of options. Endpoint-selecting provider options (for example `azureBaseUrl`, `region`, `project`), `apiKey`, `env`, `fetch`, and telemetry spans are not relayed. Credential-like header names are removed from sandbox-supplied headers and from headers returned by the sandbox's `transformHeaders`; the host's values always win. Credential values are scrubbed from every frame sent to the sandbox.
    - An unknown model triggers at most one catalog refresh per provider every five minutes on the host, then fails without contacting the provider.
-   - `nono/scripts/model-executor.mjs` is the host helper; `model-executor-launch.mjs` starts it before nono when the invoking environment sets `PI_MODEL_EXECUTOR=1`. Its environment is the invoking host environment, not the project direnv environment, plus `PI_CODING_AGENT_DIR`. It drops `PI_LOCKFILE_DIR`, so it locks credential files the same way as `pi --no-sandbox`. The sandbox receives only `--allow-unix-socket` for the private endpoint under `~/.pi-ipc`. `pi --no-sandbox` drops any inherited `PI_MODEL_EXECUTOR_SOCKET`.
+   - `nono/scripts/model-executor.mjs` is the host helper; `model-executor-launch.mjs` starts it before nono for every sandboxed launch unless the invoking environment sets `PI_MODEL_EXECUTOR=0`; a project `.envrc` cannot opt out, and a launch whose executor cannot start fails instead of falling back. Its environment is the invoking host environment, not the project direnv environment, plus `PI_CODING_AGENT_DIR`. It drops `PI_LOCKFILE_DIR`, so it locks credential files the same way as `pi --no-sandbox`. The sandbox receives only `--allow-unix-socket` for the private endpoint under `~/.pi-ipc`. `pi --no-sandbox` drops any inherited `PI_MODEL_EXECUTOR_SOCKET`.
 
    Deviations from the original slice, each moved to slice 3: `stream()` stays local because API-specific options need per-API allowlists; requests with `deferred` stay local until fetch and cancel are relayed. Extension-registered providers stay local (see open questions). Executor startup adds roughly one second to sandboxed launch on rvn-mac.
 2. **Credential lockdown inside Pi.** Make `getAuth`, `getApiKeyAndHeaders`, `getApiKeyForProvider`, custom `streamFn` injection, `pi auth`, session sharing, and the bug-report Radius path return no credential in remote mode. Replace the pre-request auth check with a remote check. Exit criterion: tests prove each listed caller gets no credential in remote mode and unchanged behavior in raw mode.
@@ -165,7 +165,7 @@ Runtime enforcement on real hosts and any live provider check need explicit appr
 
 ## Rollout
 
-The executor ships behind a launcher option that defaults to off. Once slices 1 through 5 pass on both platforms, enable the option on one host and keep the credential grants in place. Remove the grants (slice 6) only after a period of normal use without fallbacks.
+The executor is the default for sandboxed sessions on both platforms, and sandboxed sessions receive no grant to the credential store. `PI_MODEL_EXECUTOR=0` from the invoking host restores the store grants for that session, for providers the executor cannot serve, such as Bedrock's locally signed requests. `pi --no-sandbox` never uses the executor.
 
 Credential files keep their current location and format, so no migration is needed. Rollback means disabling the option and restoring the grants. Raw mode is unaffected throughout.
 

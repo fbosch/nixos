@@ -78,7 +78,7 @@ test("missing GitHub login does not block unrelated Pi startup or expose supervi
     const launcher = fileURLToPath(new URL("../scripts/launcher.mjs", import.meta.url));
     const profile = fileURLToPath(new URL("../scripts/profile.json", import.meta.url));
     const child = spawnSync(process.execPath, [launcher, nono, process.execPath, profile, "/missing-direnv", envBinary, "--version"], {
-      cwd, env: { HOME: home, PATH: process.env.PATH, TMPDIR: runtime, XDG_RUNTIME_DIR: runtime, PI_CODING_AGENT_DIR: agent, NONO_ALLOW_NET: "1" },
+      cwd, env: { HOME: home, PATH: process.env.PATH, TMPDIR: runtime, XDG_RUNTIME_DIR: runtime, PI_CODING_AGENT_DIR: agent, PI_MODEL_EXECUTOR: "0", NONO_ALLOW_NET: "1" },
       encoding: "utf8", timeout: 15000,
     });
     assert.equal(child.status, 0, child.stderr);

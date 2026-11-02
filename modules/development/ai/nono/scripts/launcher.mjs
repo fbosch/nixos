@@ -15,7 +15,7 @@ import { withNonoDiagnostics } from "./nono-diagnostics.mjs";
 import { assertPrivateIpcGrants } from "./private-ipc.mjs";
 import { assertCredentialGrants } from "./credential-grants.mjs";
 import { withIpcCapabilities } from "./ipc-session.mjs";
-import { MODEL_EXECUTOR_SOCKET, modelExecutorEnvironment, withModelExecutor } from "./model-executor-launch.mjs";
+import { MODEL_EXECUTOR_SOCKET, modelExecutorEnabled, modelExecutorEnvironment, withModelExecutor } from "./model-executor-launch.mjs";
 import { serviceSocketArguments, withSessionServiceEnvironment } from "./service-ipc.mjs";
 import { defaultCapabilities, endpointArguments, loadCapabilities, selectCapabilities } from "./ipc-policy.mjs";
 
@@ -670,9 +670,10 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
       return runWithCredentialProxy(nono, profile, command, environment);
     });
     const ipcRestricted = readJson(profile, "nono profile")?.linux?.af_unix_mediation === "pathname";
-    // shortcut: the host model executor is opt-in from the invoking environment while credentials stay
-    // granted to the sandbox; make it the default when profile routing and the credential denial land.
-    const runSession = args[0] !== "--no-sandbox" && inheritedEnvironment.PI_MODEL_EXECUTOR === "1"
+    // Every sandboxed session gets the host model executor, so the sandbox holds no credential file.
+    // The invoking host, not a project .envrc, may opt out with PI_MODEL_EXECUTOR=0, for example
+    // for Bedrock, which signs requests locally; the sandbox then reads the credential files itself.
+    const runSession = modelExecutorEnabled(inheritedEnvironment)
       ? bound => withModelExecutor(bound, modelExecutorEnvironment(inheritedEnvironment, agentDir), home, inheritedEnvironment.PI_MODEL_EXECUTOR_PACKAGE, runPi, inheritedEnvironment.PI_MODEL_EXECUTOR_MODELS || undefined)
       : runPi;
     const runWithCapabilities = bound => withIpcCapabilities(bound, inheritedEnvironment, home, process.cwd(), agentDir, args, registry, ipcRestricted ? "restricted" : "ordinary", runSession);
