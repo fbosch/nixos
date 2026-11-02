@@ -37,7 +37,8 @@ async function fixture({ grimBody } = {}) {
   servers.push(display);
   display.listen(join(runtime, "wl"));
   await once(display, "listening");
-  const wlCopy = tool(join(root, "wl-copy"), `fs.writeFileSync(${JSON.stringify(record)}, JSON.stringify({ args: process.argv.slice(2), env: Object.keys(process.env).sort(), input: fs.readFileSync(0, "utf8") }));`);
+  // macOS libSystem adds __CF_USER_TEXT_ENCODING to every process; it is not passed by the broker.
+  const wlCopy = tool(join(root, "wl-copy"), `fs.writeFileSync(${JSON.stringify(record)}, JSON.stringify({ args: process.argv.slice(2), env: Object.keys(process.env).filter(name => name !== "__CF_USER_TEXT_ENCODING").sort(), input: fs.readFileSync(0, "utf8") }));`);
   const grim = tool(join(root, "grim"), grimBody ?? `fs.writeFileSync(${JSON.stringify(record)}, JSON.stringify({ args: process.argv.slice(2) })); process.stdout.write(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0, 255]));`);
   const imageData = join(root, "data");
   mkdirSync(join(imageData, "mime"), { recursive: true });
@@ -124,17 +125,21 @@ test("image opening uses the inherited fixed viewer and bus, not project values"
   servers.push(bus);
   const busPath = join(f.runtime, "bus");
   bus.listen(busPath); await once(bus, "listening");
+  // The broker reports success after a short startup grace period, so the fixture signals when its record is complete.
   const viewer = tool(join(f.root, "viewer"), `
     const args = process.argv.slice(2);
     fs.writeFileSync(${JSON.stringify(f.record)}, JSON.stringify({args, env:process.env, image:fs.readFileSync(args[1]).toString("base64")}));
+    require("node:net").connect(${JSON.stringify(busPath)}).on("error", () => {});
   `);
   const inherited = {...f.inherited,PI_DESKTOP_IMAGE_VIEWER:viewer,DBUS_SESSION_BUS_ADDRESS:`unix:path=${busPath}`};
   let path;
   await withDesktopBroker({PI_DESKTOP_IMAGE_VIEWER:"/untrusted",DBUS_SESSION_BUS_ADDRESS:"/untrusted",PI_DESKTOP_IMAGE_DATA:"/untrusted", XDG_DATA_DIRS:"/untrusted", SECRET:"not forwarded"}, inherited, f.home, capability, async environment => {
     const bytes=png();
+    const launched=once(bus,"connection");
     const response=await exchange(environment.PI_DESKTOP_SOCKET,{id:1,method:"image.open",params:{imageId:randomUUID(),offset:0,totalBytes:bytes.length,data:bytes.toString("base64")}});
     assert.equal(response.ok,true);
     assert.deepEqual(response.result,{complete:true});
+    await launched;
     const record=f.recorded();
     assert.equal(record.args[0],"--");
     path=record.args[1];
@@ -145,8 +150,10 @@ test("image opening uses the inherited fixed viewer and bus, not project values"
     assert.equal(record.env.SECRET,undefined);
     assert.equal(record.env.NODE_OPTIONS,undefined);
     assert.equal(record.env.GSETTINGS_BACKEND,"memory");
+    const relaunched=once(bus,"connection");
     const repeated=await exchange(environment.PI_DESKTOP_SOCKET,{id:3,method:"image.open",params:{imageId:randomUUID(),offset:0,totalBytes:bytes.length,data:bytes.toString("base64")}});
     assert.equal(repeated.ok,true);
+    await relaunched;
     assert.equal(f.recorded().args[1],path,"repeat broker requests reuse the same private file");
     for (const params of [{path:"/etc/passwd"},{url:"https://example.com/a.png"},{imageId:randomUUID(),offset:0,totalBytes:9,data:"PHN2Zy8+"},{imageId:randomUUID(),offset:0,totalBytes:bytes.length,data:bytes.toString("base64"),command:"sh"}]) {
       const denied=await exchange(environment.PI_DESKTOP_SOCKET,{id:2,method:"image.open",params});

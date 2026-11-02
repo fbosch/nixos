@@ -69,6 +69,9 @@ export function watchNonoDiagnostics(path, notify, seen = new Set()) {
     watcher = watch(path, { persistent: false }, drain);
     watcher.on("error", fail);
     drain();
+    // macOS registers the kqueue watch at the next event-loop poll, so appends made before then
+    // produce no event. Drain once after that poll; seen-key deduplication makes the repeat harmless.
+    setImmediate(drain);
     return dispose;
   } catch (error) {
     dispose();

@@ -56,9 +56,10 @@ in
     {
       checks = {
         # Run on each native OS: platform-forced argument tests do not prove kernel enforcement.
+        # Darwin Nix builders reject restrictive Seatbelt profiles with EPERM, so macOS kernel tests
+        # run only from a normal terminal with NONO_TEST_BINARY set; Darwin keeps the argument tests.
         nono-pi-platform-parity = pkgs.runCommand "nono-pi-platform-parity"
-          {
-            NONO_TEST_BINARY = lib.getExe pkgs.nono;
+          ({
             NONO_PROFILE_TEST_BINARY = lib.getExe pkgs.nono;
             PI_RAW_TEST_BINARY = lib.getExe self'.packages.pi-raw;
             ENV_TEST_BINARY = "${pkgs.coreutils}/bin/env";
@@ -66,7 +67,9 @@ in
             BASH_TEST_BINARY = "${pkgs.bash}/bin/bash";
             CAT_TEST_BINARY = "${pkgs.coreutils}/bin/cat";
             SSH_ADD_TEST_BINARY = "${pkgs.openssh}/bin/ssh-add";
-          }
+          } // lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
+            NONO_TEST_BINARY = lib.getExe pkgs.nono;
+          })
           ''
             mkdir tmp
             export TMPDIR="$PWD/tmp"

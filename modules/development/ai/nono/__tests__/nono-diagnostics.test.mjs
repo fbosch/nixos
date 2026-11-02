@@ -16,7 +16,8 @@ afterEach(() => {
 
 for (const { hasUI, native } of [{ hasUI: true }, { hasUI: false }, { hasUI: true, native: true }]) {
   test(`Nono tracing reaches ${hasUI ? "the prompt UI" : "headless stderr"} without raw terminal output${native ? " through native confinement" : ""}`, {
-    skip: native && !process.env.NONO_PROXY_TEST_BINARY,
+    // Darwin Nix builders reject Seatbelt profiles with EPERM, so macOS runs need the opt-in used by other kernel tests.
+    skip: native && (!process.env.NONO_PROXY_TEST_BINARY || (process.platform === "darwin" && !process.env.NONO_TEST_BINARY)),
   }, () => {
     const root = mkdtempSync(join(tmpdir(), "pi-nono-diagnostics-test-"));
     roots.push(root);
@@ -25,7 +26,9 @@ for (const { hasUI, native } of [{ hasUI: true }, { hasUI: false }, { hasUI: tru
     const agent = join(home, ".pi", "agent");
     for (const path of [cwd, agent, join(home, ".config"), join(home, ".local", "state")]) mkdirSync(path, { recursive: true });
     const profile = join(root, "profile.json");
-    writeFileSync(profile, JSON.stringify({ filesystem: { allow: [cwd], read: ["/nix/store"] }, network: { block: true }, credential_capture: {} }));
+    // macOS temporary directories sit below system-read grants. nono 0.80 refuses those grants as parents of the
+    // fixture state root unless Seatbelt protected-root denies are opted in; Linux ignores this setting.
+    writeFileSync(profile, JSON.stringify({ filesystem: { allow: [cwd], read: ["/nix/store"] }, network: { block: true }, credential_capture: {}, allow_parent_of_protected: true }));
     const observed = join(root, "observed.json");
     const nono = join(root, "nono");
     writeFileSync(nono, `#!${process.execPath}

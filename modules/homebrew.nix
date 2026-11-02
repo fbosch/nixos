@@ -10,8 +10,7 @@
         enable = true;
         onActivation = {
           autoUpdate = false;
-          cleanup = "zap";
-          extraFlags = [ "--force-cleanup" ];
+          cleanup = "uninstall";
           upgrade = false;
         };
 
