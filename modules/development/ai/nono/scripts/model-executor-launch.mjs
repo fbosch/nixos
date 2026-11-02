@@ -3,7 +3,8 @@ import { once } from "node:events";
 import { closeSync, existsSync, openSync, readFileSync, realpathSync, rmSync, statSync } from "node:fs";
 import { isAbsolute, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { privateIpcDirectory } from "./private-ipc.mjs";
+import { credentialStoreDirectory } from "./credential-store.mjs";
+import { privateIpcBase, privateIpcDirectory } from "./private-ipc.mjs";
 
 export const MODEL_EXECUTOR_SOCKET = "PI_MODEL_EXECUTOR_SOCKET";
 
@@ -18,11 +19,19 @@ export function modelExecutorEnvironment(inherited, agentDir) {
   return executor;
 }
 
-/** Run `run` with a host model executor bound to a private socket for the session's lifetime. */
-export async function withModelExecutor(environment, executorEnvironment, home, packageDir, run) {
+/**
+ * Run `run` with a host model executor bound to a private socket for the session's lifetime.
+ * `modelsPath` must be an immutable Nix store copy: it decides where credentials may be sent.
+ */
+export async function withModelExecutor(environment, executorEnvironment, home, packageDir, run, modelsPath) {
   if (!packageDir || !isAbsolute(packageDir) || !existsSync(join(packageDir, "dist", "core", "model-executor.js"))) {
     throw new Error(`Pi model executor package missing: ${packageDir}`);
   }
+  if (modelsPath !== undefined && (!modelsPath.startsWith("/nix/store/") || !existsSync(modelsPath))) {
+    throw new Error(`Pi model executor models.json must be an existing Nix store path: ${modelsPath}`);
+  }
+  // The executor's own model catalog cache, kept across sessions where no sandbox grant reaches it.
+  const catalogPath = join(privateIpcBase(home), "model-executor-catalog.json");
   // The launcher may block in spawnSync for the whole session, so executor diagnostics go to a
   // file instead of a pipe that nobody drains. Sandboxed sessions can read TMPDIR, not ~/.pi-ipc.
   const logDirectory = privateIpcDirectory(home, "model-log-");
@@ -30,7 +39,7 @@ export async function withModelExecutor(environment, executorEnvironment, home, 
   const log = openSync(logPath, "w", 0o600);
   let helper;
   try {
-    helper = spawn(process.execPath, [fileURLToPath(new URL("./model-executor.mjs", import.meta.url)), JSON.stringify({ packageDir, home })], {
+    helper = spawn(process.execPath, [fileURLToPath(new URL("./model-executor.mjs", import.meta.url)), JSON.stringify({ packageDir, home, modelsPath, catalogPath, credentialStore: credentialStoreDirectory(home) })], {
       env: executorEnvironment, stdio: ["pipe", "pipe", log],
     });
   } finally {

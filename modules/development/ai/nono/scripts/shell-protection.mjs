@@ -1,5 +1,5 @@
-import { lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, readlinkSync, realpathSync, rmSync, writeFileSync } from "node:fs";
-import { dirname, isAbsolute, join, sep } from "node:path";
+import { lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, readlinkSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { basename, dirname, isAbsolute, join, sep } from "node:path";
 
 function optionalStat(path) {
   try {
@@ -159,7 +159,29 @@ function privateProfileDirectory(home) {
   return path;
 }
 
-export function withProtectedShellProfile(profilePath, home, environment, run, platform = process.platform, additionalPaths = []) {
+/** A Seatbelt regex that matches `path` and anything that starts with it. */
+function seatbeltPrefix(path, { childrenOnly = false } = {}) {
+  seatbeltString(path);
+  if (path.includes('"')) throw new Error(`Unsupported quote in credential path: ${path}`);
+  const escaped = path.replace(/[\\^$.*+?()[\]{}|]/g, "\\$&");
+  return `(regex #"^${escaped}${childrenOnly ? "/" : ""}")`;
+}
+
+/**
+ * Seatbelt denial for credential stores in executor mode: auth.json and its lock files, and the
+ * files inside credential directories (auth-profiles/, the credential store). Directories stay
+ * listable so profile names remain known.
+ */
+export function credentialDenyRule(credentialPaths) {
+  if (credentialPaths.length === 0) return undefined;
+  const directory = (path) => {
+    try { return statSync(path).isDirectory(); } catch { return basename(path) === "auth-profiles"; }
+  };
+  const filters = credentialPaths.map((path) => seatbeltPrefix(path, { childrenOnly: directory(path) }));
+  return `(deny file-read* file-write* ${filters.join(" ")})`;
+}
+
+export function withProtectedShellProfile(profilePath, home, environment, run, platform = process.platform, additionalPaths = [], credentialPaths = []) {
   // Linux needs a different boundary: Landlock cannot subtract writes from an ancestor grant.
   if (platform !== "darwin") return run(profilePath);
   let profile;
@@ -186,7 +208,7 @@ export function withProtectedShellProfile(profilePath, home, environment, run, p
     writeFileSync(effectivePath, JSON.stringify({
       ...profile,
       filesystem: { ...profile.filesystem, read: [...reads, ...protection.readPaths] },
-      unsafe_macos_seatbelt_rules: [...rules, ...protection.rules],
+      unsafe_macos_seatbelt_rules: [...rules, ...protection.rules, ...[credentialDenyRule(credentialPaths)].filter(Boolean)],
     }), { flag: "wx", mode: 0o600 });
     return run(effectivePath);
   } finally {

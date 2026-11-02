@@ -1,5 +1,5 @@
 diff --git a/packages/coding-agent/src/core/auth-storage.ts b/packages/coding-agent/src/core/auth-storage.ts
-index 5a8fa41..66d07e8 100644
+index 5a8fa41..df654c7 100644
 --- a/packages/coding-agent/src/core/auth-storage.ts
 +++ b/packages/coding-agent/src/core/auth-storage.ts
 @@ -11,6 +11,7 @@ import { setTimeout as sleep } from "timers/promises";
@@ -19,7 +19,59 @@ index 5a8fa41..66d07e8 100644
  	withLockAsync<T>(
  		fn: (current: string | undefined) => Promise<LockResult<T>>,
  		options?: AuthOperationOptions,
-@@ -347,6 +350,9 @@ export class AuthStorage implements CredentialStore {
+@@ -209,17 +212,27 @@ export class ReadOnlyAuthStorage implements CredentialStore {
+ 		this.authPath = normalizePath(authPath);
+ 	}
+ 
+-	private load(): AuthStorageData {
++	private async load(options?: AuthOperationOptions): Promise<AuthStorageData> {
+ 		if (this.data) return this.data;
+ 
++		// Sandboxed executor mode: the executor reads the file and returns references, not secrets.
++		const executor = executorAuthStorageBackend(this.authPath);
++		let content: string | undefined;
++		try {
++			content = executor ? await executor.read(options) : readFileSync(this.authPath, "utf-8");
++		} catch (error) {
++			if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
++				throw new Error(`Failed to read auth.json: ${error instanceof Error ? error.message : String(error)}`);
++			}
++		}
++		if (content === undefined) {
++			this.data = {};
++			return this.data;
++		}
+ 		let parsed: unknown;
+ 		try {
+-			parsed = JSON.parse(stripBom(readFileSync(this.authPath, "utf-8")));
++			parsed = JSON.parse(stripBom(content));
+ 		} catch (error) {
+-			if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+-				this.data = {};
+-				return this.data;
+-			}
+ 			throw new Error(`Failed to read auth.json: ${error instanceof Error ? error.message : String(error)}`);
+ 		}
+ 
+@@ -258,7 +271,7 @@ export class ReadOnlyAuthStorage implements CredentialStore {
+ 
+ 	async read(providerId: string, options?: AuthOperationOptions): Promise<Credential | undefined> {
+ 		options?.signal?.throwIfAborted();
+-		const credential = this.load()[providerId];
++		const credential = (await this.load(options))[providerId];
+ 		options?.signal?.throwIfAborted();
+ 		if (!credential) return undefined;
+ 		if (credential.type !== "api_key" || !credential.key || isCommandConfigValue(credential.key)) {
+@@ -269,7 +282,7 @@ export class ReadOnlyAuthStorage implements CredentialStore {
+ 
+ 	async list(options?: AuthOperationOptions): Promise<readonly CredentialInfo[]> {
+ 		options?.signal?.throwIfAborted();
+-		const credentials = Object.entries(this.load()).map(([providerId, credential]) => ({
++		const credentials = Object.entries(await this.load(options)).map(([providerId, credential]) => ({
+ 			providerId,
+ 			type: credential.type,
+ 		}));
+@@ -347,6 +360,9 @@ export class AuthStorage implements CredentialStore {
  
  	static create(authPath: string = join(getAgentDir(), "auth.json")): AuthStorage {
  		const normalizedAuthPath = normalizePath(authPath);
@@ -29,7 +81,7 @@ index 5a8fa41..66d07e8 100644
  		return new AuthStorage(new FileAuthStorageBackend(normalizedAuthPath), normalizedAuthPath);
  	}
  
-@@ -391,6 +397,11 @@ export class AuthStorage implements CredentialStore {
+@@ -391,6 +407,11 @@ export class AuthStorage implements CredentialStore {
  	}
  
  	private async reloadFromStorageAsync(options?: AuthOperationOptions): Promise<AuthStorageData> {
@@ -185,10 +237,10 @@ index 0000000..9c5b9bb
 +}
 diff --git a/packages/coding-agent/src/core/executor-credentials.ts b/packages/coding-agent/src/core/executor-credentials.ts
 new file mode 100644
-index 0000000..e098610
+index 0000000..58db2bf
 --- /dev/null
 +++ b/packages/coding-agent/src/core/executor-credentials.ts
-@@ -0,0 +1,144 @@
+@@ -0,0 +1,145 @@
 +/**
 + * Sandbox side of executor credentials. In executor mode, credential files are read and written
 + * through the executor, provider auth runs there, and requests that carry credential references go
@@ -313,7 +365,7 @@ index 0000000..e098610
 +const FETCH_CLIENT = Symbol.for("pi.executorCredentialFetchClient");
 +
 +/**
-+ * Routes requests whose headers carry credential references through the executor, which swaps
++ * Routes requests whose URL or headers carry credential references through the executor, which swaps
 + * the references for secrets and sends the request only to the credential provider's origins.
 + * Other requests use the original `fetch`. Installed once per process.
 + */
@@ -325,9 +377,10 @@ index 0000000..e098610
 +	scope[FETCH_SHIM] = true;
 +	const original = globalThis.fetch.bind(globalThis);
 +	const shim = async (input: string | URL | Request, init?: RequestInit) => {
-+		// Inspect headers without building a Request, which would consume a streamed body.
++		// Inspect the URL and headers without building a Request, which would consume a streamed body.
++		const url = input instanceof Request ? input.url : String(input);
 +		const headers = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined));
-+		const carriesReference = [...headers.values()].some(containsCredentialRef);
++		const carriesReference = containsCredentialRef(url) || [...headers.values()].some(containsCredentialRef);
 +		const executor = scope[FETCH_CLIENT];
 +		return carriesReference && executor ? executor.fetch(new Request(input, init)) : original(input, init);
 +	};
@@ -335,10 +388,10 @@ index 0000000..e098610
 +}
 diff --git a/packages/coding-agent/src/core/model-executor.ts b/packages/coding-agent/src/core/model-executor.ts
 new file mode 100644
-index 0000000..474c267
+index 0000000..3ca1ebf
 --- /dev/null
 +++ b/packages/coding-agent/src/core/model-executor.ts
-@@ -0,0 +1,1178 @@
+@@ -0,0 +1,1327 @@
 +/**
 + * Credential-free model requests for sandboxed sessions.
 + *
@@ -350,10 +403,10 @@ index 0000000..474c267
 + * that carry references go through the executor, which sends them only to the owning provider's
 + * origins. One connection carries one operation; closing it aborts the operation.
 + */
-+import { realpathSync } from "node:fs";
++import { lstatSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
 +import { readFile } from "node:fs/promises";
 +import { createConnection, type Server, type Socket } from "node:net";
-+import { basename, dirname, isAbsolute, join } from "node:path";
++import { basename, dirname, isAbsolute, join, relative } from "node:path";
 +import {
 +	type Api,
 +	type ApiKeyCredential,
@@ -380,7 +433,7 @@ index 0000000..474c267
 +import { FileAuthStorageBackend } from "./auth-storage.ts";
 +import { CredentialRefRegistry } from "./credential-refs.ts";
 +import type { ModelRuntime } from "./model-runtime.ts";
-+import { resolveConfigValue } from "./resolve-config-value.ts";
++import { getConfigValueEnvVarNames, isCommandConfigValue, resolveConfigValue } from "./resolve-config-value.ts";
 +
 +export const MODEL_EXECUTOR_SOCKET_ENV = "PI_MODEL_EXECUTOR_SOCKET";
 +const PROTOCOL = 1;
@@ -712,11 +765,12 @@ index 0000000..474c267
 +		);
 +	}
 +
-+	/** Sends a request whose headers carry credential references through the executor. */
++	/** Sends a request whose URL or headers carry credential references through the executor. */
 +	async fetch(request: Request): Promise<Response> {
 +		const body = request.body ? Buffer.from(await request.arrayBuffer()).toString("base64") : undefined;
-+		const value = await this.#call(
-+			{
++		const { socket, frames } = this.#connect(request.signal);
++		try {
++			await writeFrame(socket, {
 +				type: "request",
 +				protocol: PROTOCOL,
 +				operation: "fetch",
@@ -724,21 +778,49 @@ index 0000000..474c267
 +				method: request.method,
 +				headers: [...request.headers],
 +				...(body === undefined ? {} : { body }),
-+			},
-+			request.signal,
-+		);
-+		if (!isRecord(value) || typeof value.status !== "number" || !Array.isArray(value.headers)) {
-+			throw new Error("Model executor sent an invalid response");
++			});
++			const head = await frames.next();
++			if (!head) throw new Error("Model executor closed the request before it completed");
++			if (head.type === "failure") {
++				throw new Error(typeof head.message === "string" ? head.message : "Model executor request failed");
++			}
++			if (head.type !== "head" || typeof head.status !== "number" || !Array.isArray(head.headers)) {
++				throw new Error("Model executor sent an invalid response");
++			}
++			const status = head.status;
++			const stream = new ReadableStream<Uint8Array>({
++				async pull(controller) {
++					try {
++						const frame = await frames.next();
++						if (!frame || frame.type === "end") {
++							controller.close();
++							socket.destroy();
++						} else if (frame.type === "body" && typeof frame.data === "string") {
++							controller.enqueue(new Uint8Array(Buffer.from(frame.data, "base64")));
++						} else {
++							throw new Error(typeof frame.message === "string" ? frame.message : "Model executor response failed");
++						}
++					} catch (error) {
++						controller.error(error);
++						socket.destroy();
++					}
++				},
++				cancel() {
++					socket.destroy();
++				},
++			});
++			return new Response(status === 204 || status === 304 ? null : stream, {
++				status,
++				statusText: typeof head.statusText === "string" ? head.statusText : "",
++				headers: head.headers.filter(
++					(entry): entry is [string, string] =>
++						Array.isArray(entry) && typeof entry[0] === "string" && typeof entry[1] === "string",
++				),
++			});
++		} catch (error) {
++			socket.destroy();
++			throw error;
 +		}
-+		const status = value.status;
-+		const responseBody = status === 204 || status === 304 || typeof value.body !== "string" ? null : Buffer.from(value.body, "base64");
-+		return new Response(responseBody, {
-+			status,
-+			statusText: typeof value.statusText === "string" ? value.statusText : "",
-+			headers: value.headers.filter(
-+				(entry): entry is [string, string] => Array.isArray(entry) && typeof entry[0] === "string" && typeof entry[1] === "string",
-+			),
-+		});
 +	}
 +
 +	/** Runs a provider login on the executor. Prompts and notices are relayed to `interaction`. */
@@ -1032,12 +1114,18 @@ index 0000000..474c267
 +export interface ServeModelExecutorOptions {
 +	/** Agent directory whose auth.json and auth-profiles/*.json the sandbox may use. Defaults to Pi's. */
 +	agentDir?: string;
++	/**
++	 * Host-only directory holding the credential files. The agent directory's credential files are
++	 * symlinks into it; new profile files are created there.
++	 */
++	credentialStore?: string;
 +}
 +
 +interface ExecutorState {
 +	runtime: ModelRuntime;
 +	refs: CredentialRefRegistry;
-+	credentialFile(path: unknown): string;
++	/** The file to open for an agent-directory credential path; `create` adds missing ones in the store. */
++	credentialFile(path: unknown, options: { create: boolean }): string;
 +	/** Origins a provider's references may be sent to. */
 +	origins(providerId: string): Set<string>;
 +	recordOrigin(providerId: string, baseUrl: string | undefined): void;
@@ -1055,26 +1143,62 @@ index 0000000..474c267
 +/** Host side: serves executor requests with `runtime`'s catalog and the host's credential files. */
 +export function serveModelExecutor(runtime: ModelRuntime, server: Server, options: ServeModelExecutorOptions = {}): void {
 +	const agentDir = realpathSync(options.agentDir ?? getAgentDir());
++	// The store appears when the launcher migrates credentials, which can happen after startup.
++	const credentialStoreDirectory = () => {
++		if (options.credentialStore === undefined) return undefined;
++		try {
++			return realpathSync(options.credentialStore);
++		} catch {
++			return undefined;
++		}
++	};
 +	const refreshedAt = new Map<string, number>();
 +	const recorded = new Map<string, Set<string>>();
 +	const state: ExecutorState = {
 +		runtime,
 +		refs: new CredentialRefRegistry(),
-+		credentialFile(path) {
++		credentialFile(path, { create }) {
 +			if (typeof path !== "string" || !isAbsolute(path)) throw new Error("Credential file path must be absolute");
-+			// Symlinks resolve first, so a link cannot point executor writes outside the agent directory.
-+			let canonical: string;
-+			try {
-+				canonical = realpathSync(path);
-+			} catch {
-+				canonical = join(realpathSync(dirname(path)), basename(path));
-+			}
++			const outside = () => new Error("Credential file is outside the agent directory's credential stores");
++			// The requested name must be one of the agent directory's credential files.
++			const requested = join(realpathSync(dirname(path)), basename(path));
 +			const profiles = join(agentDir, "auth-profiles");
-+			const allowed =
-+				canonical === join(agentDir, "auth.json") ||
-+				(dirname(canonical) === profiles && /^[A-Za-z0-9._-]+\.json$/.test(basename(canonical)));
-+			if (!allowed) throw new Error("Credential file is outside the agent directory's credential stores");
-+			return canonical;
++			const relativeName =
++				requested === join(agentDir, "auth.json")
++					? "auth.json"
++					: dirname(requested) === profiles && /^[A-Za-z0-9._-]+\.json$/.test(basename(requested))
++						? join("auth-profiles", basename(requested))
++						: undefined;
++			if (relativeName === undefined) throw outside();
++			const credentialStore = credentialStoreDirectory();
++			const stored = credentialStore === undefined ? undefined : join(credentialStore, relativeName);
++			let entry: ReturnType<typeof lstatSync> | undefined;
++			try {
++				entry = lstatSync(requested);
++			} catch (error) {
++				if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
++			}
++			if (entry?.isSymbolicLink()) {
++				// Symlinks may only point into the credential store, at the file with the same name.
++				let target: string | undefined;
++				try {
++					target = realpathSync(requested);
++				} catch {
++					target = undefined;
++				}
++				if (stored === undefined || target !== stored) throw outside();
++				return stored;
++			}
++			if (entry !== undefined) return requested;
++			if (stored === undefined || !create) return requested;
++			// A new profile file is created in the store and linked, so the sandbox never sees its content.
++			try {
++				writeFileSync(stored, "{}", { flag: "wx", mode: 0o600 });
++			} catch (error) {
++				if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
++			}
++			symlinkSync(relative(dirname(requested), stored), requested);
++			return stored;
 +		},
 +		origins(providerId) {
 +			const origins = new Set(recorded.get(providerId) ?? []);
@@ -1133,6 +1257,28 @@ index 0000000..474c267
 +	return state.refs.rehydrate(providerId, { auth, env }, { allowRefresh: false });
 +}
 +
++function configReferences(value: unknown, into = new Set<string>()): Set<string> {
++	if (typeof value === "string") {
++		if (isCommandConfigValue(value) || getConfigValueEnvVarNames(value).length > 0) into.add(value);
++	} else if (Array.isArray(value)) {
++		for (const item of value) configReferences(item, into);
++	} else if (isRecord(value)) {
++		for (const item of Object.values(value)) configReferences(item, into);
++	}
++	return into;
++}
++
++/**
++ * Credential values the host would execute (`!command`) or expand (`$VAR`) may come only from the
++ * host's own files, never from the sandbox: references carry the stored ones, and `allowed` lists
++ * values already on disk.
++ */
++function assertNoSandboxConfigReferences(value: unknown, allowed: ReadonlySet<string> = new Set()): void {
++	for (const reference of configReferences(value)) {
++		if (!allowed.has(reference)) throw new Error("Credential commands and environment references can only be set on the host");
++	}
++}
++
 +/** A stored api-key credential's key may be a config reference (`!command`, `$VAR`) resolved on the host. */
 +function resolvedCredential(credential: unknown): Credential | undefined {
 +	if (!isRecord(credential) || (credential.type !== "api_key" && credential.type !== "oauth")) return undefined;
@@ -1148,6 +1294,7 @@ index 0000000..474c267
 +	const providerId = frame.provider;
 +	const provider = state.runtime.getProvider(providerId);
 +	if (!provider) throw new Error(`Unknown provider: ${providerId}`);
++	assertNoSandboxConfigReferences(frame.credential);
 +	const credential = resolvedCredential(
 +		frame.credential === undefined ? undefined : state.refs.rehydrate(providerId, frame.credential, { allowRefresh: true }),
 +	);
@@ -1186,27 +1333,74 @@ index 0000000..474c267
 +	}
 +}
 +
-+const MAX_FETCH_BYTES = 16 * 1024 * 1024;
++/** Substitutes references in `value`, which may only reach `origin` for their providers. */
++function substituteForOrigin(state: ExecutorState, value: string, origin: string, used: Set<string>): string {
++	let result = value;
++	for (const providerId of state.refs.providersIn(value)) {
++		if (!state.origins(providerId).has(origin)) throw new Error(`${providerId} credentials cannot be sent to ${origin}`);
++		const rehydrated = state.refs.rehydrateString(providerId, result, { allowRefresh: false });
++		for (const secret of state.refs.secrets()) if (rehydrated.includes(secret) && !result.includes(secret)) used.add(secret);
++		result = rehydrated;
++	}
++	return result;
++}
 +
-+/** Sends a sandbox request that carries credential references, only to those credentials' origins. */
-+async function credentialedFetch(state: ExecutorState, frame: Frame, signal: AbortSignal): Promise<unknown> {
++/**
++ * Replaces secrets in a byte stream. Only a tail that could begin a secret is held back, so a
++ * secret split across chunks is still caught without delaying ordinary output.
++ */
++function streamScrubber(secrets: readonly string[]): { push(chunk: Buffer): Buffer; flush(): Buffer } {
++	const encoded = secrets.map((secret) => Buffer.from(secret, "utf8").toString("latin1"));
++	let pending = "";
++	const scrub = (text: string) => encoded.reduce((current, secret) => current.split(secret).join(REDACTED), text);
++	const partialSecretTail = (text: string) => {
++		let keep = 0;
++		for (const secret of encoded) {
++			for (let length = Math.min(secret.length - 1, text.length); length > keep; length--) {
++				if (text.endsWith(secret.slice(0, length))) {
++					keep = length;
++					break;
++				}
++			}
++		}
++		return keep;
++	};
++	return {
++		push(chunk) {
++			if (encoded.length === 0) return chunk;
++			pending = scrub(pending + chunk.toString("latin1"));
++			const keep = partialSecretTail(pending);
++			const ready = pending.slice(0, pending.length - keep);
++			pending = pending.slice(pending.length - keep);
++			return Buffer.from(ready, "latin1");
++		},
++		flush() {
++			const rest = scrub(pending);
++			pending = "";
++			return Buffer.from(rest, "latin1");
++		},
++	};
++}
++
++/**
++ * Sends a sandbox request that carries credential references in its URL or headers, only to
++ * those credentials' origins, and streams the response back with the secrets scrubbed.
++ */
++async function credentialedFetch(
++	state: ExecutorState,
++	frame: Frame,
++	send: (frame: Frame) => Promise<void>,
++	signal: AbortSignal,
++): Promise<void> {
 +	if (typeof frame.url !== "string" || !Array.isArray(frame.headers)) throw new Error("Invalid credentialed request");
-+	const url = new URL(frame.url);
-+	if (url.protocol !== "https:" && url.protocol !== "http:") throw new Error("Credentialed requests must use HTTP");
++	const target = new URL(frame.url);
++	if (target.protocol !== "https:" && target.protocol !== "http:") throw new Error("Credentialed requests must use HTTP");
++	const used = new Set<string>();
++	const url = substituteForOrigin(state, frame.url, target.origin, used);
 +	const headers = new Headers();
-+	const used: string[] = [];
 +	for (const entry of frame.headers) {
 +		if (!Array.isArray(entry) || typeof entry[0] !== "string" || typeof entry[1] !== "string") continue;
-+		let value = entry[1];
-+		for (const providerId of state.refs.providersIn(value)) {
-+			if (!state.origins(providerId).has(url.origin)) {
-+				throw new Error(`${providerId} credentials cannot be sent to ${url.origin}`);
-+			}
-+			const rehydrated = state.refs.rehydrateString(providerId, value, { allowRefresh: false });
-+			if (rehydrated !== value) used.push(...state.refs.secrets().filter((secret) => rehydrated.includes(secret)));
-+			value = rehydrated;
-+		}
-+		headers.append(entry[0], value);
++		headers.append(entry[0], substituteForOrigin(state, entry[1], target.origin, used));
 +	}
 +	const body = typeof frame.body === "string" ? Buffer.from(frame.body, "base64") : undefined;
 +	// Redirects come back to the sandbox, whose next request is checked against the same origins.
@@ -1217,19 +1411,27 @@ index 0000000..474c267
 +		redirect: "manual",
 +		signal,
 +	});
-+	const bytes = Buffer.from(await response.arrayBuffer());
-+	if (bytes.length > MAX_FETCH_BYTES) throw new Error("Credentialed response exceeds the size limit");
-+	let text = bytes.toString("latin1");
-+	for (const secret of used) text = text.split(secret).join(REDACTED);
-+	return {
++	const secrets = [...used];
++	const scrubber = streamScrubber(secrets);
++	await send({
++		type: "head",
 +		status: response.status,
 +		statusText: response.statusText,
 +		headers: [...response.headers].map(([name, value]) => [
 +			name,
-+			used.reduce((scrubbed, secret) => scrubbed.split(secret).join(REDACTED), value),
++			secrets.reduce((scrubbed, secret) => scrubbed.split(secret).join(REDACTED), value),
 +		]),
-+		body: Buffer.from(text, "latin1").toString("base64"),
-+	};
++	});
++	const reader = response.body?.getReader();
++	while (reader) {
++		const { done, value } = await reader.read();
++		if (done) break;
++		const ready = scrubber.push(Buffer.from(value));
++		if (ready.length > 0) await send({ type: "body", data: ready.toString("base64") });
++	}
++	const rest = scrubber.flush();
++	if (rest.length > 0) await send({ type: "body", data: rest.toString("base64") });
++	await send({ type: "end" });
 +}
 +
 +/** Runs a provider login on the host; the sandbox relays prompts and receives only references. */
@@ -1287,7 +1489,7 @@ index 0000000..474c267
 + * Writers rewrite the file in place, so a torn read falls back to a locked one.
 + */
 +async function credentialRead(state: ExecutorState, frame: Frame, signal: AbortSignal): Promise<string | null> {
-+	const path = state.credentialFile(frame.path);
++	const path = state.credentialFile(frame.path, { create: false });
 +	let content: string | undefined;
 +	try {
 +		content = await readFile(path, "utf8");
@@ -1308,7 +1510,7 @@ index 0000000..474c267
 + * references in place of secrets; references in its rewrite turn back into the stored secrets.
 + */
 +async function credentialLock(state: ExecutorState, frame: Frame, session: ExecutorSession, signal: AbortSignal): Promise<void> {
-+	const path = state.credentialFile(frame.path);
++	const path = state.credentialFile(frame.path, { create: true });
 +	await new FileAuthStorageBackend(path).withLockAsync(
 +		async (content) => {
 +			await session.send({ type: "content", content: redactCredentialFile(state, content) });
@@ -1318,6 +1520,7 @@ index 0000000..474c267
 +			if (typeof reply.next !== "string") return { result: undefined };
 +			const next = JSON.parse(reply.next) as unknown;
 +			if (!isRecord(next)) throw new Error("Credential file must hold an object");
++			assertNoSandboxConfigReferences(next, configReferences(content ? (JSON.parse(content) as unknown) : undefined));
 +			const rehydrated = Object.fromEntries(
 +				Object.entries(next).map(([providerId, credential]) => [
 +					providerId,
@@ -1421,9 +1624,8 @@ index 0000000..474c267
 +				return;
 +			}
 +			case "fetch": {
-+				const value = await credentialedFetch(state, frame, controller.signal);
-+				secrets = [];
-+				await writeFrame(socket, { type: "result", value });
++				// The fetch scrubs the secrets it substituted; the response itself is the provider's.
++				await credentialedFetch(state, frame, (reply) => writeFrame(socket, reply), controller.signal);
 +				socket.end();
 +				return;
 +			}
@@ -1744,3 +1946,24 @@ index 70d2704..8ac05db 100644
  
  	const parsed = parseArgs(command.args);
  	if (parsed.unknownFlags.size > 0) {
+diff --git a/packages/coding-agent/src/migrations.ts b/packages/coding-agent/src/migrations.ts
+index 3f02ba6..11d3cbf 100644
+--- a/packages/coding-agent/src/migrations.ts
++++ b/packages/coding-agent/src/migrations.ts
+@@ -8,6 +8,7 @@ import { dirname, join } from "path";
+ import { CONFIG_DIR_NAME, getAgentDir, getBinDir } from "./config.ts";
+ import { migrateKeybindingsConfig } from "./core/keybindings.ts";
+ import { stripBom } from "./utils/text.ts";
++import { MODEL_EXECUTOR_SOCKET_ENV } from "./core/model-executor.ts";
+ 
+ const MIGRATION_GUIDE_URL =
+ 	"https://github.com/earendil-works/pi/blob/main/packages/coding-agent/CHANGELOG.md#extensions-migration";
+@@ -19,6 +20,8 @@ const EXTENSIONS_DOC_URL = "https://github.com/earendil-works/pi/blob/main/packa
+  * @returns Array of provider names that were migrated
+  */
+ export function migrateAuthToAuthJson(): string[] {
++	// Sandboxed executor mode: the host owns the credential files and this process cannot read them.
++	if (process.env[MODEL_EXECUTOR_SOCKET_ENV]) return [];
+ 	const agentDir = getAgentDir();
+ 	const authPath = join(agentDir, "auth.json");
+ 	const oauthPath = join(agentDir, "oauth.json");

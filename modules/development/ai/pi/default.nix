@@ -97,6 +97,11 @@ let
         # The desktop broker runs these from fixed store paths, never from the session PATH.
         desktopTools = pkgs.lib.optionalString pkgs.stdenv.hostPlatform.isLinux
           "--set PI_DESKTOP_WL_COPY ${pkgs.wl-clipboard}/bin/wl-copy --set PI_DESKTOP_GRIM ${pkgs.grim}/bin/grim --set PI_DESKTOP_IMAGE_VIEWER ${pkgs.loupe}/bin/loupe --set PI_DESKTOP_IMAGE_DATA ${pkgs.shared-mime-info}/share --set PI_DESKTOP_PATH ${pkgs.coreutils}/bin";
+        # The executor trusts only the activated dotfiles revision of models.json: a sandboxed
+        # configuration session can edit the working copy, which decides where credentials go.
+        executorModelsSource = "${inputs.dotfiles}/.pi/agent/models.json";
+        executorModelsFlag = pkgs.lib.optionalString (builtins.pathExists executorModelsSource)
+          "--set PI_MODEL_EXECUTOR_MODELS ${builtins.path { path = executorModelsSource; name = "pi-executor-models.json"; }}";
         profile = pkgs.writeText "pi-nono-profile.json" (
           builtins.toJSON (config.flake.lib.mkPiCredentialProfile { inherit pkgs ipcRestricted; })
         );
@@ -118,7 +123,7 @@ let
             --set PI_IPC_MANIFEST "${manifest}" ${desktopTools} \
             --set PI_NONO_DIAGNOSTICS 1 \
             --set PI_SSH_ADD ${pkgs.openssh}/bin/ssh-add \
-            --set PI_MODEL_EXECUTOR_PACKAGE ${rawPi}/lib/pi/node_modules/@earendil-works/pi-coding-agent \
+            --set PI_MODEL_EXECUTOR_PACKAGE ${rawPi}/lib/pi/node_modules/@earendil-works/pi-coding-agent ${executorModelsFlag} \
             --prefix PATH : "$out/bin" \
             --add-flags "${runtime}/scripts/launcher.mjs ${pkgs.nono}/bin/nono ${rawPi}/bin/pi ${profile} ${pkgs.direnv}/bin/direnv ${pkgs.coreutils}/bin/env"
           makeBinaryWrapper ${pkgs.nodejs}/bin/node "$out/bin/pi-desktop" \
@@ -154,6 +159,7 @@ let
             ${runtime}/__tests__/ipc-workflows.test.mjs \
             ${runtime}/__tests__/launcher.test.mjs \
             ${runtime}/__tests__/model-executor-launch.test.mjs \
+            ${runtime}/__tests__/credential-store.test.mjs \
             ${runtime}/__tests__/launch-mode.test.mjs \
             ${runtime}/__tests__/macos-browser-startup.test.mjs \
             ${runtime}/__tests__/reference-access.test.mjs \

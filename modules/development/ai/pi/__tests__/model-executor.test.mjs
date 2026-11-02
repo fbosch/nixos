@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { once } from "node:events";
-import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { lstat, mkdir, mkdtemp, readFile, readlink, rm, symlink, writeFile } from "node:fs/promises";
 import { createServer as createHttpServer } from "node:http";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
@@ -15,7 +15,7 @@ const root = process.env.PI_TEST_PACKAGE;
 assert.ok(root, "PI_TEST_PACKAGE must point to the unpacked package with dependencies");
 const load = (path) => import(pathToFileURL(join(root, "dist", path)).href);
 const { ModelRuntime } = await load("core/model-runtime.js");
-const { AuthStorage } = await load("core/auth-storage.js");
+const { AuthStorage, ReadOnlyAuthStorage } = await load("core/auth-storage.js");
 const { ModelExecutorClient, serveModelExecutor } = await load("core/model-executor.js");
 const { ExecutorAuthStorageBackend } = await load("core/executor-credentials.js");
 
@@ -62,7 +62,13 @@ async function provider({ hold = false } = {}) {
         response.writeHead(200, { "content-type": "application/json" });
         return response.end(JSON.stringify({ access_token: ROTATED_ACCESS, refresh_token: ROTATED_REFRESH, expires_in: 3600 }));
       }
-      if (request.url === "/usage") {
+      if (request.url === "/stream") {
+        // Streams one chunk, then holds the response open until the client goes away.
+        response.writeHead(200, { "content-type": "text/plain" });
+        entry.closed = once(response, "close");
+        return response.write("first chunk");
+      }
+      if (request.url.startsWith("/usage")) {
         response.writeHead(200, { "content-type": "application/json" });
         return response.end(JSON.stringify({ ok: true }));
       }
@@ -330,4 +336,111 @@ test("pi auth refuses to run in executor mode", { skip: !process.env.PI_TEST_BIN
     assert.match(child.stderr, /unavailable in sandboxed sessions/);
     assertNoSecrets(child.stdout + child.stderr);
   }
+});
+
+test("credentialed responses stream through the executor and URL references are substituted", async () => {
+  const { upstream, sandbox } = await fixture({ "auth.json": { anthropic: { type: "api_key", key: API_KEY } } });
+  const auth = await sandbox.getAuth("anthropic");
+  const controller = new AbortController();
+  const response = await fetch(`${upstream.baseUrl}/stream`, { headers: { "x-api-key": auth.auth.apiKey }, signal: controller.signal });
+  const reader = response.body.getReader();
+  const { value } = await reader.read();
+  assert.equal(Buffer.from(value).toString("utf8"), "first chunk", "the first chunk arrives while the response is still open");
+  controller.abort();
+  await upstream.requests.find((request) => request.url === "/stream").closed;
+  const query = await fetch(`${upstream.baseUrl}/usage?key=${auth.auth.apiKey}`);
+  assert.equal(query.status, 200);
+  assert.equal(new URL(upstream.requests.at(-1).url, upstream.baseUrl).searchParams.get("key"), API_KEY);
+});
+
+test("the sandbox cannot plant credential commands or environment references for the host", async () => {
+  const { storeFor, client, readHost } = await fixture({
+    "auth.json": { anthropic: { type: "api_key", key: "!printf synthetic-host-command-key-0123456789" } },
+  });
+  const store = storeFor("auth.json");
+  // A stored command stays usable: the sandbox only ever holds its reference.
+  await store.modify("anthropic", async (current) => ({ ...current }));
+  assert.equal((await readHost("auth.json")).anthropic.key, "!printf synthetic-host-command-key-0123456789");
+  for (const key of ["!touch /tmp/pi-executor-planted", "$HOME"]) {
+    await assert.rejects(store.modify("openai", async () => ({ type: "api_key", key })), /can only be set on the host/);
+    await assert.rejects(client.providerAuth("openai", "apiKey.resolve", { type: "api_key", key }), /can only be set on the host/);
+  }
+  assert.equal((await readHost("auth.json")).openai, undefined);
+});
+
+test("read-only credential views also go through the executor in executor mode", async () => {
+  const { agent, dir } = await fixture({ "auth-profiles/ct.json": { anthropic: { type: "api_key", key: PROFILE_KEY } } });
+  const previous = process.env.PI_MODEL_EXECUTOR_SOCKET;
+  process.env.PI_MODEL_EXECUTOR_SOCKET = join(dir, "executor.sock");
+  try {
+    const view = new ReadOnlyAuthStorage(join(agent, "auth-profiles", "ct.json"));
+    assert.match((await view.read("anthropic")).key, /^piref_/);
+    assert.deepEqual(await view.list(), [{ providerId: "anthropic", type: "api_key" }]);
+    const missing = new ReadOnlyAuthStorage(join(agent, "auth-profiles", "absent.json"));
+    assert.deepEqual(await missing.list(), []);
+  } finally {
+    if (previous === undefined) delete process.env.PI_MODEL_EXECUTOR_SOCKET;
+    else process.env.PI_MODEL_EXECUTOR_SOCKET = previous;
+  }
+});
+
+test("migrated credentials are served from the store, and new profile files are created there", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "pi-credential-store-"));
+  cleanup.push(() => rm(dir, { recursive: true, force: true }));
+  const agent = join(dir, "agent");
+  const store = join(dir, "store");
+  for (const path of [join(agent, "auth-profiles"), join(store, "auth-profiles")]) await mkdir(path, { recursive: true });
+  await writeFile(join(store, "auth.json"), JSON.stringify({ anthropic: { type: "api_key", key: API_KEY } }), { mode: 0o600 });
+  await writeFile(join(store, "auth-profiles", "ct.json"), JSON.stringify({ anthropic: { type: "api_key", key: PROFILE_KEY } }), { mode: 0o600 });
+  await symlink("../store/auth.json", join(agent, "auth.json"));
+  await symlink("../../store/auth-profiles/ct.json", join(agent, "auth-profiles", "ct.json"));
+  await writeFile(join(dir, "other.json"), JSON.stringify({ anthropic: { type: "api_key", key: API_KEY } }));
+  await symlink("../../other.json", join(agent, "auth-profiles", "other.json"));
+  const host = await ModelRuntime.create({ credentials: AuthStorage.inMemory(), modelsPath: null, executorSocket: null, allowModelNetwork: false });
+  const socketPath = join(dir, "executor.sock");
+  const server = createServer();
+  serveModelExecutor(host, server, { agentDir: agent, credentialStore: store });
+  server.listen(socketPath);
+  await once(server, "listening");
+  cleanup.push(() => new Promise((resolve) => server.close(resolve)));
+  const client = new ModelExecutorClient(socketPath);
+  const storeFor = (name) => AuthStorage.fromStorage(new ExecutorAuthStorageBackend(client, join(agent, name)));
+
+  assert.match((await storeFor("auth.json").read("anthropic")).key, /^piref_/);
+  assert.match((await storeFor("auth-profiles/ct.json").read("anthropic")).key, /^piref_/);
+  // A link must point at the store file with the same name.
+  // AuthStorage reads are best-effort, so check the executor's answer directly.
+  await assert.rejects(client.readCredentialFile(join(agent, "auth-profiles", "other.json")), /outside the agent directory/);
+  await assert.rejects(client.lockCredentialFile(join(agent, "auth-profiles", "other.json"), async (content) => ({ result: content })), /outside the agent directory/);
+
+  await storeFor("auth-profiles/new.json").modify("anthropic", async () => ({ type: "api_key", key: "sk-ant-api03-synthetic-new-profile-0123456789" }));
+  const link = join(agent, "auth-profiles", "new.json");
+  assert.ok((await lstat(link)).isSymbolicLink());
+  assert.equal(await readlink(link), join("..", "..", "store", "auth-profiles", "new.json"));
+  assert.equal(JSON.parse(await readFile(join(store, "auth-profiles", "new.json"), "utf8")).anthropic.key, "sk-ant-api03-synthetic-new-profile-0123456789");
+  assert.equal((await lstat(join(store, "auth-profiles", "new.json"))).mode & 0o777, 0o600);
+  // Reading a missing profile creates nothing.
+  assert.equal(await storeFor("auth-profiles/absent.json").read("anthropic"), undefined);
+  await assert.rejects(lstat(join(agent, "auth-profiles", "absent.json")), { code: "ENOENT" });
+});
+
+test("before migration creates the store, credentials stay in the agent directory", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "pi-credential-store-"));
+  cleanup.push(() => rm(dir, { recursive: true, force: true }));
+  const agent = join(dir, "agent");
+  await mkdir(join(agent, "auth-profiles"), { recursive: true });
+  await writeFile(join(agent, "auth.json"), JSON.stringify({ anthropic: { type: "api_key", key: API_KEY } }), { mode: 0o600 });
+  const host = await ModelRuntime.create({ credentials: AuthStorage.inMemory(), modelsPath: null, executorSocket: null, allowModelNetwork: false });
+  const socketPath = join(dir, "executor.sock");
+  const server = createServer();
+  // The store directory does not exist yet; the executor must still start and serve.
+  serveModelExecutor(host, server, { agentDir: agent, credentialStore: join(dir, "missing-store") });
+  server.listen(socketPath);
+  await once(server, "listening");
+  cleanup.push(() => new Promise((resolve) => server.close(resolve)));
+  const client = new ModelExecutorClient(socketPath);
+  const storeFor = (name) => AuthStorage.fromStorage(new ExecutorAuthStorageBackend(client, join(agent, name)));
+  assert.match((await storeFor("auth.json").read("anthropic")).key, /^piref_/);
+  await storeFor("auth-profiles/new.json").modify("anthropic", async () => ({ type: "api_key", key: PROFILE_KEY }));
+  assert.ok((await lstat(join(agent, "auth-profiles", "new.json"))).isFile());
 });

@@ -5,7 +5,8 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { stripVTControlCharacters } from "node:util";
 import { shellProtection, withProtectedShellProfile } from "./shell-protection.mjs";
-import { agentDirectories, agentProtection, prepareAgentRuntime } from "./agent-protection.mjs";
+import { agentCredentialPaths, agentDirectories, agentProtection, prepareAgentRuntime } from "./agent-protection.mjs";
+import { credentialFilesOutsideStore, credentialStoreDirectory, migrateCredentialStore, runningSandboxes } from "./credential-store.mjs";
 import { assertReadOnlySshGrants, sshClientArguments } from "./ssh-access.mjs";
 import { assertCredentialSourceGrants, credentialEnvironmentForDirenv, prepareCredentialEnvironment } from "./credentials.mjs";
 import { prepareRuntimeLocks, prepareSandboxRuntime, sandboxRuntimeCommand } from "./sandbox-runtime.mjs";
@@ -345,8 +346,22 @@ function planLaunchArguments(cwd, agentDir, home, environment, profile, rawPi, e
   } else {
     agent = agentProtection(home, agentDir, environment, loadedProfile, platform);
   }
-  for (const path of agent.runtimePaths) grants.add(path);
-  for (const path of agent.authFiles) extra.push("--allow-file", path);
+  // Executor mode: credential files belong to the host executor, so the sandbox gets no grant to them.
+  const credentialPaths = environment[MODEL_EXECUTOR_SOCKET] ? agentCredentialPaths(home, agentDir) : [];
+  const credentialStore = (path) => credentialPaths.some((credential) => within(path, credential));
+  for (const path of agent.runtimePaths) if (!credentialStore(path)) grants.add(path);
+  if (credentialPaths.length === 0) {
+    for (const path of agent.authFiles) extra.push("--allow-file", path);
+    // Without the executor, Pi in the sandbox reads and refreshes migrated credentials itself.
+    let store;
+    try { store = existingDirectory(credentialStoreDirectory(home)); } catch { store = undefined; }
+    if (store !== undefined) {
+      const auth = join(store, "auth.json");
+      if (existingFile(auth)) extra.push("--allow-file", auth);
+      const profiles = existingDirectory(join(store, "auth-profiles"));
+      if (profiles !== undefined) grants.add(profiles);
+    }
+  }
   extra.push(...endpointArguments(capabilities, { "selected-git-metadata": [...gitDirectories] }));
   const socketVariables = new Set(Object.values(capabilities).filter(capability => capability.backend === "json-lines").map(capability => capability.socketEnvironment));
   if (!ipcRestricted && environment.HERDR_ENV === "1") socketVariables.add("HERDR_SOCKET_PATH");
@@ -406,13 +421,15 @@ function planLaunchArguments(cwd, agentDir, home, environment, profile, rawPi, e
     ...(platform === "linux" && existingDirectory(home) !== undefined ? shellProtection(home, environment).protectedPaths : []),
     ...agent.protectedPaths,
     approvals,
+    // macOS denies credential stores in the session profile instead, so config sessions keep their cwd grant.
+    ...(platform === "linux" ? credentialPaths : []),
   ];
   const canonicalCwd = realpathSync(cwd);
   // A cwd that contains host-only paths is split like any other grant, so nono's whole-directory workdir grant is withheld.
   const splitCwd = platform === "linux" && hostOnlyPaths.some((path) => within(path, canonicalCwd) || within(canonicalCwd, path));
   if (splitCwd) grants.add(canonicalCwd);
   const split = { allow: [], files: [], reads: [] };
-  for (const path of grants) splitWritableGrant(path, platform === "linux" ? hostOnlyPaths : agent.protectedPaths, split);
+  for (const path of grants) splitWritableGrant(path, platform === "linux" ? hostOnlyPaths : [...agent.protectedPaths, ...credentialPaths], split);
   const args = [
     "run", "--profile", profile, ...(splitCwd ? [] : ["--allow-cwd"]), "--suppress-save-prompt", "/",
     ...(platform === "darwin" ? ["--trust-proxy-ca"] : []),
@@ -431,7 +448,15 @@ function planLaunchArguments(cwd, agentDir, home, environment, profile, rawPi, e
   assertCredentialSourceGrants(args, cwd, home, guardEnvironment, loadedProfile);
   assertRuntimeSecretGrants(args, cwd, home, guardEnvironment, loadedProfile, platform);
   assertHostOnlyGrants(args, cwd, platform === "linux" ? hostOnlyPaths : [approvals]);
-  return { args, protectedPaths: [...agent.protectedPaths, approvals] };
+  if (credentialPaths.length > 0 && existingDirectory(home) !== undefined) {
+    // No grant, including profile reads, may reach the credential store in executor mode.
+    assertCredentialGrants(args, cwd, home, guardEnvironment, loadedProfile, [credentialStoreDirectory(home)], "Pi");
+  }
+  // Landlock cannot hide regular files inside a readable agent directory; only store links are safe.
+  const exposedCredentials = credentialPaths.length > 0 && platform === "linux"
+    ? credentialFilesOutsideStore(agentDirectories(home, agentDir))
+    : [];
+  return { args, protectedPaths: [...agent.protectedPaths, approvals], credentialPaths, exposedCredentials };
 }
 
 export function prepareJitiCache(temporaryDirectory = tmpdir(), platform = process.platform) {
@@ -473,7 +498,7 @@ function planLaunchCommand(args, cwd, agentDir, home, environment, nono, rawPi, 
     : [];
   if (!isAbsolute(nono) || !existsSync(nono)) throw new Error(`nono executable missing: ${nono}`);
   const plan = planLaunchArguments(cwd, agentDir, home, environment, profile, rawPi, envBinary, process.platform, registry);
-  return { command: [nono, ...plan.args, ...extension, ...args], protectedPaths: plan.protectedPaths };
+  return { command: [nono, ...plan.args, ...extension, ...args], protectedPaths: plan.protectedPaths, credentialPaths: plan.credentialPaths, exposedCredentials: plan.exposedCredentials };
 }
 
 export function loadProjectEnvironment(cwd, environment, direnv, run = spawnSync) {
@@ -600,12 +625,31 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
       }
       prepareSandboxRuntime(home);
       prepareAgentRuntime(agentDir);
+      // Existing setups move to the credential store on the first sandboxed launch while no other
+      // sandboxed session is running.
+      try {
+        if (credentialFilesOutsideStore([realpathSync(agentDir)]).length > 0) {
+          const running = runningSandboxes();
+          if (running === undefined) {
+            console.warn("pi sandbox launch: cannot list running sandboxes; credentials move to the Pi credential store on a later launch.");
+          } else if (running.length > 0) {
+            console.warn(`pi sandbox launch: ${running.length} other sandboxed Pi session(s) are running; credentials move to the Pi credential store on the first launch after they exit.`);
+          } else {
+            for (const warning of migrateCredentialStore(home, agentDir).warnings) console.warn(`pi sandbox launch: ${warning}`);
+          }
+        }
+      } catch (error) {
+        console.warn(`pi sandbox launch: could not move credentials to the Pi credential store (${error instanceof Error ? error.message : String(error)}); continuing with the existing files.`);
+      }
       ensureSshIdentity(environment, home, sshAdd);
     }
     const runPi = (boundEnvironment) => withNonoDiagnostics(boundEnvironment, async (diagnosticEnvironment) => {
       environment = diagnosticEnvironment;
       environment.PI_NONO_DIAGNOSTICS = inheritedEnvironment.PI_NONO_DIAGNOSTICS === "1" ? "1" : "0";
-      const { command, protectedPaths } = planLaunchCommand(args, process.cwd(), agentDir, home, environment, nono, rawPi, profile, envBinary, registry);
+      const { command, protectedPaths, credentialPaths, exposedCredentials } = planLaunchCommand(args, process.cwd(), agentDir, home, environment, nono, rawPi, profile, envBinary, registry);
+      if (exposedCredentials?.length) {
+        console.warn(`pi sandbox launch: these credential files are outside the Pi credential store and stay readable on Linux: ${exposedCredentials.join(", ")}`);
+      }
       if (command[0] === nono) command.splice(2, 0, "--log-file", environment.PI_NONO_DIAGNOSTICS_FILE);
       // Herdr must identify the host-visible bootstrap even when nono hides the child process.
       process.title = "pi";
@@ -621,7 +665,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
         if (process.platform === "linux" && readJson(profile, "nono profile")?.network?.credentials?.length) {
           return runWithCredentialProxy(nono, profile, command, environment, { sandboxed: true });
         }
-        return withProtectedShellProfile(profile, home, environment, run, process.platform, protectedPaths);
+        return withProtectedShellProfile(profile, home, environment, run, process.platform, protectedPaths, credentialPaths);
       }
       return runWithCredentialProxy(nono, profile, command, environment);
     });
@@ -629,7 +673,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     // shortcut: the host model executor is opt-in from the invoking environment while credentials stay
     // granted to the sandbox; make it the default when profile routing and the credential denial land.
     const runSession = args[0] !== "--no-sandbox" && inheritedEnvironment.PI_MODEL_EXECUTOR === "1"
-      ? bound => withModelExecutor(bound, modelExecutorEnvironment(inheritedEnvironment, agentDir), home, inheritedEnvironment.PI_MODEL_EXECUTOR_PACKAGE, runPi)
+      ? bound => withModelExecutor(bound, modelExecutorEnvironment(inheritedEnvironment, agentDir), home, inheritedEnvironment.PI_MODEL_EXECUTOR_PACKAGE, runPi, inheritedEnvironment.PI_MODEL_EXECUTOR_MODELS || undefined)
       : runPi;
     const runWithCapabilities = bound => withIpcCapabilities(bound, inheritedEnvironment, home, process.cwd(), agentDir, args, registry, ipcRestricted ? "restricted" : "ordinary", runSession);
     const child = ipcRestricted

@@ -9,15 +9,17 @@ import { privateIpcDirectory } from "./private-ipc.mjs";
 
 let directory;
 try {
-  const { packageDir, home } = JSON.parse(process.argv[2]);
+  const { packageDir, home, modelsPath, catalogPath, credentialStore } = JSON.parse(process.argv[2]);
   // Code loads only from the Nix-built Pi package, never from the writable agent directory.
   const load = path => import(pathToFileURL(join(packageDir, "dist", path)).href);
   const [{ ModelRuntime }, { serveModelExecutor }] = await Promise.all([load("core/model-runtime.js"), load("core/model-executor.js")]);
-  const runtime = await ModelRuntime.create({ executorSocket: null });
+  // models.json comes from the Nix store and the catalog cache from private IPC state: sandboxed
+  // sessions can edit the agent directory's copies, and these decide where credentials are sent.
+  const runtime = await ModelRuntime.create({ executorSocket: null, modelsPath: modelsPath ?? null, modelsStorePath: catalogPath });
   directory = privateIpcDirectory(home, "model-");
   const endpoint = join(directory, "s");
   const server = createServer();
-  serveModelExecutor(runtime, server);
+  serveModelExecutor(runtime, server, { credentialStore });
   server.listen(endpoint);
   await once(server, "listening");
   let stopping = false;
@@ -38,5 +40,6 @@ try {
 } catch (error) {
   if (directory) rmSync(directory, { recursive: true, force: true });
   console.error(error instanceof Error ? error.message : "Model executor failed");
-  process.exitCode = 1;
+  // Exit now: a partly created runtime can keep the event loop alive, and the launcher would wait.
+  process.exit(1);
 }

@@ -6,7 +6,9 @@ import { createConnection, createServer } from "node:net";
 import { dirname, join } from "node:path";
 import { afterEach, test } from "node:test";
 import { fileURLToPath } from "node:url";
+import { prepareAgentRuntime } from "../scripts/agent-protection.mjs";
 import { launchArguments } from "../scripts/launcher.mjs";
+import { credentialDenyRule } from "../scripts/shell-protection.mjs";
 import { MODEL_EXECUTOR_SOCKET, modelExecutorEnvironment, withModelExecutor } from "../scripts/model-executor-launch.mjs";
 
 const envBinary = process.env.ENV_TEST_BINARY ?? "/usr/bin/env";
@@ -88,7 +90,7 @@ test("the executor runs from the Pi package on a private socket for the session"
     return request(endpoint);
   });
   assert.deepEqual(result, {
-    options: { executorSocket: null },
+    options: { executorSocket: null, modelsPath: null, modelsStorePath: join(home, ".pi-ipc", "model-executor-catalog.json") },
     env: { agent: "/agent", locks: null, nodeOptions: null, executorSocket: null, project: null, host: "1" },
   });
   assert.equal(existsSync(dirname(endpoint)), false, "session end removes the executor socket directory");
@@ -105,6 +107,19 @@ test("executor startup failures stop the launch with the executor's diagnostics"
   );
   assert.equal(ran, false);
   await assert.rejects(withModelExecutor({}, {}, home, join(root, "missing"), async () => {}), /package missing/);
+});
+
+test("the executor's models.json must be an immutable store copy", async () => {
+  const { root, home, agent } = fixture();
+  const packageDir = fakePackage(root);
+  writeFileSync(join(agent, "models.json"), "{}");
+  let ran = false;
+  // A sandboxed configuration session can edit the agent directory's models.json.
+  await assert.rejects(
+    withModelExecutor({}, { PATH: process.env.PATH }, home, packageDir, async () => { ran = true; }, join(agent, "models.json")),
+    /must be an existing Nix store path/,
+  );
+  assert.equal(ran, false);
 });
 
 test("the sandbox receives only a private executor socket grant", async () => {
@@ -140,4 +155,41 @@ test("raw mode does not inherit an executor socket", () => {
   assert.ifError(child.error);
   assert.equal(child.status, 0, child.stderr);
   assert.equal(JSON.parse(child.stdout), null);
+});
+
+test("executor mode grants the sandbox no credential files", async () => {
+  const { home, agent, cwd, profile } = fixture();
+  prepareAgentRuntime(agent);
+  writeFileSync(join(agent, "auth.json"), "{}", { mode: 0o600 });
+  const directory = join(home, ".pi-ipc", "model-y");
+  mkdirSync(directory, { recursive: true, mode: 0o700 });
+  const socket = join(directory, "s");
+  const server = createServer(connection => connection.end());
+  server.listen(socket);
+  await once(server, "listening");
+  try {
+    const grants = (args) => [...values(args, "--allow"), ...values(args, "--allow-file"), ...values(args, "--read"), ...values(args, "--read-file")];
+    const ordinary = launchArguments(cwd, agent, home, {}, profile, process.execPath, envBinary, "darwin");
+    assert.ok(grants(ordinary).includes(join(agent, "auth.json")), "without the executor Pi refreshes auth.json in place");
+    assert.ok(grants(ordinary).includes(join(agent, "auth-profiles")));
+    const executor = launchArguments(cwd, agent, home, { [MODEL_EXECUTOR_SOCKET]: socket }, profile, process.execPath, envBinary, "darwin");
+    const credentials = [join(agent, "auth.json"), join(agent, "auth-profiles")];
+    const writable = [...values(executor, "--allow"), ...values(executor, "--allow-file")];
+    for (const path of writable) {
+      assert.ok(!credentials.some((credential) => path === credential || path.startsWith(`${credential}/`)), path);
+    }
+    // The profile directory stays listable; the session profile denies the files inside it.
+    assert.deepEqual(
+      [...values(executor, "--read"), ...values(executor, "--read-file")].filter((path) => credentials.some((credential) => path.startsWith(credential))),
+      [join(agent, "auth-profiles")],
+    );
+  } finally {
+    await new Promise(resolve => server.close(resolve));
+  }
+});
+
+test("the macOS credential denial covers auth.json, its locks and profile files but keeps profiles listable", () => {
+  const rule = credentialDenyRule(["/Users/a.b/.pi/agent/auth.json", "/Users/a.b/.pi/agent/auth-profiles"]);
+  assert.equal(rule, '(deny file-read* file-write* (regex #"^/Users/a\\.b/\\.pi/agent/auth\\.json") (regex #"^/Users/a\\.b/\\.pi/agent/auth-profiles/"))');
+  assert.equal(credentialDenyRule([]), undefined);
 });

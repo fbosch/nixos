@@ -1,6 +1,11 @@
 import { existsSync, lstatSync, mkdirSync, readdirSync, readlinkSync, realpathSync } from "node:fs";
 import { dirname, isAbsolute, join, sep } from "node:path";
 import { canonicalCredentialPath } from "./credential-grants.mjs";
+import { credentialStoreDirectory } from "./credential-store.mjs";
+
+function storeDirectory(home) {
+  try { return credentialStoreDirectory(home); } catch { return undefined; }
+}
 
 // These are data stores, not Pi resource-discovery or package-installation directories.
 // pi-fff stores LMDB frecency/history beneath agent/fff when no editor database exists.
@@ -17,6 +22,25 @@ export function agentDirectories(home, agentDir) {
   const canonicalHome = existsSync(home) ? realpathSync(home) : home;
   if (roots.some(root => within(canonicalHome, root))) throw new Error("Pi agent directory must not resolve to the home directory or an ancestor");
   return roots;
+}
+
+/**
+ * Credential stores in every agent directory, as given and canonical: auth.json (with its lock
+ * files) and auth-profiles/. In executor mode the sandbox reaches them only through the executor.
+ */
+export function agentCredentialPaths(home, agentDir) {
+  const paths = new Set();
+  // Migrated credentials live in the store; Seatbelt and Landlock check the resolved file.
+  const store = storeDirectory(home);
+  if (store !== undefined) paths.add(store);
+  for (const root of agentDirectories(home, agentDir)) {
+    for (const name of ["auth.json", "auth-profiles"]) {
+      const path = join(root, name);
+      paths.add(path);
+      if (existsSync(path)) paths.add(realpathSync(path));
+    }
+  }
+  return [...paths];
 }
 
 export function agentProtection(home, agentDir, environment = {}, profile = {}, platform = process.platform) {
@@ -115,11 +139,14 @@ export function agentProtection(home, agentDir, environment = {}, profile = {}, 
       } else if (name === "auth.json") {
         const entry = lstatSync(path);
         if (entry.isSymbolicLink()) {
-          // Stow links the default agent directory's auth.json to the configured one. Only that exact
-          // target is accepted: it is granted when its own root is scanned, and the link stays host-owned.
+          // Accepted targets: the credential store's auth.json, or (before migration) the configured
+          // agent directory's own auth.json linked by Stow. The launcher grants the target; the
+          // link itself stays host-owned.
           let target;
           try { target = realpathSync(path); } catch { target = undefined; }
-          if (!roots.some(other => other !== root && target === join(other, "auth.json"))) {
+          const store = storeDirectory(home);
+          const storeAuth = store === undefined ? undefined : join(store, "auth.json");
+          if (target !== storeAuth && !roots.some(other => other !== root && target === join(other, "auth.json"))) {
             throw new Error(`Pi auth state must be a regular file without hard links: ${path}`);
           }
           protectedPaths.add(path);
