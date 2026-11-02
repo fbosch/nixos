@@ -18,6 +18,7 @@ let
           ./pi-tool-preview-render.patch
           ./pi-markdown-streaming.patch
           ./pi-image-read.patch
+          ./pi-model-executor.patch
         ];
         patchFlags = [
           "--batch"
@@ -66,7 +67,8 @@ let
                 ${./__tests__/tool-preview-render.test.mjs} \
                 ${./__tests__/markdown-streaming.test.mjs} \
                 ${./__tests__/tool-search-ranking.test.mjs} \
-                ${./__tests__/image-read.test.mjs}
+                ${./__tests__/image-read.test.mjs} \
+                ${./__tests__/model-executor.test.mjs}
             '';
           }
       );
@@ -116,6 +118,7 @@ let
             --set PI_IPC_MANIFEST "${manifest}" ${desktopTools} \
             --set PI_NONO_DIAGNOSTICS 1 \
             --set PI_SSH_ADD ${pkgs.openssh}/bin/ssh-add \
+            --set PI_MODEL_EXECUTOR_PACKAGE ${rawPi}/lib/pi/node_modules/@earendil-works/pi-coding-agent \
             --prefix PATH : "$out/bin" \
             --add-flags "${runtime}/scripts/launcher.mjs ${pkgs.nono}/bin/nono ${rawPi}/bin/pi ${profile} ${pkgs.direnv}/bin/direnv ${pkgs.coreutils}/bin/env"
           makeBinaryWrapper ${pkgs.nodejs}/bin/node "$out/bin/pi-desktop" \
@@ -150,6 +153,7 @@ let
             ${runtime}/__tests__/devenv-runtime.test.mjs \
             ${runtime}/__tests__/ipc-workflows.test.mjs \
             ${runtime}/__tests__/launcher.test.mjs \
+            ${runtime}/__tests__/model-executor-launch.test.mjs \
             ${runtime}/__tests__/launch-mode.test.mjs \
             ${runtime}/__tests__/macos-browser-startup.test.mjs \
             ${runtime}/__tests__/reference-access.test.mjs \

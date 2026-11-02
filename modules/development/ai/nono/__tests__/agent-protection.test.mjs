@@ -111,6 +111,24 @@ test("auth state cannot select a control file through a symlink", () => {
   assert.throws(() => agentProtection(f.home, f.agent), /auth state must be a regular file/);
 });
 
+test("a Stow-linked default auth file shares the configured agent's auth file", () => {
+  const f = fixture();
+  symlinkSync(join(f.agent, "auth.json"), join(f.defaultAgent, "auth.json"));
+  const policy = agentProtection(f.home, f.agent);
+  assert.deepEqual(policy.authFiles, [join(f.agent, "auth.json")]);
+  assert.ok(policy.protectedPaths.includes(join(f.defaultAgent, "auth.json")), "the link itself stays host-owned");
+});
+
+test("a default auth link may not select any other file", () => {
+  const f = fixture();
+  writeFileSync(join(f.home, "elsewhere.json"), "{}");
+  for (const target of [join(f.agent, "settings.json"), join(f.home, "elsewhere.json"), join(f.agent, "missing.json")]) {
+    rmSync(join(f.defaultAgent, "auth.json"), { force: true });
+    symlinkSync(target, join(f.defaultAgent, "auth.json"));
+    assert.throws(() => agentProtection(f.home, f.agent), /auth state must be a regular file/, target);
+  }
+});
+
 test("fresh native sandbox denies control writes and loads an approved Pi extension", {
   skip: !["linux", "darwin"].includes(process.platform) || !process.env.NONO_TEST_BINARY || !process.env.PI_RAW_TEST_BINARY,
   timeout: 60000,

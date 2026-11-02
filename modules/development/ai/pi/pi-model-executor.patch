@@ -1,0 +1,1746 @@
+diff --git a/packages/coding-agent/src/core/auth-storage.ts b/packages/coding-agent/src/core/auth-storage.ts
+index 5a8fa41..66d07e8 100644
+--- a/packages/coding-agent/src/core/auth-storage.ts
++++ b/packages/coding-agent/src/core/auth-storage.ts
+@@ -11,6 +11,7 @@ import { setTimeout as sleep } from "timers/promises";
+ import { getAgentDir } from "../config.ts";
+ import { raceWithAbortSignal } from "../utils/abort.ts";
+ import { getFileRevision, normalizePath } from "../utils/paths.ts";
++import { executorAuthStorageBackend } from "./executor-credentials.ts";
+ import { stripBom } from "../utils/text.ts";
+ import { isCommandConfigValue, resolveConfigValue } from "./resolve-config-value.ts";
+ 
+@@ -52,6 +53,8 @@ let sharedAuthFileReadState: { authPath: string; readState: AuthFileReadState }
+ 
+ export interface AuthStorageBackend {
+ 	withLock<T>(fn: (current: string | undefined) => LockResult<T>): T;
++	/** Optional lock-free read for backends where locking a read is expensive. */
++	read?(options?: AuthOperationOptions): Promise<string | undefined>;
+ 	withLockAsync<T>(
+ 		fn: (current: string | undefined) => Promise<LockResult<T>>,
+ 		options?: AuthOperationOptions,
+@@ -347,6 +350,9 @@ export class AuthStorage implements CredentialStore {
+ 
+ 	static create(authPath: string = join(getAgentDir(), "auth.json")): AuthStorage {
+ 		const normalizedAuthPath = normalizePath(authPath);
++		// Sandboxed executor mode: the executor holds the file; reads return references, not secrets.
++		const executor = executorAuthStorageBackend(normalizedAuthPath);
++		if (executor) return AuthStorage.fromStorage(executor);
+ 		return new AuthStorage(new FileAuthStorageBackend(normalizedAuthPath), normalizedAuthPath);
+ 	}
+ 
+@@ -391,6 +397,11 @@ export class AuthStorage implements CredentialStore {
+ 	}
+ 
+ 	private async reloadFromStorageAsync(options?: AuthOperationOptions): Promise<AuthStorageData> {
++		if (this.storage.read) {
++			const currentData = this.parseStorageData(await this.storage.read(options));
++			this.updateReadState(currentData);
++			return currentData;
++		}
+ 		return this.storage.withLockAsync(async (content) => {
+ 			const currentData = this.parseStorageData(content);
+ 			const revision = this.authPath ? getFileRevision(this.authPath) : undefined;
+diff --git a/packages/coding-agent/src/core/credential-refs.ts b/packages/coding-agent/src/core/credential-refs.ts
+new file mode 100644
+index 0000000..9c5b9bb
+--- /dev/null
++++ b/packages/coding-agent/src/core/credential-refs.ts
+@@ -0,0 +1,136 @@
++/**
++ * Credential references for executor mode. The executor replaces secret values with opaque
++ * references before anything reaches the sandbox, and swaps them back when the sandbox hands a
++ * reference to an executor operation. References are scoped to the provider that issued them.
++ */
++import { randomBytes } from "node:crypto";
++import type { AuthResult, ModelAuth, ProviderHeaders } from "@earendil-works/pi-ai";
++
++const PREFIX = "piref_";
++const REF_PATTERN = /piref_[A-Za-z0-9_-]{43}/g;
++const SECRET_FIELD = /token|secret|key|access|refresh|password|credential/i;
++const REFRESH_FIELD = /refresh/i;
++const SECRET_HEADER = /^(authorization|proxy-authorization|cookie|api-key)$|key|token|secret|auth|signature|credential|password/i;
++
++export function containsCredentialRef(value: string): boolean {
++	return value.includes(PREFIX) && new RegExp(REF_PATTERN.source).test(value);
++}
++
++export function isSecretHeader(name: string): boolean {
++	return SECRET_HEADER.test(name);
++}
++
++interface Entry {
++	value: string;
++	provider: string;
++	/** Bearer values may be substituted into requests; refresh tokens only flow back into storage. */
++	substitutable: boolean;
++}
++
++function isRecord(value: unknown): value is Record<string, unknown> {
++	return typeof value === "object" && value !== null && !Array.isArray(value);
++}
++
++export class CredentialRefRegistry {
++	readonly #entries = new Map<string, Entry>();
++	readonly #refs = new Map<string, string>();
++
++	/** The reference for `value`, stable for the lifetime of this registry. */
++	register(provider: string, value: string, substitutable: boolean): string {
++		const key = `${provider}\0${substitutable ? "s" : "r"}\0${value}`;
++		const existing = this.#refs.get(key);
++		if (existing) return existing;
++		const ref = `${PREFIX}${randomBytes(32).toString("base64url").slice(0, 43)}`;
++		this.#entries.set(ref, { value, provider, substitutable });
++		this.#refs.set(key, ref);
++		return ref;
++	}
++
++	lookup(ref: string): Readonly<Entry> | undefined {
++		return this.#entries.get(ref);
++	}
++
++	/** Every secret value this registry has seen, longest first, for scrubbing relayed data. */
++	secrets(): string[] {
++		return [...new Set([...this.#entries.values()].map((entry) => entry.value))].sort((a, b) => b.length - a.length);
++	}
++
++	/** Replaces secret fields of a stored credential, recursively, with references. */
++	redactCredential(provider: string, credential: unknown): unknown {
++		const walk = (value: unknown, secretContext: boolean, refresh: boolean): unknown => {
++			if (typeof value === "string") {
++				return secretContext && value.length > 0 ? this.register(provider, value, !refresh) : value;
++			}
++			if (Array.isArray(value)) return value.map((item) => walk(item, false, false));
++			if (!isRecord(value)) return value;
++			const result: Record<string, unknown> = {};
++			for (const [key, item] of Object.entries(value)) {
++				result[key] = walk(item, SECRET_FIELD.test(key), REFRESH_FIELD.test(key));
++			}
++			return result;
++		};
++		return walk(credential, false, false);
++	}
++
++	redactModelAuth(provider: string, auth: ModelAuth): ModelAuth {
++		return {
++			...(auth.apiKey === undefined ? {} : { apiKey: this.register(provider, auth.apiKey, true) }),
++			...(auth.headers === undefined ? {} : { headers: this.#redactHeaders(provider, auth.headers) }),
++			...(auth.baseUrl === undefined ? {} : { baseUrl: auth.baseUrl }),
++		};
++	}
++
++	redactAuthResult(provider: string, result: AuthResult): AuthResult {
++		return {
++			auth: this.redactModelAuth(provider, result.auth),
++			...(result.env === undefined ? {} : { env: this.redactCredential(provider, result.env) as Record<string, string> }),
++			...(result.source === undefined ? {} : { source: result.source }),
++		};
++	}
++
++	#redactHeaders(provider: string, headers: ProviderHeaders): ProviderHeaders {
++		const redacted: ProviderHeaders = {};
++		for (const [name, value] of Object.entries(headers)) {
++			redacted[name] = typeof value === "string" && isSecretHeader(name) ? this.register(provider, value, true) : value;
++		}
++		return redacted;
++	}
++
++	/**
++	 * Replaces references inside `value` with their secrets. Every reference must belong to
++	 * `provider`; refresh-token references are accepted only when `allowRefresh` is set.
++	 */
++	rehydrate<T>(provider: string, value: T, options: { allowRefresh: boolean }): T {
++		const walk = (item: unknown): unknown => {
++			if (typeof item === "string") return this.rehydrateString(provider, item, options);
++			if (Array.isArray(item)) return item.map(walk);
++			if (!isRecord(item)) return item;
++			const result: Record<string, unknown> = {};
++			for (const [key, entry] of Object.entries(item)) result[key] = walk(entry);
++			return result;
++		};
++		return walk(value) as T;
++	}
++
++	rehydrateString(provider: string, value: string, options: { allowRefresh: boolean }): string {
++		if (!value.includes(PREFIX)) return value;
++		return value.replace(new RegExp(REF_PATTERN.source, "g"), (ref) => {
++			const entry = this.#entries.get(ref);
++			if (!entry) throw new Error("Unknown credential reference");
++			if (entry.provider !== provider) throw new Error(`Credential reference does not belong to ${provider}`);
++			if (!entry.substitutable && !options.allowRefresh) throw new Error("Refresh tokens cannot be sent in requests");
++			return entry.value;
++		});
++	}
++
++	/** Providers whose references appear in `value`. Unknown references throw. */
++	providersIn(value: string): Set<string> {
++		const providers = new Set<string>();
++		for (const ref of value.match(new RegExp(REF_PATTERN.source, "g")) ?? []) {
++			const entry = this.#entries.get(ref);
++			if (!entry) throw new Error("Unknown credential reference");
++			providers.add(entry.provider);
++		}
++		return providers;
++	}
++}
+diff --git a/packages/coding-agent/src/core/executor-credentials.ts b/packages/coding-agent/src/core/executor-credentials.ts
+new file mode 100644
+index 0000000..e098610
+--- /dev/null
++++ b/packages/coding-agent/src/core/executor-credentials.ts
+@@ -0,0 +1,144 @@
++/**
++ * Sandbox side of executor credentials. In executor mode, credential files are read and written
++ * through the executor, provider auth runs there, and requests that carry credential references go
++ * through it. Code that uses Pi's credential stores and `fetch` works unchanged; it only ever holds
++ * references.
++ */
++import type {
++	ApiKeyAuth,
++	ApiKeyCredential,
++	AuthCheck,
++	AuthResult,
++	ModelAuth,
++	OAuthAuth,
++	OAuthCredential,
++	Provider,
++} from "@earendil-works/pi-ai";
++import type { AuthStorageBackend } from "./auth-storage.ts";
++import { containsCredentialRef } from "./credential-refs.ts";
++import { MODEL_EXECUTOR_SOCKET_ENV, ModelExecutorClient } from "./model-executor.ts";
++
++type LockResult<T> = { result: T; next?: string };
++
++/** The executor socket in executor mode. Read per call: bundled and unbundled copies share it. */
++export function executorSocket(): string | undefined {
++	return process.env[MODEL_EXECUTOR_SOCKET_ENV] || undefined;
++}
++
++/** A credential file held by the executor: its content arrives with references in place of secrets. */
++export class ExecutorAuthStorageBackend implements AuthStorageBackend {
++	readonly #client: ModelExecutorClient;
++	readonly #path: string;
++	#reading: Promise<string | undefined> | undefined;
++
++	constructor(client: ModelExecutorClient, path: string) {
++		this.#client = client;
++		this.#path = path;
++	}
++
++	withLock<T>(_fn: (current: string | undefined) => LockResult<T>): T {
++		throw new Error("Executor-held credentials are only available asynchronously");
++	}
++
++	/** Concurrent reads share one executor round trip; writes still take the file lock. */
++	read(options?: { signal?: AbortSignal }): Promise<string | undefined> {
++		options?.signal?.throwIfAborted();
++		if (!this.#reading) {
++			const reading = this.#client.readCredentialFile(this.#path);
++			this.#reading = reading;
++			void reading.then(
++				() => this.#clearRead(reading),
++				() => this.#clearRead(reading),
++			);
++		}
++		return this.#reading;
++	}
++
++	#clearRead(reading: Promise<string | undefined>): void {
++		if (this.#reading === reading) this.#reading = undefined;
++	}
++
++	withLockAsync<T>(
++		fn: (current: string | undefined) => Promise<LockResult<T>>,
++		options?: { signal?: AbortSignal },
++	): Promise<T> {
++		return this.#client.lockCredentialFile(this.#path, fn, options?.signal);
++	}
++}
++
++/** The executor-held backend for `path` in executor mode; undefined otherwise. */
++export function executorAuthStorageBackend(path: string): ExecutorAuthStorageBackend | undefined {
++	const socket = executorSocket();
++	return socket ? new ExecutorAuthStorageBackend(new ModelExecutorClient(socket), path) : undefined;
++}
++
++function isRecord(value: unknown): value is Record<string, unknown> {
++	return typeof value === "object" && value !== null && !Array.isArray(value);
++}
++
++function authCheck(value: unknown): AuthCheck | undefined {
++	if (!isRecord(value) || (value.type !== "api_key" && value.type !== "oauth")) return undefined;
++	return typeof value.source === "string" ? { type: value.type, source: value.source } : { type: value.type };
++}
++
++/**
++ * The provider with its auth methods running on the executor. Credentials passed in and returned
++ * hold references, so auth flows such as locked OAuth refresh keep their semantics here.
++ */
++export function withExecutorAuth(provider: Provider, client: ModelExecutorClient): Provider {
++	const { apiKey, oauth } = provider.auth;
++	const call = (method: string, credential: unknown, signal?: AbortSignal) =>
++		client.providerAuth(provider.id, method, credential, signal);
++	const executorApiKey: ApiKeyAuth | undefined = apiKey && {
++		name: apiKey.name,
++		...(apiKey.login
++			? {
++					login: async (interaction) =>
++						(await client.login(provider.id, "apiKey", interaction)) as unknown as ApiKeyCredential,
++				}
++			: {}),
++		...(apiKey.check
++			? { check: async ({ credential, signal }) => authCheck(await call("apiKey.check", credential, signal)) }
++			: {}),
++		resolve: async ({ credential, signal }) =>
++			((await call("apiKey.resolve", credential, signal)) ?? undefined) as AuthResult | undefined,
++	};
++	const executorOAuth: OAuthAuth | undefined = oauth && {
++		name: oauth.name,
++		...(oauth.isSubscription === undefined ? {} : { isSubscription: oauth.isSubscription }),
++		...(oauth.loginLabel === undefined ? {} : { loginLabel: oauth.loginLabel }),
++		login: async (interaction, options) =>
++			(await client.login(provider.id, "oauth", interaction, options)) as OAuthCredential,
++		refresh: async (credential, signal) => (await call("oauth.refresh", credential, signal)) as OAuthCredential,
++		toAuth: async (credential) => (await call("oauth.toAuth", credential)) as ModelAuth,
++	};
++	return {
++		...provider,
++		auth: { ...(executorApiKey ? { apiKey: executorApiKey } : {}), ...(executorOAuth ? { oauth: executorOAuth } : {}) },
++	};
++}
++
++const FETCH_SHIM = Symbol.for("pi.executorCredentialFetch");
++const FETCH_CLIENT = Symbol.for("pi.executorCredentialFetchClient");
++
++/**
++ * Routes requests whose headers carry credential references through the executor, which swaps
++ * the references for secrets and sends the request only to the credential provider's origins.
++ * Other requests use the original `fetch`. Installed once per process.
++ */
++export function installExecutorFetch(client: ModelExecutorClient): void {
++	const scope = globalThis as typeof globalThis & { [FETCH_SHIM]?: true; [FETCH_CLIENT]?: ModelExecutorClient };
++	// Bundled and unbundled copies share one shim; the latest client serves it.
++	scope[FETCH_CLIENT] = client;
++	if (scope[FETCH_SHIM]) return;
++	scope[FETCH_SHIM] = true;
++	const original = globalThis.fetch.bind(globalThis);
++	const shim = async (input: string | URL | Request, init?: RequestInit) => {
++		// Inspect headers without building a Request, which would consume a streamed body.
++		const headers = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined));
++		const carriesReference = [...headers.values()].some(containsCredentialRef);
++		const executor = scope[FETCH_CLIENT];
++		return carriesReference && executor ? executor.fetch(new Request(input, init)) : original(input, init);
++	};
++	globalThis.fetch = shim as typeof fetch;
++}
+diff --git a/packages/coding-agent/src/core/model-executor.ts b/packages/coding-agent/src/core/model-executor.ts
+new file mode 100644
+index 0000000..474c267
+--- /dev/null
++++ b/packages/coding-agent/src/core/model-executor.ts
+@@ -0,0 +1,1178 @@
++/**
++ * Credential-free model requests for sandboxed sessions.
++ *
++ * A host process owns the credential files and runs `serveModelExecutor`. The sandboxed runtime
++ * reads and writes those files through the executor and sees opaque references in place of
++ * secrets. Provider auth methods (refresh, toAuth, resolve, login) run on the host; the sandbox
++ * still decides which credential a request uses. Model requests stream from the host, which
++ * resolves the model from its own catalog and swaps references back for secrets. Other requests
++ * that carry references go through the executor, which sends them only to the owning provider's
++ * origins. One connection carries one operation; closing it aborts the operation.
++ */
++import { realpathSync } from "node:fs";
++import { readFile } from "node:fs/promises";
++import { createConnection, type Server, type Socket } from "node:net";
++import { basename, dirname, isAbsolute, join } from "node:path";
++import {
++	type Api,
++	type ApiKeyCredential,
++	type AssistantMessage,
++	type AssistantMessageEvent,
++	type AuthEvent,
++	type AuthPrompt,
++	type AuthResult,
++	type Credential,
++	defaultProviderAuthContext,
++	type LoginOptions,
++	type ModelAuth,
++	type ProviderAuthInteraction,
++	type Model,
++	type ModelsSimpleStreamOptions,
++	type ProviderHeaders,
++	type ProviderResponse,
++	type StopReason,
++	type ToolCall,
++	ToolCallArgumentsStream,
++	type TranscriptContext,
++} from "@earendil-works/pi-ai";
++import { getAgentDir } from "../config.ts";
++import { FileAuthStorageBackend } from "./auth-storage.ts";
++import { CredentialRefRegistry } from "./credential-refs.ts";
++import type { ModelRuntime } from "./model-runtime.ts";
++import { resolveConfigValue } from "./resolve-config-value.ts";
++
++export const MODEL_EXECUTOR_SOCKET_ENV = "PI_MODEL_EXECUTOR_SOCKET";
++const PROTOCOL = 1;
++const MAX_FRAME_BYTES = 64 * 1024 * 1024;
++const REDACTED = "[redacted]";
++const MIN_SECRET_LENGTH = 8;
++/** Minimum interval between catalog refreshes for a model the host catalog does not know. */
++const CATALOG_REFRESH_INTERVAL_MS = 5 * 60_000;
++
++/**
++ * Options the executor relays. Endpoint-selecting provider options, caller credentials (`apiKey`,
++ * `env`), custom `fetch`, and telemetry spans never cross the socket.
++ */
++const RELAYED_OPTIONS = [
++	"cacheRetention",
++	"headers",
++	"identity",
++	"maxRetries",
++	"maxRetryDelayMs",
++	"maxTokens",
++	"metadata",
++	"reasoning",
++	"samplingParams",
++	"sessionId",
++	"temperature",
++	"thinkingBudgets",
++	"timeoutMs",
++	"toolChoice",
++	"transport",
++	"websocketConnectTimeoutMs",
++] as const;
++
++const CREDENTIAL_HEADER = /^(authorization|proxy-authorization|cookie|api-key)$|key|token|secret|auth|signature|credential|password/i;
++const CREDENTIAL_ENV = /key|token|secret|password|credential/i;
++
++export function isCredentialHeader(name: string): boolean {
++	return CREDENTIAL_HEADER.test(name);
++}
++
++/** Credentials resolved for one request, observed by the executor before dispatch. */
++export interface ModelRequestCredentials {
++	apiKey?: string;
++	headers: ProviderHeaders;
++	env: Record<string, string>;
++}
++
++type CallbackKind = "headers" | "payload" | "response" | "provider_event";
++
++type WireEvent =
++	| { type: "start"; partial: AssistantMessage }
++	| { type: "text_start"; contentIndex: number; partial: AssistantMessage }
++	| { type: "text_delta"; contentIndex: number; delta: string }
++	| { type: "text_end"; contentIndex: number; content: string; partial: AssistantMessage }
++	| { type: "thinking_start"; contentIndex: number; partial: AssistantMessage }
++	| { type: "thinking_delta"; contentIndex: number; delta: string }
++	| { type: "thinking_end"; contentIndex: number; content: string; partial: AssistantMessage }
++	| { type: "toolcall_start"; contentIndex: number; partial: AssistantMessage }
++	| { type: "toolcall_delta"; contentIndex: number; delta: string }
++	| { type: "toolcall_end"; contentIndex: number; toolCall: ToolCall; partial: AssistantMessage }
++	| { type: "done"; reason: Extract<StopReason, "stop" | "length" | "toolUse" | "deferred">; message: AssistantMessage }
++	| { type: "error"; reason: Extract<StopReason, "aborted" | "error">; error: AssistantMessage };
++
++type Frame = Record<string, unknown> & { type: string };
++
++function isRecord(value: unknown): value is Record<string, unknown> {
++	return typeof value === "object" && value !== null && !Array.isArray(value);
++}
++
++function isFrame(value: unknown): value is Frame {
++	return isRecord(value) && typeof value.type === "string";
++}
++
++/** Newline-delimited JSON frames with a per-frame size limit. */
++function readFrames(socket: Socket, onFrame: (frame: Frame) => void, onError: (error: Error) => void): void {
++	let pending: Buffer[] = [];
++	let pendingBytes = 0;
++	let failed = false;
++	const fail = (message: string) => {
++		if (failed) return;
++		failed = true;
++		onError(new Error(message));
++	};
++	socket.on("data", (chunk: Buffer) => {
++		if (failed) return;
++		let start = 0;
++		for (let end = chunk.indexOf(10, start); end !== -1; end = chunk.indexOf(10, start)) {
++			const line = Buffer.concat([...pending, chunk.subarray(start, end)]);
++			pending = [];
++			pendingBytes = 0;
++			start = end + 1;
++			if (line.length > MAX_FRAME_BYTES) return fail("Model executor frame exceeds the size limit");
++			let frame: unknown;
++			try {
++				frame = JSON.parse(line.toString("utf8"));
++			} catch {
++				return fail("Model executor sent an invalid frame");
++			}
++			if (!isFrame(frame)) return fail("Model executor sent an invalid frame");
++			onFrame(frame);
++			if (failed) return;
++		}
++		const rest = chunk.subarray(start);
++		pendingBytes += rest.length;
++		if (pendingBytes > MAX_FRAME_BYTES) return fail("Model executor frame exceeds the size limit");
++		if (rest.length > 0) pending.push(rest);
++	});
++}
++
++async function writeFrame(socket: Socket, frame: Frame, transform?: (text: string) => string): Promise<void> {
++	if (socket.destroyed || socket.writableEnded) throw new Error("Model executor connection is closed");
++	const text = JSON.stringify(frame);
++	if (socket.write(`${transform ? transform(text) : text}\n`)) return;
++	await new Promise<void>((resolve, reject) => {
++		const cleanup = () => {
++			socket.off("drain", onDrain);
++			socket.off("close", onClose);
++		};
++		const onDrain = () => {
++			cleanup();
++			resolve();
++		};
++		const onClose = () => {
++			cleanup();
++			reject(new Error("Model executor connection is closed"));
++		};
++		socket.on("drain", onDrain);
++		socket.on("close", onClose);
++	});
++}
++
++class FrameQueue {
++	readonly #items: Frame[] = [];
++	readonly #waiters: Array<{ resolve: (frame: Frame | undefined) => void; reject: (error: Error) => void }> = [];
++	#error: Error | undefined;
++	#closed = false;
++
++	push(frame: Frame): void {
++		const waiter = this.#waiters.shift();
++		if (waiter) waiter.resolve(frame);
++		else this.#items.push(frame);
++	}
++
++	fail(error: Error): void {
++		if (this.#error || this.#closed) return;
++		this.#error = error;
++		for (const waiter of this.#waiters.splice(0)) waiter.reject(error);
++	}
++
++	close(): void {
++		this.#closed = true;
++		for (const waiter of this.#waiters.splice(0)) {
++			if (this.#error) waiter.reject(this.#error);
++			else waiter.resolve(undefined);
++		}
++	}
++
++	next(): Promise<Frame | undefined> {
++		const item = this.#items.shift();
++		if (item) return Promise.resolve(item);
++		if (this.#error) return Promise.reject(this.#error);
++		if (this.#closed) return Promise.resolve(undefined);
++		return new Promise((resolve, reject) => this.#waiters.push({ resolve, reject }));
++	}
++}
++
++function relayedOptions(options: object | undefined): Record<string, unknown> {
++	const source = new Map(Object.entries(options ?? {}));
++	const relayed: Record<string, unknown> = {};
++	for (const name of RELAYED_OPTIONS) {
++		const value = source.get(name);
++		if (value !== undefined) relayed[name] = value;
++	}
++	return relayed;
++}
++
++function errorMessage(error: unknown): string {
++	return error instanceof Error ? error.message : String(error);
++}
++
++function replaceObject(target: Record<string, unknown>, source: Record<string, unknown>): void {
++	for (const key of Object.keys(target)) if (!(key in source)) delete target[key];
++	Object.assign(target, source);
++}
++
++/**
++ * Rebuilds the provider's live `partial` message. Structural events carry the whole message; text,
++ * thinking, and tool-call deltas carry only their delta, so streaming stays linear in output size.
++ */
++class RemoteMessage {
++	#partial: AssistantMessage | undefined;
++	readonly #arguments = new Map<number, ToolCallArgumentsStream>();
++
++	decode(event: WireEvent): AssistantMessageEvent {
++		switch (event.type) {
++			case "start":
++				return { type: "start", partial: this.#adopt(event.partial) };
++			case "text_start":
++				return { type: "text_start", contentIndex: event.contentIndex, partial: this.#adopt(event.partial) };
++			case "thinking_start":
++				return { type: "thinking_start", contentIndex: event.contentIndex, partial: this.#adopt(event.partial) };
++			case "toolcall_start":
++				this.#arguments.set(event.contentIndex, new ToolCallArgumentsStream());
++				return { type: "toolcall_start", contentIndex: event.contentIndex, partial: this.#adopt(event.partial) };
++			case "text_delta": {
++				const partial = this.#current();
++				const block = partial.content[event.contentIndex];
++				if (block?.type !== "text") throw new Error("Model executor sent text_delta for non-text content");
++				block.text += event.delta;
++				return { type: "text_delta", contentIndex: event.contentIndex, delta: event.delta, partial };
++			}
++			case "thinking_delta": {
++				const partial = this.#current();
++				const block = partial.content[event.contentIndex];
++				if (block?.type !== "thinking") {
++					throw new Error("Model executor sent thinking_delta for non-thinking content");
++				}
++				block.thinking += event.delta;
++				return { type: "thinking_delta", contentIndex: event.contentIndex, delta: event.delta, partial };
++			}
++			case "toolcall_delta": {
++				const partial = this.#current();
++				const block = partial.content[event.contentIndex];
++				if (block?.type !== "toolCall") {
++					throw new Error("Model executor sent toolcall_delta for non-toolCall content");
++				}
++				let args = this.#arguments.get(event.contentIndex);
++				if (!args) {
++					args = new ToolCallArgumentsStream();
++					this.#arguments.set(event.contentIndex, args);
++				}
++				// A new block object, so reactive consumers see the change.
++				partial.content[event.contentIndex] = { ...block, arguments: args.append(event.delta) };
++				return { type: "toolcall_delta", contentIndex: event.contentIndex, delta: event.delta, partial };
++			}
++			case "text_end":
++				return {
++					type: "text_end",
++					contentIndex: event.contentIndex,
++					content: event.content,
++					partial: this.#adopt(event.partial),
++				};
++			case "thinking_end":
++				return {
++					type: "thinking_end",
++					contentIndex: event.contentIndex,
++					content: event.content,
++					partial: this.#adopt(event.partial),
++				};
++			case "toolcall_end": {
++				const partial = this.#adopt(event.partial);
++				this.#arguments.delete(event.contentIndex);
++				const block = partial.content[event.contentIndex];
++				const toolCall = block?.type === "toolCall" ? block : event.toolCall;
++				return { type: "toolcall_end", contentIndex: event.contentIndex, toolCall, partial };
++			}
++			case "done":
++				return { type: "done", reason: event.reason, message: this.#adopt(event.message) };
++			case "error":
++				return { type: "error", reason: event.reason, error: this.#adopt(event.error) };
++		}
++	}
++
++	#current(): AssistantMessage {
++		if (!this.#partial) throw new Error("Model executor sent a delta before the message started");
++		return this.#partial;
++	}
++
++	/** Updates the live message in place: consumers keep references to it and its content blocks. */
++	#adopt(source: AssistantMessage): AssistantMessage {
++		const target = this.#partial;
++		if (!target) {
++			this.#partial = source;
++			return source;
++		}
++		const content = target.content;
++		replaceObject(target as unknown as Record<string, unknown>, { ...source, content });
++		source.content.forEach((block, index) => {
++			const existing = content[index];
++			if (existing && existing.type === block.type) {
++				replaceObject(existing as unknown as Record<string, unknown>, block as unknown as Record<string, unknown>);
++			} else {
++				content[index] = block;
++			}
++		});
++		content.length = source.content.length;
++		return target;
++	}
++}
++
++function encodeEvent(event: AssistantMessageEvent): WireEvent {
++	switch (event.type) {
++		case "text_delta":
++		case "thinking_delta":
++		case "toolcall_delta":
++			return { type: event.type, contentIndex: event.contentIndex, delta: event.delta };
++		default:
++			return event;
++	}
++}
++
++interface Connection {
++	socket: Socket;
++	frames: FrameQueue;
++}
++
++/** Sandbox side: sends requests to the executor socket. Credentials it sees are references. */
++export class ModelExecutorClient {
++	readonly socketPath: string;
++
++	constructor(socketPath: string) {
++		this.socketPath = socketPath;
++	}
++
++	/** Streams a request; `auth` is this process's resolved auth, holding references in place of secrets. */
++	streamSimple(
++		model: Model<Api>,
++		context: TranscriptContext,
++		options: ModelsSimpleStreamOptions | undefined,
++		auth: AuthResult,
++	): AsyncIterable<AssistantMessageEvent> {
++		return this.#request(model, context, options, auth);
++	}
++
++	/** Runs a provider auth method on the executor with a credential that holds references. */
++	providerAuth(providerId: string, method: string, credential: unknown, signal?: AbortSignal): Promise<unknown> {
++		return this.#call(
++			{ type: "request", protocol: PROTOCOL, operation: "provider_auth", provider: providerId, method, credential },
++			signal,
++		);
++	}
++
++	/** Sends a request whose headers carry credential references through the executor. */
++	async fetch(request: Request): Promise<Response> {
++		const body = request.body ? Buffer.from(await request.arrayBuffer()).toString("base64") : undefined;
++		const value = await this.#call(
++			{
++				type: "request",
++				protocol: PROTOCOL,
++				operation: "fetch",
++				url: request.url,
++				method: request.method,
++				headers: [...request.headers],
++				...(body === undefined ? {} : { body }),
++			},
++			request.signal,
++		);
++		if (!isRecord(value) || typeof value.status !== "number" || !Array.isArray(value.headers)) {
++			throw new Error("Model executor sent an invalid response");
++		}
++		const status = value.status;
++		const responseBody = status === 204 || status === 304 || typeof value.body !== "string" ? null : Buffer.from(value.body, "base64");
++		return new Response(responseBody, {
++			status,
++			statusText: typeof value.statusText === "string" ? value.statusText : "",
++			headers: value.headers.filter(
++				(entry): entry is [string, string] => Array.isArray(entry) && typeof entry[0] === "string" && typeof entry[1] === "string",
++			),
++		});
++	}
++
++	/** Runs a provider login on the executor. Prompts and notices are relayed to `interaction`. */
++	async login(
++		providerId: string,
++		kind: "oauth" | "apiKey",
++		interaction: ProviderAuthInteraction,
++		options?: LoginOptions,
++	): Promise<unknown> {
++		const { socket, frames } = this.#connect(interaction.signal);
++		const prompts = new Map<number, AbortController>();
++		try {
++			await writeFrame(socket, {
++				type: "request",
++				protocol: PROTOCOL,
++				operation: "login",
++				provider: providerId,
++				kind,
++				...(options?.agentName === undefined ? {} : { agentName: options.agentName }),
++				...(options?.getDeviceId === undefined ? {} : { deviceId: options.getDeviceId() }),
++			});
++			while (true) {
++				const frame = await frames.next();
++				if (!frame) throw new Error("Model executor closed the login before it completed");
++				if (frame.type === "result") return frame.value;
++				if (frame.type === "failure") {
++					throw new Error(typeof frame.message === "string" ? frame.message : "Model executor login failed");
++				}
++				if (frame.type === "notify") interaction.notify(frame.event as AuthEvent);
++				else if (frame.type === "prompt_cancel" && typeof frame.id === "number") prompts.get(frame.id)?.abort();
++				else if (frame.type === "prompt" && typeof frame.id === "number") {
++					const id = frame.id;
++					const controller = new AbortController();
++					prompts.set(id, controller);
++					// Answer in the background: the executor may cancel this prompt while it is open.
++					void interaction
++						.prompt({ ...(frame.prompt as AuthPrompt), signal: controller.signal })
++						.then(
++							(value) => writeFrame(socket, { type: "prompt_result", id, value }),
++							(error) => writeFrame(socket, { type: "prompt_result", id, error: errorMessage(error) }),
++						)
++						.catch(() => {})
++						.finally(() => prompts.delete(id));
++				}
++			}
++		} finally {
++			for (const controller of prompts.values()) controller.abort();
++			socket.destroy();
++		}
++	}
++
++	/** A credential file's current content, with references in place of secrets. */
++	async readCredentialFile(path: string, signal?: AbortSignal): Promise<string | undefined> {
++		const value = await this.#call({ type: "request", protocol: PROTOCOL, operation: "credential_read", path }, signal);
++		return typeof value === "string" ? value : undefined;
++	}
++
++	/**
++	 * Holds a credential file's lock on the executor while `fn` reads its content and returns the
++	 * replacement. The content holds references; references in the replacement keep their secrets.
++	 */
++	async lockCredentialFile<T>(
++		path: string,
++		fn: (content: string | undefined) => Promise<{ result: T; next?: string }>,
++		signal?: AbortSignal,
++	): Promise<T> {
++		const { socket, frames } = this.#connect(signal);
++		try {
++			await writeFrame(socket, { type: "request", protocol: PROTOCOL, operation: "credential_lock", path });
++			const opened = await frames.next();
++			if (!opened) throw new Error("Model executor closed the credential file before it was read");
++			if (opened.type === "failure") {
++				throw new Error(typeof opened.message === "string" ? opened.message : "Model executor could not open credentials");
++			}
++			if (opened.type !== "content") throw new Error("Model executor sent an unexpected frame");
++			let outcome: { result: T; next?: string };
++			try {
++				outcome = await fn(typeof opened.content === "string" ? opened.content : undefined);
++			} catch (error) {
++				await writeFrame(socket, { type: "abort" }).catch(() => {});
++				throw error;
++			}
++			await writeFrame(socket, { type: "commit", next: outcome.next ?? null });
++			const done = await frames.next();
++			if (done?.type === "failure") {
++				throw new Error(typeof done.message === "string" ? done.message : "Model executor could not save credentials");
++			}
++			if (done?.type !== "done") throw new Error("Model executor closed the credential file before saving");
++			return outcome.result;
++		} finally {
++			socket.destroy();
++		}
++	}
++
++	#connect(signal?: AbortSignal): Connection {
++		signal?.throwIfAborted();
++		const socket = createConnection(this.socketPath);
++		const frames = new FrameQueue();
++		readFrames(
++			socket,
++			(frame) => frames.push(frame),
++			(error) => {
++				frames.fail(error);
++				socket.destroy();
++			},
++		);
++		socket.once("error", (error) => frames.fail(new Error(`Model executor connection failed: ${error.message}`)));
++		socket.once("close", () => frames.close());
++		if (signal) {
++			const abort = () => {
++				frames.fail(signal.reason instanceof Error ? signal.reason : new Error("Model executor request aborted"));
++				socket.destroy();
++			};
++			signal.addEventListener("abort", abort, { once: true });
++			socket.once("close", () => signal.removeEventListener("abort", abort));
++		}
++		return { socket, frames };
++	}
++
++	/** One request, one `result` frame. */
++	async #call(request: Frame, signal: AbortSignal | undefined): Promise<unknown> {
++		const { socket, frames } = this.#connect(signal);
++		try {
++			await writeFrame(socket, request);
++			const frame = await frames.next();
++			if (!frame) throw new Error("Model executor closed the request before it completed");
++			if (frame.type === "failure") {
++				throw new Error(typeof frame.message === "string" ? frame.message : "Model executor request failed");
++			}
++			if (frame.type !== "result") throw new Error(`Model executor sent an unexpected frame: ${frame.type}`);
++			return frame.value;
++		} finally {
++			socket.destroy();
++		}
++	}
++
++	async *#request(
++		model: Model<Api>,
++		context: TranscriptContext,
++		options: ModelsSimpleStreamOptions | undefined,
++		auth: AuthResult,
++	): AsyncGenerator<AssistantMessageEvent> {
++		const { socket, frames } = this.#connect(undefined);
++		options?.signal?.throwIfAborted();
++		const signal = options?.signal;
++		// Cancel through the executor so the provider request ends with its own aborted event.
++		const cancel = () => void writeFrame(socket, { type: "cancel" }).catch(() => {});
++		signal?.addEventListener("abort", cancel, { once: true });
++		const remote = new RemoteMessage();
++		try {
++			await writeFrame(socket, {
++				type: "request",
++				protocol: PROTOCOL,
++				operation: "streamSimple",
++				provider: model.provider,
++				modelId: model.id,
++				context,
++				options: relayedOptions(options),
++				auth: { auth: auth.auth, ...(auth.env === undefined ? {} : { env: auth.env }) },
++				callbacks: {
++					headers: options?.transformHeaders !== undefined,
++					payload: options?.onPayload !== undefined,
++					response: options?.onResponse !== undefined,
++					provider_event: options?.onProviderStreamEvent !== undefined,
++				},
++			});
++			while (true) {
++				const frame = await frames.next();
++				if (!frame) throw new Error("Model executor closed the request before it completed");
++				if (frame.type === "event") {
++					const event = remote.decode(frame.event as WireEvent);
++					yield event;
++					if (event.type === "done" || event.type === "error") return;
++				} else if (frame.type === "failure") {
++					throw new Error(typeof frame.message === "string" ? frame.message : "Model executor request failed");
++				} else {
++					await this.#callback(socket, frame, model, options);
++				}
++			}
++		} finally {
++			signal?.removeEventListener("abort", cancel);
++			socket.destroy();
++		}
++	}
++
++	async #callback(
++		socket: Socket,
++		frame: Frame,
++		model: Model<Api>,
++		options: ModelsSimpleStreamOptions | undefined,
++	): Promise<void> {
++		const kind = frame.type as CallbackKind;
++		let reply: Frame;
++		try {
++			switch (kind) {
++				case "headers": {
++					const headers = frame.headers as ProviderHeaders;
++					reply = {
++						type: "headers_result",
++						headers: options?.transformHeaders ? await options.transformHeaders(headers) : headers,
++					};
++					break;
++				}
++				case "payload": {
++					const payload = options?.onPayload ? await options.onPayload(frame.payload, model) : undefined;
++					// Returning the received object means unchanged; skip sending the payload back.
++					reply =
++						payload === undefined || payload === frame.payload
++							? { type: "payload_result", changed: false }
++							: { type: "payload_result", changed: true, payload };
++					break;
++				}
++				case "response":
++					await options?.onResponse?.(frame.response as ProviderResponse, model);
++					reply = { type: "response_result" };
++					break;
++				case "provider_event":
++					await options?.onProviderStreamEvent?.(frame.data, model);
++					reply = { type: "provider_event_result" };
++					break;
++				default:
++					throw new Error(`Model executor sent an unknown frame: ${frame.type}`);
++			}
++		} catch (error) {
++			reply = { type: `${kind}_result`, error: errorMessage(error) };
++		}
++		await writeFrame(socket, reply);
++	}
++}
++
++function credentialSecrets(credentials: ModelRequestCredentials): string[] {
++	const values: unknown[] = [credentials.apiKey];
++	for (const [name, value] of Object.entries(credentials.headers)) if (isCredentialHeader(name)) values.push(value);
++	for (const [name, value] of Object.entries(credentials.env)) if (CREDENTIAL_ENV.test(name)) values.push(value);
++	const secrets = new Set<string>();
++	for (const value of values) {
++		if (typeof value !== "string") continue;
++		for (const candidate of [value, value.replace(/^(Bearer|Basic|Token)\s+/i, "")]) {
++			if (candidate.length >= MIN_SECRET_LENGTH) {
++				secrets.add(candidate);
++				// Match the value as it appears inside serialized JSON strings.
++				secrets.add(JSON.stringify(candidate).slice(1, -1));
++			}
++		}
++	}
++	return [...secrets].sort((a, b) => b.length - a.length);
++}
++
++function filterHeaders(headers: unknown): ProviderHeaders | undefined {
++	if (!isRecord(headers)) return undefined;
++	const filtered: ProviderHeaders = {};
++	for (const [name, value] of Object.entries(headers)) {
++		if (isCredentialHeader(name)) continue;
++		if (typeof value === "string" || value === null) filtered[name] = value;
++	}
++	return filtered;
++}
++
++function parseRequest(frame: Frame): {
++	provider: string;
++	modelId: string;
++	context: TranscriptContext;
++	options: Record<string, unknown>;
++	callbacks: Record<string, boolean>;
++	auth: unknown;
++} {
++	if (typeof frame.provider !== "string" || typeof frame.modelId !== "string") {
++		throw new Error("Model executor request must name a provider and model");
++	}
++	if (!isRecord(frame.context) || !Array.isArray(frame.context.messages)) {
++		throw new Error("Model executor request has an invalid context");
++	}
++	const options = relayedOptions(isRecord(frame.options) ? frame.options : undefined);
++	const headers = filterHeaders(options.headers);
++	if (headers) options.headers = headers;
++	else delete options.headers;
++	const callbacks: Record<string, boolean> = {};
++	if (isRecord(frame.callbacks)) {
++		for (const kind of ["headers", "payload", "response", "provider_event"]) callbacks[kind] = frame.callbacks[kind] === true;
++	}
++	return {
++		provider: frame.provider,
++		modelId: frame.modelId,
++		context: { messages: frame.context.messages } as TranscriptContext,
++		options,
++		callbacks,
++		auth: frame.auth,
++	};
++}
++
++export interface ServeModelExecutorOptions {
++	/** Agent directory whose auth.json and auth-profiles/*.json the sandbox may use. Defaults to Pi's. */
++	agentDir?: string;
++}
++
++interface ExecutorState {
++	runtime: ModelRuntime;
++	refs: CredentialRefRegistry;
++	credentialFile(path: unknown): string;
++	/** Origins a provider's references may be sent to. */
++	origins(providerId: string): Set<string>;
++	recordOrigin(providerId: string, baseUrl: string | undefined): void;
++	resolveModel(providerId: string, modelId: string, signal: AbortSignal): Promise<Model<Api> | undefined>;
++}
++
++function originOf(url: string): string | undefined {
++	try {
++		return new URL(url).origin;
++	} catch {
++		return undefined;
++	}
++}
++
++/** Host side: serves executor requests with `runtime`'s catalog and the host's credential files. */
++export function serveModelExecutor(runtime: ModelRuntime, server: Server, options: ServeModelExecutorOptions = {}): void {
++	const agentDir = realpathSync(options.agentDir ?? getAgentDir());
++	const refreshedAt = new Map<string, number>();
++	const recorded = new Map<string, Set<string>>();
++	const state: ExecutorState = {
++		runtime,
++		refs: new CredentialRefRegistry(),
++		credentialFile(path) {
++			if (typeof path !== "string" || !isAbsolute(path)) throw new Error("Credential file path must be absolute");
++			// Symlinks resolve first, so a link cannot point executor writes outside the agent directory.
++			let canonical: string;
++			try {
++				canonical = realpathSync(path);
++			} catch {
++				canonical = join(realpathSync(dirname(path)), basename(path));
++			}
++			const profiles = join(agentDir, "auth-profiles");
++			const allowed =
++				canonical === join(agentDir, "auth.json") ||
++				(dirname(canonical) === profiles && /^[A-Za-z0-9._-]+\.json$/.test(basename(canonical)));
++			if (!allowed) throw new Error("Credential file is outside the agent directory's credential stores");
++			return canonical;
++		},
++		origins(providerId) {
++			const origins = new Set(recorded.get(providerId) ?? []);
++			const provider = runtime.getProvider(providerId);
++			for (const url of [provider?.baseUrl, ...runtime.getAllModels(providerId).map((model) => model.baseUrl)]) {
++				const origin = url ? originOf(url) : undefined;
++				if (origin) origins.add(origin);
++			}
++			return origins;
++		},
++		recordOrigin(providerId, baseUrl) {
++			const origin = baseUrl ? originOf(baseUrl) : undefined;
++			if (!origin) return;
++			const origins = recorded.get(providerId) ?? new Set<string>();
++			origins.add(origin);
++			recorded.set(providerId, origins);
++		},
++		// The sandbox names a model; the endpoint and request configuration come from the host catalog.
++		async resolveModel(providerId, modelId, signal) {
++			const model = runtime.getPhysicalModel(providerId, modelId);
++			if (model || !runtime.getProvider(providerId)) return model;
++			// The sandbox may have seen a newer remote catalog; refresh the host's copy at a bounded rate.
++			const now = Date.now();
++			if (now - (refreshedAt.get(providerId) ?? 0) < CATALOG_REFRESH_INTERVAL_MS) return undefined;
++			refreshedAt.set(providerId, now);
++			await runtime.refresh({ providers: [providerId], signal });
++			return runtime.getPhysicalModel(providerId, modelId);
++		},
++	};
++	server.on("connection", (socket) => {
++		void handleConnection(state, socket);
++	});
++}
++
++/** Rehydrates the sandbox's resolved auth for `providerId`; endpoint overrides must stay on known origins. */
++function requestAuth(state: ExecutorState, providerId: string, value: unknown): AuthResult {
++	if (!isRecord(value) || !isRecord(value.auth)) throw new Error(`Provider is not configured: ${providerId}`);
++	const auth: ModelAuth = {};
++	if (typeof value.auth.apiKey === "string") auth.apiKey = value.auth.apiKey;
++	const headers = isRecord(value.auth.headers) ? value.auth.headers : undefined;
++	if (headers) {
++		auth.headers = {};
++		for (const [name, header] of Object.entries(headers)) {
++			if (typeof header === "string" || header === null) auth.headers[name] = header;
++		}
++	}
++	if (typeof value.auth.baseUrl === "string") {
++		const origin = originOf(value.auth.baseUrl);
++		if (!origin || !state.origins(providerId).has(origin)) {
++			throw new Error(`Credential endpoint is not a known ${providerId} origin`);
++		}
++		auth.baseUrl = value.auth.baseUrl;
++	}
++	const env: Record<string, string> = {};
++	if (isRecord(value.env)) for (const [name, item] of Object.entries(value.env)) if (typeof item === "string") env[name] = item;
++	return state.refs.rehydrate(providerId, { auth, env }, { allowRefresh: false });
++}
++
++/** A stored api-key credential's key may be a config reference (`!command`, `$VAR`) resolved on the host. */
++function resolvedCredential(credential: unknown): Credential | undefined {
++	if (!isRecord(credential) || (credential.type !== "api_key" && credential.type !== "oauth")) return undefined;
++	if (credential.type === "api_key" && typeof credential.key === "string") {
++		const env = isRecord(credential.env) ? (credential.env as Record<string, string>) : undefined;
++		return { ...(credential as unknown as ApiKeyCredential), key: resolveConfigValue(credential.key, env) };
++	}
++	return credential as unknown as Credential;
++}
++
++async function providerAuth(state: ExecutorState, frame: Frame, signal: AbortSignal): Promise<unknown> {
++	if (typeof frame.provider !== "string") throw new Error("Provider auth request must name a provider");
++	const providerId = frame.provider;
++	const provider = state.runtime.getProvider(providerId);
++	if (!provider) throw new Error(`Unknown provider: ${providerId}`);
++	const credential = resolvedCredential(
++		frame.credential === undefined ? undefined : state.refs.rehydrate(providerId, frame.credential, { allowRefresh: true }),
++	);
++	switch (frame.method) {
++		case "apiKey.resolve": {
++			if (!provider.auth.apiKey) throw new Error(`${providerId} has no API-key auth`);
++			const result = await provider.auth.apiKey.resolve({
++				ctx: defaultProviderAuthContext(),
++				credential: credential?.type === "api_key" ? credential : undefined,
++				signal,
++			});
++			if (!result) return null;
++			state.recordOrigin(providerId, result.auth.baseUrl);
++			return state.refs.redactAuthResult(providerId, result);
++		}
++		case "apiKey.check": {
++			const check = await provider.auth.apiKey?.check?.({
++				ctx: defaultProviderAuthContext(),
++				credential: credential?.type === "api_key" ? credential : undefined,
++				signal,
++			});
++			return check ? { type: check.type, ...(check.source === undefined ? {} : { source: check.source }) } : null;
++		}
++		case "oauth.refresh": {
++			if (!provider.auth.oauth || credential?.type !== "oauth") throw new Error(`${providerId} has no OAuth credential to refresh`);
++			return state.refs.redactCredential(providerId, await provider.auth.oauth.refresh(credential, signal));
++		}
++		case "oauth.toAuth": {
++			if (!provider.auth.oauth || credential?.type !== "oauth") throw new Error(`${providerId} has no OAuth credential`);
++			const auth = await provider.auth.oauth.toAuth(credential);
++			state.recordOrigin(providerId, auth.baseUrl);
++			return state.refs.redactModelAuth(providerId, auth);
++		}
++		default:
++			throw new Error("Unsupported provider auth method");
++	}
++}
++
++const MAX_FETCH_BYTES = 16 * 1024 * 1024;
++
++/** Sends a sandbox request that carries credential references, only to those credentials' origins. */
++async function credentialedFetch(state: ExecutorState, frame: Frame, signal: AbortSignal): Promise<unknown> {
++	if (typeof frame.url !== "string" || !Array.isArray(frame.headers)) throw new Error("Invalid credentialed request");
++	const url = new URL(frame.url);
++	if (url.protocol !== "https:" && url.protocol !== "http:") throw new Error("Credentialed requests must use HTTP");
++	const headers = new Headers();
++	const used: string[] = [];
++	for (const entry of frame.headers) {
++		if (!Array.isArray(entry) || typeof entry[0] !== "string" || typeof entry[1] !== "string") continue;
++		let value = entry[1];
++		for (const providerId of state.refs.providersIn(value)) {
++			if (!state.origins(providerId).has(url.origin)) {
++				throw new Error(`${providerId} credentials cannot be sent to ${url.origin}`);
++			}
++			const rehydrated = state.refs.rehydrateString(providerId, value, { allowRefresh: false });
++			if (rehydrated !== value) used.push(...state.refs.secrets().filter((secret) => rehydrated.includes(secret)));
++			value = rehydrated;
++		}
++		headers.append(entry[0], value);
++	}
++	const body = typeof frame.body === "string" ? Buffer.from(frame.body, "base64") : undefined;
++	// Redirects come back to the sandbox, whose next request is checked against the same origins.
++	const response = await fetch(url, {
++		method: typeof frame.method === "string" ? frame.method : "GET",
++		headers,
++		...(body ? { body } : {}),
++		redirect: "manual",
++		signal,
++	});
++	const bytes = Buffer.from(await response.arrayBuffer());
++	if (bytes.length > MAX_FETCH_BYTES) throw new Error("Credentialed response exceeds the size limit");
++	let text = bytes.toString("latin1");
++	for (const secret of used) text = text.split(secret).join(REDACTED);
++	return {
++		status: response.status,
++		statusText: response.statusText,
++		headers: [...response.headers].map(([name, value]) => [
++			name,
++			used.reduce((scrubbed, secret) => scrubbed.split(secret).join(REDACTED), value),
++		]),
++		body: Buffer.from(text, "latin1").toString("base64"),
++	};
++}
++
++/** Runs a provider login on the host; the sandbox relays prompts and receives only references. */
++async function login(state: ExecutorState, frame: Frame, session: ExecutorSession, signal: AbortSignal): Promise<unknown> {
++	if (typeof frame.provider !== "string") throw new Error("Login request must name a provider");
++	const providerId = frame.provider;
++	const provider = state.runtime.getProvider(providerId);
++	if (!provider) throw new Error(`Unknown provider: ${providerId}`);
++	let nextPrompt = 0;
++	const interaction: ProviderAuthInteraction = {
++		signal,
++		async prompt(prompt: AuthPrompt) {
++			const id = ++nextPrompt;
++			const { signal: promptSignal, ...rest } = prompt;
++			const cancel = () => void session.send({ type: "prompt_cancel", id }).catch(() => {});
++			promptSignal?.addEventListener("abort", cancel, { once: true });
++			try {
++				await session.send({ type: "prompt", id, prompt: rest });
++				const reply = await session.next();
++				if (!reply || reply.type !== "prompt_result" || reply.id !== id) throw new Error("Login prompt was not answered");
++				if (typeof reply.error === "string") throw new Error(reply.error);
++				if (typeof reply.value !== "string") throw new Error("Login prompt returned no value");
++				return reply.value;
++			} finally {
++				promptSignal?.removeEventListener("abort", cancel);
++			}
++		},
++		notify(event: AuthEvent) {
++			void session.send({ type: "notify", event }).catch(() => {});
++		},
++	};
++	const loginOptions: LoginOptions = {
++		...(typeof frame.agentName === "string" ? { agentName: frame.agentName } : {}),
++		...(typeof frame.deviceId === "string" ? { getDeviceId: () => frame.deviceId as string } : {}),
++	};
++	let credential: Credential;
++	if (frame.kind === "oauth" && provider.auth.oauth) credential = await provider.auth.oauth.login(interaction, loginOptions);
++	else if (frame.kind === "apiKey" && provider.auth.apiKey?.login) credential = await provider.auth.apiKey.login(interaction);
++	else throw new Error(`${providerId} does not support this login`);
++	return state.refs.redactCredential(providerId, credential);
++}
++
++function redactCredentialFile(state: ExecutorState, content: string | undefined): string | null {
++	if (content === undefined || content.trim() === "") return null;
++	const data = JSON.parse(content) as Record<string, unknown>;
++	return JSON.stringify(
++		Object.fromEntries(
++			Object.entries(data).map(([providerId, credential]) => [providerId, state.refs.redactCredential(providerId, credential)]),
++		),
++	);
++}
++
++/**
++ * Reads without the file lock: locking every read serializes concurrent availability checks.
++ * Writers rewrite the file in place, so a torn read falls back to a locked one.
++ */
++async function credentialRead(state: ExecutorState, frame: Frame, signal: AbortSignal): Promise<string | null> {
++	const path = state.credentialFile(frame.path);
++	let content: string | undefined;
++	try {
++		content = await readFile(path, "utf8");
++	} catch (error) {
++		if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
++	}
++	try {
++		return redactCredentialFile(state, content);
++	} catch (error) {
++		if (!(error instanceof SyntaxError)) throw error;
++		const locked = await new FileAuthStorageBackend(path).withLockAsync(async (current) => ({ result: current }), { signal });
++		return redactCredentialFile(state, locked);
++	}
++}
++
++/**
++ * Holds a credential file's lock while the sandbox reads and rewrites it. The sandbox sees
++ * references in place of secrets; references in its rewrite turn back into the stored secrets.
++ */
++async function credentialLock(state: ExecutorState, frame: Frame, session: ExecutorSession, signal: AbortSignal): Promise<void> {
++	const path = state.credentialFile(frame.path);
++	await new FileAuthStorageBackend(path).withLockAsync(
++		async (content) => {
++			await session.send({ type: "content", content: redactCredentialFile(state, content) });
++			const reply = await session.next();
++			if (!reply || reply.type === "abort") return { result: undefined };
++			if (reply.type !== "commit") throw new Error("Unexpected credential lock frame");
++			if (typeof reply.next !== "string") return { result: undefined };
++			const next = JSON.parse(reply.next) as unknown;
++			if (!isRecord(next)) throw new Error("Credential file must hold an object");
++			const rehydrated = Object.fromEntries(
++				Object.entries(next).map(([providerId, credential]) => [
++					providerId,
++					state.refs.rehydrate(providerId, credential, { allowRefresh: true }),
++				]),
++			);
++			return { result: undefined, next: JSON.stringify(rehydrated, null, 2) };
++		},
++		{ signal },
++	);
++}
++
++interface ExecutorSession {
++	send(frame: Frame): Promise<void>;
++	next(): Promise<Frame | undefined>;
++}
++
++async function handleConnection(state: ExecutorState, socket: Socket): Promise<void> {
++	const { runtime } = state;
++	const controller = new AbortController();
++	const waiting = new Map<CallbackKind, Array<{ resolve: (frame: Frame) => void; reject: (error: Error) => void }>>();
++	const incoming = new FrameQueue();
++	let session = false;
++	let secrets: string[] = [];
++	const scrub = (text: string) => {
++		let scrubbed = text;
++		for (const secret of secrets) scrubbed = scrubbed.split(secret).join(REDACTED);
++		return scrubbed;
++	};
++	const rejectWaiting = (error: Error) => {
++		for (const queue of waiting.values()) for (const waiter of queue.splice(0)) waiter.reject(error);
++	};
++	let request: Frame | undefined;
++	let resolveRequest: ((frame: Frame) => void) | undefined;
++	const requested = new Promise<Frame>((resolve) => {
++		resolveRequest = resolve;
++	});
++	const close = (error: Error) => {
++		controller.abort(error);
++		rejectWaiting(error);
++		incoming.fail(error);
++		socket.destroy();
++	};
++	readFrames(
++		socket,
++		(frame) => {
++			if (!request) {
++				request = frame;
++				resolveRequest?.(frame);
++				return;
++			}
++			if (frame.type === "cancel") {
++				controller.abort(new Error("Request cancelled by the sandbox"));
++				return;
++			}
++			if (session) {
++				incoming.push(frame);
++				return;
++			}
++			const match = /^(headers|payload|response|provider_event)_result$/.exec(frame.type);
++			const waiter = match ? waiting.get(match[1] as CallbackKind)?.shift() : undefined;
++			if (!waiter) return close(new Error("Unexpected model executor frame"));
++			if (typeof frame.error === "string") waiter.reject(new Error(frame.error));
++			else waiter.resolve(frame);
++		},
++		close,
++	);
++	socket.on("error", () => {});
++	socket.once("close", () => {
++		const error = new Error("Model executor client disconnected");
++		controller.abort(error);
++		rejectWaiting(error);
++		incoming.close();
++		resolveRequest?.({ type: "closed" });
++	});
++	const send = (frame: Frame) => writeFrame(socket, frame, scrub);
++	const fail = async (error: unknown) => {
++		await send({ type: "failure", message: errorMessage(error) }).catch(() => {});
++		socket.end();
++	};
++
++	const frame = await requested;
++	if (frame.type === "closed") return;
++	if (frame.type !== "request" || frame.protocol !== PROTOCOL) return fail(new Error("Unsupported model executor request"));
++	// Every reply is scrubbed of every secret the executor has issued a reference for.
++	secrets = state.refs.secrets();
++	try {
++		switch (frame.operation) {
++			case "streamSimple":
++				break;
++			case "credential_read": {
++				const value = await credentialRead(state, frame, controller.signal);
++				await writeFrame(socket, { type: "result", value });
++				socket.end();
++				return;
++			}
++			case "provider_auth": {
++				const value = await providerAuth(state, frame, controller.signal);
++				await send({ type: "result", value: value ?? null });
++				socket.end();
++				return;
++			}
++			case "fetch": {
++				const value = await credentialedFetch(state, frame, controller.signal);
++				secrets = [];
++				await writeFrame(socket, { type: "result", value });
++				socket.end();
++				return;
++			}
++			case "login":
++			case "credential_lock": {
++				session = true;
++				const channel: ExecutorSession = { send, next: () => incoming.next() };
++				if (frame.operation === "login") {
++					const value = await login(state, frame, channel, controller.signal);
++					// The login's own secrets were just registered; scrub them from the result frame too.
++					secrets = [];
++					await writeFrame(socket, { type: "result", value });
++				} else {
++					await credentialLock(state, frame, { send: (reply) => writeFrame(socket, reply), next: channel.next }, controller.signal);
++					await writeFrame(socket, { type: "done" });
++				}
++				socket.end();
++				return;
++			}
++			default:
++				throw new Error("Unsupported model executor operation");
++		}
++	} catch (error) {
++		return fail(error);
++	}
++
++	let parsed: ReturnType<typeof parseRequest>;
++	let model: Model<Api> | undefined;
++	let auth: AuthResult;
++	try {
++		parsed = parseRequest(frame);
++		model = await state.resolveModel(parsed.provider, parsed.modelId, controller.signal);
++		if (!model) throw new Error(`Unknown model: ${parsed.provider}/${parsed.modelId}`);
++		auth = requestAuth(state, model.provider, parsed.auth);
++	} catch (error) {
++		return fail(error);
++	}
++	const { context, callbacks } = parsed;
++	const options: ModelsSimpleStreamOptions = {
++		...(parsed.options as ModelsSimpleStreamOptions),
++		signal: controller.signal,
++		transformHeaders: async (headers) => {
++			// The sandbox's own header options were filtered, so credential headers here are the host's.
++			const protectedHeaders: ProviderHeaders = {};
++			for (const [name, value] of Object.entries(headers)) if (isCredentialHeader(name)) protectedHeaders[name] = value;
++			let result = headers;
++			if (callbacks.headers) {
++				const visible: ProviderHeaders = { ...headers };
++				for (const name of Object.keys(protectedHeaders)) if (name in visible) visible[name] = REDACTED;
++				const reply = await ask("headers", { type: "headers", headers: visible });
++				result = filterHeaders(reply.headers) ?? {};
++			} else {
++				result = filterHeaders(headers) ?? {};
++			}
++			// Credential headers always come from the resolved auth, never from sandbox header edits.
++			return { ...result, ...protectedHeaders };
++		},
++	};
++	const ask = async (kind: CallbackKind, callback: Frame): Promise<Frame> => {
++		const reply = new Promise<Frame>((resolve, reject) => {
++			const queue = waiting.get(kind) ?? [];
++			queue.push({ resolve, reject });
++			waiting.set(kind, queue);
++		});
++		await send(callback);
++		return reply;
++	};
++	if (callbacks.payload) {
++		options.onPayload = async (payload) => {
++			const reply = await ask("payload", { type: "payload", payload });
++			return reply.changed === true ? reply.payload : undefined;
++		};
++	}
++	if (callbacks.response) {
++		options.onResponse = async (response) => {
++			await ask("response", { type: "response", response: { status: response.status, headers: response.headers } });
++		};
++	}
++	if (callbacks.provider_event) {
++		options.onProviderStreamEvent = async (data) => {
++			await ask("provider_event", { type: "provider_event", data });
++		};
++	}
++	try {
++		const stream = runtime.streamSimpleForExecutor(model, context, options, auth, (credentials) => {
++			secrets = [...new Set([...state.refs.secrets(), ...credentialSecrets(credentials)])].sort((a, b) => b.length - a.length);
++		});
++		for await (const event of stream) await send({ type: "event", event: encodeEvent(event) });
++		socket.end();
++	} catch (error) {
++		await fail(error);
++	}
++}
+diff --git a/packages/coding-agent/src/core/model-runtime.ts b/packages/coding-agent/src/core/model-runtime.ts
+index 8e03f4d..24a7aa7 100644
+--- a/packages/coding-agent/src/core/model-runtime.ts
++++ b/packages/coding-agent/src/core/model-runtime.ts
+@@ -56,6 +56,7 @@ import {
+ 	type ProviderRequestOptions,
+ 	type SimpleStreamOptions,
+ 	type StreamOptions,
++	type TranscriptContext,
+ } from "@earendil-works/pi-ai";
+ import * as builtinProviderCatalog from "@earendil-works/pi-ai/providers/all";
+ import { personalizeOpenRouterCatalog } from "@earendil-works/pi-ai/providers/openrouter";
+@@ -71,6 +72,8 @@ import { getAgentDir } from "../config.ts";
+ import { operationSignal, raceWithAbortSignal } from "../utils/abort.ts";
+ import { AuthStorage as DefaultAuthStorage } from "./auth-storage.ts";
+ import { ModelConfig } from "./model-config.ts";
++import { installExecutorFetch, withExecutorAuth } from "./executor-credentials.ts";
++import { MODEL_EXECUTOR_SOCKET_ENV, ModelExecutorClient, type ModelRequestCredentials } from "./model-executor.ts";
+ import { FileModelsStore, InMemoryCodingAgentModelsStore } from "./models-store.ts";
+ import {
+ 	type AuthStatus,
+@@ -123,6 +126,12 @@ export interface CreateModelRuntimeOptions {
+ 	signal?: AbortSignal;
+ 	/** Skip initial catalog and availability refresh. Static models remain available. */
+ 	refreshOnCreate?: boolean;
++	/**
++	 * Model executor socket. Credential files, provider auth, and requests for built-in and
++	 * models.json providers then go through the executor process, and this process holds only
++	 * credential references. Defaults to PI_MODEL_EXECUTOR_SOCKET; null disables it.
++	 */
++	executorSocket?: string | null;
+ }
+ 
+ export interface ModelRuntimeAuthOverrides extends AuthOperationOptions {
+@@ -196,6 +205,7 @@ export class ModelRuntime implements Models {
+ 	private readonly providerAvailabilitySeq = new Map<string, number>();
+ 	private availabilityError: string | undefined;
+ 	private readonly credentialOperations = new Map<string, Promise<unknown>>();
++	private readonly executor: ModelExecutorClient | undefined;
+ 
+ 	private constructor(
+ 		credentials: RuntimeCredentials,
+@@ -204,8 +214,10 @@ export class ModelRuntime implements Models {
+ 		modelsStore: ModelsStore,
+ 		providers: readonly Provider[],
+ 		modelNetworkEnabled: boolean,
++		executor: ModelExecutorClient | undefined,
+ 	) {
+ 		this.credentials = credentials;
++		this.executor = executor;
+ 		this.config = config;
+ 		this.modelsPath = modelsPath;
+ 		this.modelNetworkEnabled = modelNetworkEnabled;
+@@ -239,6 +251,10 @@ export class ModelRuntime implements Models {
+ 			}
+ 			return withRemoteCatalog(provider, options.catalogBaseUrl, builtinModelDataGeneratedAt);
+ 		});
++		const executorSocket =
++			options.executorSocket === null
++				? undefined
++				: options.executorSocket || process.env[MODEL_EXECUTOR_SOCKET_ENV] || undefined;
+ 		const runtime = new ModelRuntime(
+ 			credentials,
+ 			config,
+@@ -246,7 +262,9 @@ export class ModelRuntime implements Models {
+ 			modelsStore,
+ 			providers,
+ 			process.env.PI_OFFLINE === undefined,
++			executorSocket ? new ModelExecutorClient(executorSocket) : undefined,
+ 		);
++		if (runtime.executor) installExecutorFetch(runtime.executor);
+ 		runtime.configureRadiusProviders();
+ 		runtime.rebuildProviders();
+ 		const refreshFromNetwork = runtime.modelNetworkEnabled && options.allowModelNetwork === true;
+@@ -297,7 +315,12 @@ export class ModelRuntime implements Models {
+ 
+ 	/** Returns the provider without virtual models, or undefined when only virtual models define it. */
+ 	private recomposeProvider(providerId: string): Provider | undefined {
+-		const provider = this.composeProvider(providerId);
++		const composed = this.composeProvider(providerId);
++		// Executor mode: provider auth runs on the executor, which holds the secrets.
++		const provider =
++			composed && this.executor && this.credentialsHeldByExecutor(providerId)
++				? withExecutorAuth(composed, this.executor)
++				: composed;
+ 		const virtualModels = [...(this.virtualModels.get(providerId)?.values() ?? [])].map((entry) => entry.model);
+ 		if (virtualModels.length > 0) this.models.setProvider(withVirtualModels(providerId, provider, virtualModels));
+ 		else if (provider) this.models.setProvider(provider);
+@@ -487,6 +510,20 @@ export class ModelRuntime implements Models {
+ 		return this.models.checkAuth(providerId, options);
+ 	}
+ 
++	/**
++	 * Whether the model executor serves this provider: its auth runs there, and resolved auth in
++	 * this process holds credential references. Extension providers and providers made only of
++	 * virtual models stay in this process.
++	 */
++	credentialsHeldByExecutor(providerId: string): boolean {
++		return (
++			this.executor !== undefined &&
++			!this.extensionProviders.has(providerId) &&
++			!this.nativeExtensionProviders.has(providerId) &&
++			(this.defaultBuiltins.has(providerId) || this.config.getProvider(providerId) !== undefined)
++		);
++	}
++
+ 	async getAvailable(providerId?: string, options?: AuthOperationOptions): Promise<readonly Model<Api>[]> {
+ 		if (providerId) {
+ 			const errorSeq = ++this.availabilityErrorSeq;
+@@ -662,6 +699,8 @@ export class ModelRuntime implements Models {
+ 	>(
+ 		model: TModel,
+ 		options: TOptions | undefined,
++		observeCredentials?: (credentials: ModelRequestCredentials) => void,
++		resolvedAuth?: AuthResult,
+ 	): Promise<{
+ 		provider: Provider;
+ 		model: TModel;
+@@ -669,12 +708,19 @@ export class ModelRuntime implements Models {
+ 	}> {
+ 		const provider = this.models.getProvider(model.provider);
+ 		if (!provider) throw new ModelsError("provider", `Unknown provider: ${model.provider}`);
+-		const resolution = await this.getAuth(model, {
+-			apiKey: options?.apiKey,
+-			env: options?.env,
+-			signal: options?.signal,
+-		});
++		const resolution =
++			resolvedAuth ??
++			(await this.getAuth(model, {
++				apiKey: options?.apiKey,
++				env: options?.env,
++				signal: options?.signal,
++			}));
+ 		if (!resolution) throw new ModelsError("auth", `Provider is not configured: ${model.provider}`);
++		observeCredentials?.({
++			apiKey: resolution.auth.apiKey,
++			headers: resolution.auth.headers ?? {},
++			env: resolution.env ?? {},
++		});
+ 
+ 		const { transformHeaders, ...rawProviderOptions } = options ?? {};
+ 		const providerOptions = rawProviderOptions as Omit<TOptions, "transformHeaders"> & ProviderRequestOptions<TModel>;
+@@ -749,6 +795,20 @@ export class ModelRuntime implements Models {
+ 				return this.streamSimple(route.model, context, { ...rest, ...auth, maxTokens, reasoning });
+ 			});
+ 		}
++		const executor = this.executorFor(model, options);
++		if (executor) {
++			return lazyStream(model, async () => {
++				assertChatModel(model);
++				// This process picks the credential; its resolved auth holds references the executor swaps back.
++				const resolution = await this.getAuth(model, {
++					apiKey: options?.apiKey,
++					env: options?.env,
++					signal: options?.signal,
++				});
++				if (!resolution) throw new ModelsError("auth", `Provider is not configured: ${model.provider}`);
++				return executor.streamSimple(model, transcript, options, resolution);
++			});
++		}
+ 		return lazyStream(model, async () => {
+ 			assertChatModel(model);
+ 			const prepared = await this.prepareRequest(model, options);
+@@ -756,6 +816,33 @@ export class ModelRuntime implements Models {
+ 		});
+ 	}
+ 
++	/**
++	 * The executor handles requests for providers the executor process also defines. Extension
++	 * providers run in this process; deferred responses stay local until fetch and cancel are relayed.
++	 */
++	private executorFor(model: Model<Api>, options: ModelsSimpleStreamOptions | undefined): ModelExecutorClient | undefined {
++		if (options?.deferred || !this.credentialsHeldByExecutor(model.provider)) return undefined;
++		return this.executor;
++	}
++
++	/**
++	 * @internal Model executor entry point. `auth` is the sandbox's resolved auth with references
++	 * swapped back; `observeCredentials` receives it so the executor keeps it out of relayed data.
++	 */
++	streamSimpleForExecutor(
++		model: Model<Api>,
++		transcript: TranscriptContext,
++		options: ModelsSimpleStreamOptions,
++		auth: AuthResult,
++		observeCredentials: (credentials: ModelRequestCredentials) => void,
++	): AssistantMessageEventStream {
++		return lazyStream(model, async () => {
++			assertChatModel(model);
++			const prepared = await this.prepareRequest(model, options, observeCredentials, auth);
++			return prepared.provider.streamSimple(prepared.model, transcript, prepared.options as SimpleStreamOptions);
++		});
++	}
++
+ 	completeSimple(model: Model<Api>, context: Context, options?: ModelsSimpleStreamOptions): Promise<AssistantMessage> {
+ 		return this.streamSimple(model, context, options).result();
+ 	}
+diff --git a/packages/coding-agent/src/main.ts b/packages/coding-agent/src/main.ts
+index 70d2704..8ac05db 100644
+--- a/packages/coding-agent/src/main.ts
++++ b/packages/coding-agent/src/main.ts
+@@ -46,6 +46,7 @@ import { exportFromFile } from "./core/export-html/index.ts";
+ import type { InlineExtension } from "./core/extensions/types.ts";
+ import { applyHttpProxySettings, configureHttpDispatcher } from "./core/http-dispatcher.ts";
+ import { resolveCliModel, resolveModelScope, type ScopedModel } from "./core/model-resolver.ts";
++import { MODEL_EXECUTOR_SOCKET_ENV } from "./core/model-executor.ts";
+ import { ModelRuntime } from "./core/model-runtime.ts";
+ import { restoreStdout, takeOverStdout } from "./core/output-guard.ts";
+ import { type AppMode, resolveProjectTrusted } from "./core/project-trust.ts";
+@@ -146,6 +147,16 @@ async function runAuthCommand(args: string[]): Promise<boolean> {
+ 		return true;
+ 	}
+ 	if (!command) return false;
++	if (process.env[MODEL_EXECUTOR_SOCKET_ENV]) {
++		// Sandboxed sessions never hold provider credentials; the host executor does.
++		console.error(
++			chalk.red(
++				`Error: "${getAuthCommandName(command.kind)}" is unavailable in sandboxed sessions. Run it on the host with "${APP_NAME} --no-sandbox".`,
++			),
++		);
++		process.exitCode = 1;
++		return true;
++	}
+ 
+ 	const parsed = parseArgs(command.args);
+ 	if (parsed.unknownFlags.size > 0) {

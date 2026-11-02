@@ -14,6 +14,7 @@ import { withNonoDiagnostics } from "./nono-diagnostics.mjs";
 import { assertPrivateIpcGrants } from "./private-ipc.mjs";
 import { assertCredentialGrants } from "./credential-grants.mjs";
 import { withIpcCapabilities } from "./ipc-session.mjs";
+import { MODEL_EXECUTOR_SOCKET, modelExecutorEnvironment, withModelExecutor } from "./model-executor-launch.mjs";
 import { serviceSocketArguments, withSessionServiceEnvironment } from "./service-ipc.mjs";
 import { defaultCapabilities, endpointArguments, loadCapabilities, selectCapabilities } from "./ipc-policy.mjs";
 
@@ -357,6 +358,14 @@ function planLaunchArguments(cwd, agentDir, home, environment, profile, rawPi, e
     if (!statSync(socket).isSocket()) throw new Error(`${variable} must point to a socket`);
     extra.push("--allow-unix-socket", socket);
   }
+  const executorSocket = environment[MODEL_EXECUTOR_SOCKET];
+  if (executorSocket) {
+    // Only the launcher-owned executor endpoint is granted; it lives in private IPC state.
+    const base = join(realpathSync(home), ".pi-ipc") + sep;
+    if (!isAbsolute(executorSocket) || !executorSocket.startsWith(base)) throw new Error(`${MODEL_EXECUTOR_SOCKET} must be a private Pi IPC socket`);
+    if (!statSync(executorSocket).isSocket()) throw new Error(`${MODEL_EXECUTOR_SOCKET} must point to a socket`);
+    extra.push("--allow-unix-socket", executorSocket);
+  }
   const editorSocket = environment.PI_NVIM_ASK_SOCKET;
   if (environment.PI_NVIM_SOCKET && !editorSocket) throw new Error("Native Neovim RPC is not a Pi Ask endpoint; update both Pi Ask integrations");
   if (editorSocket) {
@@ -414,7 +423,7 @@ function planLaunchArguments(cwd, agentDir, home, environment, profile, rawPi, e
     ...split.files.flatMap((path) => ["--allow-file", path]),
     "--", ...sandboxRuntimeCommand(home, rawPi, envBinary),
   ];
-  if ([...socketVariables].some(variable => Boolean(environment[variable])) || environment.PI_NVIM_ASK_SOCKET || environment.AGENT_BROWSER_SOCKET_DIR) {
+  if ([...socketVariables].some(variable => Boolean(environment[variable])) || executorSocket || environment.PI_NVIM_ASK_SOCKET || environment.AGENT_BROWSER_SOCKET_DIR) {
     assertPrivateIpcGrants(args, cwd, home);
   }
   assertReadOnlySshGrants(args, cwd);
@@ -546,6 +555,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
       // Kernel restrictions inherited from a parent sandbox still apply.
       const environment = { ...process.env };
       environment.PI_NONO_MODE = "disabled";
+      // Raw mode resolves credentials itself; an inherited executor socket belongs to another session.
+      delete environment[MODEL_EXECUTOR_SOCKET];
       configurePiPaths(environment, homedir(), (environment.PATH || "").split(delimiter)[0]);
       process.execve(rawPi, [rawPi, ...args.slice(1)], environment);
     }
@@ -570,6 +581,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
       environment = safeEnvironment;
     }
     environment = prepareCredentialEnvironment(inheritedEnvironment, environment, home);
+    // Only this launcher may select an executor endpoint; never trust an inherited or project value.
+    delete environment[MODEL_EXECUTOR_SOCKET];
     if (inheritedHome === undefined) delete environment.HOME;
     else environment.HOME = inheritedHome;
     if (process.platform === "darwin" && !environment.XDG_RUNTIME_DIR) {
@@ -613,7 +626,12 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
       return runWithCredentialProxy(nono, profile, command, environment);
     });
     const ipcRestricted = readJson(profile, "nono profile")?.linux?.af_unix_mediation === "pathname";
-    const runWithCapabilities = bound => withIpcCapabilities(bound, inheritedEnvironment, home, process.cwd(), agentDir, args, registry, ipcRestricted ? "restricted" : "ordinary", runPi);
+    // shortcut: the host model executor is opt-in from the invoking environment while credentials stay
+    // granted to the sandbox; make it the default when profile routing and the credential denial land.
+    const runSession = args[0] !== "--no-sandbox" && inheritedEnvironment.PI_MODEL_EXECUTOR === "1"
+      ? bound => withModelExecutor(bound, modelExecutorEnvironment(inheritedEnvironment, agentDir), home, inheritedEnvironment.PI_MODEL_EXECUTOR_PACKAGE, runPi)
+      : runPi;
+    const runWithCapabilities = bound => withIpcCapabilities(bound, inheritedEnvironment, home, process.cwd(), agentDir, args, registry, ipcRestricted ? "restricted" : "ordinary", runSession);
     const child = ipcRestricted
       ? await withSessionServiceEnvironment(environment, inheritedEnvironment, home, runWithCapabilities)
       : await runWithCapabilities(environment);

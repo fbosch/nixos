@@ -7,6 +7,10 @@ import { canonicalCredentialPath } from "./credential-grants.mjs";
 const runtimeDirectories = new Set(["sessions", "cache", "session-history", "tasks", "auth-profiles", "fff"]);
 const requiredControls = ["settings.json", "extensions", "npm", "git", "lib", "mcp.json", "models.json", "trust.json"];
 const within = (path, root) => root === sep || path === root || path.startsWith(`${root}${sep}`);
+// Every entry is checked for symlinks and hard links. Installed extension packages (node_modules,
+// npm) in the default and configured agent directories can exceed 100000 entries together; a full
+// scan of about 120000 entries takes about two seconds on rvn-mac.
+const MAX_CONTROL_ENTRIES = 300000;
 
 export function agentDirectories(home, agentDir) {
   const roots = [...new Set([join(home, ".pi", "agent"), agentDir].filter(path => existsSync(path)).map(path => realpathSync(path)))];
@@ -85,7 +89,7 @@ export function agentProtection(home, agentDir, environment = {}, profile = {}, 
   function scan(path) {
     if (visited.has(path) || path.startsWith("/nix/store/")) return;
     visited.add(path);
-    if (++entries > 100000) throw new Error("Pi control protection exceeds 100000 entries");
+    if (++entries > MAX_CONTROL_ENTRIES) throw new Error(`Pi control protection exceeds ${MAX_CONTROL_ENTRIES} entries`);
     let entry;
     try { entry = lstatSync(path); }
     catch (error) { if (error.code === "ENOENT") return; throw error; }
@@ -110,6 +114,17 @@ export function agentProtection(home, agentDir, environment = {}, profile = {}, 
         runtimePaths.add(canonical);
       } else if (name === "auth.json") {
         const entry = lstatSync(path);
+        if (entry.isSymbolicLink()) {
+          // Stow links the default agent directory's auth.json to the configured one. Only that exact
+          // target is accepted: it is granted when its own root is scanned, and the link stays host-owned.
+          let target;
+          try { target = realpathSync(path); } catch { target = undefined; }
+          if (!roots.some(other => other !== root && target === join(other, "auth.json"))) {
+            throw new Error(`Pi auth state must be a regular file without hard links: ${path}`);
+          }
+          protectedPaths.add(path);
+          continue;
+        }
         // Refresh credentials in place, but do not grant a writable parent or a symlink-selected file.
         if (!entry.isFile() || entry.nlink !== 1) throw new Error(`Pi auth state must be a regular file without hard links: ${path}`);
         authFiles.add(path);
