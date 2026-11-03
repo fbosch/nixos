@@ -79,7 +79,7 @@ Claude CLI retains ownership of login and refresh. If its stored access token ex
 
 Activate the rebuilt launcher and start a new Pi session to receive the new route and environment. Existing sessions do not acquire it through `/reload`. Host-launched `--no-sandbox` sessions continue to use normal Claude CLI authentication directly.
 
-`nono-pi-claude-proxy` tests the real installed Claude CLI against a local synthetic Anthropic server inside a fresh Linux sandbox. The response completes with a placeholder credential, the upstream sees the captured access token, direct credential-file access and capture-helper execution inside confinement cannot recover it, incorrect placeholders are rejected, and redirects are not followed to an unrelated server. The test sends no request to Anthropic and uses no real login data. A full live Claude Bridge session after activation remains to be verified.
+`claude-proxy.test.mjs` (in `nono-tests`, Linux) tests the real installed Claude CLI against a local synthetic Anthropic server inside a fresh Linux sandbox. The response completes with a placeholder credential, the upstream sees the captured access token, direct credential-file access and capture-helper execution inside confinement cannot recover it, incorrect placeholders are rejected, and redirects are not followed to an unrelated server. The test sends no request to Anthropic and uses no real login data. A full live Claude Bridge session after activation remains to be verified.
 
 ## Unresolved process metadata
 
@@ -96,21 +96,21 @@ Configuration-session selection, registered-worktree checks, runtime-data prepar
 
 Linux enforces read-only controls by splitting writable ancestor grants. macOS also receives narrow agent grants, but additionally gets Seatbelt write-deny rules for protected controls, symlink targets, and ancestor replacement. This handles broad inherited macOS grants without denying reads or freezing runtime data. The launch plan carries the protected paths into profile generation, so macOS does not repeat the recursive agent scan.
 
-The `nono-pi-platform-parity` check is defined for both platforms. It includes native Pi startup, settings/auth locking, runtime file writes, configuration-root/worktree edits, unrelated-project denials, and shell/credential/SSH/network regressions. FFF directory access is covered; a real macOS FFF/LMDB smoke test remains part of host validation. Platform-forced tests run the Darwin bootstrap with a recording nono stub and inspect the generated rules. They are not evidence of Seatbelt enforcement.
+The `nono-tests` check is defined for both platforms and runs every nono test file; `platform-parity.test.mjs` includes native Pi startup, settings/auth locking, runtime file writes, configuration-root/worktree edits, unrelated-project denials, and shell/credential/SSH/network regressions. FFF directory access is covered; a real macOS FFF/LMDB smoke test remains part of host validation. Platform-forced tests run the Darwin bootstrap with a recording nono stub and inspect the generated rules. They are not evidence of Seatbelt enforcement.
 
 Native macOS validation was explicitly deferred. No SSH access, activation, or changes to the Mac were performed. Evaluating the Darwin check fully on the Linux builder also requires a Darwin build of the Pi source overlay, so it cannot complete locally. Linux native checks and Darwin bootstrap/rule-generation tests passed; macOS kernel enforcement and full interactive workflows remain unverified.
 
 For later validation on `rvn-mac`, use the same working-tree changes, not an older clone, and run:
 
 ```sh
-nix build --offline --no-link .#checks.aarch64-darwin.nono-pi-platform-parity
+nix build --offline --no-link .#checks.aarch64-darwin.nono-tests
 ```
 
 Then verify a fresh interactive session, FFF history, model availability, and browser/desktop integrations on the Mac before claiming functional parity. The earlier macOS Git-fsmonitor daemon limitation remains separate and unresolved.
 
 ## Verification
 
-`nono-pi-agent-protection` starts a new native nono sandbox from a Nix check. It uses synthetic credential files, a live fixture SSH-agent socket, and a Stow-style Fish configuration. It tests both the default and configured Pi directories in an unrelated-project session. The same check runs `config-editing.test.mjs` in fresh sandboxes for both configuration roots, a registered worktree, and an unrelated project. Those probes verify atomic instruction/settings/extension edits, including after changing directories, while secret, Fish startup, SSH-agent, network, and reference-approval denials remain enforced. It also starts the packaged Pi CLI in RPC mode and verifies that an extension selected by the existing settings registers its command. It does not make a model inference request.
+`agent-protection.test.mjs`, run by `nono-tests`, starts a new native nono sandbox from a Nix check. It uses synthetic credential files, a live fixture SSH-agent socket, and a Stow-style Fish configuration. It tests both the default and configured Pi directories in an unrelated-project session. The same check runs `config-editing.test.mjs` in fresh sandboxes for both configuration roots, a registered worktree, and an unrelated project. Those probes verify atomic instruction/settings/extension edits, including after changing directories, while secret, Fish startup, SSH-agent, network, and reference-approval denials remain enforced. It also starts the packaged Pi CLI in RPC mode and verifies that an extension selected by the existing settings registers its command. It does not make a model inference request.
 
 | Finding | Before | After and verification | Result |
 | --- | --- | --- | --- |
@@ -128,22 +128,17 @@ Then verify a fresh interactive session, FFF history, model availability, and br
 
 Nix's build network has no external DNS. Curl's `000` alone therefore does not prove the network boundary; the independent TCP probes check the kernel permission error. The fixture paths are not the workstation's live credentials or configuration. Deployment and fresh workstation verification remain separate steps.
 
-Run the focused checks from the current checkout:
+Run the checks from the current checkout:
 
 ```sh
-nix build --offline --no-link \
+nix build --no-link \
   .#pi-sandbox \
-  .#checks.x86_64-linux.nono-pi-platform-parity \
-  .#checks.x86_64-linux.nono-pi-agent-protection \
-  .#checks.x86_64-linux.nono-pi-reference-access \
-  .#checks.x86_64-linux.nono-pi-github-access \
-  .#checks.x86_64-linux.nono-pi-claude-proxy \
-  .#checks.x86_64-linux.nono-pi-ssh-access \
-  .#checks.x86_64-linux.nono-pi-credential-filesystem \
-  .#checks.x86_64-linux.nono-pi-desktop-images \
-  .#checks.x86_64-linux.nono-pi-socket-isolation-restricted \
-  .#checks.x86_64-linux.pi-ipc \
-  .#checks.x86_64-linux.pi-launcher-routing
+  .#checks.x86_64-linux.nono-tests \
+  .#checks.x86_64-linux.nono-tests-ordinary \
+  .#checks.x86_64-linux.nono-typecheck \
+  .#checks.x86_64-linux.nono-pi-nix-build-access
 ```
+
+`nono-tests` runs every file in `modules/development/ai/nono/__tests__` against the restricted profile the launcher ships; tests skip themselves when the tool they need is not provided. `nono-tests-ordinary` repeats the profile-dependent GitHub, Azure and socket-isolation tests with the ordinary profile. `nono-pi-nix-build-access` is the NixOS VM test for sandboxed Nix builds.
 
 A passing build covers the implemented protections. It does not close the explicitly unresolved `/proc` finding.

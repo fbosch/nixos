@@ -25,7 +25,7 @@ Host-side launcher, credential boundary and IPC brokers that confine Pi under no
   - `shared/sandbox-policy.json` and `shared/sandbox-policy.mts`: the defaults of the `pi.sandbox` option in `../pi/sandbox.nix`, and its build-time validation in `../pi/default.nix`.
   - `ipc/helper.mts`, `model-executor/server.mts` and `launch/diagnostics-extension.mts`: spawned or loaded by URL.
 - Import from the module that owns a function. Do not re-export it through `launcher.mts`.
-- Tests stay in `__tests__/`, because Nix checks reference them there.
+- Tests stay in `__tests__/`: the `nono-tests` check runs every `*.test.mjs` file there, so a new file needs no Nix change. A test that needs a tool reads it from a `*_TEST_BINARY` variable and skips itself when the variable is unset; add the variable to `nonoSuite` in `../pi/default.nix`.
 
 ## Sandbox policy
 
@@ -62,7 +62,7 @@ Host-side launcher, credential boundary and IPC brokers that confine Pi under no
 - Run `npx tsc -p .` from this directory; it must report no errors. Nix runs the same check as `checks.<system>.nono-typecheck`.
 - Run `fallow dead-code .`, `fallow architecture .` and `fallow dupes .` from this directory. All three should report no issues.
 - `node --test __tests__/*.test.mjs` runs on macOS, but tests that need Unix sockets, native nono or the Nix daemon fail inside a sandboxed agent session. Compare per-test results with a run on the unchanged tree; the total is not a meaningful signal.
-- The real enforcement checks are the `x86_64-linux` checks listed under Verification in `docs/agents/pi-sandbox-policy.md`. Run them on `rvn-pc` before activation.
+- The real enforcement checks are the `x86_64-linux` checks listed under Verification in `docs/agents/pi-sandbox-policy.md` (`nono-tests`, `nono-tests-ordinary` and the NixOS VM test). Run them on an x86_64-linux host before activation.
 
 ## References
 
