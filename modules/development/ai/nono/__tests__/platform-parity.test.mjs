@@ -7,7 +7,8 @@ import { dirname, join } from "node:path";
 import { afterEach, test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { agentProtection, prepareAgentRuntime } from "../scripts/protection/agent.mts";
-import { withProtectedShellProfile } from "../scripts/protection/shell.mts";
+import { protectedShellProfile } from "../scripts/protection/shell.mts";
+import { withScopedSync } from "./fixtures/scoped.mjs";
 
 const roots = [];
 const envBinary = process.env.ENV_TEST_BINARY || "/usr/bin/env";
@@ -92,19 +93,19 @@ test("Seatbelt protects linked and missing controls without blocking mutable age
   const controls = Effect.runSync(agentProtection(f.home,f.agent,f.environment,base,"darwin"));
   assert.ok(controls.protectedPaths.includes(library));
   assert.ok(controls.protectedPaths.includes(future));
-  withProtectedShellProfile(f.profile,f.home,f.environment,path=>{
+  withScopedSync(protectedShellProfile(f.profile,f.home,f.environment,"darwin",controls.protectedPaths),path=>{
     const policy=JSON.parse(readFileSync(path,"utf8"));
     const deny=policy.unsafe_macos_seatbelt_rules.at(-1);
     for(const path of [library,future,join(f.agent,"extensions")]) assert.ok(deny.includes(`(subpath ${JSON.stringify(path)})`),path);
     assert.ok(deny.includes(`(literal ${JSON.stringify(dirname(future))})`),"ancestor replacement is denied");
     for(const path of controls.runtimePaths) assert.equal(deny.includes(`(subpath ${JSON.stringify(path)})`),false,path);
     assert.equal(deny.includes(`(subpath ${JSON.stringify(join(f.agent,"auth.json"))})`),false);
-  },"darwin",controls.protectedPaths);
+  });
 });
 
 test("protected control names cannot inject Seatbelt expressions", () => {
   const f = fixture();
   const path = join(f.agent, "extensions", 'hostile") (allow default)\n');
   writeFileSync(path, "fixture");
-  assert.throws(() => withProtectedShellProfile(f.profile, f.home, f.environment, () => assert.fail("must not launch"), "darwin", [path]), /control character/);
+  assert.throws(() => withScopedSync(protectedShellProfile(f.profile, f.home, f.environment, "darwin", [path]), () => assert.fail("must not launch")), /control character/);
 });

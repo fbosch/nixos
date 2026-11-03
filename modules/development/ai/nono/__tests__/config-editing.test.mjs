@@ -10,7 +10,8 @@ import { launchArguments } from "../scripts/launch/plan.mts";
 import { referenceApprovalStore } from "../scripts/launch/references.mts";
 import { agentProtection, prepareAgentRuntime } from "../scripts/protection/agent.mts";
 import { prepareSandboxRuntime } from "../scripts/launch/runtime.mts";
-import { withProtectedShellProfile } from "../scripts/protection/shell.mts";
+import { protectedShellProfile } from "../scripts/protection/shell.mts";
+import { withScopedSync } from "./fixtures/scoped.mjs";
 
 const roots = [];
 const envBinary = process.env.ENV_TEST_BINARY || "/usr/bin/env";
@@ -176,7 +177,7 @@ for (const scenario of ["dotfiles", "nixos", "worktree", "unrelated"]) {
       }))).then(codes=>{for(const code of codes)assert.ok(["EACCES","EPERM"].includes(code),code);console.log("scope and retained denials passed");}).catch(e=>{console.error(e);process.exitCode=1;});
     `;
     const controls = editable ? [] : Effect.runSync(agentProtection(f.home, f.agent, f.environment, JSON.parse(readFileSync(f.profile, "utf8")))).protectedPaths;
-    withProtectedShellProfile(f.profile, f.home, f.environment, selectedProfile => {
+    withScopedSync(protectedShellProfile(f.profile, f.home, f.environment, process.platform, [...controls, dirname(referenceApprovalStore(f.home))]), selectedProfile => {
       const prepared = [...args];
       prepared[prepared.indexOf("--profile") + 1] = selectedProfile;
       const child = spawnSync(process.env.NONO_TEST_BINARY,[...prepared,"-e",script,f.agent,f.defaultAgent,f.dotfiles,f.home,referenceApprovalStore(f.home),editable?"yes":"no",socket],{
@@ -185,6 +186,6 @@ for (const scenario of ["dotfiles", "nixos", "worktree", "unrelated"]) {
       assert.ifError(child.error);
       assert.equal(child.status,0,child.stdout+child.stderr);
       assert.match(child.stdout,/scope and retained denials passed/);
-    }, process.platform, [...controls, dirname(referenceApprovalStore(f.home))]);
+    });
   });
 }

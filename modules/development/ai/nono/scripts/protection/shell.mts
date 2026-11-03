@@ -1,3 +1,4 @@
+import type * as Scope from "effect/Scope";
 import * as Effect from "effect/Effect";
 import { lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync, type Stats } from "node:fs";
 import { basename, dirname, isAbsolute, join, sep } from "node:path";
@@ -161,9 +162,7 @@ export function credentialDenyRule(credentialPaths: readonly string[]): string |
   return `(deny file-read* file-write* ${filters.join(" ")})`;
 }
 
-export function withProtectedShellProfile<T>(profilePath: string, home: string, environment: Environment, run: (profilePath: string) => T, platform: NodeJS.Platform = process.platform, additionalPaths: readonly string[] = [], credentialPaths: readonly string[] = []): T {
-  // Linux needs a different boundary: Landlock cannot subtract writes from an ancestor grant.
-  if (platform !== "darwin") return run(profilePath);
+function prepareProfile(profilePath: string, home: string, environment: Environment, additionalPaths: readonly string[]): { profile: NonoProfile; reads: unknown[]; rules: string[]; directory: string; protection: ShellProtection } {
   let profile: NonoProfile;
   try {
     profile = JSON.parse(readFileSync(profilePath, "utf8"));
@@ -182,16 +181,28 @@ export function withProtectedShellProfile<T>(profilePath: string, home: string, 
   const directory = privateProfileDirectory(home);
   const protection = shellProtectionSync(home, environment, additionalPaths);
   if (directory !== protection.profileDirectory) throw new UnsafeFileError({ message: "Pi profile directory changed during startup." });
-  const session = mkdtempSync(join(directory, "session-"));
-  try {
+  return { profile, reads, rules: rules as string[], directory, protection };
+}
+
+/**
+ * The nono profile for this session. On macOS it is a private copy with shell-startup and
+ * credential deny rules added, removed when the enclosing scope closes. Linux keeps those paths
+ * outside every writable grant instead, because Landlock cannot subtract writes from an ancestor.
+ */
+export function protectedShellProfile(profilePath: string, home: string, environment: Environment, platform: NodeJS.Platform = process.platform, additionalPaths: readonly string[] = [], credentialPaths: readonly string[] = []): Effect.Effect<string, SandboxError, Scope.Scope> {
+  if (platform !== "darwin") return Effect.succeed(profilePath);
+  return Effect.gen(function* () {
+    const { profile, reads, rules, directory, protection } = yield* attempt(() => prepareProfile(profilePath, home, environment, additionalPaths));
+    const session = yield* Effect.acquireRelease(
+      Effect.sync(() => mkdtempSync(join(directory, "session-"))),
+      (session) => Effect.sync(() => rmSync(session, { recursive: true, force: true })),
+    );
     const effectivePath = join(session, "profile.json");
     writeFileSync(effectivePath, JSON.stringify({
       ...profile,
       filesystem: { ...profile.filesystem, read: [...reads, ...protection.readPaths] },
       unsafe_macos_seatbelt_rules: [...rules, ...protection.rules, ...[credentialDenyRule(credentialPaths)].filter(Boolean)],
     }), { flag: "wx", mode: 0o600 });
-    return run(effectivePath);
-  } finally {
-    rmSync(session, { recursive: true, force: true });
-  }
+    return effectivePath;
+  });
 }

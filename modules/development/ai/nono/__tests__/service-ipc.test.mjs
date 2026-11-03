@@ -7,7 +7,8 @@ import { createServer } from "node:net";
 import { join } from "node:path";
 import { afterEach, test } from "node:test";
 import { launchArguments } from "../scripts/launch/plan.mts";
-import { devenvRuntime, serviceSocketArguments, withSessionServiceEnvironment } from "../scripts/ipc/services.mts";
+import { devenvRuntime, serviceSocketArguments, sessionServices } from "../scripts/ipc/services.mts";
+import { withScoped } from "./fixtures/scoped.mjs";
 
 const roots = [];
 const envBinary = process.env.ENV_TEST_BINARY || "/usr/bin/env";
@@ -81,16 +82,16 @@ test("candidate pins the inherited Wayland socket and ignores project desktop au
   t.after(() => new Promise(resolve => server.close(resolve)));
   const inherited = { ...f.environment, WAYLAND_DISPLAY: "wayland-1" };
   const project = { ...f.environment, XDG_RUNTIME_DIR: "/project/runtime", WAYLAND_DISPLAY: "/project/bus" };
-  await withSessionServiceEnvironment(project, inherited, f.home, environment => {
+  await withScoped(sessionServices(project, inherited, f.home), environment => {
     assert.equal(environment.WAYLAND_DISPLAY, socket);
     const args = Effect.runSync(serviceSocketArguments(f.home, f.home, environment, true));
     assert.deepEqual(values(args, "--allow-unix-socket"), [socket]);
     assert.ok(!values(args, "--allow").includes(f.environment.XDG_RUNTIME_DIR));
     assert.deepEqual(Effect.runSync(serviceSocketArguments(f.home, f.home, environment, false)), []);
   });
-  await withSessionServiceEnvironment(project, { ...inherited, WAYLAND_DISPLAY: socket }, f.home,
+  await withScoped(sessionServices(project, { ...inherited, WAYLAND_DISPLAY: socket }, f.home),
     environment => assert.equal(environment.WAYLAND_DISPLAY, socket));
-  await withSessionServiceEnvironment(project, {}, f.home, environment =>
+  await withScoped(sessionServices(project, {}, f.home), environment =>
     assert.deepEqual(values(Effect.runSync(serviceSocketArguments(f.home, f.home, environment, true)), "--allow-unix-socket"), []));
   assert.equal(project.WAYLAND_DISPLAY, "/project/bus");
 });
@@ -113,7 +114,7 @@ test("each launch isolates browser daemons and uses local LSPs instead of unrest
   const f = fixture();
   const previous = { AGENT_BROWSER_SOCKET_DIR: "/host/browser", AGENT_BROWSER_NAMESPACE: "host", AGENT_BROWSER_CDP: "9222", PI_LENS_WARM_ATTACH: "1" };
   let first;
-  await withSessionServiceEnvironment(previous, previous, f.home, async environment => {
+  await withScoped(sessionServices(previous, previous, f.home), async environment => {
     first = environment.AGENT_BROWSER_SOCKET_DIR;
     assert.equal(environment.PI_LENS_WARM_ATTACH, "0");
     assert.equal(environment.AGENT_BROWSER_NAMESPACE, undefined);
@@ -122,6 +123,6 @@ test("each launch isolates browser daemons and uses local LSPs instead of unrest
     assert.deepEqual(args, ["--allow", first, "--allow-unix-socket-dir-bind", first]);
   });
   assert.throws(() => realpathSync(first), /ENOENT/);
-  await withSessionServiceEnvironment(previous, previous, f.home, environment => assert.notEqual(environment.AGENT_BROWSER_SOCKET_DIR, first));
+  await withScoped(sessionServices(previous, previous, f.home), environment => assert.notEqual(environment.AGENT_BROWSER_SOCKET_DIR, first));
   assert.equal(previous.PI_LENS_WARM_ATTACH, "1", "do not mutate the caller's environment");
 });

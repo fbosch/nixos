@@ -23,6 +23,18 @@ export class InvalidConfigError extends Data.TaggedError("InvalidConfigError")<D
 /** A Nix-provided executable, profile or inherited socket that the launch needs is missing or unusable. */
 export class LaunchPrerequisiteError extends Data.TaggedError("LaunchPrerequisiteError")<Details> {}
 
+/**
+ * A host helper process (model executor, IPC filter, credential proxy) failed to start, reported
+ * an invalid endpoint, or stopped while Pi was running. Not a SandboxError: policy checks never
+ * raise it.
+ */
+export class HostProcessError extends Data.TaggedError("HostProcessError")<Details> {}
+
+/** Wrap a rejected helper promise, keeping its message for users and tests. */
+export function hostProcessError(cause: unknown): HostProcessError {
+  return cause instanceof HostProcessError ? cause : new HostProcessError({ message: cause instanceof Error ? cause.message : String(cause), cause });
+}
+
 export type SandboxError = GrantConflictError | UnsafeFileError | InvalidConfigError | LaunchPrerequisiteError;
 
 function isSandboxError(error: unknown): error is SandboxError {

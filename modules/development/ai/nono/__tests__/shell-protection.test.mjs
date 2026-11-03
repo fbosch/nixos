@@ -6,9 +6,10 @@ import { chmodSync, existsSync, linkSync, mkdirSync, mkdtempSync, readFileSync, 
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { shellProtection, withProtectedShellProfile } from "../scripts/protection/shell.mts";
+import { shellProtection, protectedShellProfile } from "../scripts/protection/shell.mts";
 
 import { proxyFixtureSource } from "./fixtures/credential-proxy.mjs";
+import { withScopedSync } from "./fixtures/scoped.mjs";
 const envBinary = process.env.ENV_TEST_BINARY ?? "/usr/bin/env";
 
 const created = [];
@@ -152,7 +153,7 @@ test("generated profile preserves base permissions, appends denials, and cleans 
   const original = readFileSync(baseProfile, "utf8");
   for (const fail of [false, true]) {
     let generated;
-    const run = () => withProtectedShellProfile(baseProfile, home, environment, (path) => {
+    const run = () => withScopedSync(protectedShellProfile(baseProfile, home, environment, "darwin"), (path) => {
       generated = path;
       const actual = JSON.parse(readFileSync(path, "utf8"));
       const expected = JSON.parse(original);
@@ -166,7 +167,7 @@ test("generated profile preserves base permissions, appends denials, and cleans 
       assert.equal(statSync(dirname(path)).mode & 0o777, 0o700);
       if (fail) throw new Error("fixture child failed");
       return 17;
-    }, "darwin");
+    });
     if (fail) assert.throws(run, /fixture child failed/);
     else assert.equal(run(), 17);
     assert.ok(!existsSync(dirname(generated)));
@@ -180,7 +181,7 @@ test("refuses symlinked and shared profile-state ancestors before launching", ()
     const local = join(home, ".local");
     if (type === "symlink") symlinkSync(root, local);
     else { mkdirSync(local); chmodSync(local, 0o777); }
-    assert.throws(() => withProtectedShellProfile(baseProfile, home, environment, () => assert.fail("must not launch"), "darwin"), /Unsafe Pi profile directory/);
+    assert.throws(() => withScopedSync(protectedShellProfile(baseProfile, home, environment, "darwin"), () => assert.fail("must not launch")), /Unsafe Pi profile directory/);
   }
 });
 
@@ -189,9 +190,9 @@ test("malformed base policy fails closed and Linux retains its existing profile 
   const profile = join(root, "invalid.json");
   for (const value of ["invalid JSON", "null", '{"filesystem":null}', '{"filesystem":{"read":null}}', '{"unsafe_macos_seatbelt_rules":null}']) {
     writeFileSync(profile, value);
-    assert.throws(() => withProtectedShellProfile(profile, home, {}, () => assert.fail("must not launch"), "darwin"));
+    assert.throws(() => withScopedSync(protectedShellProfile(profile, home, {}, "darwin"), () => assert.fail("must not launch")));
   }
-  assert.equal(withProtectedShellProfile(profile, home, {}, (path) => path, "linux"), profile);
+  assert.equal(withScopedSync(protectedShellProfile(profile, home, {}, "linux"), (path) => path), profile);
   assert.ok(!existsSync(join(home, ".local")));
 });
 
@@ -224,10 +225,10 @@ test("launcher supplies the generated policy to nono and --no-sandbox skips prot
 
 test("installed nono accepts a generated startup protection profile", { skip: !process.env.NONO_PROFILE_TEST_BINARY }, () => {
   const { home, environment } = fixture();
-  withProtectedShellProfile(baseProfile, home, environment, (profile) => {
+  withScopedSync(protectedShellProfile(baseProfile, home, environment, "darwin"), (profile) => {
     const child = spawnSync(process.env.NONO_PROFILE_TEST_BINARY, ["profile", "validate", profile], { env: environment, encoding: "utf8" });
     assert.equal(child.status, 0, child.stderr || child.stdout);
-  }, "darwin");
+  });
 });
 
 test("fresh macOS nono denies startup mutations and inherited bypasses while preserving ordinary edits", {
@@ -240,7 +241,7 @@ test("fresh macOS nono denies startup mutations and inherited bypasses while pre
   const sandboxEnvironment = { ...process.env, XDG_STATE_HOME: state };
   const probe = join(root, "probe.mjs");
   writeFileSync(probe, readFileSync(new URL("./fixtures/shell-protection-probe.mjs", import.meta.url)));
-  withProtectedShellProfile(baseProfile, home, environment, (profile) => {
+  withScopedSync(protectedShellProfile(baseProfile, home, environment, "darwin"), (profile) => {
     const originalPolicy = readFileSync(profile, "utf8");
     const child = spawnSync(process.env.NONO_TEST_BINARY, [
       "run", "--profile", profile, "--allow", root, "--allow-cwd", "--",
@@ -249,7 +250,7 @@ test("fresh macOS nono denies startup mutations and inherited bypasses while pre
     assert.ifError(child.error);
     assert.equal(child.status, 0, child.stderr || child.stdout);
     assert.equal(readFileSync(profile, "utf8"), originalPolicy);
-  }, "darwin");
+  });
   const startup = join(source, "config.fish");
   assert.equal(readFileSync(startup, "utf8"), "# startup fixture\n");
   writeFileSync(startup, "# unsandboxed edit\n");

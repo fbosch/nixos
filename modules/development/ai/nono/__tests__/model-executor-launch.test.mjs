@@ -9,7 +9,8 @@ import { fileURLToPath } from "node:url";
 import { prepareAgentRuntime } from "../scripts/protection/agent.mts";
 import { launchArguments } from "../scripts/launch/plan.mts";
 import { credentialDenyRule } from "../scripts/protection/shell.mts";
-import { MODEL_EXECUTOR_SOCKET, modelExecutorEnvironment, withModelExecutor } from "../scripts/model-executor/launch.mts";
+import { MODEL_EXECUTOR_SOCKET, modelExecutorEnvironment, modelExecutor } from "../scripts/model-executor/launch.mts";
+import { withScoped } from "./fixtures/scoped.mjs";
 
 const envBinary = process.env.ENV_TEST_BINARY ?? "/usr/bin/env";
 const created = [];
@@ -83,7 +84,7 @@ test("the executor runs from the Pi package on a private socket for the session"
   const packageDir = fakePackage(root);
   const executorEnvironment = modelExecutorEnvironment({ HOST_ONLY: "1", NODE_OPTIONS: "--trace-warnings", PI_LOCKFILE_DIR: "/locks", PATH: process.env.PATH }, "/agent");
   let endpoint;
-  const result = await withModelExecutor({ PROJECT_ONLY: "1", [MODEL_EXECUTOR_SOCKET]: "/forged" }, executorEnvironment, home, packageDir, async environment => {
+  const result = await withScoped(modelExecutor({ PROJECT_ONLY: "1", [MODEL_EXECUTOR_SOCKET]: "/forged" }, executorEnvironment, home, packageDir), async environment => {
     endpoint = environment[MODEL_EXECUTOR_SOCKET];
     assert.ok(endpoint.startsWith(join(home, ".pi-ipc") + "/"));
     assert.equal(environment.PROJECT_ONLY, "1");
@@ -102,11 +103,11 @@ test("executor startup failures stop the launch with the executor's diagnostics"
   const packageDir = fakePackage(root, { failure: "fixture executor startup failure" });
   let ran = false;
   await assert.rejects(
-    withModelExecutor({}, { PATH: process.env.PATH }, home, packageDir, async () => { ran = true; }),
+    withScoped(modelExecutor({}, { PATH: process.env.PATH }, home, packageDir), async () => { ran = true; }),
     /exited before readiness: .*fixture executor startup failure/s,
   );
   assert.equal(ran, false);
-  await assert.rejects(withModelExecutor({}, {}, home, join(root, "missing"), async () => {}), /package missing/);
+  await assert.rejects(withScoped(modelExecutor({}, {}, home, join(root, "missing")), async () => {}), /package missing/);
 });
 
 test("the executor's models.json must be an immutable store copy", async () => {
@@ -116,7 +117,7 @@ test("the executor's models.json must be an immutable store copy", async () => {
   let ran = false;
   // A sandboxed configuration session can edit the agent directory's models.json.
   await assert.rejects(
-    withModelExecutor({}, { PATH: process.env.PATH }, home, packageDir, async () => { ran = true; }, join(agent, "models.json")),
+    withScoped(modelExecutor({}, { PATH: process.env.PATH }, home, packageDir, join(agent, "models.json")), async () => { ran = true; }),
     /must be an existing Nix store path/,
   );
   assert.equal(ran, false);

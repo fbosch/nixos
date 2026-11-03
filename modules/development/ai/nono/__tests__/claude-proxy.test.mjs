@@ -107,16 +107,16 @@ test("real Claude CLI uses the proxy placeholder while only the host upstream re
     `;
     const command=[process.env.NONO_PROXY_TEST_BINARY,"run","--profile",profile,"--allow-cwd","--no-audit","--no-rollback","--",process.execPath,"-e",probe];
     const runner=`
-      import {runWithCredentialProxy} from ${JSON.stringify(new URL("../scripts/credentials/proxy.mts",import.meta.url).href)};
+      import { credentialProxySession } from ${JSON.stringify(new URL("../scripts/credentials/proxy.mts",import.meta.url).href)}; import * as Effect from ${JSON.stringify(import.meta.resolve("effect/Effect"))};
       import assert from "node:assert/strict";
       import {rmSync,writeFileSync} from "node:fs";
       rmSync(${JSON.stringify(credential)});
       const idle = [...${JSON.stringify(command)}];
       idle[idle.length-1] = "console.log('other providers may start without a Claude login')";
-      const idleResult = await runWithCredentialProxy(${JSON.stringify(process.env.NONO_PROXY_TEST_BINARY)},${JSON.stringify(profile)},idle,process.env,{sandboxed:true});
+      const idleResult = await Effect.runPromise(credentialProxySession(${JSON.stringify(process.env.NONO_PROXY_TEST_BINARY)},${JSON.stringify(profile)},idle,process.env,{sandboxed:true}));
       assert.equal(idleResult.status,0);
       writeFileSync(${JSON.stringify(credential)},JSON.stringify({claudeAiOauth:{accessToken:${JSON.stringify(secret)},refreshToken:${JSON.stringify(refresh)},expiresAt:Date.now()+3600000,scopes:["user:inference"]}}),{mode:0o600});
-      const result=await runWithCredentialProxy(${JSON.stringify(process.env.NONO_PROXY_TEST_BINARY)},${JSON.stringify(profile)},${JSON.stringify(command)},process.env,{sandboxed:true});
+      const result=await Effect.runPromise(credentialProxySession(${JSON.stringify(process.env.NONO_PROXY_TEST_BINARY)},${JSON.stringify(profile)},${JSON.stringify(command)},process.env,{sandboxed:true}));
       if(result.error)throw result.error;process.exit(result.status??1);
     `;
     const child=spawn(process.execPath,["--input-type=module","-e",runner],{

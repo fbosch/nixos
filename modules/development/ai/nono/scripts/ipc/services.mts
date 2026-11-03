@@ -1,8 +1,9 @@
+import type * as Scope from "effect/Scope";
 import * as Effect from "effect/Effect";
 import { createHash } from "node:crypto";
 import { closeSync, constants, existsSync, fchmodSync, fstatSync, lstatSync, mkdirSync, openSync, readdirSync, realpathSync, rmSync, statSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, sep } from "node:path";
-import type { Environment, SessionStep } from "../shared/types.mts";
+import type { Environment } from "../shared/types.mts";
 import { privateIpcDirectory, privateIpcPrefix } from "./private.mts";
 import { InvalidConfigError, LaunchPrerequisiteError, type SandboxError, UnsafeFileError, attempt } from "../shared/errors.mts";
 
@@ -19,21 +20,26 @@ function waylandSocket(environment: Environment): string | undefined {
   return socket;
 }
 
-export async function withSessionServiceEnvironment<T>(environment: Environment, inherited: Environment, home: string, run: SessionStep<T>): Promise<T> {
-  const display = waylandSocket(inherited);
-  const browser = privateIpcDirectory(home, "b-");
-  const bound: Environment = { ...environment, AGENT_BROWSER_SOCKET_DIR: browser, PI_LENS_WARM_ATTACH: "0" };
-  // Capture the original compositor, not a socket selected by project environment loading.
-  if (display) bound.WAYLAND_DISPLAY = display;
-  else delete bound.WAYLAND_DISPLAY;
-  // agent-browser 0.41 resolves this override before its global daemon directory.
-  // An empty new directory prevents reuse of a host daemon, even for the same Pi session ID.
-  for (const name of ["AGENT_BROWSER_NAMESPACE", "AGENT_BROWSER_CDP", "AGENT_BROWSER_AUTO_CONNECT", "AGENT_BROWSER_PROFILE", "AGENT_BROWSER_SESSION_NAME"]) delete bound[name];
-  try {
-    return await run(bound);
-  } finally {
-    rmSync(browser, { recursive: true, force: true });
-  }
+/**
+ * Session-private service state: a fresh browser-daemon directory, removed when the enclosing
+ * scope closes, and the compositor captured before project environment loading.
+ */
+export function sessionServices(environment: Environment, inherited: Environment, home: string): Effect.Effect<Environment, SandboxError, Scope.Scope> {
+  return Effect.gen(function* () {
+    const display = yield* attempt(() => waylandSocket(inherited));
+    const browser = yield* Effect.acquireRelease(
+      attempt(() => privateIpcDirectory(home, "b-")),
+      (browser) => Effect.sync(() => rmSync(browser, { recursive: true, force: true })),
+    );
+    const bound: Environment = { ...environment, AGENT_BROWSER_SOCKET_DIR: browser, PI_LENS_WARM_ATTACH: "0" };
+    // Capture the original compositor, not a socket selected by project environment loading.
+    if (display) bound.WAYLAND_DISPLAY = display;
+    else delete bound.WAYLAND_DISPLAY;
+    // agent-browser 0.41 resolves this override before its global daemon directory.
+    // An empty new directory prevents reuse of a host daemon, even for the same Pi session ID.
+    for (const name of ["AGENT_BROWSER_NAMESPACE", "AGENT_BROWSER_CDP", "AGENT_BROWSER_AUTO_CONNECT", "AGENT_BROWSER_PROFILE", "AGENT_BROWSER_SESSION_NAME"]) delete bound[name];
+    return bound;
+  });
 }
 
 function projectDotfile(cwd: string, home: string, environment: Environment): string | undefined {

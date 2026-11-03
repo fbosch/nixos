@@ -7,8 +7,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
-import { runWithCredentialProxy } from "../scripts/credentials/proxy.mts";
+import { credentialProxySession } from "../scripts/credentials/proxy.mts";
 import { proxyFixtureSource } from "./fixtures/credential-proxy.mjs";
+import * as Effect from "effect/Effect";
 
 function fixture(options = {}) {
   const root = mkdtempSync(join(tmpdir(), "pi-credential-proxy-"));
@@ -40,12 +41,12 @@ function fixture(options = {}) {
 test("unsandboxed Pi receives proxy credentials only after a complete startup handoff", async () => {
   const f = fixture({ splitStartup: true });
   try {
-    const result = await runWithCredentialProxy(f.nono, f.profile, [process.execPath, "-e", `
+    const result = await Effect.runPromise(credentialProxySession(f.nono, f.profile, [process.execPath, "-e", `
       const fs = require("node:fs");
       fs.writeFileSync(${JSON.stringify(f.output)}, JSON.stringify(process.env));
       fs.writeFileSync(${JSON.stringify(join(f.root, "ordinary-write"))}, "unconfined");
       process.exit(17);
-    `], f.environment);
+    `], f.environment));
     assert.equal(result.status, 17);
     const actual = JSON.parse(readFileSync(f.output, "utf8"));
     const host = JSON.parse(readFileSync(f.recordFile, "utf8"));
@@ -78,9 +79,9 @@ test("Claude placeholder and base URL replace inherited routing without exposing
     anthropic:{upstream:"https://api.anthropic.com",env_var:"CLAUDE_CODE_OAUTH_TOKEN",inject_header:"Authorization",credential_format:"Bearer {}"},
   }}}));
   try {
-    const result = await runWithCredentialProxy(f.nono, f.profile, [process.execPath, "-e", `require("node:fs").writeFileSync(${JSON.stringify(f.output)},JSON.stringify(process.env))`], {
+    const result = await Effect.runPromise(credentialProxySession(f.nono, f.profile, [process.execPath, "-e", `require("node:fs").writeFileSync(${JSON.stringify(f.output)},JSON.stringify(process.env))`], {
       ...f.environment, ANTHROPIC_BASE_URL:"https://untrusted.invalid",
-    });
+    }));
     assert.equal(result.status,0);
     const child = JSON.parse(readFileSync(f.output,"utf8"));
     const proxy = JSON.parse(readFileSync(f.recordFile,"utf8"));
@@ -104,7 +105,7 @@ for (const [options, message] of [
     // Only noReady tests the deadline; error fixtures need startup headroom under parallel builds.
     const startupTimeout = options.noReady ? 500 : 5000;
     try {
-      await assert.rejects(runWithCredentialProxy(f.nono, f.profile, [process.execPath, "-e", `require("node:fs").writeFileSync(${JSON.stringify(f.output)}, "must not start")`], f.environment, { startupTimeout, shutdownTimeout: 200 }), message);
+      await assert.rejects(Effect.runPromise(credentialProxySession(f.nono, f.profile, [process.execPath, "-e", `require("node:fs").writeFileSync(${JSON.stringify(f.output)}, "must not start")`], f.environment, { startupTimeout, shutdownTimeout: 200 })), message);
       assert.equal(existsSync(f.output), false);
       f.checkStopped();
     } finally { rmSync(f.root, { recursive: true, force: true }); }
@@ -122,13 +123,13 @@ test("an additional MCP route gets its declared placeholder and base URL", async
         },
       },
     }));
-    const result = await runWithCredentialProxy(f.nono, f.profile, [process.execPath, "-e", `
+    const result = await Effect.runPromise(credentialProxySession(f.nono, f.profile, [process.execPath, "-e", `
       require("node:fs").writeFileSync(${JSON.stringify(f.output)}, JSON.stringify({
         key: process.env.DOCS_API_KEY,
         base: process.env.DOCS_BASE_URL,
         tokenMatches: process.env.DOCS_API_KEY === process.env.NONO_PROXY_TOKEN,
       }));
-    `], f.environment);
+    `], f.environment));
     assert.equal(result.status, 0);
     const actual = JSON.parse(readFileSync(f.output, "utf8"));
     assert.equal(actual.key, JSON.parse(readFileSync(f.recordFile, "utf8")).token);
@@ -141,7 +142,7 @@ test("an additional MCP route gets its declared placeholder and base URL", async
 test("proxy cleanup also runs when Pi cannot spawn or ignores proxy shutdown", async () => {
   const f = fixture({ ignoreInterrupt: true });
   try {
-    const result = await runWithCredentialProxy(f.nono, f.profile, [join(f.root, "missing-pi")], f.environment, { shutdownTimeout: 100 });
+    const result = await Effect.runPromise(credentialProxySession(f.nono, f.profile, [join(f.root, "missing-pi")], f.environment, { shutdownTimeout: 100 }));
     assert.equal(result.error.code, "ENOENT");
     f.checkStopped();
   } finally { rmSync(f.root, { recursive: true, force: true }); }
@@ -150,7 +151,7 @@ test("proxy cleanup also runs when Pi cannot spawn or ignores proxy shutdown", a
 test("proxy failure terminates the active Pi session instead of falling back to direct traffic", async () => {
   const f = fixture({ exitAfterReady: true });
   try {
-    await assert.rejects(runWithCredentialProxy(f.nono, f.profile, [process.execPath, "-e", "setInterval(() => {}, 1000)"], f.environment, { shutdownTimeout: 100 }), /stopped while Pi was running/);
+    await assert.rejects(Effect.runPromise(credentialProxySession(f.nono, f.profile, [process.execPath, "-e", "setInterval(() => {}, 1000)"], f.environment, { shutdownTimeout: 100 })), /stopped while Pi was running/);
     f.checkStopped();
   } finally { rmSync(f.root, { recursive: true, force: true }); }
 });
@@ -158,7 +159,7 @@ test("proxy failure terminates the active Pi session instead of falling back to 
 test("a terminated Pi preserves its signal and leaves no proxy", async () => {
   const f = fixture();
   try {
-    const result = await runWithCredentialProxy(f.nono, f.profile, [process.execPath, "-e", 'process.kill(process.pid, "SIGTERM")'], f.environment);
+    const result = await Effect.runPromise(credentialProxySession(f.nono, f.profile, [process.execPath, "-e", 'process.kill(process.pid, "SIGTERM")'], f.environment));
     assert.equal(result.signal, "SIGTERM");
     f.checkStopped();
   } finally { rmSync(f.root, { recursive: true, force: true }); }
@@ -193,9 +194,9 @@ test("termination during startup preserves the signal and removes the pending pr
     });
     const proxyModule = new URL("../scripts/credentials/proxy.mts", import.meta.url).href;
     const script = `
-      import { runWithCredentialProxy } from ${JSON.stringify(proxyModule)};
-      const result = await runWithCredentialProxy(${JSON.stringify(f.nono)}, ${JSON.stringify(f.profile)},
-        [process.execPath, "-e", "throw new Error('must not start')"], process.env);
+      import { credentialProxySession } from ${JSON.stringify(proxyModule)}; import * as Effect from ${JSON.stringify(import.meta.resolve("effect/Effect"))};
+      const result = await Effect.runPromise(credentialProxySession(${JSON.stringify(f.nono)}, ${JSON.stringify(f.profile)},
+        [process.execPath, "-e", "throw new Error('must not start')"], process.env));
       if (result.signal) process.kill(process.pid, result.signal);
       process.exit(result.status ?? 1);
     `;
@@ -259,7 +260,7 @@ for (const name of ["context7", "exa", "exa_mcp"]) {
           command: [...template.credential_capture[service].command.slice(0, -1), secret],
         }])),
       }));
-      const result = await runWithCredentialProxy(process.env.NONO_PROXY_TEST_BINARY, f.profile, [process.execPath, "-e", `
+      const result = await Effect.runPromise(credentialProxySession(process.env.NONO_PROXY_TEST_BINARY, f.profile, [process.execPath, "-e", `
         (async () => {
           const response = await fetch(process.env[${JSON.stringify(name.toUpperCase() + "_BASE_URL")}] + ${JSON.stringify(requestPath)}, {
             method: "POST", body: JSON.stringify({ query: "synthetic search" }),
@@ -279,7 +280,7 @@ for (const name of ["context7", "exa", "exa_mcp"]) {
           }
           if (!rest.includes("data: last") || (first + rest).includes("fixture-upstream-secret")) process.exit(1);
         })().catch(() => process.exit(1));
-      `], { HOME: f.root, PATH: process.env.PATH }, { platform: "linux" });
+      `], { HOME: f.root, PATH: process.env.PATH }, { platform: "linux" }));
       assert.equal(result.status, 0);
     } finally {
       upstream.closeAllConnections();
@@ -319,7 +320,7 @@ test("sandbox proxy retains filesystem policy and grants only its port and publi
   `, { mode: 0o700 });
   const command = [f.nono, "run", "--profile", f.profile, "--allow-connect-port", "443", "--", process.execPath, "-e", "throw new Error('fixture must handle sandbox')"];
   try {
-    const result = await runWithCredentialProxy(f.nono, f.profile, command, { HOME: f.root, PATH: process.env.PATH, TMPDIR: f.root }, { sandboxed: true, platform: "linux" });
+    const result = await Effect.runPromise(credentialProxySession(f.nono, f.profile, command, { HOME: f.root, PATH: process.env.PATH, TMPDIR: f.root }, { sandboxed: true, platform: "linux" }));
     assert.equal(result.status, 17);
     const actual = JSON.parse(readFileSync(f.output, "utf8"));
     assert.deepEqual(actual.profile.filesystem, original.filesystem);
@@ -346,8 +347,8 @@ test("sandbox proxy retains filesystem policy and grants only its port and publi
 test("sandbox proxy rejects an unconfined child instead of falling back", async () => {
   const f = fixture();
   try {
-    await assert.rejects(runWithCredentialProxy(f.nono, f.profile, [process.execPath, "-e", `require('node:fs').writeFileSync(${JSON.stringify(f.output)}, 'unconfined')`],
-      { HOME: f.root, PATH: process.env.PATH, TMPDIR: f.root }, { sandboxed: true, platform: "linux" }), /requires a profiled nono run command/);
+    await assert.rejects(Effect.runPromise(credentialProxySession(f.nono, f.profile, [process.execPath, "-e", `require('node:fs').writeFileSync(${JSON.stringify(f.output)}, 'unconfined')`],
+      { HOME: f.root, PATH: process.env.PATH, TMPDIR: f.root }, { sandboxed: true, platform: "linux" })), /requires a profiled nono run command/);
     assert.equal(existsSync(f.output), false);
     f.checkStopped();
   } finally { rmSync(f.root, { recursive: true, force: true }); }
@@ -442,8 +443,8 @@ test("installed Nono standalone proxy injects credentials while its child remain
     `;
     const command = [process.env.NONO_PROXY_TEST_BINARY, "run", "--profile", f.profile, "--allow-cwd", "--no-audit", "--no-rollback", "--", process.execPath, "-e", probe];
     const runner = `
-      import { runWithCredentialProxy } from ${JSON.stringify(new URL("../scripts/credentials/proxy.mts", import.meta.url).href)};
-      const result = await runWithCredentialProxy(${JSON.stringify(process.env.NONO_PROXY_TEST_BINARY)}, ${JSON.stringify(f.profile)}, ${JSON.stringify(command)}, process.env, { sandboxed: true });
+      import { credentialProxySession } from ${JSON.stringify(new URL("../scripts/credentials/proxy.mts", import.meta.url).href)}; import * as Effect from ${JSON.stringify(import.meta.resolve("effect/Effect"))};
+      const result = await Effect.runPromise(credentialProxySession(${JSON.stringify(process.env.NONO_PROXY_TEST_BINARY)}, ${JSON.stringify(f.profile)}, ${JSON.stringify(command)}, process.env, { sandboxed: true }));
       if (result.error) throw result.error;
       process.exit(result.status ?? 1);
     `;

@@ -7,10 +7,11 @@ import { join } from "node:path";
 import { afterEach, test } from "node:test";
 import { randomBytes, randomUUID } from "node:crypto";
 import { png } from "./fixtures/png.mjs";
-import { withDesktopBroker } from "../scripts/desktop/bootstrap.mts";
+import { desktopBroker } from "../scripts/desktop/bootstrap.mts";
 import { createDesktopHandler, desktopAuthority } from "../scripts/desktop/broker.mts";
 import { createMessageValidator, defaultCapabilities } from "../scripts/ipc/policy.mts";
 import { main, parseArguments } from "../scripts/pi-desktop.mts";
+import { withScoped } from "./fixtures/scoped.mjs";
 
 const capability = defaultCapabilities.capabilities.desktop;
 const created = [];
@@ -134,7 +135,7 @@ test("image opening uses the inherited fixed viewer and bus, not project values"
   `);
   const inherited = {...f.inherited,PI_DESKTOP_IMAGE_VIEWER:viewer,DBUS_SESSION_BUS_ADDRESS:`unix:path=${busPath}`};
   let path;
-  await withDesktopBroker({PI_DESKTOP_IMAGE_VIEWER:"/untrusted",DBUS_SESSION_BUS_ADDRESS:"/untrusted",PI_DESKTOP_IMAGE_DATA:"/untrusted", XDG_DATA_DIRS:"/untrusted", SECRET:"not forwarded"}, inherited, f.home, capability, async environment => {
+  await withScoped(desktopBroker({PI_DESKTOP_IMAGE_VIEWER:"/untrusted",DBUS_SESSION_BUS_ADDRESS:"/untrusted",PI_DESKTOP_IMAGE_DATA:"/untrusted", XDG_DATA_DIRS:"/untrusted", SECRET:"not forwarded"}, inherited, f.home, capability), async environment => {
     const bytes=png();
     const launched=once(bus,"connection");
     const response=await exchange(environment.PI_DESKTOP_SOCKET,{id:1,method:"image.open",params:{imageId:randomUUID(),offset:0,totalBytes:bytes.length,data:bytes.toString("base64")}});
@@ -167,7 +168,7 @@ test("image opening uses the inherited fixed viewer and bus, not project values"
 test("the broker exports a private endpoint that serves pi-desktop and rejects other methods", async () => {
   const f = await fixture();
   let endpoint;
-  await withDesktopBroker({ PI_DESKTOP_SOCKET: "/forged" }, f.inherited, f.home, capability, async environment => {
+  await withScoped(desktopBroker({ PI_DESKTOP_SOCKET: "/forged" }, f.inherited, f.home, capability), async environment => {
     endpoint = environment.PI_DESKTOP_SOCKET;
     assert.ok(endpoint.startsWith(join(f.home, ".pi-ipc") + "/"));
     const output = join(f.root, "shot.png");
@@ -195,7 +196,7 @@ test("the sanitized image viewer identifies PNG using the pinned MIME database",
     fs.writeFileSync(${JSON.stringify(f.record)}, JSON.stringify({mime:result.stdout.match(/standard::content-type: (.+)/)?.[1]}));
   `);
   const inherited = {...f.inherited,PI_DESKTOP_IMAGE_VIEWER:viewer,PI_DESKTOP_IMAGE_DATA:process.env.MIME_TEST_DATA,DBUS_SESSION_BUS_ADDRESS:`unix:path=${busPath}`};
-  await withDesktopBroker({}, inherited, f.home, capability, async environment => {
+  await withScoped(desktopBroker({}, inherited, f.home, capability), async environment => {
     const bytes = png();
     const result = await exchange(environment.PI_DESKTOP_SOCKET,{id:"mime",method:"image.open",params:{imageId:randomUUID(),offset:0,totalBytes:bytes.length,data:bytes.toString("base64")}});
     assert.equal(result.ok,true);
@@ -221,7 +222,7 @@ test("a fresh sandbox can open brokered images but cannot read broker files or c
   const temporary=join(f.root,"tmp");mkdirSync(temporary);
   const policy=join(f.root,"confined.json");
   writeFileSync(policy,JSON.stringify({extends:"default",filesystem:{read:["/nix/store"],allow:[work]},network:{block:true},linux:{af_unix_mediation:"pathname",sandbox_policy:"landlock"}}));
-  await withDesktopBroker({},inherited,f.home,capability,async environment=>{
+  await withScoped(desktopBroker({},inherited,f.home,capability),async environment=>{
     const first=png();
     const seed=await exchange(environment.PI_DESKTOP_SOCKET,{id:"seed",method:"image.open",params:{imageId:randomUUID(),offset:0,totalBytes:first.length,data:first.toString("base64")}});
     assert.equal(seed.ok,true);
@@ -268,7 +269,7 @@ test("a fresh sandbox can open brokered images but cannot read broker files or c
 test("without an inherited desktop session the broker is not exported", async () => {
   const f = await fixture();
   let seen;
-  await withDesktopBroker({ PI_DESKTOP_SOCKET: "/forged" }, { ...f.inherited, WAYLAND_DISPLAY: undefined }, f.home, capability, async environment => { seen = environment; });
+  await withScoped(desktopBroker({ PI_DESKTOP_SOCKET: "/forged" }, { ...f.inherited, WAYLAND_DISPLAY: undefined }, f.home, capability), async environment => { seen = environment; });
   assert.equal(Object.hasOwn(seen, "PI_DESKTOP_SOCKET"), false);
 });
 

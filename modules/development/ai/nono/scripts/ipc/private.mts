@@ -1,8 +1,10 @@
 import * as Effect from "effect/Effect";
+import type * as Scope from "effect/Scope";
+import { once } from "node:events";
 import { lstatSync, mkdirSync, mkdtempSync, realpathSync, statSync } from "node:fs";
 import type { ChildProcess } from "node:child_process";
 import { join, sep } from "node:path";
-import { GrantConflictError, type SandboxError, UnsafeFileError, attempt } from "../shared/errors.mts";
+import { GrantConflictError, type HostProcessError, type SandboxError, UnsafeFileError, attempt, hostProcessError } from "../shared/errors.mts";
 import type { ErrnoError } from "../shared/types.mts";
 
 /** Path prefix of private IPC state. Unlike privateIpcBase, it never creates the directory. */
@@ -43,7 +45,7 @@ export interface HelperEndpointOptions {
   hint?: string;
 }
 
-export function helperEndpoint(helper: ChildProcess, home: string, { name, timeoutMs, diagnostics, hint }: HelperEndpointOptions): Promise<string> {
+function helperEndpoint(helper: ChildProcess, home: string, { name, timeoutMs, diagnostics, hint }: HelperEndpointOptions): Promise<string> {
   const withHint = (message: string, separator: string) => hint ? `${message}${separator}${hint}` : message;
   let timer: NodeJS.Timeout | undefined;
   return new Promise<string>((resolve, reject) => {
@@ -64,6 +66,42 @@ export function helperEndpoint(helper: ChildProcess, home: string, { name, timeo
       } catch (error) { reject(error); }
     });
   }).finally(() => clearTimeout(timer));
+}
+
+/** Grace periods before an unresponsive helper receives SIGTERM and then SIGKILL. */
+export interface HelperStop {
+  termMs: number;
+  killMs: number;
+  /** Runs after the helper exits, for example to remove its log directory. */
+  afterExit?: () => void;
+}
+
+/**
+ * A host helper process owned by the current scope. Closing stdin asks it to stop; it receives
+ * SIGTERM and SIGKILL only if it outlives the grace periods. Cleanup is registered before the
+ * caller waits for readiness, so a helper that never becomes ready is still stopped.
+ */
+export function scopedHelper(spawnHelper: () => ChildProcess, { termMs, killMs, afterExit }: HelperStop): Effect.Effect<ChildProcess, never, Scope.Scope> {
+  return Effect.acquireRelease(
+    Effect.sync(() => {
+      const helper = spawnHelper();
+      return { helper, exited: once(helper, "exit") };
+    }),
+    ({ helper, exited }) => Effect.promise(async () => {
+      helper.stdin!.end();
+      const timeout = setTimeout(() => helper.kill("SIGTERM"), termMs);
+      const hardTimeout = setTimeout(() => helper.kill("SIGKILL"), killMs);
+      await exited;
+      clearTimeout(timeout);
+      clearTimeout(hardTimeout);
+      afterExit?.();
+    }),
+  ).pipe(Effect.map(({ helper }) => helper));
+}
+
+/** The endpoint a scoped helper announces on stdout; see helperEndpoint. */
+export function awaitHelperEndpoint(helper: ChildProcess, home: string, options: HelperEndpointOptions): Effect.Effect<string, HostProcessError> {
+  return Effect.tryPromise({ try: () => helperEndpoint(helper, home, options), catch: hostProcessError });
 }
 
 function assertPrivateIpcGrantsSync(args: readonly string[], cwd: string, home: string): void {

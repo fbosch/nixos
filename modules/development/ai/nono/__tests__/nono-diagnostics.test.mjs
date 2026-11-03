@@ -6,8 +6,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { watchNonoDiagnostics } from "../scripts/launch/diagnostics-extension.mts";
-import { withNonoDiagnostics } from "../scripts/launch/diagnostics.mts";
-import { runWithCredentialProxy } from "../scripts/credentials/proxy.mts";
+import { nonoDiagnostics } from "../scripts/launch/diagnostics.mts";
+import { credentialProxySession } from "../scripts/credentials/proxy.mts";
+import * as Effect from "effect/Effect";
+import { withScoped } from "./fixtures/scoped.mjs";
 
 const roots = [];
 afterEach(() => {
@@ -102,7 +104,7 @@ const absentAzureWarning = 'filesystem.bypass_protection entry "$HOME/.azure" ex
 
 for (const decoration of [line => line, line => `2026-10-31T11:30:04Z \u001b[33m${line}\u001b[0m`]) {
   test("a missing optional Azure directory stays in the log without notifying the user", async () => {
-    await withNonoDiagnostics({}, async environment => {
+    await withScoped(nonoDiagnostics({}), async environment => {
       const path = environment.PI_NONO_DIAGNOSTICS_FILE;
       const original = `${decoration(`WARN ${absentAzureWarning}`)}\n`;
       writeFileSync(path, original);
@@ -125,7 +127,7 @@ for (const [label, line, level] of [
   ["NSCD denial", "WARN connect /run/nscd/socket (no matching unix_socket capability)", "warning"],
 ]) {
   test(`${label} still notifies after optional Azure startup noise`, async () => {
-    await withNonoDiagnostics({}, async environment => {
+    await withScoped(nonoDiagnostics({}), async environment => {
       const path = environment.PI_NONO_DIAGNOSTICS_FILE;
       writeFileSync(path, `WARN ${absentAzureWarning}\n${line}\n`);
       const messages = [];
@@ -137,7 +139,7 @@ for (const [label, line, level] of [
 }
 
 test("the watcher waits for complete records and stops notifying after disposal", async () => {
-  await withNonoDiagnostics({}, async environment => {
+  await withScoped(nonoDiagnostics({}), async environment => {
     const path = environment.PI_NONO_DIAGNOSTICS_FILE;
     const messages = [];
     let received;
@@ -159,7 +161,7 @@ test("the watcher waits for complete records and stops notifying after disposal"
 });
 
 test("diagnostics reject symlinks and group-readable files", async () => {
-  await withNonoDiagnostics({}, async environment => {
+  await withScoped(nonoDiagnostics({}), async environment => {
     const path = environment.PI_NONO_DIAGNOSTICS_FILE;
     const link = path + ".link";
     symlinkSync(path, link);
@@ -170,7 +172,7 @@ test("diagnostics reject symlinks and group-readable files", async () => {
 });
 
 test("large logs are read from a bounded tail without exposing raw text", async () => {
-  await withNonoDiagnostics({}, async environment => {
+  await withScoped(nonoDiagnostics({}), async environment => {
     const path = environment.PI_NONO_DIAGNOSTICS_FILE;
     writeFileSync(path, "WARN " + "synthetic-secret".repeat(10000) + "\nERROR synthetic-secret\n");
     const messages = [];
@@ -182,7 +184,7 @@ test("large logs are read from a bounded tail without exposing raw text", async 
 
 test("private diagnostics are cleaned up when launching fails", async () => {
   let path;
-  await assert.rejects(withNonoDiagnostics({}, async environment => {
+  await assert.rejects(withScoped(nonoDiagnostics({}), async environment => {
     path = environment.PI_NONO_DIAGNOSTICS_FILE;
     assert.equal(statSync(path).mode & 0o777, 0o600);
     assert.equal(statSync(join(path, "..")).mode & 0o777, 0o700);
@@ -197,7 +199,7 @@ test("malformed proxy profiles fail before capture without echoing profile conte
   const profile = join(root, "profile.json");
   writeFileSync(profile, "{synthetic-profile-secret");
   await assert.rejects(
-    runWithCredentialProxy(process.execPath, profile, [process.execPath, "-e", ""], {}),
+    Effect.runPromise(credentialProxySession(process.execPath, profile, [process.execPath, "-e", ""], {})),
     { message: "Nix nono profile is not valid JSON" },
   );
 });

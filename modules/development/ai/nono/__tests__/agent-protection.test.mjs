@@ -7,7 +7,8 @@ import { afterEach, test } from "node:test";
 import { once } from "node:events";
 import { createServer } from "node:net";
 import { agentProtection, prepareAgentRuntime } from "../scripts/protection/agent.mts";
-import { withProtectedShellProfile } from "../scripts/protection/shell.mts";
+import { protectedShellProfile } from "../scripts/protection/shell.mts";
+import { withScopedSync } from "./fixtures/scoped.mjs";
 
 const roots = [];
 function fixture() {
@@ -241,7 +242,7 @@ test("fresh native sandbox denies control writes and loads an approved Pi extens
     console.log("settings and extension writes denied; approved extension loaded; runtime data writable");
   `;
   const controls = Effect.runSync(agentProtection(f.home, f.agent, environment, profile)).protectedPaths;
-  withProtectedShellProfile(profilePath, f.home, environment, selectedProfile => {
+  withScopedSync(protectedShellProfile(profilePath, f.home, environment, process.platform, controls), selectedProfile => {
     const prepared = [...args];
     prepared[prepared.indexOf("--profile") + 1] = selectedProfile;
     const child = spawnSync(process.env.NONO_TEST_BINARY, [...prepared, "-e", probe, f.agent, f.defaultAgent, process.env.PI_RAW_TEST_BINARY], {
@@ -253,5 +254,5 @@ test("fresh native sandbox denies control writes and loads an approved Pi extens
     const report = child.stdout.split("\n").find(line => line.startsWith("DENIAL_PROBE_REPORT "));
     assert.ok(report);
     t.diagnostic(report);
-  }, process.platform, controls);
+  });
 });

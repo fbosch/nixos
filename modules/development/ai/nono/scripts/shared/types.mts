@@ -1,9 +1,6 @@
 /** A process environment as the launcher passes it around: unset variables are absent or undefined. */
 export type Environment = Record<string, string | undefined>;
 
-/** Runs the rest of a session with an updated environment; `with*` wrappers pass this along. */
-export type SessionStep<T> = (environment: Environment) => T | Promise<T>;
-
 /** How a sandboxed Pi process ended; spawnSync results and credential-proxy runs share this shape. */
 export interface ExitResult {
   status: number | null;

@@ -40,6 +40,11 @@ Host-side launcher, credential boundary and IPC brokers that confine Pi under no
 - Wrap synchronous policy code that throws with `attempt()`. Keep a module's internal helpers synchronous and export the Effect wrapper.
 - Keep every step in its original order; grant order is part of the security contract. Use `yield*` for each step rather than combining steps in parallel.
 - Run an Effect at a synchronous boundary with `runSyncOrThrow()`, which rethrows the original error.
+- Session resources (helper processes, the model executor, diagnostics, browser state, the macOS profile, the credential proxy) are scoped: each returns `Effect<…, …, Scope>` and is released when `launcher.mts` closes its scope. Register cleanup with `acquireRelease` right after creating the resource, before waiting for readiness; a failed acquire never runs its release.
+- `launcher.mts` acquires resources in the order services, IPC helpers, model executor, diagnostics, profile; they are released in reverse. Keep that order.
+- Helper processes use `scopedHelper()` in `ipc/private.mts`. Do not add another stdin-close, SIGTERM, SIGKILL sequence.
+- `HostProcessError` covers helper processes; it is not a `SandboxError`, because policy checks never raise it.
+- Tests run a scoped resource around a callback with `withScoped` or `withScopedSync` from `__tests__/fixtures/scoped.mjs`.
 - Filesystem access stays on `node:fs`. Add an Effect service only when a test needs to replace the filesystem.
 
 ## Checks

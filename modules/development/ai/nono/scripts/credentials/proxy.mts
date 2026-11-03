@@ -1,3 +1,4 @@
+import * as Effect from "effect/Effect";
 import { spawn, type ChildProcess } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
@@ -5,6 +6,7 @@ import { tmpdir } from "node:os";
 import { isAbsolute, join } from "node:path";
 import { stripVTControlCharacters } from "node:util";
 import type { Environment, ErrnoError, ExitResult, NonoProfile } from "../shared/types.mts";
+import { type HostProcessError, InvalidConfigError, LaunchPrerequisiteError, type SandboxError, hostProcessError } from "../shared/errors.mts";
 
 /** Where the standalone proxy listens, and the CA bundle sandboxed clients must trust. */
 interface ProxyConnection {
@@ -167,88 +169,106 @@ function sandboxCommand(nono: string, command: string[], profile: NonoProfile, c
   return result;
 }
 
-export async function runWithCredentialProxy(nono: string, profilePath: string, command: string[], environment: Environment, {
+/**
+ * Run `command` with a standalone nono credential proxy and return how it exited. The proxy, its
+ * signal forwarding and any generated sandbox profile are released when the command ends,
+ * including on startup failure. A forwarded signal is reported as the exit, not as an error.
+ */
+export function credentialProxySession(nono: string, profilePath: string, command: string[], environment: Environment, {
   startupTimeout = 30_000,
   shutdownTimeout = 2_000,
   platform = process.platform,
   sandboxed = false,
-}: CredentialProxyOptions = {}): Promise<ExitResult> {
-  if (sandboxed && platform !== "linux") throw new Error("Standalone sandbox proxy is supported only on Linux");
-  if (!isAbsolute(nono) || !existsSync(nono)) throw new Error(`nono executable missing: ${nono}`);
-  if (!isAbsolute(profilePath) || !existsSync(profilePath) || !statSync(profilePath).isFile()) throw new Error("Nix nono profile missing");
-  const profileContents = readFileSync(profilePath, "utf8");
-  let profile: NonoProfile;
-  try {
-    profile = JSON.parse(profileContents);
-  } catch {
-    throw new Error("Nix nono profile is not valid JSON");
-  }
-  const token = randomBytes(32).toString("hex");
-  const proxyEnvironment: Environment = { ...environment, NONO_PROXY_PASS: token, NO_COLOR: "1", CLICOLOR: "0" };
-  for (const name of ["NODE_OPTIONS", "NODE_PATH", "BASH_ENV", "ENV"]) delete proxyEnvironment[name];
-  const proxy = spawn(nono, [
-    "proxy", ...(environment.PI_NONO_DIAGNOSTICS_FILE ? ["--log-file", environment.PI_NONO_DIAGNOSTICS_FILE] : []),
-    "--profile", profilePath, "--listen", "127.0.0.1", "--port", "0",
-    ...(platform === "darwin" ? ["--trust-proxy-ca"] : []),
-  ], { env: proxyEnvironment, stdio: ["ignore", "pipe", "pipe"], detached: true });
-  const proxyExited = exitOf(proxy);
-  // Never relay startup stdout: it contains the session's broker credentials.
-  let diagnostics = "";
-  proxy.stderr!.setEncoding("utf8");
-  proxy.stderr!.on("data", (chunk: string) => {
-    diagnostics = (diagnostics + chunk).slice(-8192);
-  });
-  const reader = connectionReader(proxy, token, startupTimeout);
-  let sandboxDirectory: string | undefined;
-  let child: ChildProcess | undefined;
-  let requestedSignal: NodeJS.Signals | undefined;
-  let childStopTimer: NodeJS.Timeout | undefined;
-  const handlers = new Map(signals.map((signal) => [signal, () => {
-    // A terminal sends SIGINT to the foreground group, including Pi already.
-    if (signal === "SIGINT" && child && process.stdin.isTTY) return;
-    requestedSignal = signal;
-    if (child) {
-      child.kill(signal);
-      childStopTimer ??= setTimeout(() => child!.kill("SIGKILL"), shutdownTimeout);
-    } else reader.fail(new Error(`Pi launch interrupted by ${signal}`));
-  }]));
-  for (const [signal, handler] of handlers) process.on(signal, handler);
-  try {
-    const startupExit = proxyExited.then((result): never => {
-      throw new Error(result.error ? "Nono credential proxy could not start" :
-        `Nono credential proxy exited before readiness (status ${result.status}, signal ${result.signal})`);
+}: CredentialProxyOptions = {}): Effect.Effect<ExitResult, SandboxError | HostProcessError> {
+  return Effect.scoped(Effect.gen(function* () {
+    if (sandboxed && platform !== "linux") return yield* new LaunchPrerequisiteError({ message: "Standalone sandbox proxy is supported only on Linux" });
+    if (!isAbsolute(nono) || !existsSync(nono)) return yield* new LaunchPrerequisiteError({ message: `nono executable missing: ${nono}` });
+    if (!isAbsolute(profilePath) || !existsSync(profilePath) || !statSync(profilePath).isFile()) return yield* new LaunchPrerequisiteError({ message: "Nix nono profile missing" });
+    const profileContents = readFileSync(profilePath, "utf8");
+    let profile: NonoProfile;
+    try {
+      profile = JSON.parse(profileContents);
+    } catch {
+      return yield* new InvalidConfigError({ message: "Nix nono profile is not valid JSON" });
+    }
+    const token = randomBytes(32).toString("hex");
+    const proxyEnvironment: Environment = { ...environment, NONO_PROXY_PASS: token, NO_COLOR: "1", CLICOLOR: "0" };
+    for (const name of ["NODE_OPTIONS", "NODE_PATH", "BASH_ENV", "ENV"]) delete proxyEnvironment[name];
+    let reader: ReturnType<typeof connectionReader> | undefined;
+    let sandboxDirectory: string | undefined;
+    let child: ChildProcess | undefined;
+    let requestedSignal: NodeJS.Signals | undefined;
+    let childStopTimer: NodeJS.Timeout | undefined;
+    const handlers = new Map(signals.map((signal) => [signal, () => {
+      // A terminal sends SIGINT to the foreground group, including Pi already.
+      if (signal === "SIGINT" && child && process.stdin.isTTY) return;
+      requestedSignal = signal;
+      if (child) {
+        child.kill(signal);
+        childStopTimer ??= setTimeout(() => child!.kill("SIGKILL"), shutdownTimeout);
+      } else reader!.fail(new Error(`Pi launch interrupted by ${signal}`));
+    }]));
+    const { proxy, proxyExited } = yield* Effect.acquireRelease(
+      Effect.sync(() => {
+        const proxy = spawn(nono, [
+          "proxy", ...(environment.PI_NONO_DIAGNOSTICS_FILE ? ["--log-file", environment.PI_NONO_DIAGNOSTICS_FILE] : []),
+          "--profile", profilePath, "--listen", "127.0.0.1", "--port", "0",
+          ...(platform === "darwin" ? ["--trust-proxy-ca"] : []),
+        ], { env: proxyEnvironment, stdio: ["ignore", "pipe", "pipe"], detached: true });
+        return { proxy, proxyExited: exitOf(proxy) };
+      }),
+      ({ proxy, proxyExited }) => Effect.promise(async () => {
+        reader?.dispose();
+        clearTimeout(childStopTimer);
+        await stopProxy(proxy, proxyExited, shutdownTimeout);
+        for (const [signal, handler] of handlers) process.off(signal, handler);
+        if (sandboxDirectory) rmSync(sandboxDirectory, { recursive: true, force: true });
+      }),
+    );
+    // Never relay startup stdout: it contains the session's broker credentials.
+    let diagnostics = "";
+    proxy.stderr!.setEncoding("utf8");
+    proxy.stderr!.on("data", (chunk: string) => {
+      diagnostics = (diagnostics + chunk).slice(-8192);
     });
-    const connection = await Promise.race([reader.ready, startupExit]);
-    reader.dispose();
-    if (requestedSignal) return { status: null, signal: requestedSignal };
-    if (sandboxed) {
-      sandboxDirectory = mkdtempSync(join(environment.TMPDIR || tmpdir(), "pi-proxy-sandbox-"));
-      command = sandboxCommand(nono, command, profile!, connection, sandboxDirectory);
-    }
-    const childEnvironment = clientEnvironment(environment, profile!, token, connection);
-    child = spawn(command[0]!, command.slice(1), { stdio: "inherit", env: childEnvironment });
-    const childExited = exitOf(child);
-    const result = await Promise.race([
-      childExited.then((result) => ({ kind: "child" as const, result })),
-      proxyExited.then((result) => ({ kind: "proxy" as const, result })),
-    ]);
-    if (result.kind === "proxy") {
-      child.kill("SIGTERM");
-      const timer = setTimeout(() => child!.kill("SIGKILL"), shutdownTimeout);
-      try { await childExited; } finally { clearTimeout(timer); }
-      throw new Error("Nono credential proxy stopped while Pi was running");
-    }
-    return requestedSignal ? { ...result.result, signal: requestedSignal, status: null } : result.result;
-  } catch (error) {
-    if (requestedSignal) return { status: null, signal: requestedSignal };
-    const safeDiagnostics = stripVTControlCharacters(diagnostics).replaceAll(token, "[broker token]").trim();
-    if (safeDiagnostics) console.error(safeDiagnostics);
-    throw error;
-  } finally {
-    reader.dispose();
-    clearTimeout(childStopTimer);
-    await stopProxy(proxy, proxyExited, shutdownTimeout);
-    for (const [signal, handler] of handlers) process.off(signal, handler);
-    if (sandboxDirectory) rmSync(sandboxDirectory, { recursive: true, force: true });
-  }
+    reader = connectionReader(proxy, token, startupTimeout);
+    for (const [signal, handler] of handlers) process.on(signal, handler);
+    return yield* Effect.tryPromise({
+      try: async (): Promise<ExitResult> => {
+        try {
+          const startupExit = proxyExited.then((result): never => {
+            throw new Error(result.error ? "Nono credential proxy could not start" :
+              `Nono credential proxy exited before readiness (status ${result.status}, signal ${result.signal})`);
+          });
+          const connection = await Promise.race([reader!.ready, startupExit]);
+          reader!.dispose();
+          if (requestedSignal) return { status: null, signal: requestedSignal };
+          if (sandboxed) {
+            sandboxDirectory = mkdtempSync(join(environment.TMPDIR || tmpdir(), "pi-proxy-sandbox-"));
+            command = sandboxCommand(nono, command, profile!, connection, sandboxDirectory);
+          }
+          const childEnvironment = clientEnvironment(environment, profile!, token, connection);
+          child = spawn(command[0]!, command.slice(1), { stdio: "inherit", env: childEnvironment });
+          const childExited = exitOf(child);
+          const result = await Promise.race([
+            childExited.then((result) => ({ kind: "child" as const, result })),
+            proxyExited.then((result) => ({ kind: "proxy" as const, result })),
+          ]);
+          if (result.kind === "proxy") {
+            child.kill("SIGTERM");
+            const timer = setTimeout(() => child!.kill("SIGKILL"), shutdownTimeout);
+            try { await childExited; } finally { clearTimeout(timer); }
+            throw new Error("Nono credential proxy stopped while Pi was running");
+          }
+          return requestedSignal ? { ...result.result, signal: requestedSignal, status: null } : result.result;
+        } catch (error) {
+          if (requestedSignal) return { status: null, signal: requestedSignal };
+          const safeDiagnostics = stripVTControlCharacters(diagnostics).replaceAll(token, "[broker token]").trim();
+          if (safeDiagnostics) console.error(safeDiagnostics);
+          throw error;
+        }
+      },
+      catch: hostProcessError,
+    });
+  }));
 }
