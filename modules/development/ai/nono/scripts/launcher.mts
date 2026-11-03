@@ -95,6 +95,9 @@ function launchSandboxed(nono: string, rawPi: string, profile: string, direnv: s
       console.warn(`pi sandbox launch: could not move credentials to the Pi credential store (${error instanceof Error ? error.message : String(error)}); continuing with the existing files.`);
     }
     ensureSshIdentity(environment, home, sshAdd);
+    // The Nix-pinned profile is immutable for the whole launch; parse it once.
+    const nonoProfile = readJsonFile(profile, "nono profile") as NonoProfile | undefined;
+    const ipcRestricted = nonoProfile?.linux?.af_unix_mediation === "pathname";
     const runPi = (boundEnvironment: Environment) => Effect.gen(function* () {
       environment = yield* nonoDiagnostics(boundEnvironment);
       environment.PI_NONO_DIAGNOSTICS = inheritedEnvironment.PI_NONO_DIAGNOSTICS === "1" ? "1" : "0";
@@ -110,14 +113,13 @@ function launchSandboxed(nono: string, rawPi: string, profile: string, direnv: s
       if (environment.HERDR_ENV === "1") environment.HERDR_AGENT = "pi";
       prepareJitiCache();
       prepareNpmCache();
-      if (process.platform === "linux" && (readJsonFile(profile, "nono profile") as NonoProfile | undefined)?.network?.credentials?.length) {
+      if (process.platform === "linux" && nonoProfile?.network?.credentials?.length) {
         return yield* credentialProxySession(nono, profile, command, environment, { sandboxed: true });
       }
       command[command.indexOf("--profile") + 1] = yield* protectedShellProfile(profile, home, environment, process.platform, protectedPaths, credentialPaths);
       const result: ExitResult = spawnSync(command[0]!, command.slice(1), { stdio: "inherit", env: environment });
       return result;
     });
-    const ipcRestricted = (readJsonFile(profile, "nono profile") as NonoProfile | undefined)?.linux?.af_unix_mediation === "pathname";
     // Resources are acquired in this order and released in reverse when the session ends.
     return yield* Effect.scoped(Effect.gen(function* () {
       let session = environment;

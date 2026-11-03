@@ -59,17 +59,7 @@ let
             '';
             postInstallCheck = (previous.postInstallCheck or "") + ''
               package="$out/lib/pi/node_modules/@earendil-works/pi-coding-agent"
-              PI_TEST_PACKAGE="$package" PI_TEST_BINARY="$out/bin/pi" ${pkgs.nodejs_22}/bin/node --test \
-                ${./__tests__/proper-lockfile.test.mjs} \
-                ${./__tests__/auth-startup.test.mjs} \
-                ${./__tests__/codemode-worker.test.mjs} \
-                ${./__tests__/mcp-background.test.mjs} \
-                ${./__tests__/streaming-json.test.mjs} \
-                ${./__tests__/tool-preview-render.test.mjs} \
-                ${./__tests__/markdown-streaming.test.mjs} \
-                ${./__tests__/tool-search-ranking.test.mjs} \
-                ${./__tests__/image-read.test.mjs} \
-                ${./__tests__/model-executor.test.mjs}
+              PI_TEST_PACKAGE="$package" PI_TEST_BINARY="$out/bin/pi" ${pkgs.nodejs_22}/bin/node --test "${./__tests__}/*.test.mjs"
             '';
           }
       );
@@ -151,43 +141,6 @@ let
           makeBinaryWrapper ${pkgs.nodejs}/bin/node "$out/bin/pi-desktop" \
             --unset NODE_OPTIONS --unset NODE_PATH ${desktopTools} \
             --add-flags "${runtime}/scripts/pi-desktop.mts"
-          HERDR_REPORTER_TEST_SOURCE="${inputs.herdr}/src/integration/assets/pi/herdr-agent-state.ts" \
-            HERDR_READ_TEST_BINARY="${lib.getExe inputs.herdr.packages.${pkgs.stdenv.hostPlatform.system}.default}" \
-            NONO_TEST_IPC_MODE="${if ipcRestricted then "pathname" else "off"}" \
-          PI_TEST_BINARY="$out/bin/pi" PI_TEST_DIRENV="${pkgs.direnv}/bin/direnv" \
-            NONO_PROXY_TEST_BINARY="${proxyTestNono}/bin/nono" NONO_TEST_PROFILE="${profile}" \
-            GIT_TEST_BINARY="${pkgs.git}/bin/git" ENV_TEST_BINARY="${pkgs.coreutils}/bin/env" ${pkgs.nodejs}/bin/node --test \
-            ${runtime}/__tests__/credential-filesystem.test.mjs \
-            ${runtime}/__tests__/credentials.test.mjs \
-            ${runtime}/__tests__/claude-credential.test.mjs \
-            ${runtime}/__tests__/claude-proxy.test.mjs \
-            ${runtime}/__tests__/context7-auth.test.mjs \
-            ${runtime}/__tests__/credential-proxy.test.mjs \
-            ${runtime}/__tests__/nono-diagnostics.test.mjs \
-            ${runtime}/__tests__/desktop-broker.test.mjs \
-            ${runtime}/__tests__/desktop-images.test.mjs \
-            ${runtime}/__tests__/github-auth.test.mjs \
-            ${runtime}/__tests__/direnv-bootstrap.test.mjs \
-            ${runtime}/__tests__/git-worktree.test.mjs \
-            ${runtime}/__tests__/herdr-launch.test.mjs \
-            ${runtime}/__tests__/herdr-socket.test.mjs \
-            ${runtime}/__tests__/herdr-reporting.test.mjs \
-            ${runtime}/__tests__/herdr-reading.test.mjs \
-            ${runtime}/__tests__/service-ipc.test.mjs \
-            ${runtime}/__tests__/agent-protection.test.mjs \
-            ${runtime}/__tests__/config-editing.test.mjs \
-            ${runtime}/__tests__/platform-parity.test.mjs \
-            ${runtime}/__tests__/devenv-runtime.test.mjs \
-            ${runtime}/__tests__/ipc-workflows.test.mjs \
-            ${runtime}/__tests__/launcher.test.mjs \
-            ${runtime}/__tests__/model-executor-launch.test.mjs \
-            ${runtime}/__tests__/credential-store.test.mjs \
-            ${runtime}/__tests__/launch-mode.test.mjs \
-            ${runtime}/__tests__/macos-browser-startup.test.mjs \
-            ${runtime}/__tests__/reference-access.test.mjs \
-            ${runtime}/__tests__/shell-protection.test.mjs \
-            ${runtime}/__tests__/ssh-access.test.mjs \
-            ${runtime}/__tests__/socket-isolation.test.mjs
         '';
   systemPackages = { pkgs, ... }: {
     environment = {
@@ -274,6 +227,58 @@ in
             writeFileSync(process.argv[2], "#!${pkgs.nodejs}/bin/node\n" + proxyFixtureSource(), { mode: 0o755 });
             JS
           '';
+        launcherProfileFile = pkgs.writeText "pi-nono-profile.json" (
+          builtins.toJSON (config.flake.lib.mkPiCredentialProfile { inherit pkgs; ipcRestricted = true; })
+        );
+        ordinaryProfileFile = pkgs.writeText "pi-nono-profile.json" (
+          builtins.toJSON (config.flake.lib.mkPiCredentialProfile { inherit pkgs; })
+        );
+        isLinux = pkgs.stdenv.hostPlatform.isLinux;
+        # One `node --test` run over nono test files matching `tests`. TMPDIR moves out of /build:
+        # the profile's TMPDIR read grant would otherwise cover nono state or mask fixture denials.
+        # Native-kernel tests need NONO_TEST_BINARY, which Darwin Nix builders cannot use: they
+        # reject restrictive Seatbelt profiles with EPERM, so macOS keeps the argument tests only.
+        nonoSuite = name: { tests, profile, ipcMode }:
+          pkgs.runCommand name
+            ({
+              nativeBuildInputs = lib.optional isLinux pkgs.git;
+              NONO_TEST_PROFILE = profile;
+              NONO_TEST_IPC_MODE = ipcMode;
+              NONO_PROFILE_TEST_BINARY = lib.getExe pkgs.nono;
+              NONO_PROXY_TEST_BINARY = lib.getExe pkgs.nono;
+              PI_SANDBOX_POLICY = mkSandboxPolicy pkgs;
+              PI_TEST_BINARY = "${launcher}/bin/pi";
+              PI_RAW_TEST_BINARY = lib.getExe (mkPi pkgs);
+              PI_TEST_DIRENV = "${pkgs.direnv}/bin/direnv";
+              # The routing probe is a launcher whose nono is a stub; the shell probe stands in for
+              # raw Pi, so the default model executor runs from the real Pi package.
+              PI_TEST_PROFILE = launcherProfile;
+              PI_TEST_PROBE = "${mkLauncher (pkgs // { nono = routingNono; }) shellProbe { proxyTestNono = pkgs.nono; executorPi = mkPi pkgs; }}/bin/pi";
+              PI_TEST_FISH = "${pkgs.fish}/bin/fish";
+              ENV_TEST_BINARY = "${pkgs.coreutils}/bin/env";
+              CAT_TEST_BINARY = "${pkgs.coreutils}/bin/cat";
+              BASH_TEST_BINARY = "${pkgs.bash}/bin/bash";
+              CURL_TEST_BINARY = lib.getExe pkgs.curl;
+              GIT_TEST_BINARY = lib.getExe pkgs.git;
+              SSH_ADD_TEST_BINARY = lib.getExe' pkgs.openssh "ssh-add";
+              HERDR_REPORTER_TEST_SOURCE = "${inputs.herdr}/src/integration/assets/pi/herdr-agent-state.ts";
+              HERDR_READ_TEST_BINARY = lib.getExe inputs.herdr.packages.${pkgs.stdenv.hostPlatform.system}.default;
+            } // lib.optionalAttrs isLinux {
+              NONO_TEST_BINARY = lib.getExe pkgs.nono;
+              SSH_KEYGEN_TEST_BINARY = lib.getExe' pkgs.openssh "ssh-keygen";
+              GH_TEST_BINARY = lib.getExe pkgs.gh;
+              WT_TEST_BINARY = "${pkgs.worktrunk}/bin/wt";
+              GIO_TEST_BINARY = "${pkgs.glib.bin}/bin/gio";
+              MIME_TEST_DATA = "${pkgs.shared-mime-info}/share";
+              CLAUDE_TEST_BINARY = lib.getExe inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.claude-code;
+            })
+            ''
+              # Some kernel tests need fixtures outside /tmp, below an existing HOME.
+              mkdir tmp home
+              export TMPDIR="$PWD/tmp" HOME="$PWD/home"
+              ${pkgs.nodejs}/bin/node --test "${mkIpcRuntime pkgs { }}/__tests__/${tests}"
+              touch "$out"
+            '';
         piHomeConfig =
           (inputs.home-manager.lib.homeManagerConfiguration {
             inherit pkgs;
@@ -300,19 +305,6 @@ in
         };
         checks = lib.mkMerge [
           {
-            pi-launcher-routing =
-              pkgs.runCommand "pi-launcher-routing"
-                {
-                  PI_TEST_PROFILE = launcherProfile;
-                  # Native proxy smoke tests need real Nono, not the launcher-routing stub. The shell probe
-                  # stands in for raw Pi, so the default model executor runs from the real Pi package.
-                  PI_TEST_PROBE = "${mkLauncher (pkgs // { nono = routingNono; }) shellProbe { proxyTestNono = pkgs.nono; executorPi = mkPi pkgs; }}/bin/pi";
-                  PI_TEST_FISH = "${pkgs.fish}/bin/fish";
-                }
-                ''
-                  ${pkgs.nodejs}/bin/node --test ${../nono/__tests__/routing.test.mjs}
-                  touch "$out"
-                '';
             # Same compiler version as the npm devDependency used for local editing.
             nono-typecheck =
               pkgs.runCommand "nono-typecheck" { nativeBuildInputs = [ pkgs.typescript_7 ]; } ''
@@ -321,42 +313,20 @@ in
                 tsc -p .
                 touch "$out"
               '';
-            pi-ipc =
-              pkgs.runCommand "pi-ipc-check"
-                {
-                  HERDR_REPORTER_TEST_SOURCE = "${inputs.herdr}/src/integration/assets/pi/herdr-agent-state.ts";
-                  HERDR_READ_TEST_BINARY = lib.getExe inputs.herdr.packages.${pkgs.stdenv.hostPlatform.system}.default;
-                  ENV_TEST_BINARY = "${pkgs.coreutils}/bin/env";
-                }
-                ''
-                  ${pkgs.nodejs}/bin/node --input-type=module -e 'import { loadCapabilities } from "${mkIpcRuntime pkgs { }}/scripts/ipc/policy.mts"; loadCapabilities(process.argv[1]);' "${mkIpcManifest pkgs}"
-                  PI_SANDBOX_POLICY=${mkSandboxPolicy pkgs} ${pkgs.nodejs}/bin/node --test ${mkIpcRuntime pkgs { }}/__tests__/sandbox-policy.test.mjs
-                  ${pkgs.nodejs}/bin/node --test \
-                    ${mkIpcRuntime pkgs { }}/__tests__/ipc-policy.test.mjs \
-                    ${mkIpcRuntime pkgs { }}/__tests__/launch-mode.test.mjs \
-                    ${mkIpcRuntime pkgs { }}/__tests__/json-lines-server.test.mjs \
-                    ${mkIpcRuntime pkgs { }}/__tests__/ipc-bootstrap.test.mjs \
-                    ${mkIpcRuntime pkgs { }}/__tests__/ipc-session.test.mjs \
-                    ${mkIpcRuntime pkgs { }}/__tests__/herdr-reporting.test.mjs \
-                    ${mkIpcRuntime pkgs { }}/__tests__/herdr-reading.test.mjs \
-                    ${mkIpcRuntime pkgs { }}/__tests__/desktop-broker.test.mjs
-                  touch "$out"
-                '';
+            # Every nono test file against the shipped restricted profile. Tests skip themselves when
+            # the tool they need is absent, so the environment below is the union of what they use.
+            nono-tests = nonoSuite "nono-tests" {
+              tests = "*.test.mjs";
+              profile = launcherProfileFile;
+              ipcMode = "pathname";
+            };
+            # The files whose policy depends on the profile, again with the ordinary (unrestricted IPC) profile.
+            nono-tests-ordinary = nonoSuite "nono-tests-ordinary" {
+              tests = "{github-access,azure-access,socket-isolation}.test.mjs";
+              profile = ordinaryProfileFile;
+              ipcMode = "off";
+            };
           }
-          # shortcut: Add Darwin to this check after its daemon startup is fixed and verified.
-          (lib.mkIf pkgs.stdenv.hostPlatform.isLinux {
-            pi-git-fsmonitor =
-              pkgs.runCommand "pi-git-fsmonitor"
-                {
-                  NONO_TEST_BINARY = "${pkgs.nono}/bin/nono";
-                  GIT_TEST_BINARY = "${pkgs.git}/bin/git";
-                  ENV_TEST_BINARY = "${pkgs.coreutils}/bin/env";
-                }
-                ''
-                  ${pkgs.nodejs}/bin/node --test --test-name-pattern="starts Git fsmonitor" ${mkIpcRuntime pkgs { }}/__tests__/ipc-workflows.test.mjs
-                  touch "$out"
-                '';
-          })
         ];
         nix-unit.tests.piIpc = {
           testDefaultLauncherUsesRestrictedIpc = {

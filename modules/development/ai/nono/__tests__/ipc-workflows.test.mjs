@@ -49,6 +49,8 @@ for (const { browser, fsmonitor } of [{ browser: false, fsmonitor: false }, { br
         PATH: process.env.PATH, HOME: home, NO_COLOR: "1",
         HERDR_ENV: "1", HERDR_PANE_ID: "wFixture:p1", HERDR_SOCKET_PATH: upstream,
         PI_CODING_AGENT_DIR: join(home, ".pi", "agent"),
+        // These workflows cover IPC, not the host model executor, which needs the packaged Pi.
+        PI_MODEL_EXECUTOR: "0",
         XDG_CONFIG_HOME: join(root, "config"), XDG_STATE_HOME: join(root, "state"),
         XDG_CACHE_HOME: join(root, "cache"), XDG_DATA_HOME: join(root, "data"),
         XDG_RUNTIME_DIR: join(root, "runtime"), TMPDIR: join(root, "tmp"),
