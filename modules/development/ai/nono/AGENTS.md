@@ -18,6 +18,7 @@ Host-side launcher, credential boundary and IPC brokers that confine Pi under no
 
 - Fail closed. Never add a fallback that runs without a guard, a broker or the sandbox when validation fails.
 - Linux Landlock cannot subtract a protected child from a writable parent. Grants are split instead (`launch/plan.mts`). Do not replace a split grant with a broad `--allow`.
+- Platform differences in confinement live behind `Confinement` (`launch/platform/confinement.mts`), with `linux.mts` (Landlock) and `macos.mts` (Seatbelt) as its two adapters. Do not branch on the platform in `launch/plan.mts` or `launcher.mts`; add a method to `Confinement` instead. Tests force a platform through the planner's `platform` parameter, so both adapters run on either host.
 - Grants are decisions in a `GrantPlan` (`shared/grant-plan.mts`): builders return `Grant` entries, every launch guard inspects the plan, and `toArguments` turns it into nono flags once. Do not add a guard or builder that reads or produces nono argv directly. Grant order is argument order.
 - Read the nono profile only through `readNonoProfile` (`shared/nono-profile.mts`), so every module sees the same shape checks and errors.
 - Paths below are read by Nix or spawned by file URL, not imported. When you move one, update its consumer and the `entry` list in `.fallowrc.json`:

@@ -2,7 +2,6 @@ import * as Effect from "effect/Effect";
 import { existsSync, realpathSync } from "node:fs";
 import { homedir } from "node:os";
 import { delimiter, isAbsolute } from "node:path";
-import { spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 import { credentialEnvironmentForDirenv } from "./credentials/definitions.mts";
 import { credentialProxySession } from "./credentials/proxy.mts";
@@ -17,10 +16,10 @@ import { prepareJitiCache, prepareNpmCache, prepareRuntimeLocks, prepareSandboxR
 import { ensureSshIdentity } from "./launch/ssh.mts";
 import { MODEL_EXECUTOR_SOCKET, modelExecutorEnabled, modelExecutor, modelExecutorEnvironment } from "./model-executor/launch.mts";
 import { prepareAgentRuntime } from "./protection/agent.mts";
-import { protectedShellProfile } from "./protection/shell.mts";
 import { type HostProcessError, type SandboxError, attempt } from "./shared/errors.mts";
 import type { Environment, ExitResult } from "./shared/types.mts";
 import { readNonoProfile } from "./shared/nono-profile.mts";
+import { confinementFor } from "./launch/platform/select.mts";
 
 // Entry point of the packaged `pi` wrapper: node launcher.mts <nono> <raw-pi> <profile> <direnv> <env> [pi args...]
 
@@ -99,12 +98,7 @@ function launchSandboxed(nono: string, rawPi: string, profile: string, direnv: s
       if (environment.HERDR_ENV === "1") environment.HERDR_AGENT = "pi";
       prepareJitiCache();
       prepareNpmCache();
-      if (process.platform === "linux" && nonoProfile.network?.credentials?.length) {
-        return yield* credentialProxySession(nono, profile, command, environment, { sandboxed: true });
-      }
-      command[command.indexOf("--profile") + 1] = yield* protectedShellProfile(profile, home, environment, process.platform, protectedPaths, credentialPaths);
-      const result: ExitResult = spawnSync(command[0]!, command.slice(1), { stdio: "inherit", env: environment });
-      return result;
+      return yield* confinementFor(process.platform).run({ nono, profile, nonoProfile, command, environment, home, protectedPaths, credentialPaths: credentialPaths ?? [] });
     });
     // Resources are acquired in this order and released in reverse when the session ends.
     return yield* Effect.scoped(Effect.gen(function* () {
