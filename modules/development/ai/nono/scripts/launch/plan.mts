@@ -4,13 +4,12 @@ import { tmpdir } from "node:os";
 import { dirname, isAbsolute, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { assertCredentialGrants } from "../credentials/grants.mts";
-import { credentialStoreDirectory } from "../credentials/store.mts";
 import { assertCredentialSourceGrants } from "../credentials/definitions.mts";
 import { assertPrivateIpcGrants, privateIpcPrefix } from "../ipc/private.mts";
 import { defaultCapabilities, endpointGrants, selectCapabilities, type CapabilityRegistry, type SelectedCapabilities } from "../ipc/policy.mts";
 import { serviceSocketGrants } from "../ipc/services.mts";
 import { MODEL_EXECUTOR_SOCKET } from "../model-executor/launch.mts";
-import { agentCredentialPaths, agentDirectories, agentProtection, type AgentProtection } from "../protection/agent.mts";
+import { agentDirectories, agentProtection, type AgentProtection } from "../protection/agent.mts";
 import { existingDirectory, existingFile, within } from "../shared/paths.mts";
 import type { Environment, NonoProfile } from "../shared/types.mts";
 import { gitMetadata, pairedRepositoryRoots, writableReferenceRoots } from "./git.mts";
@@ -23,6 +22,7 @@ import { grant, grantedPaths, grantPlan, toArguments, writableFlags, type Grant,
 import { readNonoProfile } from "../shared/nono-profile.mts";
 import type { Confinement } from "./platform/confinement.mts";
 import { confinementFor } from "./platform/select.mts";
+import { assertCredentialPosture, credentialPosture, hostOnlyCredentials, writableRuntimePath, type CredentialPosture } from "./credential-posture.mts";
 
 // Builds the nono command line for one session: filesystem, socket and credential grants plus
 // the guards that reject any grant reaching host-only or credential paths.
@@ -126,18 +126,6 @@ function addReferenceGrants(cwd: string, agentDir: string, home: string, writabl
   });
 }
 
-// Without the executor, Pi in the sandbox reads and refreshes migrated credentials itself.
-function addCredentialStoreGrants(home: string, agent: AgentProtection, grants: Set<string>, extra: Grant[]): void {
-  for (const path of agent.authFiles) extra.push(grant("--allow-file", path));
-  let store: string | undefined;
-  try { store = existingDirectory(credentialStoreDirectory(home)); } catch { store = undefined; }
-  if (store === undefined) return;
-  const auth = join(store, "auth.json");
-  if (existingFile(auth)) extra.push(grant("--allow-file", auth));
-  const profiles = existingDirectory(join(store, "auth-profiles"));
-  if (profiles !== undefined) grants.add(profiles);
-}
-
 function requireSocket(path: string, variable: string, message = `${variable} must be an absolute socket path`): void {
   if (!isAbsolute(path)) throw new LaunchPrerequisiteError({ message: message });
   if (!statSync(path).isSocket()) throw new LaunchPrerequisiteError({ message: `${variable} must point to a socket` });
@@ -218,10 +206,10 @@ interface LaunchGrantContext {
   confinement: Confinement;
   usesPrivateIpc: boolean;
   guarded: readonly string[];
-  credentialPaths: readonly string[];
+  posture: CredentialPosture;
 }
 
-function assertLaunchGrants(plan: GrantPlan, { cwd, home, environment, loadedProfile, confinement, usesPrivateIpc, guarded, credentialPaths }: LaunchGrantContext): Effect.Effect<void, SandboxError> {
+function assertLaunchGrants(plan: GrantPlan, { cwd, home, environment, loadedProfile, confinement, usesPrivateIpc, guarded, posture }: LaunchGrantContext): Effect.Effect<void, SandboxError> {
   return Effect.gen(function* () {
     if (usesPrivateIpc) yield* assertPrivateIpcGrants(plan, cwd, home);
     yield* assertReadOnlySshGrants(plan, cwd);
@@ -229,10 +217,7 @@ function assertLaunchGrants(plan: GrantPlan, { cwd, home, environment, loadedPro
     yield* assertCredentialSourceGrants(plan, cwd, home, guardEnvironment, loadedProfile);
     yield* assertRuntimeSecretGrants(plan, cwd, home, guardEnvironment, loadedProfile, confinement);
     yield* attempt(() => assertHostOnlyGrants(plan, cwd, guarded));
-    if (credentialPaths.length > 0 && (yield* attempt(() => existingDirectory(home))) !== undefined) {
-      // No grant, including profile reads, may reach the credential store in executor mode.
-      yield* assertCredentialGrants(plan, cwd, home, guardEnvironment, loadedProfile, [credentialStoreDirectory(home)], "Pi");
-    }
+    yield* assertCredentialPosture(posture, plan, cwd, home, guardEnvironment, loadedProfile);
   });
 }
 
@@ -264,11 +249,13 @@ function planLaunchArguments(cwd: string, agentDir: string, home: string, enviro
     } else {
       agent = yield* agentProtection(home, agentDir, environment, loadedProfile, platform);
     }
-    // Executor mode: credential files belong to the host executor, so the sandbox gets no grant to them.
-    const credentialPaths = environment[MODEL_EXECUTOR_SOCKET] ? yield* agentCredentialPaths(home, agentDir) : [];
-    const credentialStore = (path: string) => credentialPaths.some((credential) => within(path, credential));
-    for (const path of agent.runtimePaths) if (!credentialStore(path)) grants.add(path);
-    if (credentialPaths.length === 0) yield* attempt(() => addCredentialStoreGrants(home, agent, grants, extra));
+    const posture = yield* credentialPosture(home, agentDir, environment, agent);
+    const credentialPaths = hostOnlyCredentials(posture);
+    for (const path of agent.runtimePaths) if (writableRuntimePath(posture, path)) grants.add(path);
+    if (posture.mode === "sandbox") {
+      extra.push(...posture.files);
+      for (const directory of posture.directories) grants.add(directory);
+    }
     const sockets = yield* attempt(() => socketGrants(environment, home, capabilities, gitDirectories, ipcRestricted));
     extra.push(...sockets.grants, ...yield* attempt(() => toolStateGrants(hostEnvironment, home, reads)), ...yield* attempt(() => hostRuntimeGrants(environment, confinement, ipcRestricted)));
     const approvals = dirname(referenceApprovalStore(home));
@@ -285,8 +272,8 @@ function planLaunchArguments(cwd: string, agentDir: string, home: string, enviro
       ...split.allow.map((path) => grant("--allow", path)),
       ...split.files.map((path) => grant("--allow-file", path)),
     ], !splitCwd);
-    yield* assertLaunchGrants(plan, { cwd, home, environment, loadedProfile, confinement, usesPrivateIpc: sockets.usesPrivateIpc, guarded: protections.guarded, credentialPaths });
-    const exposedCredentials = credentialPaths.length > 0 ? confinement.exposedCredentials(yield* agentDirectories(home, agentDir)) : [];
+    yield* assertLaunchGrants(plan, { cwd, home, environment, loadedProfile, confinement, usesPrivateIpc: sockets.usesPrivateIpc, guarded: protections.guarded, posture });
+    const exposedCredentials = posture.mode === "executor" ? confinement.exposedCredentials(yield* agentDirectories(home, agentDir)) : [];
     // No direct-egress ports: Landlock port grants admit every host, so all traffic must cross the nono proxy.
     const args = [
       "run", "--profile", profile, ...(plan.allowCwd ? ["--allow-cwd"] : []), "--suppress-save-prompt", "/",
