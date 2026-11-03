@@ -1,9 +1,9 @@
 import { spawn } from "node:child_process";
 import { accessSync, constants, statSync } from "node:fs";
 import { isAbsolute, join } from "node:path";
-import type { Deliver } from "../ipc/json-lines-server.mts";
-import type { IpcRequest } from "../ipc/policy.mts";
-import type { Environment, JsonObject } from "../shared/types.mts";
+import type { Deliver } from "../../json-lines-server.mts";
+import type { IpcRequest } from "../../policy.mts";
+import type { Environment, JsonObject } from "../../../shared/types.mts";
 import { createImageOpener, type ImageChunk } from "./images.mts";
 
 /** Fixed tools and compositor connection captured from the launch environment. */

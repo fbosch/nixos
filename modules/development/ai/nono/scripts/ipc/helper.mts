@@ -4,7 +4,7 @@ import { startJsonLinesServer } from "./json-lines-server.mts";
 import { validateCapabilities } from "./policy.mts";
 import { privateIpcDirectory } from "./private.mts";
 import type { HelperArgument } from "./provider.mts";
-import { providers } from "./providers.mts";
+import { providers } from "./providers/registry.mts";
 
 // Filter helper process for one JSON-lines capability: serves a private endpoint until stdin
 // closes or a termination signal arrives. ipc/helper-launch.mts starts it.

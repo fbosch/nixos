@@ -7,11 +7,11 @@ import { join } from "node:path";
 import { afterEach, test } from "node:test";
 import { randomBytes, randomUUID } from "node:crypto";
 import { png } from "./fixtures/png.mjs";
-import { createDesktopHandler, desktopAuthority } from "../scripts/desktop/broker.mts";
+import { createDesktopHandler, desktopAuthority } from "../scripts/ipc/providers/desktop/broker.mts";
 import { createMessageValidator, defaultCapabilities } from "../scripts/ipc/policy.mts";
 import { main, parseArguments } from "../scripts/pi-desktop.mts";
 import { withScoped } from "./fixtures/scoped.mjs";
-import { desktopProvider } from "../scripts/desktop/provider.mts";
+import { desktopProvider } from "../scripts/ipc/providers/desktop/provider.mts";
 import { session } from "./fixtures/ipc-provider.mjs";
 
 const capability = defaultCapabilities.capabilities.desktop;

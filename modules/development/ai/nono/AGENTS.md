@@ -11,7 +11,7 @@ Host-side launcher, credential boundary and IPC brokers that confine Pi under no
 - `protection/`: read-only protection for Pi controls and shell startup files.
 - `credentials/`: credential declarations, the proxy, the store, and grant checks.
 - `model-executor/`: host-side model process for a session.
-- `ipc/`: capability policy, private IPC state and the filter helper. Each JSON-lines provider (`herdr/provider.mts`, `desktop/provider.mts`, `ipc/inherited-socket.mts`) implements `IpcProvider` (`ipc/provider.mts`): `start` in the launcher, `serve` in the helper. Register a new provider in `ipc/providers.mts` and the manifest schema's `provider` enum; providers receive `startHelper` through the session and must not import `ipc/helper-launch.mts`.
+- `ipc/`: capability policy, private IPC state and the filter helper. JSON-lines providers live in `ipc/providers/`: `herdr/`, `desktop/` and `inherited-socket.mts`. Each implements `IpcProvider` (`ipc/provider.mts`) with `start` in the launcher and `serve` in the helper; a provider directory keeps its entry point in `provider.mts`. Register a new provider in `ipc/providers/registry.mts` and the manifest schema's `provider` enum. Providers receive `startHelper` through the session and must not import `ipc/helper-launch.mts`.
 - `shared/`: dependency-free path and JSON helpers. Add to this directory only when two or more domains need a helper.
 
 ## Rules

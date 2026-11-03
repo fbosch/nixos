@@ -1,5 +1,5 @@
-import { startJsonLinesServer, type JsonLinesServer } from "../ipc/json-lines-server.mts";
-import type { JsonLinesCapability } from "../ipc/policy.mts";
+import { startJsonLinesServer, type JsonLinesServer } from "../../json-lines-server.mts";
+import type { JsonLinesCapability } from "../../policy.mts";
 import { defaultReportingCapability, type HerdrAuthority } from "./protocol.mts";
 import { herdrProvider } from "./provider.mts";
 

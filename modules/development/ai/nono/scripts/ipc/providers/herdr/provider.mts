@@ -1,10 +1,10 @@
 import * as Effect from "effect/Effect";
 import { readFileSync, realpathSync, statSync, existsSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, resolve } from "node:path";
-import { InvalidConfigError, LaunchPrerequisiteError, attempt } from "../shared/errors.mts";
-import { expandTilde } from "../shared/paths.mts";
-import type { Environment, ErrnoError } from "../shared/types.mts";
-import type { IpcProvider } from "../ipc/provider.mts";
+import { InvalidConfigError, LaunchPrerequisiteError, attempt } from "../../../shared/errors.mts";
+import { expandTilde } from "../../../shared/paths.mts";
+import type { Environment, ErrnoError } from "../../../shared/types.mts";
+import type { IpcProvider } from "../../provider.mts";
 import { createReportValidator, reportingContext, type HerdrAuthority } from "./protocol.mts";
 import { createHerdrHandler } from "./reader.mts";
 

@@ -1,9 +1,9 @@
 import * as Effect from "effect/Effect";
 import { realpathSync, statSync } from "node:fs";
 import { isAbsolute } from "node:path";
-import { LaunchPrerequisiteError } from "../shared/errors.mts";
-import { createMessageValidator, type LaunchContext } from "./policy.mts";
-import type { IpcProvider } from "./provider.mts";
+import { LaunchPrerequisiteError } from "../../shared/errors.mts";
+import { createMessageValidator, type LaunchContext } from "../policy.mts";
+import type { IpcProvider } from "../provider.mts";
 
 /** Launch data: the inherited upstream socket and the identity that bound request fields must match. */
 interface InheritedLaunch {

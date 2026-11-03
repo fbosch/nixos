@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { createConnection } from "node:net";
 import { pathToFileURL } from "node:url";
-import { createDesktopHandler, desktopAuthority } from "./desktop/broker.mts";
+import { createDesktopHandler, desktopAuthority } from "./ipc/providers/desktop/broker.mts";
 import type { IpcRequest } from "./ipc/policy.mts";
 import type { Environment, JsonObject, JsonValue } from "./shared/types.mts";
 

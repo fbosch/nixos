@@ -1,6 +1,6 @@
 import { lstatSync, realpathSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, resolve } from "node:path";
-import { createMessageValidator, defaultCapabilities, selectCapabilities, type IpcRequest, type JsonLinesCapability, type LaunchContext } from "../ipc/policy.mts";
+import { createMessageValidator, defaultCapabilities, selectCapabilities, type IpcRequest, type JsonLinesCapability, type LaunchContext } from "../../policy.mts";
 
 export interface HerdrAuthority {
   readonly upstream: string;

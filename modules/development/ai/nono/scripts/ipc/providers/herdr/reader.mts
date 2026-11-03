@@ -1,7 +1,7 @@
 import { stripVTControlCharacters } from "node:util";
-import { requestJsonLine, type Deliver } from "../ipc/json-lines-server.mts";
-import type { JsonLinesCapability } from "../ipc/policy.mts";
-import type { JsonObject, JsonValue } from "../shared/types.mts";
+import { requestJsonLine, type Deliver } from "../../json-lines-server.mts";
+import type { JsonLinesCapability } from "../../policy.mts";
+import type { JsonObject, JsonValue } from "../../../shared/types.mts";
 import type { HerdrAuthority } from "./protocol.mts";
 import { reportingWorkspace } from "./protocol.mts";
 

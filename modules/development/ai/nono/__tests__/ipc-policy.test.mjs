@@ -8,7 +8,7 @@ import { defaultCapabilities, createMessageValidator, endpointGrants, loadCapabi
 import { launchArguments } from "../scripts/launch/plan.mts";
 import { withScoped } from "./fixtures/scoped.mjs";
 import { toArguments } from "../scripts/shared/grant-plan.mts";
-import { herdrProvider } from "../scripts/herdr/provider.mts";
+import { herdrProvider } from "../scripts/ipc/providers/herdr/provider.mts";
 import * as Effect from "effect/Effect";
 
 const roots = [];

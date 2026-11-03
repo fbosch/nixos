@@ -114,9 +114,9 @@ On rvn-pc, the launcher build passed 215 tests and skipped 26, including eight d
 ## Implementation and checks
 
 - `ipc/policy.mts` validates manifests, selects profiles, resolves endpoint grants, compiles operation schemas and enforces bindings.
-- `ipc/session.mts` binds every selected JSON-lines capability through its provider. A provider (`ipc/provider.mts`) owns both sides of a capability: `start` runs in the launcher and `serve` runs inside the filter helper. `ipc/providers.mts` maps the manifest's provider names to `herdr/provider.mts`, `desktop/provider.mts` and `ipc/inherited-socket.mts`.
+- `ipc/session.mts` binds every selected JSON-lines capability through its provider. A provider (`ipc/provider.mts`) owns both sides of a capability: `start` runs in the launcher and `serve` runs inside the filter helper. `ipc/providers/registry.mts` maps the manifest's provider names to `ipc/providers/herdr/provider.mts`, `ipc/providers/desktop/provider.mts` and `ipc/providers/inherited-socket.mts`.
 - `ipc/helper-launch.mts`, `ipc/helper.mts` and `ipc/json-lines-server.mts` own helper readiness, private endpoints, framing, forwarding and shutdown.
-- `herdr/provider.mts` and `herdr/protocol.mts` retain Herdr-specific context and session-file guards. `herdr/reader.mts` projects passive workspace snapshots and the CLI handshake; it does not expose terminal control.
+- `ipc/providers/herdr/provider.mts` and `protocol.mts` retain Herdr-specific context and session-file guards. `reader.mts` in the same directory projects passive workspace snapshots and the CLI handshake; it does not expose terminal control.
 - `modules/development/ai/pi/default.nix` builds `packages.<system>.pi-ipc-runtime`; `checks.<system>.nono-tests` runs the IPC tests with the rest of the nono suite. Tests use the assembled immutable runtime so module resolution matches production.
 
 The scoped source tests run with:

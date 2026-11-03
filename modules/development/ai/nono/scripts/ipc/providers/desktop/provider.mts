@@ -1,6 +1,6 @@
 import { join } from "node:path";
-import { createMessageValidator } from "../ipc/policy.mts";
-import type { IpcProvider } from "../ipc/provider.mts";
+import { createMessageValidator } from "../../policy.mts";
+import type { IpcProvider } from "../../provider.mts";
 import { createDesktopHandler, desktopAuthority, type DesktopAuthority } from "./broker.mts";
 import * as Effect from "effect/Effect";
 

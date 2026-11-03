@@ -5,7 +5,7 @@ import type { Environment } from "../shared/types.mts";
 import { selectCapabilities, type CapabilityRegistry, type JsonLinesCapability } from "./policy.mts";
 import { filterHelper } from "./helper-launch.mts";
 import type { ProviderSession } from "./provider.mts";
-import { providers } from "./providers.mts";
+import { providers } from "./providers/registry.mts";
 
 /**
  * Bind every JSON-lines capability of `profile`, in manifest order, through its provider. Helpers
