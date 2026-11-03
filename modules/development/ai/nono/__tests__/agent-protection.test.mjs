@@ -5,8 +5,8 @@ import { join } from "node:path";
 import { afterEach, test } from "node:test";
 import { once } from "node:events";
 import { createServer } from "node:net";
-import { agentProtection, prepareAgentRuntime } from "../scripts/agent-protection.mjs";
-import { withProtectedShellProfile } from "../scripts/shell-protection.mjs";
+import { agentProtection, prepareAgentRuntime } from "../scripts/protection/agent.mts";
+import { withProtectedShellProfile } from "../scripts/protection/shell.mts";
 
 const roots = [];
 function fixture() {
@@ -146,8 +146,8 @@ test("fresh native sandbox denies control writes and loads an approved Pi extens
   server.listen(agentSocket);
   await once(server, "listening");
   t.after(() => new Promise(resolve => server.close(resolve)));
-  const { launchArguments } = await import("../scripts/launcher.mjs");
-  const { prepareSandboxRuntime } = await import("../scripts/sandbox-runtime.mjs");
+  const { launchArguments } = await import("../scripts/launch/plan.mts");
+  const { prepareSandboxRuntime } = await import("../scripts/launch/runtime.mts");
   prepareSandboxRuntime(f.home);
   const profile = JSON.parse(readFileSync(new URL("../scripts/profile.json", import.meta.url), "utf8"));
   // Short macOS socket fixtures use /tmp; keep synthetic HOME outside explicit temporary read grants.

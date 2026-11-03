@@ -1,5 +1,5 @@
 { pkgs
-, credentials ? builtins.fromJSON (builtins.readFile ../modules/development/ai/nono/scripts/credentials.json)
+, credentials ? builtins.fromJSON (builtins.readFile ../modules/development/ai/nono/scripts/credentials/credentials.json)
 , ipcRestricted ? false
 ,
 }:
@@ -12,7 +12,7 @@ let
     else if source.type == "command" then
       [ "${pkgs.${source.package}}/bin/${source.program}" ]
       # Nix-owned capture helpers run outside confinement and return only the credential selected by their contract.
-      ++ pkgs.lib.optional (source ? script) (../modules/development/ai/nono/scripts + "/${source.script}")
+      ++ pkgs.lib.optional (source ? script) (../modules/development/ai/nono/scripts/credentials + "/${source.script}")
       ++ source.args
     else
       throw "Unsupported Pi credential source: ${source.type}";

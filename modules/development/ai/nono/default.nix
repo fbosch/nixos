@@ -407,7 +407,7 @@ in
         testCapturesClaudeFromHostOnlyHelper = {
           expr = profile.credential_capture.anthropic;
           expected = {
-            command = [ "${pkgs.nodejs}/bin/node" "${./scripts/claude-credential.mjs}" ];
+            command = [ "${pkgs.nodejs}/bin/node" "${./scripts/credentials/claude-credential.mts}" ];
             timeout_secs = 5;
             cache_ttl_secs = 30;
           };
@@ -443,7 +443,7 @@ in
         testAdditionalCredentialGeneratesRouteAndCapture = {
           expr =
             let
-              declared = builtins.fromJSON (builtins.readFile ./scripts/credentials.json);
+              declared = builtins.fromJSON (builtins.readFile ./scripts/credentials/credentials.json);
               generated = config.flake.lib.mkPiCredentialProfile {
                 inherit pkgs;
                 credentials = declared // {

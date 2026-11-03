@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
-import { assertCredentialSourceGrants, credentialDefinitions, credentialEnvironmentForDirenv, prepareCredentialEnvironment } from "../scripts/credentials.mjs";
+import { assertCredentialSourceGrants, credentialDefinitions, credentialEnvironmentForDirenv, prepareCredentialEnvironment } from "../scripts/credentials/definitions.mts";
 
 const github = { github: credentialDefinitions.github };
 const direnvGithubEnvironment = (environment) => credentialEnvironmentForDirenv(environment, github);
@@ -48,7 +48,7 @@ test("launcher rejects project token without passing it to direnv, nono or argv"
     const nono = join(root, "nono");
     writeFileSync(direnv, `#!${process.execPath}\nimport assert from 'node:assert/strict';assert.equal(process.env.GH_TOKEN,undefined);console.log(JSON.stringify({GH_TOKEN:'${token}'}));\n`, { mode: 0o700 });
     writeFileSync(nono, `#!${process.execPath}\nthrow new Error('nono must not run');\n`, { mode: 0o700 });
-    const launcher = fileURLToPath(new URL("../scripts/launcher.mjs", import.meta.url));
+    const launcher = fileURLToPath(new URL("../scripts/launcher.mts", import.meta.url));
     const profile = fileURLToPath(new URL("../scripts/profile.json", import.meta.url));
     const result = spawnSync(process.execPath, [launcher, nono, process.execPath, profile, direnv, envBinary, "--version"], {
       cwd, env: { HOME: home, PATH: process.env.PATH, TMPDIR: root, PI_CODING_AGENT_DIR: agent, GH_TOKEN: token },
@@ -75,7 +75,7 @@ test("missing GitHub login does not block unrelated Pi startup or expose supervi
     mkdirSync(runtime);
     const nono = join(root, "nono");
     writeFileSync(nono, `#!${process.execPath}\nimport assert from 'node:assert/strict';for (const name of ${JSON.stringify(aliases)}) assert.equal(process.env[name],undefined);assert.equal(process.env.NONO_ALLOW_NET,undefined);assert.ok(process.argv.includes('--profile'));console.log('started without login');\n`, { mode: 0o700 });
-    const launcher = fileURLToPath(new URL("../scripts/launcher.mjs", import.meta.url));
+    const launcher = fileURLToPath(new URL("../scripts/launcher.mts", import.meta.url));
     const profile = fileURLToPath(new URL("../scripts/profile.json", import.meta.url));
     const child = spawnSync(process.execPath, [launcher, nono, process.execPath, profile, "/missing-direnv", envBinary, "--version"], {
       cwd, env: { HOME: home, PATH: process.env.PATH, TMPDIR: runtime, XDG_RUNTIME_DIR: runtime, PI_CODING_AGENT_DIR: agent, PI_MODEL_EXECUTOR: "0", NONO_ALLOW_NET: "1" },

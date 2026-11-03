@@ -4,9 +4,9 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, realpathSync, rmSync, 
 import { createConnection, createServer } from "node:net";
 import { join } from "node:path";
 import { test } from "node:test";
-import { defaultCapabilities, validateCapabilities } from "../scripts/ipc-policy.mjs";
-import { withIpcCapabilities } from "../scripts/ipc-session.mjs";
-import { launchArguments } from "../scripts/launcher.mjs";
+import { defaultCapabilities, validateCapabilities } from "../scripts/ipc/policy.mts";
+import { withIpcCapabilities } from "../scripts/ipc/session.mts";
+import { launchArguments } from "../scripts/launch/plan.mts";
 import { echoRegistry } from "./fixtures/ipc-registry.mjs";
 
 function exchange(endpoint, request) {

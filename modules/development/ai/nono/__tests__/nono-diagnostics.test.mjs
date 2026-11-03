@@ -5,9 +5,9 @@ import { appendFileSync, chmodSync, existsSync, mkdirSync, mkdtempSync, readFile
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { watchNonoDiagnostics } from "../scripts/nono-diagnostics-extension.mjs";
-import { withNonoDiagnostics } from "../scripts/nono-diagnostics.mjs";
-import { runWithCredentialProxy } from "../scripts/credential-proxy.mjs";
+import { watchNonoDiagnostics } from "../scripts/launch/diagnostics-extension.mts";
+import { withNonoDiagnostics } from "../scripts/launch/diagnostics.mts";
+import { runWithCredentialProxy } from "../scripts/credentials/proxy.mts";
 
 const roots = [];
 afterEach(() => {
@@ -76,7 +76,7 @@ clearTimeout(timer);
 await handlers.get("session_shutdown")?.({}, context);
 process.stderr.write("PI_STDERR_MARKER\\n");
 `, { mode: 0o700 });
-    const launcher = fileURLToPath(new URL("../scripts/launcher.mjs", import.meta.url));
+    const launcher = fileURLToPath(new URL("../scripts/launcher.mts", import.meta.url));
     const result = spawnSync(process.execPath, [launcher, nono, pi, profile, "/missing-direnv", process.env.ENV_TEST_BINARY ?? "/usr/bin/env", ...(hasUI ? [] : ["--print"])], {
       cwd,
       env: { HOME: home, PI_NONO_DIAGNOSTICS: "1", PATH: process.env.PATH, TMPDIR: cwd, XDG_RUNTIME_DIR: cwd, XDG_STATE_HOME: join(home, ".local", "state"), PI_CODING_AGENT_DIR: agent, PI_MODEL_EXECUTOR: "0" },

@@ -5,14 +5,14 @@ import { chmodSync, existsSync, linkSync, mkdirSync, mkdtempSync, readFileSync, 
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { shellProtection, withProtectedShellProfile } from "../scripts/shell-protection.mjs";
+import { shellProtection, withProtectedShellProfile } from "../scripts/protection/shell.mts";
 
 import { proxyFixtureSource } from "./fixtures/credential-proxy.mjs";
 const envBinary = process.env.ENV_TEST_BINARY ?? "/usr/bin/env";
 
 const created = [];
 const baseProfile = fileURLToPath(new URL("../scripts/profile.json", import.meta.url));
-const launcher = fileURLToPath(new URL("../scripts/launcher.mjs", import.meta.url));
+const launcher = fileURLToPath(new URL("../scripts/launcher.mts", import.meta.url));
 
 function fixture(name = "home") {
   const root = realpathSync(mkdtempSync(join(tmpdir(), "pi-shell-protection-")));

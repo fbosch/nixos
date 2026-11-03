@@ -5,9 +5,9 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { sandboxRuntimeCommand } from "../scripts/sandbox-runtime.mjs";
+import { sandboxRuntimeCommand } from "../scripts/launch/runtime.mts";
 
-const launcher = fileURLToPath(new URL("../scripts/launcher.mjs", import.meta.url));
+const launcher = fileURLToPath(new URL("../scripts/launcher.mts", import.meta.url));
 const probe = 'console.log(JSON.stringify({mode:process.env.PI_NONO_MODE,cap:process.env.NONO_CAP_FILE ?? null,args:process.argv.slice(1)}))';
 
 for (const cap of [undefined, "/synthetic/inherited-cap.json"]) {

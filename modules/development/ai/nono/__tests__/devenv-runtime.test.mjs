@@ -3,7 +3,7 @@ import { chmodSync, lstatSync, mkdirSync, mkdtempSync, realpathSync, rmSync, sym
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, test } from "node:test";
-import { devenvRuntime, serviceSocketArguments } from "../scripts/service-ipc.mjs";
+import { devenvRuntime, serviceSocketArguments } from "../scripts/ipc/services.mts";
 
 const roots = [];
 function fixture(mode = 0o755) {

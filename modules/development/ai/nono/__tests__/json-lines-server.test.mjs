@@ -4,9 +4,9 @@ import { mkdtempSync, realpathSync, rmSync, statSync } from "node:fs";
 import { createConnection, createServer } from "node:net";
 import { join } from "node:path";
 import { test } from "node:test";
-import { createMessageValidator, selectCapabilities } from "../scripts/ipc-policy.mjs";
+import { createMessageValidator, selectCapabilities } from "../scripts/ipc/policy.mts";
 import { echoRegistry } from "./fixtures/ipc-registry.mjs";
-import { startJsonLinesServer } from "../scripts/json-lines-server.mjs";
+import { startJsonLinesServer } from "../scripts/ipc/json-lines-server.mts";
 
 function echoCapability() {
   return selectCapabilities(echoRegistry(), "restricted").echo;

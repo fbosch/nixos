@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
 const execute = promisify(execFile);
-const launcher = fileURLToPath(new URL("../scripts/launcher.mjs", import.meta.url));
+const launcher = fileURLToPath(new URL("../scripts/launcher.mts", import.meta.url));
 const probe = readFileSync(new URL("./fixtures/ipc-workflows-probe.mjs", import.meta.url), "utf8");
 const base = JSON.parse(readFileSync(new URL("../scripts/profile.json", import.meta.url), "utf8"));
 

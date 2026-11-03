@@ -5,13 +5,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { captureClaudeAccessToken } from "../scripts/claude-credential.mjs";
+import { captureClaudeAccessToken } from "../scripts/credentials/claude-credential.mts";
 
 const roots = [];
 const now = 2_000_000_000_000;
 const access = "synthetic-claude-access-token";
 const refresh = "synthetic-claude-refresh-token";
-const helper = fileURLToPath(new URL("../scripts/claude-credential.mjs", import.meta.url));
+const helper = fileURLToPath(new URL("../scripts/credentials/claude-credential.mts", import.meta.url));
 function fixture(overrides = {}) {
   const home = mkdtempSync(join(tmpdir(), "pi-claude-capture-"));
   roots.push(home);

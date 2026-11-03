@@ -4,9 +4,9 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSyn
 import { createServer } from "node:net";
 import { join } from "node:path";
 import { afterEach, test } from "node:test";
-import { defaultCapabilities, createMessageValidator, endpointArguments, loadCapabilities, selectCapabilities, validateCapabilities } from "../scripts/ipc-policy.mjs";
-import { launchArguments } from "../scripts/launcher.mjs";
-import { withHerdrReporter } from "../scripts/herdr-bootstrap.mjs";
+import { defaultCapabilities, createMessageValidator, endpointArguments, loadCapabilities, selectCapabilities, validateCapabilities } from "../scripts/ipc/policy.mts";
+import { launchArguments } from "../scripts/launch/plan.mts";
+import { withHerdrReporter } from "../scripts/herdr/bootstrap.mts";
 
 const roots = [];
 function fixture() {

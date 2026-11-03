@@ -6,11 +6,11 @@ import { createServer } from "node:http";
 import { join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { credentialDefinitions } from "../scripts/credentials.mjs";
+import { credentialDefinitions } from "../scripts/credentials/definitions.mts";
 
 const secret = "synthetic-claude-access-token";
 const refresh = "synthetic-claude-refresh-token";
-const helper = fileURLToPath(new URL("../scripts/claude-credential.mjs", import.meta.url));
+const helper = fileURLToPath(new URL("../scripts/credentials/claude-credential.mts", import.meta.url));
 
 function reply(response, streaming) {
   const message = {id:"msg_fixture",type:"message",role:"assistant",model:"claude-sonnet-4-6",content:[{type:"text",text:"fixture completion"}],stop_reason:"end_turn",stop_sequence:null,usage:{input_tokens:1,output_tokens:1}};
@@ -107,7 +107,7 @@ test("real Claude CLI uses the proxy placeholder while only the host upstream re
     `;
     const command=[process.env.NONO_PROXY_TEST_BINARY,"run","--profile",profile,"--allow-cwd","--no-audit","--no-rollback","--",process.execPath,"-e",probe];
     const runner=`
-      import {runWithCredentialProxy} from ${JSON.stringify(new URL("../scripts/credential-proxy.mjs",import.meta.url).href)};
+      import {runWithCredentialProxy} from ${JSON.stringify(new URL("../scripts/credentials/proxy.mts",import.meta.url).href)};
       import assert from "node:assert/strict";
       import {rmSync,writeFileSync} from "node:fs";
       rmSync(${JSON.stringify(credential)});

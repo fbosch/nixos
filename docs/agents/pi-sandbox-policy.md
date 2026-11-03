@@ -69,7 +69,7 @@ This deliberately retains an exfiltration channel for data the agent can read. D
 
 Sandboxed Claude Bridge uses the existing Claude CLI login through a host-side capture command. No SOPS secret or additional API key is required. This is the same login, not a separately revocable credential.
 
-The Nix-owned `claude-credential.mjs` helper reads `~/.claude/.credentials.json` outside confinement and returns only `claudeAiOauth.accessToken`. It rejects unsafe permissions, symlinked or hard-linked files, malformed metadata, and tokens with at most 60 seconds remaining. It does not modify the file or return the refresh token. The proxy caches the access token for at most 30 seconds.
+The Nix-owned `credentials/claude-credential.mts` helper reads `~/.claude/.credentials.json` outside confinement and returns only `claudeAiOauth.accessToken`. It rejects unsafe permissions, symlinked or hard-linked files, malformed metadata, and tokens with at most 60 seconds remaining. It does not modify the file or return the refresh token. The proxy caches the access token for at most 30 seconds.
 
 The `anthropic` route has the fixed upstream `https://api.anthropic.com`. The child receives a session placeholder in `CLAUDE_CODE_OAUTH_TOKEN` and the proxy's local `/anthropic` route in `ANTHROPIC_BASE_URL`. The proxy validates that placeholder and replaces its authorization header before forwarding. Raw credential environment variables are rejected; project-selected endpoint and Claude configuration-directory overrides are removed. The credential file remains denied, including in configuration-repository editing sessions.
 

@@ -4,8 +4,8 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
-import { launchArguments } from "../scripts/launcher.mjs";
-import { prepareSandboxRuntime } from "../scripts/sandbox-runtime.mjs";
+import { launchArguments } from "../scripts/launch/plan.mts";
+import { prepareSandboxRuntime } from "../scripts/launch/runtime.mts";
 
 const envBinary = process.env.ENV_TEST_BINARY ?? "/usr/bin/env";
 

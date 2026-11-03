@@ -5,10 +5,10 @@ import { createConnection, createServer } from "node:net";
 import { join } from "node:path";
 import { afterEach, test } from "node:test";
 import { pathToFileURL } from "node:url";
-import { validateReport } from "../scripts/herdr-protocol.mts";
-import { startReportingServer } from "../scripts/herdr-server.mts";
-import { withHerdrReporter } from "../scripts/herdr-bootstrap.mjs";
-import { assertPrivateIpcGrants } from "../scripts/private-ipc.mjs";
+import { validateReport } from "../scripts/herdr/protocol.mts";
+import { startReportingServer } from "../scripts/herdr/service.mts";
+import { withHerdrReporter } from "../scripts/herdr/bootstrap.mts";
+import { assertPrivateIpcGrants } from "../scripts/ipc/private.mts";
 
 const created = [];
 function fixture(embedded = false) {

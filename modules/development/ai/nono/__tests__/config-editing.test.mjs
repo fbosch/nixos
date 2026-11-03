@@ -5,10 +5,11 @@ import { once } from "node:events";
 import { createServer } from "node:net";
 import { dirname, join } from "node:path";
 import { afterEach, test } from "node:test";
-import { launchArguments, referenceApprovalStore } from "../scripts/launcher.mjs";
-import { agentProtection, prepareAgentRuntime } from "../scripts/agent-protection.mjs";
-import { prepareSandboxRuntime } from "../scripts/sandbox-runtime.mjs";
-import { withProtectedShellProfile } from "../scripts/shell-protection.mjs";
+import { launchArguments } from "../scripts/launch/plan.mts";
+import { referenceApprovalStore } from "../scripts/launch/references.mts";
+import { agentProtection, prepareAgentRuntime } from "../scripts/protection/agent.mts";
+import { prepareSandboxRuntime } from "../scripts/launch/runtime.mts";
+import { withProtectedShellProfile } from "../scripts/protection/shell.mts";
 
 const roots = [];
 const envBinary = process.env.ENV_TEST_BINARY || "/usr/bin/env";

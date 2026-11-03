@@ -1,0 +1,25 @@
+{
+  // Type-check only. Node runs the .mts sources directly through type stripping, so only
+  // erasable TypeScript syntax is allowed and relative imports keep their .mts extension.
+  "compilerOptions": {
+    "noEmit": true,
+    "target": "es2024",
+    "lib": ["es2024", "esnext.disposable"],
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "types": ["node"],
+    "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true,
+    "resolveJsonModule": true,
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    // Off: guards use `return callback(...)` as an early exit, and rewriting them would change emitted code.
+    "noImplicitReturns": false,
+    "noFallthroughCasesInSwitch": true,
+    "useUnknownInCatchVariables": true,
+    "skipLibCheck": true
+  },
+  "include": ["scripts/**/*.mts"]
+}

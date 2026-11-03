@@ -1,0 +1,51 @@
+{
+  "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
+  // Processes started by Nix wrappers, by spawn() with a file URL, or as a Pi --extension.
+  // None of them is reachable through a static import.
+  "entry": [
+    "scripts/launcher.mts",
+    "scripts/pi-desktop.mts",
+    "scripts/credentials/claude-credential.mts",
+    "scripts/ipc/helper.mts",
+    "scripts/model-executor/server.mts",
+    "scripts/launch/diagnostics-extension.mts",
+    "__tests__/**/*.test.mjs",
+    "__tests__/fixtures/**"
+  ],
+  "rules": {
+    "unused-files": "error",
+    "unused-exports": "error",
+    "circular-dependencies": "error",
+    "boundary-violation": "error"
+  },
+  "boundaries": {
+    // First matching zone wins, so single files are listed before the directories that contain them.
+    "zones": [
+      { "name": "entry", "patterns": ["scripts/launcher.mts", "scripts/pi-desktop.mts"] },
+      // The filter helper runs as its own process; ipc/helper-launch.mts spawns it by file URL.
+      { "name": "helper-process", "patterns": ["scripts/ipc/helper.mts"] },
+      { "name": "ipc-dispatch", "patterns": ["scripts/ipc/session.mts"] },
+      { "name": "launch", "patterns": ["scripts/launch/**"] },
+      { "name": "model-executor", "patterns": ["scripts/model-executor/**"] },
+      { "name": "herdr", "patterns": ["scripts/herdr/**"] },
+      { "name": "desktop", "patterns": ["scripts/desktop/**"] },
+      { "name": "ipc", "patterns": ["scripts/ipc/**"] },
+      { "name": "protection", "patterns": ["scripts/protection/**"] },
+      { "name": "credentials", "patterns": ["scripts/credentials/**"] },
+      { "name": "shared", "patterns": ["scripts/shared/**"] }
+    ],
+    "rules": [
+      { "from": "entry", "allow": ["launch", "ipc-dispatch", "model-executor", "herdr", "desktop", "ipc", "protection", "credentials", "shared"] },
+      { "from": "launch", "allow": ["ipc-dispatch", "model-executor", "ipc", "protection", "credentials", "shared"] },
+      { "from": "ipc-dispatch", "allow": ["herdr", "desktop", "ipc", "shared"] },
+      { "from": "helper-process", "allow": ["herdr", "desktop", "ipc", "shared"] },
+      { "from": "model-executor", "allow": ["ipc", "credentials", "shared"] },
+      { "from": "herdr", "allow": ["ipc", "shared"] },
+      { "from": "desktop", "allow": ["ipc", "shared"] },
+      { "from": "ipc", "allow": ["helper-process", "shared"] },
+      { "from": "protection", "allow": ["credentials", "shared"] },
+      { "from": "credentials", "allow": ["shared"] },
+      { "from": "shared", "allow": [] }
+    ]
+  }
+}

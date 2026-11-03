@@ -3,14 +3,14 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { assertCredentialSourceGrants, credentialDefinitions, credentialEnvironmentForDirenv, prepareCredentialEnvironment } from "../scripts/credentials.mjs";
+import { assertCredentialSourceGrants, credentialDefinitions, credentialEnvironmentForDirenv, prepareCredentialEnvironment } from "../scripts/credentials/definitions.mts";
 
 test("Claude CLI login stays host-only and project endpoint overrides are removed", () => {
   const definition = credentialDefinitions.anthropic;
   assert.deepEqual(definition.route, {
     upstream:"https://api.anthropic.com", env_var:"CLAUDE_CODE_OAUTH_TOKEN", inject_header:"Authorization", credential_format:"Bearer {}",
   });
-  assert.equal(definition.source.script, "claude-credential.mjs");
+  assert.equal(definition.source.script, "claude-credential.mts");
   assert.deepEqual(definition.source.protected_files, ["$HOME/.claude/.credentials.json"]);
   assert.equal(definition.capture.cache_ttl_secs, 30);
   for (const name of ["CLAUDE_CODE_OAUTH_TOKEN", "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN"]) {

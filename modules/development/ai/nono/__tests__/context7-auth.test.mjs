@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
-import { assertCredentialSourceGrants, credentialDefinitions, credentialEnvironmentForDirenv, prepareCredentialEnvironment } from "../scripts/credentials.mjs";
+import { assertCredentialSourceGrants, credentialDefinitions, credentialEnvironmentForDirenv, prepareCredentialEnvironment } from "../scripts/credentials/definitions.mts";
 
 const context7 = { context7: credentialDefinitions.context7 };
 const context7SecretPath = context7.context7.source.path;
@@ -97,7 +97,7 @@ test("launcher rejects a project key without exposing it to direnv, nono, or std
     const nono = join(root, "nono");
     writeFileSync(direnv, `#!${process.execPath}\nimport assert from "node:assert/strict";assert.equal(process.env.CONTEXT7_API_KEY,undefined);console.log(JSON.stringify({CONTEXT7_API_KEY:"${token}"}));\n`, { mode: 0o700 });
     writeFileSync(nono, `#!${process.execPath}\nthrow new Error("nono must not run");\n`, { mode: 0o700 });
-    const launcher = fileURLToPath(new URL("../scripts/launcher.mjs", import.meta.url));
+    const launcher = fileURLToPath(new URL("../scripts/launcher.mts", import.meta.url));
     const profile = fileURLToPath(new URL("../scripts/profile.json", import.meta.url));
     for (const inheritedKey of [undefined, token]) {
       const env = { HOME: home, PATH: process.env.PATH, TMPDIR: root, PI_CODING_AGENT_DIR: agent };

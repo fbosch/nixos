@@ -5,8 +5,8 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { agentProtection, prepareAgentRuntime } from "../scripts/agent-protection.mjs";
-import { withProtectedShellProfile } from "../scripts/shell-protection.mjs";
+import { agentProtection, prepareAgentRuntime } from "../scripts/protection/agent.mts";
+import { withProtectedShellProfile } from "../scripts/protection/shell.mts";
 
 const roots = [];
 const envBinary = process.env.ENV_TEST_BINARY || "/usr/bin/env";
@@ -47,7 +47,7 @@ const args=process.argv.slice(2);
 const profile=args[args.indexOf("--profile")+1];
 console.log(JSON.stringify({args,profile,policy:JSON.parse(fs.readFileSync(profile,"utf8"))}));
 `, {mode:0o700});
-    const launcher = fileURLToPath(new URL("../scripts/launcher.mjs", import.meta.url));
+    const launcher = fileURLToPath(new URL("../scripts/launcher.mts", import.meta.url));
     // Exercise the actual bootstrap and generated-profile lifetime; this does not emulate kernel enforcement.
     const driver = `
       Object.defineProperty(process,"platform",{value:"darwin"});

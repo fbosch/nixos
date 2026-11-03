@@ -32,7 +32,7 @@ let
     mkSecretsWithOpts
     mkSecret
     ;
-  credentialDefinitions = builtins.fromJSON (builtins.readFile ./development/ai/nono/scripts/credentials.json);
+  credentialDefinitions = builtins.fromJSON (builtins.readFile ./development/ai/nono/scripts/credentials/credentials.json);
   fileCredentials = lib.filterAttrs (_: definition: definition.source.type == "file" && definition.source ? sops) credentialDefinitions;
   # Keep plaintext outside Home Manager runtime roots granted to Pi.
   credentialSecrets = lib.mapAttrs'

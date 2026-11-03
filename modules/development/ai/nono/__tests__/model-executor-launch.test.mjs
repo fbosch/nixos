@@ -6,10 +6,10 @@ import { createConnection, createServer } from "node:net";
 import { dirname, join } from "node:path";
 import { afterEach, test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { prepareAgentRuntime } from "../scripts/agent-protection.mjs";
-import { launchArguments } from "../scripts/launcher.mjs";
-import { credentialDenyRule } from "../scripts/shell-protection.mjs";
-import { MODEL_EXECUTOR_SOCKET, modelExecutorEnvironment, withModelExecutor } from "../scripts/model-executor-launch.mjs";
+import { prepareAgentRuntime } from "../scripts/protection/agent.mts";
+import { launchArguments } from "../scripts/launch/plan.mts";
+import { credentialDenyRule } from "../scripts/protection/shell.mts";
+import { MODEL_EXECUTOR_SOCKET, modelExecutorEnvironment, withModelExecutor } from "../scripts/model-executor/launch.mts";
 
 const envBinary = process.env.ENV_TEST_BINARY ?? "/usr/bin/env";
 const created = [];
@@ -145,7 +145,7 @@ test("raw mode does not inherit an executor socket", () => {
   const { home, cwd, agent, profile } = fixture();
   const script = `console.log(JSON.stringify(process.env.${MODEL_EXECUTOR_SOCKET} ?? null))`;
   const child = spawnSync(process.execPath, [
-    fileURLToPath(new URL("../scripts/launcher.mjs", import.meta.url)),
+    fileURLToPath(new URL("../scripts/launcher.mts", import.meta.url)),
     "/missing-nono", process.execPath, profile, "/missing-direnv", "/missing-env", "--no-sandbox", "-e", script,
   ], {
     cwd,
@@ -203,7 +203,7 @@ function launchSandbox({ root, home, agent, cwd, profile }, environment) {
   writeFileSync(join(cwd, ".envrc"), "fixture");
   const runtime = join(root, "runtime");
   mkdirSync(runtime, { recursive: true });
-  const child = spawnSync(process.execPath, [fileURLToPath(new URL("../scripts/launcher.mjs", import.meta.url)), nono, process.execPath, profile, direnv, envBinary, "--version"], {
+  const child = spawnSync(process.execPath, [fileURLToPath(new URL("../scripts/launcher.mts", import.meta.url)), nono, process.execPath, profile, direnv, envBinary, "--version"], {
     cwd,
     env: { HOME: home, PATH: process.env.PATH, PI_CODING_AGENT_DIR: agent, TMPDIR: runtime, XDG_RUNTIME_DIR: runtime, ...environment },
     encoding: "utf8", timeout: 20000,

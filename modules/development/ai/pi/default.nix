@@ -76,24 +76,42 @@ let
     in
     pi;
   mkIpcManifest = pkgs: pkgs.writeText "pi-ipc-capabilities.json" (builtins.toJSON config.piIpcRegistry);
-  mkIpcRuntime = pkgs: pkgs.importNpmLock.buildNodeModules {
-    npmRoot = ../nono;
-    inherit (pkgs) nodejs;
-    derivationArgs = {
-      pname = "pi-ipc-runtime";
-      postInstall = ''
-        cp -r ${../nono/scripts} "$out/scripts"
-        cp -r ${../nono/__tests__} "$out/__tests__"
-      '';
-      meta.description = "Pi IPC capability registry and bounded transport runtime";
+  # The runtime holds no development packages: Node strips .mts types itself. `withTypes` adds only
+  # @types/node for the type check, which uses pkgs.typescript_7 instead of npm's per-platform binaries.
+  mkIpcRuntime = pkgs: { withTypes ? false }:
+    let
+      package = lib.importJSON ../nono/package.json;
+      packageLock = lib.importJSON ../nono/package-lock.json;
+      typeModules = [ "node_modules/@types/node" "node_modules/undici-types" ];
+      keep = path: module: !(module.dev or false) || (withTypes && builtins.elem path typeModules);
+      devDependencies = lib.optionalAttrs withTypes {
+        devDependencies."@types/node" = package.devDependencies."@types/node";
+      };
+    in
+    pkgs.importNpmLock.buildNodeModules {
+      npmRoot = ../nono;
+      inherit (pkgs) nodejs;
+      package = removeAttrs package [ "devDependencies" ] // devDependencies;
+      packageLock = packageLock // {
+        packages = lib.filterAttrs keep packageLock.packages // {
+          "" = removeAttrs packageLock.packages."" [ "devDependencies" ] // devDependencies;
+        };
+      };
+      derivationArgs = {
+        pname = if withTypes then "pi-ipc-typecheck" else "pi-ipc-runtime";
+        postInstall = ''
+          cp -r ${../nono/scripts} "$out/scripts"
+          cp -r ${../nono/__tests__} "$out/__tests__"
+        '';
+        meta.description = "Pi IPC capability registry and bounded transport runtime";
+      };
     };
-  };
   mkLauncher =
     pkgs: rawPi: { ipcRestricted ? true, proxyTestNono ? pkgs.nono, executorPi ? rawPi }:
       assert pkgs.lib.assertMsg (pkgs.lib.versionAtLeast pkgs.nono.version "0.80.0")
         "Pi standalone credential proxy and sandbox protection require nono >= 0.80.0";
       let
-        runtime = mkIpcRuntime pkgs;
+        runtime = mkIpcRuntime pkgs { };
         manifest = mkIpcManifest pkgs;
         # The desktop broker runs these from fixed store paths, never from the session PATH.
         desktopTools = pkgs.lib.optionalString pkgs.stdenv.hostPlatform.isLinux
@@ -118,7 +136,7 @@ let
           touch "$out/share/pi/nono-wrapper"
           ln -s ${../nono/scripts/pi-ask.lua} "$out/share/pi/pi-ask.lua"
           # A binary entry avoids sourcing BASH_ENV before nono applies confinement.
-          ${pkgs.nodejs}/bin/node --input-type=module -e 'import { loadCapabilities } from "${runtime}/scripts/ipc-policy.mjs"; loadCapabilities(process.argv[1]);' "${manifest}"
+          ${pkgs.nodejs}/bin/node --input-type=module -e 'import { loadCapabilities } from "${runtime}/scripts/ipc/policy.mts"; loadCapabilities(process.argv[1]);' "${manifest}"
           makeBinaryWrapper ${pkgs.nodejs}/bin/node "$out/bin/pi" \
             --unset NODE_OPTIONS --unset NODE_PATH \
             --set PI_IPC_MANIFEST "${manifest}" ${desktopTools} \
@@ -126,10 +144,10 @@ let
             --set PI_SSH_ADD ${pkgs.openssh}/bin/ssh-add \
             --set PI_MODEL_EXECUTOR_PACKAGE ${executorPi}/lib/pi/node_modules/@earendil-works/pi-coding-agent ${executorModelsFlag} \
             --prefix PATH : "$out/bin" \
-            --add-flags "${runtime}/scripts/launcher.mjs ${pkgs.nono}/bin/nono ${rawPi}/bin/pi ${profile} ${pkgs.direnv}/bin/direnv ${pkgs.coreutils}/bin/env"
+            --add-flags "${runtime}/scripts/launcher.mts ${pkgs.nono}/bin/nono ${rawPi}/bin/pi ${profile} ${pkgs.direnv}/bin/direnv ${pkgs.coreutils}/bin/env"
           makeBinaryWrapper ${pkgs.nodejs}/bin/node "$out/bin/pi-desktop" \
             --unset NODE_OPTIONS --unset NODE_PATH ${desktopTools} \
-            --add-flags "${runtime}/scripts/pi-desktop.mjs"
+            --add-flags "${runtime}/scripts/pi-desktop.mts"
           HERDR_REPORTER_TEST_SOURCE="${inputs.herdr}/src/integration/assets/pi/herdr-agent-state.ts" \
             HERDR_READ_TEST_BINARY="${lib.getExe inputs.herdr.packages.${pkgs.stdenv.hostPlatform.system}.default}" \
             NONO_TEST_IPC_MODE="${if ipcRestricted then "pathname" else "off"}" \
@@ -211,7 +229,7 @@ in
 {
   options.piIpcRegistry = lib.mkOption {
     type = lib.types.attrsOf lib.types.anything;
-    default = builtins.fromJSON (builtins.readFile ../nono/scripts/ipc-capabilities.json);
+    default = builtins.fromJSON (builtins.readFile ../nono/scripts/ipc/capabilities.json);
     description = "Nix-owned IPC capability catalog and profile selections; validated by the runtime JSON Schema.";
   };
 
@@ -281,7 +299,7 @@ in
           pi-sandbox = launcher;
           pi-raw = mkPi pkgs;
           pi-ipc-candidate = launcher;
-          pi-ipc-runtime = mkIpcRuntime pkgs;
+          pi-ipc-runtime = mkIpcRuntime pkgs { };
         };
         checks = lib.mkMerge [
           {
@@ -298,6 +316,14 @@ in
                   ${pkgs.nodejs}/bin/node --test ${../nono/__tests__/routing.test.mjs}
                   touch "$out"
                 '';
+            # Same compiler version as the npm devDependency used for local editing.
+            nono-typecheck =
+              pkgs.runCommand "nono-typecheck" { nativeBuildInputs = [ pkgs.typescript_7 ]; } ''
+                cp -r ${mkIpcRuntime pkgs { withTypes = true; }}/. .
+                cp ${../nono/tsconfig.json} tsconfig.json
+                tsc -p .
+                touch "$out"
+              '';
             pi-ipc =
               pkgs.runCommand "pi-ipc-check"
                 {
@@ -306,16 +332,16 @@ in
                   ENV_TEST_BINARY = "${pkgs.coreutils}/bin/env";
                 }
                 ''
-                  ${pkgs.nodejs}/bin/node --input-type=module -e 'import { loadCapabilities } from "${mkIpcRuntime pkgs}/scripts/ipc-policy.mjs"; loadCapabilities(process.argv[1]);' "${mkIpcManifest pkgs}"
+                  ${pkgs.nodejs}/bin/node --input-type=module -e 'import { loadCapabilities } from "${mkIpcRuntime pkgs { }}/scripts/ipc/policy.mts"; loadCapabilities(process.argv[1]);' "${mkIpcManifest pkgs}"
                   ${pkgs.nodejs}/bin/node --test \
-                    ${mkIpcRuntime pkgs}/__tests__/ipc-policy.test.mjs \
-                    ${mkIpcRuntime pkgs}/__tests__/launch-mode.test.mjs \
-                    ${mkIpcRuntime pkgs}/__tests__/json-lines-server.test.mjs \
-                    ${mkIpcRuntime pkgs}/__tests__/ipc-bootstrap.test.mjs \
-                    ${mkIpcRuntime pkgs}/__tests__/ipc-session.test.mjs \
-                    ${mkIpcRuntime pkgs}/__tests__/herdr-reporting.test.mjs \
-                    ${mkIpcRuntime pkgs}/__tests__/herdr-reading.test.mjs \
-                    ${mkIpcRuntime pkgs}/__tests__/desktop-broker.test.mjs
+                    ${mkIpcRuntime pkgs { }}/__tests__/ipc-policy.test.mjs \
+                    ${mkIpcRuntime pkgs { }}/__tests__/launch-mode.test.mjs \
+                    ${mkIpcRuntime pkgs { }}/__tests__/json-lines-server.test.mjs \
+                    ${mkIpcRuntime pkgs { }}/__tests__/ipc-bootstrap.test.mjs \
+                    ${mkIpcRuntime pkgs { }}/__tests__/ipc-session.test.mjs \
+                    ${mkIpcRuntime pkgs { }}/__tests__/herdr-reporting.test.mjs \
+                    ${mkIpcRuntime pkgs { }}/__tests__/herdr-reading.test.mjs \
+                    ${mkIpcRuntime pkgs { }}/__tests__/desktop-broker.test.mjs
                   touch "$out"
                 '';
           }
@@ -329,7 +355,7 @@ in
                   ENV_TEST_BINARY = "${pkgs.coreutils}/bin/env";
                 }
                 ''
-                  ${pkgs.nodejs}/bin/node --test --test-name-pattern="starts Git fsmonitor" ${mkIpcRuntime pkgs}/__tests__/ipc-workflows.test.mjs
+                  ${pkgs.nodejs}/bin/node --test --test-name-pattern="starts Git fsmonitor" ${mkIpcRuntime pkgs { }}/__tests__/ipc-workflows.test.mjs
                   touch "$out"
                 '';
           })

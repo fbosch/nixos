@@ -4,7 +4,7 @@ The IPC registry configures selected-repository fsmonitor access and bounded JSO
 
 ## Configuration and ownership
 
-The default manifest is `modules/development/ai/nono/scripts/ipc-capabilities.json`. The flake-parts option `piIpcRegistry` can supply a complete replacement manifest. Nix serializes the selected configuration into the store and builds a runtime with Ajv 8.20.0 and its locked dependencies.
+The default manifest is `modules/development/ai/nono/scripts/ipc/capabilities.json`. The flake-parts option `piIpcRegistry` can supply a complete replacement manifest. Nix serializes the selected configuration into the store and builds a runtime with Ajv 8.20.0 and its locked dependencies.
 
 The binary wrapper forces `PI_IPC_MANIFEST` to the store path. The launcher loads and validates that file before loading the project environment. Project environment changes cannot replace the captured registry, choose upstream sockets, or forge Herdr identity.
 
@@ -92,7 +92,7 @@ The following capability uses the existing `inherited-socket` provider. No servi
 
 1. Add the declaration under `capabilities.taskReporting` in the manifest.
 2. Add `"taskReporting": {}` under `profiles.restricted`.
-3. Add tests for permitted requests, rejected requests, captured context and helper shutdown. The configuration-only example in `__tests__/fixtures/ipc-registry.mjs` exercises startup through `ipc-session.mjs`, not just the validator.
+3. Add tests for permitted requests, rejected requests, captured context and helper shutdown. The configuration-only example in `__tests__/fixtures/ipc-registry.mjs` exercises startup through `ipc/session.mts`, not just the validator.
 4. Rebuild the Nix-owned launcher before using the policy. The service's `TASK_SOCKET` must already exist in the original launch environment.
 
 `schema` uses JSON Schema draft 7 through Ajv. Parameter schemas must be closed objects. `ipc-text` rejects malformed Unicode and C0/C1 controls. `maxUtf8Bytes` limits encoded bytes rather than characters. The validator does not coerce, remove or default caller-supplied values.
@@ -113,10 +113,10 @@ On rvn-pc, the launcher build passed 215 tests and skipped 26, including eight d
 
 ## Implementation and checks
 
-- `ipc-policy.mjs` validates manifests, selects profiles, resolves endpoint grants, compiles operation schemas and enforces bindings.
-- `ipc-session.mjs` starts all selected filters through the supported providers.
-- `ipc-bootstrap.mjs`, `json-lines-helper.mjs` and `json-lines-server.mjs` own helper readiness, private endpoints, framing, forwarding and shutdown.
-- `herdr-bootstrap.mjs` and `herdr-protocol.mts` retain Herdr-specific context and session-file guards. `herdr-reader.mjs` projects passive workspace snapshots and the CLI handshake; it does not expose terminal control.
+- `ipc/policy.mts` validates manifests, selects profiles, resolves endpoint grants, compiles operation schemas and enforces bindings.
+- `ipc/session.mts` starts all selected filters through the supported providers.
+- `ipc/helper-launch.mts`, `ipc/helper.mts` and `ipc/json-lines-server.mts` own helper readiness, private endpoints, framing, forwarding and shutdown.
+- `herdr/bootstrap.mts` and `herdr/protocol.mts` retain Herdr-specific context and session-file guards. `herdr/reader.mts` projects passive workspace snapshots and the CLI handshake; it does not expose terminal control.
 - `modules/development/ai/pi/default.nix` builds `packages.<system>.pi-ipc-runtime` and `checks.<system>.pi-ipc`. Tests use the assembled immutable runtime so module resolution matches production.
 
 The scoped source tests run with:

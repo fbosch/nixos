@@ -5,8 +5,8 @@ import { once } from "node:events";
 import { createServer } from "node:net";
 import { join } from "node:path";
 import { afterEach, test } from "node:test";
-import { launchArguments } from "../scripts/launcher.mjs";
-import { devenvRuntime, serviceSocketArguments, withSessionServiceEnvironment } from "../scripts/service-ipc.mjs";
+import { launchArguments } from "../scripts/launch/plan.mts";
+import { devenvRuntime, serviceSocketArguments, withSessionServiceEnvironment } from "../scripts/ipc/services.mts";
 
 const roots = [];
 const envBinary = process.env.ENV_TEST_BINARY || "/usr/bin/env";

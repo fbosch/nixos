@@ -7,9 +7,10 @@ import { join } from "node:path";
 import { afterEach, test } from "node:test";
 import { randomBytes, randomUUID } from "node:crypto";
 import { png } from "./fixtures/png.mjs";
-import { createDesktopHandler, desktopAuthority, withDesktopBroker } from "../scripts/desktop-broker.mjs";
-import { createMessageValidator, defaultCapabilities } from "../scripts/ipc-policy.mjs";
-import { main, parseArguments } from "../scripts/pi-desktop.mjs";
+import { withDesktopBroker } from "../scripts/desktop/bootstrap.mts";
+import { createDesktopHandler, desktopAuthority } from "../scripts/desktop/broker.mts";
+import { createMessageValidator, defaultCapabilities } from "../scripts/ipc/policy.mts";
+import { main, parseArguments } from "../scripts/pi-desktop.mts";
 
 const capability = defaultCapabilities.capabilities.desktop;
 const created = [];

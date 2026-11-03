@@ -4,7 +4,7 @@ import { chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSy
 import { join, relative } from "node:path";
 import { afterEach, test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { launchArguments } from "../scripts/launcher.mjs";
+import { launchArguments } from "../scripts/launch/plan.mts";
 
 const envBinary = process.env.ENV_TEST_BINARY ?? "/usr/bin/env";
 

@@ -7,8 +7,11 @@ import { createServer } from "node:net";
 import { homedir, tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { ensureSshIdentity, launchArguments, launchCommand, prepareJitiCache, prepareNpmCache, referenceApprovalStore } from "../scripts/launcher.mjs";
-import { sandboxRuntimeCommand } from "../scripts/sandbox-runtime.mjs";
+import { launchArguments, launchCommand } from "../scripts/launch/plan.mts";
+import { referenceApprovalStore } from "../scripts/launch/references.mts";
+import { prepareJitiCache, prepareNpmCache } from "../scripts/launch/runtime.mts";
+import { ensureSshIdentity } from "../scripts/launch/ssh.mts";
+import { sandboxRuntimeCommand } from "../scripts/launch/runtime.mts";
 
 import { proxyFixtureSource } from "./fixtures/credential-proxy.mjs";
 const envBinary = process.env.ENV_TEST_BINARY ?? "/usr/bin/env";
@@ -435,7 +438,7 @@ test("sandbox runtime state is prepared before grants and separated from supervi
     for (const name of names) fs.writeFileSync(path.join(process.env[name], "state"), "preserved");
     console.log(JSON.stringify({ ...Object.fromEntries(names.map(name => [name, process.env[name]])), token: process.env.GH_TOKEN, other: process.env.OTHER }));
   `;
-  const args = [new URL("../scripts/launcher.mjs", import.meta.url).pathname, nono, process.execPath, profile, "/missing-direnv", envBinary, "-e", probe];
+  const args = [new URL("../scripts/launcher.mts", import.meta.url).pathname, nono, process.execPath, profile, "/missing-direnv", envBinary, "-e", probe];
   const environment = {
     HOME: home, PATH: process.env.PATH, TMPDIR: runtime, XDG_RUNTIME_DIR: runtime, PI_CODING_AGENT_DIR: agent, PI_MODEL_EXECUTOR: "0",
     GH_CONFIG_DIR: "/project/credentials", npm_config_cache: "/host/npm", UV_CACHE_DIR: "/host/uv",
@@ -470,7 +473,7 @@ for (const [name, access, optIn] of [
     writeFileSync(nono, `#!${process.execPath}\nconsole.log(JSON.stringify(process.argv.slice(2)));\n`);
     chmodSync(nono, 0o700);
     const child = spawnSync(process.execPath, [
-      new URL("../scripts/launcher.mjs", import.meta.url).pathname,
+      new URL("../scripts/launcher.mts", import.meta.url).pathname,
       nono, process.execPath, profile, "/missing-direnv", envBinary, "--version",
     ], {
       cwd,
@@ -504,7 +507,7 @@ test("sandbox launcher withholds the SSH agent unless the invoking host opts in"
     chmodSync(nono, 0o700);
     const launch = extra => {
       const child = spawnSync(process.execPath, [
-        new URL("../scripts/launcher.mjs", import.meta.url).pathname,
+        new URL("../scripts/launcher.mts", import.meta.url).pathname,
         nono, process.execPath, profile, "/missing-direnv", envBinary, "--version",
       ], {
         cwd,
@@ -534,7 +537,7 @@ test("unavailable socket enforcement fails visibly without retrying raw Pi", () 
   chmodSync(raw, 0o700);
   chmodSync(nono, 0o700);
   const child = spawnSync(process.execPath, [
-    new URL("../scripts/launcher.mjs", import.meta.url).pathname,
+    new URL("../scripts/launcher.mts", import.meta.url).pathname,
     nono, raw, profile, "/missing-direnv", envBinary,
   ], { cwd, env: { HOME: home, PATH: process.env.PATH, PI_CODING_AGENT_DIR: agent, PI_MODEL_EXECUTOR: "0" }, encoding: "utf8", timeout: 15000 });
   assert.ifError(child.error);
@@ -574,7 +577,7 @@ test("raw launcher exec bypasses sandbox prerequisites and preserves the caller 
   const literals = ["--", "--no-sandbox", "æøå", "a b", "value=$HOME"];
   const script = 'console.log(JSON.stringify({args:process.argv.slice(1),token:process.env.GH_TOKEN,socket:process.env.SSH_AUTH_SOCK,lock:process.env.PI_LOCKFILE_DIR ?? null,proxy:process.env.HTTP_PROXY ?? null}));process.exit(17)';
   const child = spawnSync(process.execPath, [
-    fileURLToPath(new URL("../scripts/launcher.mjs", import.meta.url)),
+    fileURLToPath(new URL("../scripts/launcher.mts", import.meta.url)),
     nono, process.execPath, profile, "/missing-direnv", "/missing-env", "--no-sandbox", "-e", script, ...literals,
   ], {
     cwd,
@@ -842,7 +845,7 @@ test("sandbox startup sets proxy options while raw startup preserves inherited N
   const { root, home, cwd, agent, nono, profile } = fixture();
   const runtime = join(root, "runtime");
   mkdirSync(runtime);
-  const launcher = new URL("../scripts/launcher.mjs", import.meta.url).pathname;
+  const launcher = new URL("../scripts/launcher.mts", import.meta.url).pathname;
   writeFileSync(profile, readFileSync(new URL("../scripts/profile.json", import.meta.url)));
   writeFileSync(nono, `#!${process.execPath}
     const { spawnSync } = require("node:child_process");

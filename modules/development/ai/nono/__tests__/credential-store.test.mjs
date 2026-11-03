@@ -4,9 +4,9 @@ import { lstatSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, realpath
 import { createServer } from "node:net";
 import { dirname, join } from "node:path";
 import { afterEach, test } from "node:test";
-import { agentProtection, prepareAgentRuntime } from "../scripts/agent-protection.mjs";
-import { credentialFilesOutsideStore, credentialStoreDirectory, migrateCredentialStore, runningSandboxes } from "../scripts/credential-store.mjs";
-import { launchArguments } from "../scripts/launcher.mjs";
+import { agentProtection, prepareAgentRuntime } from "../scripts/protection/agent.mts";
+import { credentialFilesOutsideStore, credentialStoreDirectory, migrateCredentialStore, runningSandboxes } from "../scripts/credentials/store.mts";
+import { launchArguments } from "../scripts/launch/plan.mts";
 
 const envBinary = process.env.ENV_TEST_BINARY ?? "/usr/bin/env";
 const created = [];

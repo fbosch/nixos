@@ -6,8 +6,8 @@ import { createConnection, createServer } from "node:net";
 import { join } from "node:path";
 import { test } from "node:test";
 import { promisify } from "node:util";
-import { createReportValidator, defaultReportingCapability } from "../scripts/herdr-protocol.mts";
-import { startReportingServer } from "../scripts/herdr-server.mts";
+import { createReportValidator, defaultReportingCapability } from "../scripts/herdr/protocol.mts";
+import { startReportingServer } from "../scripts/herdr/service.mts";
 
 const runFile = promisify(execFile);
 const authority = { upstream: "/fixture/host", pane: "wFixture:p1", embedded: false, sessionDirectory: "/fixture/sessions" };

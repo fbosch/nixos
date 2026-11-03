@@ -7,7 +7,7 @@ import { createConnection, createServer } from "node:net";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
-import { launchArguments } from "../scripts/launcher.mjs";
+import { launchArguments } from "../scripts/launch/plan.mts";
 
 const profilePath = process.env.NONO_TEST_PROFILE ?? fileURLToPath(new URL("../scripts/profile.json", import.meta.url));
 const probe = fileURLToPath(new URL("./fixtures/socket-isolation-probe.mjs", import.meta.url));

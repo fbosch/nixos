@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
-import { runWithCredentialProxy } from "../scripts/credential-proxy.mjs";
+import { runWithCredentialProxy } from "../scripts/credentials/proxy.mts";
 import { proxyFixtureSource } from "./fixtures/credential-proxy.mjs";
 
 function fixture(options = {}) {
@@ -169,7 +169,7 @@ test("raw launch replaces the bootstrap so termination reaches Pi directly", asy
   try {
     const agent = join(f.root, ".pi", "agent");
     mkdirSync(agent, { recursive: true });
-    const launcher = fileURLToPath(new URL("../scripts/launcher.mjs", import.meta.url));
+    const launcher = fileURLToPath(new URL("../scripts/launcher.mts", import.meta.url));
     const child = spawn(process.execPath, [launcher, f.nono, process.execPath, f.profile, "/missing-direnv", "/missing-env", "--no-sandbox", "-e", 'console.log("pi-ready");setInterval(() => {}, 1000)'], {
       env: { HOME: f.root, PATH: process.env.PATH, PI_CODING_AGENT_DIR: agent }, stdio: ["ignore", "pipe", "pipe"],
     });
@@ -191,7 +191,7 @@ test("termination during startup preserves the signal and removes the pending pr
     const created = new Promise((resolve) => {
       watcher.on("change", (_, name) => { if (name === "proxy.pid") resolve(); });
     });
-    const proxyModule = new URL("../scripts/credential-proxy.mjs", import.meta.url).href;
+    const proxyModule = new URL("../scripts/credentials/proxy.mts", import.meta.url).href;
     const script = `
       import { runWithCredentialProxy } from ${JSON.stringify(proxyModule)};
       const result = await runWithCredentialProxy(${JSON.stringify(f.nono)}, ${JSON.stringify(f.profile)},
@@ -378,7 +378,7 @@ test("Linux launcher selects the standalone proxy without bypassing nono run", {
     ${proxyFixtureSource({ pidFile: f.pidFile })}
   `, { mode: 0o700 });
   try {
-    const launcher = fileURLToPath(new URL("../scripts/launcher.mjs", import.meta.url));
+    const launcher = fileURLToPath(new URL("../scripts/launcher.mts", import.meta.url));
     // Proxy plumbing only; model-executor-launch.test.mjs covers the executor default and fail-closed setup.
     const child = spawn(process.execPath, [launcher, f.nono, process.execPath, f.profile, "/missing-direnv", process.env.ENV_TEST_BINARY ?? "/usr/bin/env", "--version"], {
       cwd: work, env: { HOME: home, PATH: process.env.PATH, TMPDIR: temporary, PI_CODING_AGENT_DIR: agent, PI_MODEL_EXECUTOR: "0" }, stdio: ["ignore", "pipe", "pipe"],
@@ -442,7 +442,7 @@ test("installed Nono standalone proxy injects credentials while its child remain
     `;
     const command = [process.env.NONO_PROXY_TEST_BINARY, "run", "--profile", f.profile, "--allow-cwd", "--no-audit", "--no-rollback", "--", process.execPath, "-e", probe];
     const runner = `
-      import { runWithCredentialProxy } from ${JSON.stringify(new URL("../scripts/credential-proxy.mjs", import.meta.url).href)};
+      import { runWithCredentialProxy } from ${JSON.stringify(new URL("../scripts/credentials/proxy.mts", import.meta.url).href)};
       const result = await runWithCredentialProxy(${JSON.stringify(process.env.NONO_PROXY_TEST_BINARY)}, ${JSON.stringify(f.profile)}, ${JSON.stringify(command)}, process.env, { sandboxed: true });
       if (result.error) throw result.error;
       process.exit(result.status ?? 1);

@@ -4,7 +4,8 @@ import { chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, 
 import { dirname, join } from "node:path";
 import { afterEach, test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { launchArguments, referenceApprovalStore } from "../scripts/launcher.mjs";
+import { launchArguments } from "../scripts/launch/plan.mts";
+import { referenceApprovalStore } from "../scripts/launch/references.mts";
 
 const envBinary = process.env.ENV_TEST_BINARY ?? "/usr/bin/env";
 

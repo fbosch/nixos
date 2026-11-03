@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
-import { launchArguments } from "../scripts/launcher.mjs";
+import { launchArguments } from "../scripts/launch/plan.mts";
 
 const profile = fileURLToPath(new URL("../scripts/profile.json", import.meta.url));
 const envBinary = process.env.ENV_TEST_BINARY ?? "/usr/bin/env";

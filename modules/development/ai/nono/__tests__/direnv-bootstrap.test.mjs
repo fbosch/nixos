@@ -5,12 +5,12 @@ import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, wr
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { loadProjectEnvironment } from "../scripts/launcher.mjs";
+import { loadProjectEnvironment } from "../scripts/launch/environment.mts";
 
 const envBinary = process.env.ENV_TEST_BINARY ?? "/usr/bin/env";
 
 const roots = [];
-const launcher = fileURLToPath(new URL("../scripts/launcher.mjs", import.meta.url));
+const launcher = fileURLToPath(new URL("../scripts/launcher.mts", import.meta.url));
 
 function fixture(withEnvrc = true) {
   const root = mkdtempSync(join(tmpdir(), "pi-direnv-bootstrap-"));

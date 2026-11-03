@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 
 const envBinary = process.env.ENV_TEST_BINARY ?? "/usr/bin/env";
 
-const launcher = fileURLToPath(new URL("../scripts/launcher.mjs", import.meta.url));
+const launcher = fileURLToPath(new URL("../scripts/launcher.mts", import.meta.url));
 const profile = fileURLToPath(new URL("../scripts/profile.json", import.meta.url));
 const roots = [];
 

@@ -5,8 +5,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, test } from "node:test";
 import { deflateSync } from "node:zlib";
-import { createImageOpener } from "../scripts/desktop-images.mjs";
-import { validatedPng } from "../scripts/desktop-png.mjs";
+import { createImageOpener } from "../scripts/desktop/images.mts";
+import { validatedPng } from "../scripts/desktop/png.mts";
 import { chunk, png, signature } from "./fixtures/png.mjs";
 
 const roots = [];
