@@ -1,3 +1,4 @@
+import * as Effect from "effect/Effect";
 import { existsSync, lstatSync, mkdirSync, readdirSync, realpathSync } from "node:fs";
 import { isAbsolute, join } from "node:path";
 import { canonicalCredentialPath } from "../credentials/grants.mts";
@@ -5,6 +6,7 @@ import { credentialStoreDirectory } from "../credentials/store.mts";
 import { within } from "../shared/paths.mts";
 import type { Environment, ErrnoError, NonoProfile } from "../shared/types.mts";
 import { resolveComponents } from "./resolve.mts";
+import { GrantConflictError, InvalidConfigError, type SandboxError, UnsafeFileError, attempt } from "../shared/errors.mts";
 
 /** Paths that agentProtection keeps read-only, and the agent data that stays writable. */
 export interface AgentProtection {
@@ -26,23 +28,28 @@ const requiredControls = ["settings.json", "extensions", "npm", "git", "lib", "m
 // scan of about 120000 entries takes about two seconds on rvn-mac.
 const MAX_CONTROL_ENTRIES = 300000;
 
-export function agentDirectories(home: string, agentDir: string): string[] {
+function agentDirectoriesSync(home: string, agentDir: string): string[] {
   const roots = [...new Set([join(home, ".pi", "agent"), agentDir].filter(path => existsSync(path)).map(path => realpathSync(path)))];
   const canonicalHome = existsSync(home) ? realpathSync(home) : home;
-  if (roots.some(root => within(canonicalHome, root))) throw new Error("Pi agent directory must not resolve to the home directory or an ancestor");
+  if (roots.some(root => within(canonicalHome, root))) throw new UnsafeFileError({ message: "Pi agent directory must not resolve to the home directory or an ancestor" });
   return roots;
+}
+
+/** The default and configured Pi agent directories that exist, canonicalized. */
+export function agentDirectories(home: string, agentDir: string): Effect.Effect<string[], SandboxError> {
+  return attempt(() => agentDirectoriesSync(home, agentDir));
 }
 
 /**
  * Credential stores in every agent directory, as given and canonical: auth.json (with its lock
  * files) and auth-profiles/. In executor mode the sandbox reaches them only through the executor.
  */
-export function agentCredentialPaths(home: string, agentDir: string): string[] {
+function agentCredentialPathsSync(home: string, agentDir: string): string[] {
   const paths = new Set<string>();
   // Migrated credentials live in the store; Seatbelt and Landlock check the resolved file.
   const store = storeDirectory(home);
   if (store !== undefined) paths.add(store);
-  for (const root of agentDirectories(home, agentDir)) {
+  for (const root of agentDirectoriesSync(home, agentDir)) {
     for (const name of ["auth.json", "auth-profiles"]) {
       const path = join(root, name);
       paths.add(path);
@@ -52,8 +59,13 @@ export function agentCredentialPaths(home: string, agentDir: string): string[] {
   return [...paths];
 }
 
-export function agentProtection(home: string, agentDir: string, environment: Environment = {}, profile: NonoProfile = {}, platform: NodeJS.Platform = process.platform): AgentProtection {
-  const roots = agentDirectories(home, agentDir);
+/** Credential stores the host model executor owns; the sandbox receives no grant to them. */
+export function agentCredentialPaths(home: string, agentDir: string): Effect.Effect<string[], SandboxError> {
+  return attempt(() => agentCredentialPathsSync(home, agentDir));
+}
+
+function agentProtectionSync(home: string, agentDir: string, environment: Environment = {}, profile: NonoProfile = {}, platform: NodeJS.Platform = process.platform): AgentProtection {
+  const roots = agentDirectoriesSync(home, agentDir);
   const canonicalHome = existsSync(home) ? realpathSync(home) : home;
   // These broad Linux default grants cannot be narrowed by splitting launcher arguments.
   const systemTemporary = canonicalCredentialPath("/tmp", "Pi control");
@@ -65,7 +77,7 @@ export function agentProtection(home: string, agentDir: string, environment: Env
       inheritedWrites.push(template.replace(/\$(?:\{(\w+)\}|(\w+))/g, (_, braced: string | undefined, bare: string | undefined) => {
         const name = braced || bare!;
         const value = name === "HOME" ? home : environment[name];
-        if (!value) throw new Error(`Missing Pi profile path variable: ${name}`);
+        if (!value) throw new InvalidConfigError({ message: `Missing Pi profile path variable: ${name}` });
         return value;
       }));
     }
@@ -79,16 +91,16 @@ export function agentProtection(home: string, agentDir: string, environment: Env
   let entries = 0;
 
   function canonicalPath(path: string): string {
-    if (!isAbsolute(path)) throw new Error(`Pi control path must be absolute: ${path}`);
+    if (!isAbsolute(path)) throw new InvalidConfigError({ message: `Pi control path must be absolute: ${path}` });
     // Include dangling Stow targets: future creation must not create an unprotected resource.
     return resolveComponents(path, "Pi control", { onLink: link => protectedPaths.add(link) });
   }
   function protect(path: string): void {
     protectedPaths.add(path);
     const canonical = canonicalPath(path);
-    if (within(canonicalHome, canonical)) throw new Error(`Pi control path resolves to a home ancestor: ${path}`);
+    if (within(canonicalHome, canonical)) throw new UnsafeFileError({ message: `Pi control path resolves to a home ancestor: ${path}` });
     if (fixedWrites.some(root => within(canonical, root) || within(root, canonical))) {
-      throw new Error(`Pi control path overlaps a writable profile or default-group grant: ${path}`);
+      throw new GrantConflictError({ message: `Pi control path overlaps a writable profile or default-group grant: ${path}` });
     }
     protectedPaths.add(canonical);
     scan(canonical);
@@ -97,7 +109,7 @@ export function agentProtection(home: string, agentDir: string, environment: Env
   function scan(path: string): void {
     if (visited.has(path) || path.startsWith("/nix/store/")) return;
     visited.add(path);
-    if (++entries > MAX_CONTROL_ENTRIES) throw new Error(`Pi control protection exceeds ${MAX_CONTROL_ENTRIES} entries`);
+    if (++entries > MAX_CONTROL_ENTRIES) throw new UnsafeFileError({ message: `Pi control protection exceeds ${MAX_CONTROL_ENTRIES} entries` });
     let entry;
     try { entry = lstatSync(path); }
     catch (error) { if ((error as ErrnoError).code === "ENOENT") return; throw error; }
@@ -106,7 +118,7 @@ export function agentProtection(home: string, agentDir: string, environment: Env
     } else if (entry.isDirectory()) {
       for (const name of readdirSync(path)) scan(join(path, name));
     } else if (!entry.isFile() || entry.nlink !== 1) {
-      throw new Error(`Pi control file must be regular and not hard-linked: ${path}`);
+      throw new UnsafeFileError({ message: `Pi control file must be regular and not hard-linked: ${path}` });
     }
   }
 
@@ -117,7 +129,7 @@ export function agentProtection(home: string, agentDir: string, environment: Env
       if (runtimeDirectories.has(name)) {
         const canonical = realpathSync(path);
         if (!lstatSync(canonical).isDirectory() || !roots.some(parent => within(canonical, parent))) {
-          throw new Error(`Pi runtime directory must remain inside a managed agent directory: ${path}`);
+          throw new UnsafeFileError({ message: `Pi runtime directory must remain inside a managed agent directory: ${path}` });
         }
         runtimePaths.add(canonical);
       } else if (name === "auth.json") {
@@ -131,13 +143,13 @@ export function agentProtection(home: string, agentDir: string, environment: Env
           const store = storeDirectory(home);
           const storeAuth = store === undefined ? undefined : join(store, "auth.json");
           if (target !== storeAuth && !roots.some(other => other !== root && target === join(other, "auth.json"))) {
-            throw new Error(`Pi auth state must be a regular file without hard links: ${path}`);
+            throw new UnsafeFileError({ message: `Pi auth state must be a regular file without hard links: ${path}` });
           }
           protectedPaths.add(path);
           continue;
         }
         // Refresh credentials in place, but do not grant a writable parent or a symlink-selected file.
-        if (!entry.isFile() || entry.nlink !== 1) throw new Error(`Pi auth state must be a regular file without hard links: ${path}`);
+        if (!entry.isFile() || entry.nlink !== 1) throw new UnsafeFileError({ message: `Pi auth state must be a regular file without hard links: ${path}` });
         authFiles.add(path);
       } else {
         protect(path);
@@ -147,10 +159,15 @@ export function agentProtection(home: string, agentDir: string, environment: Env
   const controls = [...protectedPaths];
   for (const mutable of [...runtimePaths, ...authFiles]) {
     if (controls.some(path => within(path, mutable) || within(mutable, path))) {
-      throw new Error(`Pi runtime state overlaps a protected control path: ${mutable}`);
+      throw new GrantConflictError({ message: `Pi runtime state overlaps a protected control path: ${mutable}` });
     }
   }
   return { protectedPaths: controls, runtimePaths: [...runtimePaths], authFiles: [...authFiles] };
+}
+
+/** Pi controls to keep read-only and the agent data that stays writable. */
+export function agentProtection(home: string, agentDir: string, environment: Environment = {}, profile: NonoProfile = {}, platform: NodeJS.Platform = process.platform): Effect.Effect<AgentProtection, SandboxError> {
+  return attempt(() => agentProtectionSync(home, agentDir, environment, profile, platform));
 }
 
 export function prepareAgentRuntime(agentDir: string): void {

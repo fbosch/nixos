@@ -1,3 +1,4 @@
+import * as Effect from "effect/Effect";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
@@ -174,7 +175,7 @@ for (const scenario of ["dotfiles", "nixos", "worktree", "unrelated"]) {
         socket.once("connect",()=>finish("connected"));socket.once("error",e=>finish(e.code));socket.setTimeout(2000,()=>finish("timeout"));
       }))).then(codes=>{for(const code of codes)assert.ok(["EACCES","EPERM"].includes(code),code);console.log("scope and retained denials passed");}).catch(e=>{console.error(e);process.exitCode=1;});
     `;
-    const controls = editable ? [] : agentProtection(f.home, f.agent, f.environment, JSON.parse(readFileSync(f.profile, "utf8"))).protectedPaths;
+    const controls = editable ? [] : Effect.runSync(agentProtection(f.home, f.agent, f.environment, JSON.parse(readFileSync(f.profile, "utf8")))).protectedPaths;
     withProtectedShellProfile(f.profile, f.home, f.environment, selectedProfile => {
       const prepared = [...args];
       prepared[prepared.indexOf("--profile") + 1] = selectedProfile;

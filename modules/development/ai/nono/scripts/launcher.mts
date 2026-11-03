@@ -17,6 +17,7 @@ import { ensureSshIdentity } from "./launch/ssh.mts";
 import { MODEL_EXECUTOR_SOCKET, modelExecutorEnabled, modelExecutorEnvironment, withModelExecutor } from "./model-executor/launch.mts";
 import { prepareAgentRuntime } from "./protection/agent.mts";
 import { withProtectedShellProfile } from "./protection/shell.mts";
+import { runSyncOrThrow } from "./shared/errors.mts";
 import { readJsonFile } from "./shared/paths.mts";
 import type { Environment, ExitResult, NonoProfile } from "./shared/types.mts";
 
@@ -95,7 +96,7 @@ async function launchSandboxed(nono: string, rawPi: string, profile: string, dir
   const runPi = (boundEnvironment: Environment) => withNonoDiagnostics(boundEnvironment, async (diagnosticEnvironment): Promise<ExitResult> => {
     environment = diagnosticEnvironment;
     environment.PI_NONO_DIAGNOSTICS = inheritedEnvironment.PI_NONO_DIAGNOSTICS === "1" ? "1" : "0";
-    const { command, protectedPaths, credentialPaths, exposedCredentials } = planLaunchCommand(args, process.cwd(), agentDir, home, environment, nono, rawPi, profile, envBinary, registry);
+    const { command, protectedPaths, credentialPaths, exposedCredentials } = runSyncOrThrow(planLaunchCommand(args, process.cwd(), agentDir, home, environment, nono, rawPi, profile, envBinary, registry));
     if (exposedCredentials?.length) {
       console.warn(`pi sandbox launch: these credential files are outside the Pi credential store and stay readable on Linux: ${exposedCredentials.join(", ")}`);
     }

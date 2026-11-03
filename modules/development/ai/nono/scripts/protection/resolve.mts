@@ -1,6 +1,7 @@
 import { readlinkSync } from "node:fs";
 import { dirname, isAbsolute, join, sep } from "node:path";
 import { optionalLstat } from "../shared/paths.mts";
+import { InvalidConfigError, UnsafeFileError } from "../shared/errors.mts";
 
 /**
  * Resolve `path` one component at a time, following symlinks in filesystem order:
@@ -29,17 +30,17 @@ export function resolveComponents(path: string, label: string, { onLink = () => 
     current = join(current, component);
     const entry = optionalLstat(current);
     if (entry === undefined) {
-      if (parts.includes("..")) throw new Error(`Unresolvable ${label} parent traversal: ${path}`);
+      if (parts.includes("..")) throw new InvalidConfigError({ message: `Unresolvable ${label} parent traversal: ${path}` });
       return join(current, ...parts);
     }
     if (entry.isSymbolicLink()) {
       onLink(current);
-      if (++links > 40) throw new Error(`Too many ${label} symlinks: ${path}`);
+      if (++links > 40) throw new UnsafeFileError({ message: `Too many ${label} symlinks: ${path}` });
       const target = readlinkSync(current);
       parts = [...target.split(sep).filter(Boolean), ...parts];
       current = isAbsolute(target) ? sep : dirname(current);
     } else if (parts.length && !entry.isDirectory()) {
-      throw new Error(`Not a ${label} directory: ${current}`);
+      throw new UnsafeFileError({ message: `Not a ${label} directory: ${current}` });
     }
   }
   return current;

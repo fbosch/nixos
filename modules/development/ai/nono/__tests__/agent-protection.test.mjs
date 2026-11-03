@@ -1,3 +1,4 @@
+import * as Effect from "effect/Effect";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { linkSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
@@ -37,7 +38,7 @@ afterEach(() => { for (const root of roots.splice(0)) rmSync(root, { recursive: 
 
 test("control paths include default and configured settings and extension targets", () => {
   const f = fixture();
-  const policy = agentProtection(f.home, f.agent);
+  const policy = Effect.runSync(agentProtection(f.home, f.agent));
   for (const base of [f.agent, f.defaultAgent]) {
     for (const name of ["settings.json", "extensions", "lib", "npm", "mcp.json"]) {
       assert.ok(policy.protectedPaths.includes(join(base, name)), `${base}/${name}`);
@@ -52,7 +53,7 @@ test("control paths include default and configured settings and extension target
 test("FFF fallback databases have a prepared writable data directory", () => {
   const f = fixture();
   const data = join(f.agent, "fff");
-  const policy = agentProtection(f.home, f.agent);
+  const policy = Effect.runSync(agentProtection(f.home, f.agent));
   assert.ok(policy.runtimePaths.includes(data));
   assert.ok(policy.protectedPaths.includes(join(f.agent, "settings.json")));
   for (const name of ["frecency", "history"]) {
@@ -66,7 +67,7 @@ test("linked extension dependencies remain protected outside the agent directory
   mkdirSync(external);
   writeFileSync(join(external, "index.mjs"), "export default {};\n");
   symlinkSync(external, join(f.agent, "extensions", "external"));
-  assert.ok(agentProtection(f.home, f.agent).protectedPaths.includes(external));
+  assert.ok(Effect.runSync(agentProtection(f.home, f.agent)).protectedPaths.includes(external));
 });
 
 test("Linux rejects executable resources beneath an unsplittable writable cache grant", () => {
@@ -75,46 +76,46 @@ test("Linux rejects executable resources beneath an unsplittable writable cache 
   mkdirSync(cache, { recursive: true });
   writeFileSync(join(cache, "index.mjs"), "export default {};");
   symlinkSync(cache, join(f.agent, "extensions", "cached"));
-  assert.throws(() => agentProtection(f.home, f.agent, {}, {}, "linux"), /writable profile or default-group grant/);
+  assert.throws(() => Effect.runSync(agentProtection(f.home, f.agent, {}, {}, "linux")), /writable profile or default-group grant/);
 });
 test("dangling Stow targets are protected before they are created", () => {
   const f = fixture();
   const target = join(f.home, "future-library", "extension.mjs");
   symlinkSync(target, join(f.agent, "extensions", "future.mjs"));
-  assert.ok(agentProtection(f.home, f.agent).protectedPaths.includes(target));
+  assert.ok(Effect.runSync(agentProtection(f.home, f.agent)).protectedPaths.includes(target));
 });
 test("invalid directory traversal in an extension link fails closed", () => {
   const f = fixture();
   const file = join(f.home, "not-a-directory");
   writeFileSync(file, "fixture");
   symlinkSync(`${file}/../future.mjs`, join(f.agent, "extensions", "invalid.mjs"));
-  assert.throws(() => agentProtection(f.home, f.agent), /Not a Pi control directory/);
+  assert.throws(() => Effect.runSync(agentProtection(f.home, f.agent)), /Not a Pi control directory/);
 });
 
 test("runtime directories cannot alias protected extension code", () => {
   const f = fixture();
   rmSync(join(f.agent, "cache"), { recursive: true });
   symlinkSync(join(f.agent, "extensions"), join(f.agent, "cache"));
-  assert.throws(() => agentProtection(f.home, f.agent), /runtime state overlaps a protected control path/);
+  assert.throws(() => Effect.runSync(agentProtection(f.home, f.agent)), /runtime state overlaps a protected control path/);
 });
 
 test("hard links cannot leave writable aliases to protected code", () => {
   const f = fixture();
   linkSync(join(f.agent, "extensions", "existing.mjs"), join(f.work, "alias.mjs"));
-  assert.throws(() => agentProtection(f.home, f.agent), /not hard-linked/);
+  assert.throws(() => Effect.runSync(agentProtection(f.home, f.agent)), /not hard-linked/);
 });
 
 test("auth state cannot select a control file through a symlink", () => {
   const f = fixture();
   rmSync(join(f.agent, "auth.json"));
   symlinkSync(join(f.agent, "settings.json"), join(f.agent, "auth.json"));
-  assert.throws(() => agentProtection(f.home, f.agent), /auth state must be a regular file/);
+  assert.throws(() => Effect.runSync(agentProtection(f.home, f.agent)), /auth state must be a regular file/);
 });
 
 test("a Stow-linked default auth file shares the configured agent's auth file", () => {
   const f = fixture();
   symlinkSync(join(f.agent, "auth.json"), join(f.defaultAgent, "auth.json"));
-  const policy = agentProtection(f.home, f.agent);
+  const policy = Effect.runSync(agentProtection(f.home, f.agent));
   assert.deepEqual(policy.authFiles, [join(f.agent, "auth.json")]);
   assert.ok(policy.protectedPaths.includes(join(f.defaultAgent, "auth.json")), "the link itself stays host-owned");
 });
@@ -125,7 +126,7 @@ test("a default auth link may not select any other file", () => {
   for (const target of [join(f.agent, "settings.json"), join(f.home, "elsewhere.json"), join(f.agent, "missing.json")]) {
     rmSync(join(f.defaultAgent, "auth.json"), { force: true });
     symlinkSync(target, join(f.defaultAgent, "auth.json"));
-    assert.throws(() => agentProtection(f.home, f.agent), /auth state must be a regular file/, target);
+    assert.throws(() => Effect.runSync(agentProtection(f.home, f.agent)), /auth state must be a regular file/, target);
   }
 });
 
@@ -239,7 +240,7 @@ test("fresh native sandbox denies control writes and loads an approved Pi extens
     assert.match(pi.stdout, /approved-lockdown-proof/, pi.stdout + pi.stderr);
     console.log("settings and extension writes denied; approved extension loaded; runtime data writable");
   `;
-  const controls = agentProtection(f.home, f.agent, environment, profile).protectedPaths;
+  const controls = Effect.runSync(agentProtection(f.home, f.agent, environment, profile)).protectedPaths;
   withProtectedShellProfile(profilePath, f.home, environment, selectedProfile => {
     const prepared = [...args];
     prepared[prepared.indexOf("--profile") + 1] = selectedProfile;

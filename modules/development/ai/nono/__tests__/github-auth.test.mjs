@@ -1,3 +1,4 @@
+import * as Effect from "effect/Effect";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -10,7 +11,7 @@ import { assertCredentialSourceGrants, credentialDefinitions, credentialEnvironm
 const github = { github: credentialDefinitions.github };
 const direnvGithubEnvironment = (environment) => credentialEnvironmentForDirenv(environment, github);
 const prepareGithubEnvironment = (inherited, loaded, home) => prepareCredentialEnvironment(inherited, loaded, home, github);
-const assertGithubCredentialGrants = (args, cwd, home, environment = {}, profile = {}) => assertCredentialSourceGrants(args, cwd, home, environment, profile, github);
+const assertGithubCredentialGrants = (args, cwd, home, environment = {}, profile = {}) => Effect.runSync(assertCredentialSourceGrants(args, cwd, home, environment, profile, github));
 
 const envBinary = process.env.ENV_TEST_BINARY ?? "/usr/bin/env";
 

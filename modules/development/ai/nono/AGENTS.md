@@ -33,6 +33,15 @@ Host-side launcher, credential boundary and IPC brokers that confine Pi under no
 - Do not use `any`. Before every `as unknown as T`, add a `// SAFETY:` comment that states the invariant.
 - Shared types live in `shared/types.mts`. Define a domain type in the module that owns it, for example capability types in `ipc/policy.mts`.
 
+## Effect
+
+- Grant planning and its guards return `Effect.Effect<A, SandboxError>`. The four error classes in `shared/errors.mts` are the only expected failures; anything else is a defect.
+- Import Effect modules by subpath, for example `import * as Effect from "effect/Effect"`. The root `effect` import loads the whole library and adds about 150 ms to every `pi` launch.
+- Wrap synchronous policy code that throws with `attempt()`. Keep a module's internal helpers synchronous and export the Effect wrapper.
+- Keep every step in its original order; grant order is part of the security contract. Use `yield*` for each step rather than combining steps in parallel.
+- Run an Effect at a synchronous boundary with `runSyncOrThrow()`, which rethrows the original error.
+- Filesystem access stays on `node:fs`. Add an Effect service only when a test needs to replace the filesystem.
+
 ## Checks
 
 - Run `npx tsc -p .` from this directory; it must report no errors. Nix runs the same check as `checks.<system>.nono-typecheck`.

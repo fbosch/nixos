@@ -1,3 +1,4 @@
+import * as Effect from "effect/Effect";
 import assert from "node:assert/strict";
 import { once } from "node:events";
 import { linkSync, mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
@@ -252,7 +253,7 @@ test("bootstrap binds inherited identity, creates the endpoint before launch and
       assert.equal((await exchange(endpoint, f.request("pane.report_agent", { pane_id: "wOther:p2" }))).ok, false);
     });
     assert.throws(() => realpathSync(endpoint), /ENOENT/);
-    assert.throws(() => assertPrivateIpcGrants([], f.home, f.home), /covers private Pi IPC state/);
+    assert.throws(() => Effect.runSync(assertPrivateIpcGrants([], f.home, f.home)), /covers private Pi IPC state/);
   } finally {
     await new Promise(resolve => host.close(resolve));
   }

@@ -1,3 +1,4 @@
+import * as Effect from "effect/Effect";
 import assert from "node:assert/strict";
 import { once } from "node:events";
 import { lstatSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, realpathSync, rmSync, statSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
@@ -113,7 +114,7 @@ test("a missing auth.json is created in the store", () => {
 test("migrated links pass agent protection, and only executor-free sessions are granted the store", async () => {
   const f = fixture();
   migrateCredentialStore(f.home, f.agent);
-  assert.doesNotThrow(() => agentProtection(f.home, f.agent));
+  assert.doesNotThrow(() => Effect.runSync(agentProtection(f.home, f.agent)));
   const writable = (args) => [...values(args, "--allow"), ...values(args, "--allow-file")];
   const ordinary = launchArguments(f.cwd, f.agent, f.home, {}, f.profile, process.execPath, envBinary, "darwin");
   assert.ok(writable(ordinary).includes(join(f.store, "auth.json")));

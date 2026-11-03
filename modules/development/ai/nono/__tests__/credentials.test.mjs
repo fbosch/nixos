@@ -1,3 +1,4 @@
+import * as Effect from "effect/Effect";
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -74,9 +75,9 @@ test("an additional file-backed MCP gets secret-path protection from its declara
     const secret = join(store, "docs-api-key");
     writeFileSync(secret, "synthetic-docs-key", { mode: 0o400 });
     const definitions = docs(secret);
-    assert.doesNotThrow(() => assertCredentialSourceGrants(["--read", safe], safe, root, {}, {}, definitions));
+    assert.doesNotThrow(() => Effect.runSync(assertCredentialSourceGrants(["--read", safe], safe, root, {}, {}, definitions)));
     for (const grant of [secret, store, root]) {
-      assert.throws(() => assertCredentialSourceGrants(["--read", grant], safe, root, {}, {}, definitions), /Docs credential store overlaps/);
+      assert.throws(() => Effect.runSync(assertCredentialSourceGrants(["--read", grant], safe, root, {}, {}, definitions)), /Docs credential store overlaps/);
     }
   } finally {
     rmSync(root, { recursive: true, force: true });

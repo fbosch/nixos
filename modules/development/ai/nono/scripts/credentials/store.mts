@@ -6,6 +6,7 @@ import { closeSync, chmodSync, fsyncSync, linkSync, lstatSync, mkdirSync, openSy
 import { spawnSync } from "node:child_process";
 import { basename, dirname, join, relative } from "node:path";
 import type { ErrnoError } from "../shared/types.mts";
+import { UnsafeFileError } from "../shared/errors.mts";
 
 /** Why migrateFile left a credential where it was, or that it moved. */
 type MigrationOutcome = "missing" | "linked" | "foreign" | "locked" | "conflict" | "changed" | "migrated";
@@ -28,7 +29,7 @@ function privateDirectory(path: string): void {
   mkdirSync(path, { recursive: true, mode: 0o700 });
   const entry = lstatSync(path);
   if (!entry.isDirectory() || entry.uid !== process.getuid!()) {
-    throw new Error(`Pi credential store must be a user-owned directory without symlinks: ${path}`);
+    throw new UnsafeFileError({ message: `Pi credential store must be a user-owned directory without symlinks: ${path}` });
   }
   if ((entry.mode & 0o077) !== 0) chmodSync(path, 0o700);
 }

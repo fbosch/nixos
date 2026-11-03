@@ -1,3 +1,4 @@
+import * as Effect from "effect/Effect";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { linkSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
@@ -12,9 +13,9 @@ const context7SecretPath = context7.context7.source.path;
 const direnvContext7Environment = (environment) => credentialEnvironmentForDirenv(environment, context7);
 const prepareContext7Environment = (inherited, loaded) => prepareCredentialEnvironment(inherited, loaded, "/home/user", context7);
 const assertContext7CredentialGrants = (args, cwd, home, environment = {}, profile = {}, path = context7SecretPath) =>
-  assertCredentialSourceGrants(args, cwd, home, environment, profile, {
+  Effect.runSync(assertCredentialSourceGrants(args, cwd, home, environment, profile, {
     context7: { ...context7.context7, source: { ...context7.context7.source, path } },
-  });
+  }));
 
 const token = "synthetic-context7-credential";
 

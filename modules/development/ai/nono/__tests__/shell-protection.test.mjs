@@ -1,3 +1,4 @@
+import * as Effect from "effect/Effect";
 import { afterEach, test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
@@ -54,7 +55,7 @@ function hasFilter(protection, kind, path) {
 
 test("protects live and Stow startup trees, caches, missing inputs and ancestor replacement without freezing siblings", () => {
   const { home, source, config, cache } = fixture();
-  const protection = shellProtection(home);
+  const protection = Effect.runSync(shellProtection(home));
   for (const path of [source, config, cache, join(home, ".shinit"), join(home, "dotfiles", ".shinit"), join(home, ".inshellisense", "key-bindings.fish"), join(home, ".config", "starship.toml")]) {
     assert.ok(hasFilter(protection, "subpath", path), path);
   }
@@ -78,7 +79,7 @@ test("protects every symlink hop, external function targets, and dangling target
   symlinkSync(hop, join(config, "functions"));
   const missing = join(root, "not-created", "snippet.fish");
   symlinkSync(missing, join(config, "snippet.fish"));
-  const protection = shellProtection(home);
+  const protection = Effect.runSync(shellProtection(home));
   assert.ok(hasFilter(protection, "literal", hop));
   assert.ok(hasFilter(protection, "subpath", target));
   assert.ok(hasFilter(protection, "subpath", missing));
@@ -96,14 +97,14 @@ test("resolves parent components after symlinks and rejects ambiguous missing pr
   symlinkSync(directory, bridge);
   symlinkSync(`${bridge}/../startup.fish`, alias);
   const target = realpathSync.native(alias);
-  const protection = shellProtection(home);
+  const protection = Effect.runSync(shellProtection(home));
   assert.ok(hasFilter(protection, "subpath", target), target);
   assert.ok(hasFilter(protection, "literal", bridge));
   assert.ok(hasFilter(protection, "literal", directory));
   assert.ok(protection.readPaths.includes(target));
   rmSync(alias);
   symlinkSync(`${root}/missing/../startup.fish`, alias);
-  assert.throws(() => shellProtection(home), /parent traversal/);
+  assert.throws(() => Effect.runSync(shellProtection(home)), /parent traversal/);
 });
 
 test("protects symlinked config ancestors without denying their whole target directory", () => {
@@ -112,7 +113,7 @@ test("protects symlinked config ancestors without denying their whole target dir
   const hop = join(root, "xdg-link");
   mkdirSync(join(config, "fish"), { recursive: true });
   symlinkSync(config, hop);
-  const protection = shellProtection(home, { XDG_CONFIG_HOME: hop });
+  const protection = Effect.runSync(shellProtection(home, { XDG_CONFIG_HOME: hop }));
   assert.ok(hasFilter(protection, "literal", hop));
   assert.ok(hasFilter(protection, "literal", config));
   assert.ok(hasFilter(protection, "subpath", join(config, "fish")));
@@ -121,29 +122,29 @@ test("protects symlinked config ancestors without denying their whole target dir
 
 test("escapes Seatbelt strings and preserves Danish paths", () => {
   const { home } = fixture('æøå "quoted" \\ directory');
-  const protection = shellProtection(home);
+  const protection = Effect.runSync(shellProtection(home));
   assert.ok(hasFilter(protection, "literal", home));
   assert.ok(protection.rules.join("").includes("æøå"));
 });
 
 test("rejects symlink loops, hard-linked startup files, home-ancestor targets, and relative XDG paths", () => {
   const { root, home, source, config } = fixture();
-  assert.throws(() => shellProtection(home, { XDG_CONFIG_HOME: "relative" }), /must be absolute/);
+  assert.throws(() => Effect.runSync(shellProtection(home, { XDG_CONFIG_HOME: "relative" })), /must be absolute/);
   const alias = join(root, "hardlink");
   linkSync(join(source, "config.fish"), alias);
-  assert.throws(() => shellProtection(home), /Hard-linked startup file/);
+  assert.throws(() => Effect.runSync(shellProtection(home)), /Hard-linked startup file/);
   rmSync(alias);
   const loop = join(config, "loop");
   symlinkSync(loop, loop);
-  assert.throws(() => shellProtection(home), /Too many startup symlinks/);
+  assert.throws(() => Effect.runSync(shellProtection(home)), /Too many startup symlinks/);
   rmSync(loop);
   symlinkSync(home, loop);
-  assert.throws(() => shellProtection(home), /home ancestor/);
+  assert.throws(() => Effect.runSync(shellProtection(home)), /home ancestor/);
 });
 
 test("rejects unrepresentable startup paths", () => {
   const { home } = fixture("invalid\nname");
-  assert.throws(() => shellProtection(home), /control character/);
+  assert.throws(() => Effect.runSync(shellProtection(home)), /control character/);
 });
 
 test("generated profile preserves base permissions, appends denials, and cleans up after success and failure", () => {

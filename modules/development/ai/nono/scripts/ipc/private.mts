@@ -1,6 +1,8 @@
+import * as Effect from "effect/Effect";
 import { lstatSync, mkdirSync, mkdtempSync, realpathSync, statSync } from "node:fs";
 import type { ChildProcess } from "node:child_process";
 import { join, sep } from "node:path";
+import { GrantConflictError, type SandboxError, UnsafeFileError, attempt } from "../shared/errors.mts";
 import type { ErrnoError } from "../shared/types.mts";
 
 /** Path prefix of private IPC state. Unlike privateIpcBase, it never creates the directory. */
@@ -18,7 +20,7 @@ export function privateIpcBase(home: string): string {
   }
   const entry = lstatSync(base);
   if (!entry.isDirectory() || entry.uid !== process.getuid!() || (entry.mode & 0o077) !== 0) {
-    throw new Error("Pi IPC state must be a private, user-owned directory without symlinks");
+    throw new UnsafeFileError({ message: "Pi IPC state must be a private, user-owned directory without symlinks" });
   }
   return base;
 }
@@ -64,13 +66,18 @@ export function helperEndpoint(helper: ChildProcess, home: string, { name, timeo
   }).finally(() => clearTimeout(timer));
 }
 
-export function assertPrivateIpcGrants(args: readonly string[], cwd: string, home: string): void {
+function assertPrivateIpcGrantsSync(args: readonly string[], cwd: string, home: string): void {
   const base = join(realpathSync(home), ".pi-ipc");
   const roots = [cwd, ...args.flatMap((part, index) => part === "--allow" ? [args[index + 1]!] : [])];
   for (const path of roots) {
     const root = realpathSync(path);
     if (base === root || base.startsWith(`${root}${sep}`) || root === sep) {
-      throw new Error(`Writable launcher grant covers private Pi IPC state: ${root}`);
+      throw new GrantConflictError({ message: `Writable launcher grant covers private Pi IPC state: ${root}` });
     }
   }
+}
+
+/** Fail when a writable grant would cover private Pi IPC state. */
+export function assertPrivateIpcGrants(args: readonly string[], cwd: string, home: string): Effect.Effect<void, SandboxError> {
+  return attempt(() => assertPrivateIpcGrantsSync(args, cwd, home));
 }

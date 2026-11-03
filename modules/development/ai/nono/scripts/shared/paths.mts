@@ -1,6 +1,7 @@
 import { existsSync, lstatSync, readFileSync, realpathSync, statSync, type Stats } from "node:fs";
 import { join, sep } from "node:path";
 import type { ErrnoError, JsonValue } from "./types.mts";
+import { InvalidConfigError, UnsafeFileError } from "./errors.mts";
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -15,7 +16,7 @@ export function within(path: string, root: string): boolean {
 export function existingDirectory(path: string): string | undefined {
   if (!existsSync(path)) return undefined;
   const canonical = realpathSync(path);
-  if (!statSync(canonical).isDirectory()) throw new Error(`Not a directory: ${path}`);
+  if (!statSync(canonical).isDirectory()) throw new UnsafeFileError({ message: `Not a directory: ${path}` });
   return canonical;
 }
 
@@ -39,7 +40,7 @@ export function readJsonFile(path: string, label: string): JsonValue | undefined
   try {
     return JSON.parse(readFileSync(path, "utf8").replace(/^\uFEFF/, ""));
   } catch (error) {
-    throw new Error(`Cannot load ${label} from ${path}: ${(error as Error).message}`);
+    throw new InvalidConfigError({ message: `Cannot load ${label} from ${path}: ${(error as Error).message}` });
   }
 }
 

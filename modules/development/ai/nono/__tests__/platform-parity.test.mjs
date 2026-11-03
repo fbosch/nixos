@@ -1,3 +1,4 @@
+import * as Effect from "effect/Effect";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
@@ -88,7 +89,7 @@ test("Seatbelt protects linked and missing controls without blocking mutable age
   symlinkSync(library,join(f.agent,"extensions","linked"));
   const future = join(f.home,"future","extension.mjs");
   symlinkSync(future,join(f.agent,"extensions","future.mjs"));
-  const controls = agentProtection(f.home,f.agent,f.environment,base,"darwin");
+  const controls = Effect.runSync(agentProtection(f.home,f.agent,f.environment,base,"darwin"));
   assert.ok(controls.protectedPaths.includes(library));
   assert.ok(controls.protectedPaths.includes(future));
   withProtectedShellProfile(f.profile,f.home,f.environment,path=>{

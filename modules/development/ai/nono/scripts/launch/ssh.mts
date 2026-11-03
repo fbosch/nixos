@@ -1,15 +1,17 @@
+import * as Effect from "effect/Effect";
 import { spawnSync } from "node:child_process";
 import { realpathSync, statSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, sep } from "node:path";
 import { existingFile, optionalLstat } from "../shared/paths.mts";
 import type { Environment, ErrnoError } from "../shared/types.mts";
+import { GrantConflictError, InvalidConfigError, LaunchPrerequisiteError, type SandboxError, UnsafeFileError, attempt } from "../shared/errors.mts";
 
-export function sshClientArguments(home: string, environment: Environment): string[] {
+function sshClientArgumentsSync(home: string, environment: Environment): string[] {
   const args: string[] = [];
   const directory = join(home, ".ssh");
   try {
     const entry = optionalLstat(directory);
-    if (entry && !entry.isDirectory()) throw new Error("SSH client directory must be a real directory, not a symlink");
+    if (entry && !entry.isDirectory()) throw new UnsafeFileError({ message: "SSH client directory must be a real directory, not a symlink" });
     if (entry) {
       for (const name of ["config", "known_hosts", "known_hosts2", "id_rsa.pub", "id_ed25519.pub", "id_ecdsa.pub"]) {
         const path = join(directory, name);
@@ -19,39 +21,44 @@ export function sshClientArguments(home: string, environment: Environment): stri
         if (file.isSymbolicLink()) {
           const target = realpathSync(path);
           if (!target.startsWith("/nix/store/") || !statSync(target).isFile()) {
-            throw new Error(`SSH client file symlink must target an immutable Nix store file: ${path}`);
+            throw new UnsafeFileError({ message: `SSH client file symlink must target an immutable Nix store file: ${path}` });
           }
         } else if (!file.isFile() || file.nlink !== 1) {
-          throw new Error(`SSH client file must be a regular file without hard links: ${path}`);
+          throw new UnsafeFileError({ message: `SSH client file must be a regular file without hard links: ${path}` });
         }
         // The default profile denies all of ~/.ssh; a read grant alone cannot lift that deny.
         args.push("--read-file", path, "--bypass-protection", path);
       }
     }
   } catch (error) {
-    throw new Error(`Cannot grant SSH client access: ${(error as Error).message}`);
+    throw new UnsafeFileError({ message: `Cannot grant SSH client access: ${(error as Error).message}` });
   }
 
   // The agent signs as the host user; only the launcher's host-side opt-in may expose it.
   const socket = environment.PI_NONO_SSH_AGENT === "1" ? environment.SSH_AUTH_SOCK : undefined;
   if (socket) {
     try {
-      if (!isAbsolute(socket)) throw new Error("must be absolute");
-      if (!statSync(socket).isSocket()) throw new Error("must identify an existing Unix socket");
+      if (!isAbsolute(socket)) throw new InvalidConfigError({ message: "must be absolute" });
+      if (!statSync(socket).isSocket()) throw new LaunchPrerequisiteError({ message: "must identify an existing Unix socket" });
       // Authorize signing through the caller's existing agent, not access to private-key files.
       args.push("--allow-unix-socket", socket, "--bypass-protection", socket);
     } catch (error) {
       if ((error as ErrnoError).code === "ENOENT") {
         console.warn(`pi sandbox launch: SSH_AUTH_SOCK socket is missing (${JSON.stringify(socket)}); continuing without SSH agent access.`);
       } else {
-        throw new Error(`Cannot grant SSH_AUTH_SOCK access: ${(error as Error).message}`);
+        throw new LaunchPrerequisiteError({ message: `Cannot grant SSH_AUTH_SOCK access: ${(error as Error).message}` });
       }
     }
   }
   return args;
 }
 
-export function assertReadOnlySshGrants(args: readonly string[], cwd: string): void {
+/** Read-only grants for public SSH client files, plus the agent socket when the host opted in. */
+export function sshClientArguments(home: string, environment: Environment): Effect.Effect<string[], SandboxError> {
+  return attempt(() => sshClientArgumentsSync(home, environment));
+}
+
+function assertReadOnlySshGrantsSync(args: readonly string[], cwd: string): void {
   const values = (flag: string) => args.flatMap((part, index) => part === flag ? [args[index + 1]!] : []);
   const exemptions = new Set(values("--bypass-protection"));
   const files = values("--read-file").filter(path => exemptions.has(path));
@@ -62,10 +69,15 @@ export function assertReadOnlySshGrants(args: readonly string[], cwd: string): v
     for (const root of roots) {
       if (targets.some(path => path === root || path.startsWith(root.endsWith(sep) ? root : `${root}${sep}`))) {
         // Nono grants are additive: an overlapping writable root would defeat this read-only exception.
-        throw new Error(`SSH client file overlaps a writable launcher grant: ${file} (${root})`);
+        throw new GrantConflictError({ message: `SSH client file overlaps a writable launcher grant: ${file} (${root})` });
       }
     }
   }
+}
+
+/** Fail when a writable grant would cover an SSH file that must stay read-only. */
+export function assertReadOnlySshGrants(args: readonly string[], cwd: string): Effect.Effect<void, SandboxError> {
+  return attempt(() => assertReadOnlySshGrantsSync(args, cwd));
 }
 
 // Sandboxed SSH and Git signing only reach keys through the agent; the private key file stays denied.

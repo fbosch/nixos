@@ -1,19 +1,21 @@
+import * as Effect from "effect/Effect";
 import { createHash } from "node:crypto";
 import { closeSync, constants, existsSync, fchmodSync, fstatSync, lstatSync, mkdirSync, openSync, readdirSync, realpathSync, rmSync, statSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, sep } from "node:path";
 import type { Environment, SessionStep } from "../shared/types.mts";
 import { privateIpcDirectory, privateIpcPrefix } from "./private.mts";
+import { InvalidConfigError, LaunchPrerequisiteError, type SandboxError, UnsafeFileError, attempt } from "../shared/errors.mts";
 
 function waylandSocket(environment: Environment): string | undefined {
   const display = environment.WAYLAND_DISPLAY;
   if (!display) return undefined;
   const runtime = environment.XDG_RUNTIME_DIR;
   if (!isAbsolute(display) && (!/^[A-Za-z0-9._-]{1,64}$/.test(display) || !runtime || !isAbsolute(runtime))) {
-    throw new Error("Wayland display must be absolute or a display name under an absolute XDG_RUNTIME_DIR");
+    throw new InvalidConfigError({ message: "Wayland display must be absolute or a display name under an absolute XDG_RUNTIME_DIR" });
   }
   // The check above requires an absolute runtime whenever the display is a bare name.
   const socket = realpathSync(isAbsolute(display) ? display : join(runtime!, display));
-  if (!statSync(socket).isSocket()) throw new Error("Wayland display must point to a Unix socket");
+  if (!statSync(socket).isSocket()) throw new LaunchPrerequisiteError({ message: "Wayland display must point to a Unix socket" });
   return socket;
 }
 
@@ -40,7 +42,7 @@ function projectDotfile(cwd: string, home: string, environment: Environment): st
     const root = realpathSync(environment.DEVENV_ROOT);
     if (directory === root || directory.startsWith(root + sep)) {
       const dotfile = environment.DEVENV_DOTFILE || join(root, ".devenv");
-      if (!isAbsolute(dotfile)) throw new Error("DEVENV_DOTFILE must be absolute");
+      if (!isAbsolute(dotfile)) throw new InvalidConfigError({ message: "DEVENV_DOTFILE must be absolute" });
       // Devenv 2.4 resolves the parent, not the leaf; the exported path already includes profiles.
       return join(realpathSync(dirname(dotfile)), basename(dotfile));
     }
@@ -57,11 +59,11 @@ export function devenvRuntime(cwd: string, home: string, environment: Environmen
   // Pinned devenv-core/src/paths.rs: DEVENV_RUNTIME is an output, never an override.
   const hash = createHash("sha256").update(dotfile).digest("hex").slice(0, 7);
   const base = environment.XDG_RUNTIME_DIR || "/tmp";
-  if (!isAbsolute(base)) throw new Error("XDG_RUNTIME_DIR must be absolute");
+  if (!isAbsolute(base)) throw new InvalidConfigError({ message: "XDG_RUNTIME_DIR must be absolute" });
   return join(base, `devenv-${hash}`);
 }
 
-export function serviceSocketArguments(cwd: string, home: string, environment: Environment, restricted: boolean): string[] {
+function serviceSocketArgumentsSync(cwd: string, home: string, environment: Environment, restricted: boolean): string[] {
   if (!restricted) return [];
   const args: string[] = [];
   // Direct compositor access deliberately permits all exposed Wayland protocols, including clipboard reads.
@@ -70,7 +72,7 @@ export function serviceSocketArguments(cwd: string, home: string, environment: E
   const browser = environment.AGENT_BROWSER_SOCKET_DIR;
   if (browser) {
     const directory = realpathSync(browser);
-    if (!directory.startsWith(privateIpcPrefix(home)) || !lstatSync(browser).isDirectory()) throw new Error("Browser IPC directory must belong to this Pi launch");
+    if (!directory.startsWith(privateIpcPrefix(home)) || !lstatSync(browser).isDirectory()) throw new UnsafeFileError({ message: "Browser IPC directory must belong to this Pi launch" });
     args.push("--allow", directory, "--allow-unix-socket-dir-bind", directory);
   }
   const runtime = devenvRuntime(cwd, home, environment);
@@ -79,12 +81,12 @@ export function serviceSocketArguments(cwd: string, home: string, environment: E
   mkdirSync(runtime, { mode: 0o700, recursive: true });
   const entry = lstatSync(runtime);
   const invalidRuntime = "Devenv runtime must be a private, user-owned directory without symlinks";
-  if (!entry.isDirectory() || entry.uid !== process.getuid!()) throw new Error(invalidRuntime);
+  if (!entry.isDirectory() || entry.uid !== process.getuid!()) throw new UnsafeFileError({ message: invalidRuntime });
   if ((entry.mode & 0o077) !== 0) {
     // Match Devenv's create_runtime_dir: secure legacy directories without following a replaced symlink.
     const descriptor = openSync(runtime, constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW);
     try {
-      if (fstatSync(descriptor).uid !== process.getuid!()) throw new Error(invalidRuntime);
+      if (fstatSync(descriptor).uid !== process.getuid!()) throw new UnsafeFileError({ message: invalidRuntime });
       fchmodSync(descriptor, 0o700);
     } finally {
       closeSync(descriptor);
@@ -97,4 +99,9 @@ export function serviceSocketArguments(cwd: string, home: string, environment: E
     if (entry.isDirectory()) args.push("--allow-unix-socket-dir-bind", join(runtime, entry.name));
   }
   return args;
+}
+
+/** Socket grants for Wayland, the session's browser daemon and the project's devenv runtime. */
+export function serviceSocketArguments(cwd: string, home: string, environment: Environment, restricted: boolean): Effect.Effect<string[], SandboxError> {
+  return attempt(() => serviceSocketArgumentsSync(cwd, home, environment, restricted));
 }

@@ -1,3 +1,4 @@
+import * as Effect from "effect/Effect";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
@@ -68,7 +69,7 @@ test("candidate rejects project runtime aliases instead of granting their target
   const target = join(f.root, "unrelated");
   mkdirSync(target, { mode: 0o700 });
   symlinkSync(target, runtime);
-  assert.throws(() => serviceSocketArguments(f.project, f.home, f.environment, true), /private, user-owned directory without symlinks/);
+  assert.throws(() => Effect.runSync(serviceSocketArguments(f.project, f.home, f.environment, true)), /private, user-owned directory without symlinks/);
 });
 
 test("candidate pins the inherited Wayland socket and ignores project desktop authority", async t => {
@@ -82,29 +83,29 @@ test("candidate pins the inherited Wayland socket and ignores project desktop au
   const project = { ...f.environment, XDG_RUNTIME_DIR: "/project/runtime", WAYLAND_DISPLAY: "/project/bus" };
   await withSessionServiceEnvironment(project, inherited, f.home, environment => {
     assert.equal(environment.WAYLAND_DISPLAY, socket);
-    const args = serviceSocketArguments(f.home, f.home, environment, true);
+    const args = Effect.runSync(serviceSocketArguments(f.home, f.home, environment, true));
     assert.deepEqual(values(args, "--allow-unix-socket"), [socket]);
     assert.ok(!values(args, "--allow").includes(f.environment.XDG_RUNTIME_DIR));
-    assert.deepEqual(serviceSocketArguments(f.home, f.home, environment, false), []);
+    assert.deepEqual(Effect.runSync(serviceSocketArguments(f.home, f.home, environment, false)), []);
   });
   await withSessionServiceEnvironment(project, { ...inherited, WAYLAND_DISPLAY: socket }, f.home,
     environment => assert.equal(environment.WAYLAND_DISPLAY, socket));
   await withSessionServiceEnvironment(project, {}, f.home, environment =>
-    assert.deepEqual(values(serviceSocketArguments(f.home, f.home, environment, true), "--allow-unix-socket"), []));
+    assert.deepEqual(values(Effect.runSync(serviceSocketArguments(f.home, f.home, environment, true)), "--allow-unix-socket"), []));
   assert.equal(project.WAYLAND_DISPLAY, "/project/bus");
 });
 
 test("candidate rejects invalid Wayland socket configuration", () => {
   const f = fixture();
   for (const display of ["../bus", "nested/socket"]) {
-    assert.throws(() => serviceSocketArguments(f.home, f.home, { ...f.environment, WAYLAND_DISPLAY: display }, true),
+    assert.throws(() => Effect.runSync(serviceSocketArguments(f.home, f.home, { ...f.environment, WAYLAND_DISPLAY: display }, true)),
       /Wayland display must be absolute/);
   }
-  assert.throws(() => serviceSocketArguments(f.home, f.home, { WAYLAND_DISPLAY: "wayland-1" }, true),
+  assert.throws(() => Effect.runSync(serviceSocketArguments(f.home, f.home, { WAYLAND_DISPLAY: "wayland-1" }, true)),
     /Wayland display must be absolute/);
   const file = join(f.root, "not-a-socket");
   writeFileSync(file, "");
-  assert.throws(() => serviceSocketArguments(f.home, f.home, { WAYLAND_DISPLAY: file }, true),
+  assert.throws(() => Effect.runSync(serviceSocketArguments(f.home, f.home, { WAYLAND_DISPLAY: file }, true)),
     /Wayland display must point to a Unix socket/);
 });
 
@@ -117,7 +118,7 @@ test("each launch isolates browser daemons and uses local LSPs instead of unrest
     assert.equal(environment.PI_LENS_WARM_ATTACH, "0");
     assert.equal(environment.AGENT_BROWSER_NAMESPACE, undefined);
     assert.equal(environment.AGENT_BROWSER_CDP, undefined);
-    const args = serviceSocketArguments(f.home, f.home, environment, true);
+    const args = Effect.runSync(serviceSocketArguments(f.home, f.home, environment, true));
     assert.deepEqual(args, ["--allow", first, "--allow-unix-socket-dir-bind", first]);
   });
   assert.throws(() => realpathSync(first), /ENOENT/);
