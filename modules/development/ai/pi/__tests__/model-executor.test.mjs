@@ -248,6 +248,26 @@ test("sandbox writes keep the stored secrets and cannot move one provider's secr
   assert.equal((await readHost("auth.json")).openai, undefined);
 });
 
+test("a reference written into a non-credential field is rejected, so reads never return the secret", async () => {
+  const { storeFor, readHost } = await fixture({
+    "auth.json": { anthropic: { type: "api_key", key: API_KEY } },
+    "auth-profiles/ct.json": { anthropic: { type: "oauth", access: OAUTH_ACCESS, refresh: OAUTH_REFRESH, expires: 4102444800000, accountId: "fixture-account" } },
+  });
+  const keys = storeFor("auth.json");
+  await assert.rejects(keys.modify("anthropic", async (current) => ({ ...current, label: current.key })), /only appear in credential fields/);
+  await assert.rejects(keys.modify("anthropic", async (current) => ({ ...current, env: { NOTE: `copy ${current.key}` } })), /only appear in credential fields/);
+  const oauth = storeFor("auth-profiles/ct.json");
+  await assert.rejects(oauth.modify("anthropic", async (current) => ({ ...current, accountId: current.refresh })), /only appear in credential fields/);
+  // A refresh token may not move into a field that is sent as a bearer value.
+  await assert.rejects(oauth.modify("anthropic", async (current) => ({ ...current, access: current.refresh })), /Refresh tokens cannot be sent/);
+  assert.deepEqual((await readHost("auth.json")).anthropic, { type: "api_key", key: API_KEY });
+  assert.equal((await readHost("auth-profiles/ct.json")).anthropic.accountId, "fixture-account");
+  // Legitimate rewrites keep working: secret fields round-trip and metadata edits persist.
+  await oauth.modify("anthropic", async (current) => ({ ...current, accountId: "renamed-account" }));
+  assert.equal((await readHost("auth-profiles/ct.json")).anthropic.refresh, OAUTH_REFRESH);
+  assertNoSecrets([await keys.read("anthropic"), await oauth.read("anthropic")]);
+});
+
 test("references in fetch headers reach only the credential provider's origins", async () => {
   const { upstream, sandbox, storeFor } = await fixture({
     "auth.json": { anthropic: { type: "oauth", access: OAUTH_ACCESS, refresh: OAUTH_REFRESH, expires: Date.now() + 3_600_000 } },

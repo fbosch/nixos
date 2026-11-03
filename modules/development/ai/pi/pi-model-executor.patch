@@ -98,7 +98,7 @@ new file mode 100644
 index 0000000..9c5b9bb
 --- /dev/null
 +++ b/packages/coding-agent/src/core/credential-refs.ts
-@@ -0,0 +1,136 @@
+@@ -0,0 +1,160 @@
 +/**
 + * Credential references for executor mode. The executor replaces secret values with opaque
 + * references before anything reaches the sandbox, and swaps them back when the sandbox hands a
@@ -195,6 +195,30 @@ index 0000000..9c5b9bb
 +			redacted[name] = typeof value === "string" && isSecretHeader(name) ? this.register(provider, value, true) : value;
 +		}
 +		return redacted;
++	}
++
++	/**
++	 * Replaces references in a credential the sandbox hands back. A reference may stand only where
++	 * `redactCredential` puts one: a string directly under a secret field. Anywhere else it is
++	 * rejected, because the secret would land in a field that reads return unmasked. Refresh-token
++	 * references are accepted only under refresh fields, so they cannot become bearer values.
++	 */
++	rehydrateCredential(provider: string, credential: unknown): unknown {
++		const walk = (value: unknown, secretContext: boolean, refresh: boolean): unknown => {
++			if (typeof value === "string") {
++				if (!containsCredentialRef(value)) return value;
++				if (!secretContext) throw new Error("Credential references may only appear in credential fields");
++				return this.rehydrateString(provider, value, { allowRefresh: refresh });
++			}
++			if (Array.isArray(value)) return value.map((item) => walk(item, false, false));
++			if (!isRecord(value)) return value;
++			const result: Record<string, unknown> = {};
++			for (const [key, item] of Object.entries(value)) {
++				result[key] = walk(item, SECRET_FIELD.test(key), REFRESH_FIELD.test(key));
++			}
++			return result;
++		};
++		return walk(credential, false, false);
 +	}
 +
 +	/**
@@ -391,7 +415,7 @@ new file mode 100644
 index 0000000..3ca1ebf
 --- /dev/null
 +++ b/packages/coding-agent/src/core/model-executor.ts
-@@ -0,0 +1,1327 @@
+@@ -0,0 +1,1324 @@
 +/**
 + * Credential-free model requests for sandboxed sessions.
 + *
@@ -1296,7 +1320,7 @@ index 0000000..3ca1ebf
 +	if (!provider) throw new Error(`Unknown provider: ${providerId}`);
 +	assertNoSandboxConfigReferences(frame.credential);
 +	const credential = resolvedCredential(
-+		frame.credential === undefined ? undefined : state.refs.rehydrate(providerId, frame.credential, { allowRefresh: true }),
++		frame.credential === undefined ? undefined : state.refs.rehydrateCredential(providerId, frame.credential),
 +	);
 +	switch (frame.method) {
 +		case "apiKey.resolve": {
@@ -1522,10 +1546,7 @@ index 0000000..3ca1ebf
 +			if (!isRecord(next)) throw new Error("Credential file must hold an object");
 +			assertNoSandboxConfigReferences(next, configReferences(content ? (JSON.parse(content) as unknown) : undefined));
 +			const rehydrated = Object.fromEntries(
-+				Object.entries(next).map(([providerId, credential]) => [
-+					providerId,
-+					state.refs.rehydrate(providerId, credential, { allowRefresh: true }),
-+				]),
++				Object.entries(next).map(([providerId, credential]) => [providerId, state.refs.rehydrateCredential(providerId, credential)]),
 +			);
 +			return { result: undefined, next: JSON.stringify(rehydrated, null, 2) };
 +		},
