@@ -1,23 +1,17 @@
 diff --git a/packages/coding-agent/install-lock/package.json b/packages/coding-agent/install-lock/package.json
 --- a/packages/coding-agent/install-lock/package.json
 +++ b/packages/coding-agent/install-lock/package.json
-@@ -4,7 +4,8 @@
- 	"private": true,
- 	"description": "Lockfile root used by the Pi installer and updater.",
- 	"dependencies": {
--		"@earendil-works/pi-coding-agent": "1.4.0"
-+		"@earendil-works/pi-coding-agent": "1.4.0",
-+		"esbuild": "0.28.2"
- 	},
- 	"overrides": {
- 		"protobufjs": "7.6.6"
+@@ -6,1 +6,2 @@
+-	"dependencies": {
++	"dependencies": {
++		"esbuild": "0.28.2",
 diff --git a/packages/coding-agent/install-lock/package-lock.json b/packages/coding-agent/install-lock/package-lock.json
 --- a/packages/coding-agent/install-lock/package-lock.json
 +++ b/packages/coding-agent/install-lock/package-lock.json
-@@ -11,1 +11,2 @@
--				"@earendil-works/pi-coding-agent": "1.4.0"
-+				"@earendil-works/pi-coding-agent": "1.4.0",
-+				"esbuild": "0.28.2"
+@@ -10,1 +10,2 @@
+-			"dependencies": {
++			"dependencies": {
++				"esbuild": "0.28.2",
 @@ -557,6 +558,422 @@
  				"node": ">=22.19.0"
  			}

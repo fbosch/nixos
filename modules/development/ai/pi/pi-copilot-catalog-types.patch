@@ -1,0 +1,11 @@
+Match openaiProvider's explicit classifier value type when the pinned catalog
+contains no classifier entries; Object.values otherwise infers unknown[].
+
+--- a/packages/ai/src/providers/github-copilot.ts
++++ b/packages/ai/src/providers/github-copilot.ts
+@@ -8,1 +8,1 @@
+-import type { ProviderClassifier } from "../types.ts";
++import type { ClassifierModel, ProviderClassifier } from "../types.ts";
+@@ -33,1 +33,1 @@
+-		models: [...Object.values(GITHUB_COPILOT_MODELS), ...Object.values(GITHUB_COPILOT_CLASSIFIER_MODELS)],
++		models: [...Object.values(GITHUB_COPILOT_MODELS), ...Object.values<ClassifierModel<"typesafe-system-one">>(GITHUB_COPILOT_CLASSIFIER_MODELS)],

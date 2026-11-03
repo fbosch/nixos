@@ -8,6 +8,7 @@ let
         src = inputs.pi;
         patches = [
           ./pi-schema-package.patch
+          ./pi-copilot-catalog-types.patch
           ./pi-selector-overlays.patch
           ./pi-auth-startup.patch
           ./pi-tool-search-ranking.patch
