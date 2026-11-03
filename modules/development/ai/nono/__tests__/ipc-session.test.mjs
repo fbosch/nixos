@@ -9,6 +9,7 @@ import { ipcCapabilities } from "../scripts/ipc/session.mts";
 import { launchArguments } from "../scripts/launch/plan.mts";
 import { echoRegistry } from "./fixtures/ipc-registry.mjs";
 import { withScoped } from "./fixtures/scoped.mjs";
+import { session } from "./fixtures/ipc-provider.mjs";
 
 function exchange(endpoint, request) {
   return new Promise((resolve, reject) => {
@@ -47,7 +48,7 @@ test("a new service starts and receives exact grants through registry data alone
     const registry = echoRegistry(); const inherited = { ECHO_SOCKET: f.upstream };
     const project = { ECHO_SOCKET: join(f.root, "forged"), PWD: "/forged" };
     let endpoint;
-    await withScoped(ipcCapabilities(project, inherited, f.home, f.cwd, f.agent, [], registry, "restricted"), async bound => {
+    await withScoped(ipcCapabilities(project, session(inherited, f.home, { cwd: f.cwd, agentDir: f.agent, args: [] }), registry, "restricted"), async bound => {
       endpoint = bound.ECHO_SOCKET;
       assert.notEqual(endpoint, inherited.ECHO_SOCKET);
       assert.ok(existsSync(endpoint));
@@ -67,10 +68,10 @@ test("disabled and absent inherited services cannot be enabled by project enviro
   await fixture(async f => {
     const registry = structuredClone(echoRegistry()); delete registry.profiles.restricted.echo;
     const disabled = validateCapabilities(registry);
-    await withScoped(ipcCapabilities({ ECHO_SOCKET: f.upstream }, { ECHO_SOCKET: f.upstream }, f.home, f.cwd, f.agent, [], disabled, "restricted"), bound => {
+    await withScoped(ipcCapabilities({ ECHO_SOCKET: f.upstream }, session({ ECHO_SOCKET: f.upstream }, f.home, { cwd: f.cwd, agentDir: f.agent, args: [] }), disabled, "restricted"), bound => {
       assert.equal(bound.ECHO_SOCKET, undefined);
     });
-    await withScoped(ipcCapabilities({ ECHO_SOCKET: f.upstream }, {}, f.home, f.cwd, f.agent, [], echoRegistry(), "restricted"), bound => {
+    await withScoped(ipcCapabilities({ ECHO_SOCKET: f.upstream }, session({}, f.home, { cwd: f.cwd, agentDir: f.agent, args: [] }), echoRegistry(), "restricted"), bound => {
       assert.equal(bound.ECHO_SOCKET, undefined);
     });
     assert.deepEqual(f.received, []);
@@ -79,7 +80,7 @@ test("disabled and absent inherited services cannot be enabled by project enviro
 
 test("project environment cannot forge Herdr authority when it was not inherited", async () => {
   await fixture(async f => {
-    await withScoped(ipcCapabilities({ HERDR_ENV: "1", HERDR_SOCKET_PATH: f.upstream, HERDR_PANE_ID: "wFixture:p1" }, {}, f.home, f.cwd, f.agent, [], defaultCapabilities, "restricted"), bound => {
+    await withScoped(ipcCapabilities({ HERDR_ENV: "1", HERDR_SOCKET_PATH: f.upstream, HERDR_PANE_ID: "wFixture:p1" }, session({}, f.home, { cwd: f.cwd, agentDir: f.agent, args: [] }), defaultCapabilities, "restricted"), bound => {
       assert.equal(bound.HERDR_ENV, undefined); assert.equal(bound.HERDR_SOCKET_PATH, undefined); assert.equal(bound.HERDR_PANE_ID, undefined);
     });
     assert.deepEqual(f.received, []);
@@ -92,7 +93,7 @@ test("startup failure in a later configured service tears down earlier helpers",
     registry.capabilities.second = { ...registry.capabilities.echo, socketEnvironment: "SECOND_SOCKET" };
     registry.profiles.restricted.second = {};
     let ran = false;
-    await assert.rejects(withScoped(ipcCapabilities({}, { ECHO_SOCKET: f.upstream, SECOND_SOCKET: join(f.root, "missing") }, f.home, f.cwd, f.agent, [], validateCapabilities(registry), "restricted"), () => { ran = true; }));
+    await assert.rejects(withScoped(ipcCapabilities({}, session({ ECHO_SOCKET: f.upstream, SECOND_SOCKET: join(f.root, "missing") }, f.home, { cwd: f.cwd, agentDir: f.agent, args: [] }), validateCapabilities(registry), "restricted"), () => { ran = true; }));
     assert.equal(ran, false);
     assert.deepEqual(readdirSync(join(f.home, ".pi-ipc")), []);
     assert.deepEqual(f.received, []);

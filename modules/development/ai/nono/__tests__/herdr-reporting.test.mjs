@@ -6,12 +6,13 @@ import { createConnection, createServer } from "node:net";
 import { join } from "node:path";
 import { afterEach, test } from "node:test";
 import { pathToFileURL } from "node:url";
-import { validateReport } from "../scripts/herdr/protocol.mts";
+import { defaultReportingCapability, validateReport } from "../scripts/herdr/protocol.mts";
 import { startReportingServer } from "../scripts/herdr/service.mts";
-import { herdrReporter } from "../scripts/herdr/bootstrap.mts";
 import { assertPrivateIpcGrants } from "../scripts/ipc/private.mts";
 import { withScoped } from "./fixtures/scoped.mjs";
 import { grantPlan } from "../scripts/shared/grant-plan.mts";
+import { herdrProvider } from "../scripts/herdr/provider.mts";
+import { session } from "./fixtures/ipc-provider.mjs";
 
 const created = [];
 function fixture(embedded = false) {
@@ -194,7 +195,7 @@ for (const source of ["global", "project"]) {
       host.listen(f.authority.upstream);
       await once(host, "listening");
       await assert.rejects(
-        withScoped(herdrReporter(environment, environment, f.home, cwd, agentDir, []), async () => assert.fail("Malformed settings must not launch Pi")),
+        withScoped(herdrProvider.start(environment, session(environment, f.home, { cwd: cwd, agentDir: agentDir, args: [] }), defaultReportingCapability), async () => assert.fail("Malformed settings must not launch Pi")),
         error => {
           assert.equal(error.message, `Invalid Pi settings JSON: ${settings}`);
           assert.ok(error.cause instanceof SyntaxError);
@@ -228,7 +229,7 @@ for (const source of ["global", "project", "environment", "cli", "file"]) {
     try {
       host.listen(f.authority.upstream);
       await once(host, "listening");
-      await withScoped(herdrReporter(environment, environment, f.home, cwd, agentDir, args), async bound => {
+      await withScoped(herdrProvider.start(environment, session(environment, f.home, { cwd: cwd, agentDir: agentDir, args: args }), defaultReportingCapability), async bound => {
         const response = await exchange(bound.HERDR_SOCKET_PATH, f.request("pane.report_agent_session", { agent_session_path: selectedPath }));
         assert.equal(response.ok, true);
       });
@@ -246,7 +247,7 @@ test("bootstrap binds inherited identity, creates the endpoint before launch and
     host.listen(f.authority.upstream);
     await once(host, "listening");
     const inherited = { HERDR_ENV: "1", HERDR_PANE_ID: f.authority.pane, HERDR_SOCKET_PATH: f.authority.upstream };
-    await withScoped(herdrReporter({ ...inherited, HERDR_PANE_ID: "wOther:p2", HERDR_WORKSPACE_ID: "wOther" }, inherited, f.home, f.root, join(f.home, ".pi", "agent"), ["--session-dir", f.authority.sessionDirectory]), async environment => {
+    await withScoped(herdrProvider.start({ ...inherited, HERDR_PANE_ID: "wOther:p2", HERDR_WORKSPACE_ID: "wOther" }, session(inherited, f.home, { cwd: f.root, agentDir: join(f.home, ".pi", "agent"), args: ["--session-dir", f.authority.sessionDirectory] }), defaultReportingCapability), async environment => {
       endpoint = environment.HERDR_SOCKET_PATH;
       assert.notEqual(endpoint, f.authority.upstream);
       assert.equal(environment.HERDR_PANE_ID, f.authority.pane);
@@ -264,8 +265,7 @@ test("bootstrap binds inherited identity, creates the endpoint before launch and
 test("bootstrap accepts Herdr's alphanumeric pane suffixes and rejects malformed pane identities", async () => {
   const f = fixture();
   const host = createServer(socket => socket.on("data", () => socket.end('{"ok":true}\n')));
-  const launch = pane => withScoped(herdrReporter({}, { HERDR_ENV: "1", HERDR_PANE_ID: pane, HERDR_SOCKET_PATH: f.authority.upstream },
-    f.home, f.root, join(f.home, ".pi", "agent"), ["--session-dir", f.authority.sessionDirectory]), async environment => environment.HERDR_PANE_ID);
+  const launch = pane => withScoped(herdrProvider.start({}, session({ HERDR_ENV: "1", HERDR_PANE_ID: pane, HERDR_SOCKET_PATH: f.authority.upstream }, f.home, { cwd: f.root, agentDir: join(f.home, ".pi", "agent"), args: ["--session-dir", f.authority.sessionDirectory] }), defaultReportingCapability), async environment => environment.HERDR_PANE_ID);
   try {
     host.listen(f.authority.upstream);
     await once(host, "listening");

@@ -25,6 +25,8 @@
       // The filter helper runs as its own process; ipc/helper-launch.mts spawns it by file URL.
       { "name": "helper-process", "patterns": ["scripts/ipc/helper.mts"] },
       { "name": "ipc-dispatch", "patterns": ["scripts/ipc/session.mts"] },
+      // The provider registry is the only ipc module that knows the concrete providers.
+      { "name": "ipc-providers", "patterns": ["scripts/ipc/providers.mts"] },
       { "name": "launch", "patterns": ["scripts/launch/**"] },
       { "name": "model-executor", "patterns": ["scripts/model-executor/**"] },
       { "name": "herdr", "patterns": ["scripts/herdr/**"] },
@@ -35,10 +37,11 @@
       { "name": "shared", "patterns": ["scripts/shared/**"] }
     ],
     "rules": [
-      { "from": "entry", "allow": ["launch", "ipc-dispatch", "model-executor", "herdr", "desktop", "ipc", "protection", "credentials", "shared"] },
+      { "from": "entry", "allow": ["launch", "ipc-dispatch", "ipc-providers", "model-executor", "herdr", "desktop", "ipc", "protection", "credentials", "shared"] },
       { "from": "launch", "allow": ["ipc-dispatch", "model-executor", "ipc", "protection", "credentials", "shared"] },
-      { "from": "ipc-dispatch", "allow": ["herdr", "desktop", "ipc", "shared"] },
-      { "from": "helper-process", "allow": ["herdr", "desktop", "ipc", "shared"] },
+      { "from": "ipc-dispatch", "allow": ["ipc-providers", "ipc", "shared"] },
+      { "from": "helper-process", "allow": ["ipc-providers", "ipc", "shared"] },
+      { "from": "ipc-providers", "allow": ["herdr", "desktop", "ipc", "shared"] },
       { "from": "model-executor", "allow": ["ipc", "credentials", "shared"] },
       { "from": "herdr", "allow": ["ipc", "shared"] },
       { "from": "desktop", "allow": ["ipc", "shared"] },

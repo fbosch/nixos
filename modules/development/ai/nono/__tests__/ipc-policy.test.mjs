@@ -6,9 +6,10 @@ import { join } from "node:path";
 import { afterEach, test } from "node:test";
 import { defaultCapabilities, createMessageValidator, endpointGrants, loadCapabilities, selectCapabilities, validateCapabilities } from "../scripts/ipc/policy.mts";
 import { launchArguments } from "../scripts/launch/plan.mts";
-import { herdrReporter } from "../scripts/herdr/bootstrap.mts";
 import { withScoped } from "./fixtures/scoped.mjs";
 import { toArguments } from "../scripts/shared/grant-plan.mts";
+import { herdrProvider } from "../scripts/herdr/provider.mts";
+import * as Effect from "effect/Effect";
 
 const roots = [];
 function fixture() {
@@ -119,7 +120,7 @@ test("bindings capture trusted context and UTF-8 limits apply to bytes", () => {
 
 test("disabling restricted reporting removes inherited raw control access", async () => {
   const environment = { HERDR_ENV: "1", HERDR_SOCKET_PATH: "/host/control", HERDR_PANE_ID: "wFixture:p1", PI_NVIM_HERDR_PANE_ID: "wFixture:p1", HERDR_AGENT: "pi" };
-  await withScoped(herdrReporter(environment, environment, fixture(), "/", "/", [], null), bound => {
+  await withScoped(Effect.succeed(herdrProvider.scrub(environment)), bound => {
     for (const key of Object.keys(environment)) assert.equal(bound[key], undefined);
   });
 });

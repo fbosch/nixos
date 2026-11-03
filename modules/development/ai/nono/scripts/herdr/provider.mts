@@ -1,13 +1,12 @@
 import * as Effect from "effect/Effect";
-import type * as Scope from "effect/Scope";
 import { readFileSync, realpathSync, statSync, existsSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, resolve } from "node:path";
-import { defaultCapabilities, selectCapabilities, type JsonLinesCapability } from "../ipc/policy.mts";
-import { filterHelper } from "../ipc/helper-launch.mts";
-import { type HostProcessError, InvalidConfigError, LaunchPrerequisiteError, type SandboxError, attempt } from "../shared/errors.mts";
+import { InvalidConfigError, LaunchPrerequisiteError, attempt } from "../shared/errors.mts";
 import { expandTilde } from "../shared/paths.mts";
 import type { Environment, ErrnoError } from "../shared/types.mts";
-import type { HerdrAuthority } from "./protocol.mts";
+import type { IpcProvider } from "../ipc/provider.mts";
+import { createReportValidator, reportingContext, type HerdrAuthority } from "./protocol.mts";
+import { createHerdrHandler } from "./reader.mts";
 
 /** Pi settings fields read here; Pi validates the rest. */
 interface PiSettings {
@@ -63,19 +62,23 @@ function sessionDirectory(cwd: string, agentDir: string, args: readonly string[]
 }
 
 
+const herdrVariables = ["HERDR_ENV", "HERDR_SOCKET_PATH", "HERDR_PANE_ID", "PI_NVIM_HERDR_PANE_ID", "HERDR_AGENT"];
+
+function scrub(environment: Environment): Environment {
+  const disabled = { ...environment };
+  for (const name of herdrVariables) delete disabled[name];
+  return disabled;
+}
+
 /**
- * Start Herdr reporting for this pane. Without an inherited Herdr session, or with `capability:
- * null`, it only removes inherited Herdr variables.
+ * Herdr reporting for the pane Pi runs in. The helper accepts only reports and passive reads for
+ * that pane's workspace. Without an inherited Herdr session the provider only removes Herdr variables.
  */
-export function herdrReporter(environment: Environment, inherited: Environment, home: string, cwd: string, agentDir: string, args: readonly string[], capability: JsonLinesCapability | null = selectCapabilities(defaultCapabilities, "restricted")["herdr-reporting"] as JsonLinesCapability): Effect.Effect<Environment, HostProcessError | SandboxError, Scope.Scope> {
-  return Effect.gen(function* () {
+export const herdrProvider: IpcProvider = {
+  start: (environment, { inherited, home, cwd, agentDir, args, startHelper }, capability) => Effect.gen(function* () {
     const pane = inherited.PI_NVIM_HERDR_PANE_ID || inherited.HERDR_PANE_ID;
     const upstream = inherited.HERDR_SOCKET_PATH;
-    if (capability === null || inherited.HERDR_ENV !== "1" || !pane || !upstream) {
-      const disabled = { ...environment };
-      for (const name of ["HERDR_ENV", "HERDR_SOCKET_PATH", "HERDR_PANE_ID", "PI_NVIM_HERDR_PANE_ID", "HERDR_AGENT"]) delete disabled[name];
-      return disabled;
-    }
+    if (inherited.HERDR_ENV !== "1" || !pane || !upstream) return scrub(environment);
     const identity = /^(w[A-Za-z0-9_-]+):p[A-Za-z0-9_-]+$/.exec(pane);
     if (!identity) return yield* new InvalidConfigError({ message: "Invalid inherited Herdr pane identity" });
     if (!isAbsolute(upstream) || !statSync(upstream).isSocket()) return yield* new LaunchPrerequisiteError({ message: "Inherited Herdr endpoint must be an existing Unix socket" });
@@ -88,6 +91,15 @@ export function herdrReporter(environment: Environment, inherited: Environment, 
       if (inherited[name] === undefined) delete bound[name];
       else bound[name] = inherited[name];
     }
-    return yield* filterHelper(bound, home, capability, { authority });
-  });
-}
+    return yield* startHelper(bound, capability, authority);
+  }),
+  serve: (launch, capability) => {
+    const authority = launch as HerdrAuthority;
+    return {
+      context: reportingContext(authority), upstream: authority.upstream,
+      validate: createReportValidator(authority, capability),
+      deliver: createHerdrHandler(authority, capability),
+    };
+  },
+  scrub,
+};

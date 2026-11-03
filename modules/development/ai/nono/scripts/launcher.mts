@@ -8,7 +8,7 @@ import { credentialEnvironmentForDirenv } from "./credentials/definitions.mts";
 import { credentialProxySession } from "./credentials/proxy.mts";
 import { credentialFilesOutsideStore, migrateCredentialStore, runningSandboxes } from "./credentials/store.mts";
 import { loadCapabilities } from "./ipc/policy.mts";
-import { ipcCapabilities } from "./ipc/session.mts";
+import { ipcCapabilities, providerSession } from "./ipc/session.mts";
 import { sessionServices } from "./ipc/services.mts";
 import { nonoDiagnostics } from "./launch/diagnostics.mts";
 import { configurePiPaths, loadProjectEnvironment, sessionEnvironment } from "./launch/environment.mts";
@@ -110,7 +110,7 @@ function launchSandboxed(nono: string, rawPi: string, profile: string, direnv: s
     return yield* Effect.scoped(Effect.gen(function* () {
       let session = environment;
       if (ipcRestricted) session = yield* sessionServices(session, inheritedEnvironment, home);
-      session = yield* ipcCapabilities(session, inheritedEnvironment, home, process.cwd(), agentDir, args, registry, ipcRestricted ? "restricted" : "ordinary");
+      session = yield* ipcCapabilities(session, providerSession({ inherited: inheritedEnvironment, home, cwd: process.cwd(), agentDir, args }), registry, ipcRestricted ? "restricted" : "ordinary");
       // Every sandboxed session gets the host model executor, so the sandbox holds no credential file.
       // The invoking host, not a project .envrc, may opt out with PI_MODEL_EXECUTOR=0, for example
       // for Bedrock, which signs requests locally; the sandbox then reads the credential files itself.
