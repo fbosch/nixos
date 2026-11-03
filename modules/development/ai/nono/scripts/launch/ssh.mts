@@ -5,6 +5,7 @@ import { basename, dirname, isAbsolute, join, sep } from "node:path";
 import { existingFile, optionalLstat } from "../shared/paths.mts";
 import type { Environment, ErrnoError } from "../shared/types.mts";
 import { GrantConflictError, InvalidConfigError, LaunchPrerequisiteError, type SandboxError, UnsafeFileError, attempt } from "../shared/errors.mts";
+import { sandboxPolicy } from "../shared/sandbox-policy.mts";
 
 function sshClientArgumentsSync(home: string, environment: Environment): string[] {
   const args: string[] = [];
@@ -13,7 +14,7 @@ function sshClientArgumentsSync(home: string, environment: Environment): string[
     const entry = optionalLstat(directory);
     if (entry && !entry.isDirectory()) throw new UnsafeFileError({ message: "SSH client directory must be a real directory, not a symlink" });
     if (entry) {
-      for (const name of ["config", "known_hosts", "known_hosts2", "id_rsa.pub", "id_ed25519.pub", "id_ecdsa.pub"]) {
+      for (const name of sandboxPolicy.ssh.publicFiles) {
         const path = join(directory, name);
         const file = optionalLstat(path);
         if (!file) continue;
@@ -86,7 +87,7 @@ export type SshIdentityResult = "skipped" | "loaded" | "added" | "failed";
 
 export function ensureSshIdentity(environment: Environment, home: string, sshAdd: string | undefined, { run = spawnSync, interactive = process.stdin.isTTY === true }: { run?: typeof spawnSync; interactive?: boolean } = {}): SshIdentityResult {
   const socket = environment.SSH_AUTH_SOCK;
-  const key = join(home, ".ssh", "id_ed25519");
+  const key = join(home, ".ssh", sandboxPolicy.ssh.defaultIdentity);
   if (!interactive || !socket || !sshAdd || !isAbsolute(sshAdd) || !existingFile(key)) return "skipped";
   const env = { SSH_AUTH_SOCK: socket, HOME: home };
   // ssh-add -l exits 1 for an empty agent and 2 when no agent is reachable.
@@ -94,6 +95,6 @@ export function ensureSshIdentity(environment: Environment, home: string, sshAdd
   if (listed.status !== 1) return listed.status === 0 ? "loaded" : "skipped";
   const added = run(sshAdd, [key], { env, stdio: "inherit", timeout: 120_000 });
   if (added.status === 0) return "added";
-  console.warn("pi sandbox launch: ssh-add did not load ~/.ssh/id_ed25519; SSH and commit signing will fail inside Pi.");
+  console.warn(`pi sandbox launch: ssh-add did not load ~/.ssh/${sandboxPolicy.ssh.defaultIdentity}; SSH and commit signing will fail inside Pi.`);
   return "failed";
 }

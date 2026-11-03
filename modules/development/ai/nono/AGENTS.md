@@ -22,9 +22,19 @@ Host-side launcher, credential boundary and IPC brokers that confine Pi under no
   - `credentials/credentials.json`: read by `lib/pi-credential-profile.nix`, `modules/sops.nix` and `default.nix`.
   - `credentials/claude-credential.mts`: resolved through the `script` field in `credentials.json`.
   - `ipc/capabilities.json`, `ipc/policy.mts`, `launcher.mts`, `pi-desktop.mts` and `pi-ask.lua`: used by `../pi/default.nix`.
+  - `shared/sandbox-policy.json` and `shared/sandbox-policy.mts`: the defaults of the `pi.sandbox` option in `../pi/sandbox.nix`, and its build-time validation in `../pi/default.nix`.
   - `ipc/helper.mts`, `model-executor/server.mts` and `launch/diagnostics-extension.mts`: spawned or loaded by URL.
 - Import from the module that owns a function. Do not re-export it through `launcher.mts`.
 - Tests stay in `__tests__/`, because Nix checks reference them there.
+
+## Sandbox policy
+
+- Tool grants, extra agent paths, the Pi agent layout, shell startup files, SSH public files, configuration repositories and `XDG_RUNTIME_DIR` entries are data in `shared/sandbox-policy.json`, not code. Change shipped defaults there. From another module, use the `pi.sandbox` option: add a named grant, set `pi.sandbox.filesystem.grants.<name>.enable = false`, or append to a list.
+- The launcher file uses the same names and nesting as `pi.sandbox`, without `ipc`, and with disabled grants removed. Grants apply in name order; order carries no meaning.
+- `pi.sandbox.exceptions.configurationRepositories` cannot be appended to from another module; replacing it requires `mkForce`, because it grants write access to Pi configuration.
+- The code keeps the rules: existence checks, symlink and hard-link checks, Git worktree validation and grant splitting. Do not move a rule into the file.
+- `shared/sandbox-policy.schema.json` is part of the security boundary. SSH client files must stay public files, because each one also bypasses the `~/.ssh` deny rule. Paths stay relative to their base, with no `..` segments.
+- Tool grant locations and overrides come from the environment the launcher started with, never from the project `.envrc`.
 
 ## TypeScript
 

@@ -4,7 +4,7 @@ The IPC registry configures selected-repository fsmonitor access and bounded JSO
 
 ## Configuration and ownership
 
-The default manifest is `modules/development/ai/nono/scripts/ipc/capabilities.json`. The flake-parts option `piIpcRegistry` can supply a complete replacement manifest. Nix serializes the selected configuration into the store and builds a runtime with Ajv 8.20.0 and its locked dependencies.
+The default manifest is `modules/development/ai/nono/scripts/ipc/capabilities.json`. The flake-parts option `pi.sandbox.ipc.registry` (in `modules/development/ai/pi/sandbox.nix`) can supply a complete replacement manifest. Nix serializes the selected configuration into the store and builds a runtime with Ajv 8.20.0 and its locked dependencies.
 
 The binary wrapper forces `PI_IPC_MANIFEST` to the store path. The launcher loads and validates that file before loading the project environment. Project environment changes cannot replace the captured registry, choose upstream sockets, or forge Herdr identity.
 

@@ -98,7 +98,7 @@ function launchSandboxed(nono: string, rawPi: string, profile: string, direnv: s
     const runPi = (boundEnvironment: Environment) => Effect.gen(function* () {
       environment = yield* nonoDiagnostics(boundEnvironment);
       environment.PI_NONO_DIAGNOSTICS = inheritedEnvironment.PI_NONO_DIAGNOSTICS === "1" ? "1" : "0";
-      const { command, protectedPaths, credentialPaths, exposedCredentials } = yield* planLaunchCommand(args, process.cwd(), agentDir, home, environment, nono, rawPi, profile, envBinary, registry);
+      const { command, protectedPaths, credentialPaths, exposedCredentials } = yield* planLaunchCommand(args, process.cwd(), agentDir, home, environment, nono, rawPi, profile, envBinary, registry, inheritedEnvironment);
       if (exposedCredentials?.length) {
         console.warn(`pi sandbox launch: these credential files are outside the Pi credential store and stay readable on Linux: ${exposedCredentials.join(", ")}`);
       }

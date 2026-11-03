@@ -7,6 +7,7 @@ import { within } from "../shared/paths.mts";
 import type { Environment, ErrnoError, NonoProfile } from "../shared/types.mts";
 import { resolveComponents } from "./resolve.mts";
 import { GrantConflictError, InvalidConfigError, type SandboxError, UnsafeFileError, attempt } from "../shared/errors.mts";
+import { sandboxPolicy } from "../shared/sandbox-policy.mts";
 
 /** Paths that agentProtection keeps read-only, and the agent data that stays writable. */
 export interface AgentProtection {
@@ -21,8 +22,8 @@ function storeDirectory(home: string): string | undefined {
 
 // These are data stores, not Pi resource-discovery or package-installation directories.
 // pi-fff stores LMDB frecency/history beneath agent/fff when no editor database exists.
-const runtimeDirectories = new Set(["sessions", "cache", "session-history", "tasks", "auth-profiles", "fff"]);
-const requiredControls = ["settings.json", "extensions", "npm", "git", "lib", "mcp.json", "models.json", "trust.json"];
+const runtimeDirectories = new Set(sandboxPolicy.filesystem.agent.runtimeEntries);
+const requiredControls = sandboxPolicy.filesystem.agent.controlEntries;
 // Every entry is checked for symlinks and hard links. Installed extension packages (node_modules,
 // npm) in the default and configured agent directories can exceed 100000 entries together; a full
 // scan of about 120000 entries takes about two seconds on rvn-mac.

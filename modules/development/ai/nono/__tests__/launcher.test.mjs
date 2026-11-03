@@ -638,11 +638,27 @@ test("retains narrow grants without Podman or SSH private-key access", () => {
   assert.deepEqual(values(args, "--read"), [realpathSync(allow), realpathSync(agent)]);
   assert.ok(!values(args, "--allow").includes(realpathSync(join(data, "direnv"))));
   assert.ok(!values(args, "--allow").includes(realpathSync(allow)));
-  assert.deepEqual(values(args, "--read-file"), [known, typo, gitConfig]);
+  // Grant order carries no meaning; grants apply in name order.
+  assert.deepEqual(values(args, "--read-file").sort(), [known, typo, gitConfig].sort());
   assert.deepEqual(values(args, "--bypass-protection"), [known]);
   assert.ok(!values(args, "--read").includes(join(home, ".ssh")));
   assert.ok(!values(args, "--allow").includes(join(home, ".ssh")));
   assert.ok(!values(args, "--allow").includes(config));
+});
+
+test("tool-state grants follow the host environment, not values from the project .envrc", () => {
+  const { root, home, cwd, agent, raw, profile } = fixture();
+  const host = { config: join(root, "host-config"), data: join(root, "host-data"), cache: join(root, "host-cache") };
+  const hostHashline = join(root, "host-hashline");
+  // An existing directory outside every protected path: the project must not be able to make it writable.
+  const target = join(root, "another-repository");
+  for (const path of [hostHashline, target, join(host.cache, "nvim", "fff_nvim"), join(target, "nvim", "fff_nvim"), join(target, "pi-hashline-edit-pro")]) mkdirSync(path, { recursive: true });
+  const hostEnvironment = { XDG_CONFIG_HOME: host.config, XDG_DATA_HOME: host.data, XDG_CACHE_HOME: host.cache, PI_HASHLINE_DIR: hostHashline };
+  const projectEnvironment = { ...hostEnvironment, XDG_CONFIG_HOME: target, XDG_CACHE_HOME: target, PI_HASHLINE_DIR: target, FFF_FRECENCY_DB: target, FFF_HISTORY_DB: target };
+  const allowed = values(launchArguments(cwd, agent, home, projectEnvironment, profile, raw, envBinary, process.platform, undefined, hostEnvironment), "--allow");
+  assert.ok(allowed.includes(hostHashline));
+  assert.ok(allowed.includes(join(host.cache, "nvim", "fff_nvim")));
+  assert.ok(!allowed.some(path => path === target || path.startsWith(`${target}/`)), allowed.join("\n"));
 });
 
 test("missing XDG_RUNTIME_DIR paths warn without creating directories or adding grants", t => {

@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "filesystem": {
+    "grants": {
+      "pi-lens": { "base": "home", "path": ".pi-lens", "type": "directory", "access": "readwrite" },
+      "pi-hashline": { "base": "config", "path": "pi-hashline-edit-pro", "override": "PI_HASHLINE_DIR", "type": "directory", "access": "readwrite" },
+      "fff-frecency": { "base": "cache", "path": "nvim/fff_nvim", "override": "FFF_FRECENCY_DB", "type": "directory", "access": "readwrite" },
+      "fff-history": { "base": "data", "path": "nvim/fff_queries", "override": "FFF_HISTORY_DB", "type": "directory", "access": "readwrite" },
+      "typos": { "base": "config", "path": "fbb/data/typos.abolish", "type": "file", "access": "read" },
+      "git-config": { "base": "config", "path": "nix/git/config", "type": "file", "access": "read" },
+      "direnv-approvals": { "base": "data", "path": "direnv/allow", "type": "directory", "access": "read" }
+    },
+    "agent": {
+      "writableHomePaths": [".agents/skills", ".cache/pi"],
+      "runtimeEntries": ["sessions", "cache", "session-history", "tasks", "auth-profiles", "fff"],
+      "controlEntries": ["settings.json", "extensions", "npm", "git", "lib", "mcp.json", "models.json", "trust.json"]
+    },
+    "shellStartup": {
+      "home": [".shinit", "dotfiles/.shinit", "dotfiles/.config/fish", ".inshellisense/key-bindings.fish"],
+      "config": ["fish", "starship.toml", "starship-tty.toml"],
+      "cache": ["fish"],
+      "data": ["fish/vendor_conf.d", "fish/vendor_functions.d", "fish/vendor_completions.d"]
+    },
+    "runtimeDirectory": {
+      "secrets": ["secrets", "secrets.d"],
+      "services": ["agent-browser"]
+    }
+  },
+  "ssh": {
+    "publicFiles": ["config", "known_hosts", "known_hosts2", "id_rsa.pub", "id_ed25519.pub", "id_ecdsa.pub"],
+    "defaultIdentity": "id_ed25519"
+  },
+  "exceptions": {
+    "configurationRepositories": ["dotfiles", "nixos"]
+  }
+}

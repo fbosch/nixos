@@ -19,6 +19,7 @@ import { approvedReferenceRoots, referenceApprovalStore, references } from "./re
 import { sandboxRuntimeCommand } from "./runtime.mts";
 import { assertReadOnlySshGrants, sshClientArguments } from "./ssh.mts";
 import { GrantConflictError, LaunchPrerequisiteError, type SandboxError, attempt, runSyncOrThrow } from "../shared/errors.mts";
+import { baseDirectory, grants, sandboxPolicy } from "../shared/sandbox-policy.mts";
 
 // Builds the nono command line for one session: filesystem, socket and credential grants plus
 // the guards that reject any grant reaching host-only or credential paths.
@@ -53,13 +54,13 @@ export interface LaunchCommandPlan {
   exposedCredentials?: string[];
 }
 
-type LaunchArgumentsParameters = [cwd: string, agentDir: string, home: string, environment: Environment, profile: string, rawPi: string, envBinary: string, platform?: NodeJS.Platform, registry?: CapabilityRegistry];
-type LaunchCommandParameters = [args: string[], cwd: string, agentDir: string, home: string, environment: Environment, nono: string, rawPi: string, profile: string, envBinary: string, registry?: CapabilityRegistry];
+type LaunchArgumentsParameters = [cwd: string, agentDir: string, home: string, environment: Environment, profile: string, rawPi: string, envBinary: string, platform?: NodeJS.Platform, registry?: CapabilityRegistry, hostEnvironment?: Environment];
+type LaunchCommandParameters = [args: string[], cwd: string, agentDir: string, home: string, environment: Environment, nono: string, rawPi: string, profile: string, envBinary: string, registry?: CapabilityRegistry, hostEnvironment?: Environment];
 
 // sops-nix Home Manager decrypts user secrets into %r/secrets.d and links the active generation from %r/secrets.
-const runtimeSecretEntries = ["secrets", "secrets.d"];
+const runtimeSecretEntries = sandboxPolicy.filesystem.runtimeDirectory.secrets;
 // Sandboxed tools cannot create top-level runtime entries, so create their directories before granting them.
-const runtimeServiceDirectories = ["agent-browser"];
+const runtimeServiceDirectories = sandboxPolicy.filesystem.runtimeDirectory.services;
 
 function runtimeDirectoryArguments(runtime: string, platform: NodeJS.Platform): string[] {
   if (platform !== "linux") return ["--allow", runtime];
@@ -188,26 +189,25 @@ function socketArguments(environment: Environment, home: string, capabilities: S
   return { args, usesPrivateIpc };
 }
 
-/** State that Pi extensions and editor integrations share with the host. */
+/**
+ * State that Pi extensions and editor integrations share with the host. Locations come from the
+ * environment the launcher started with: a project .envrc must not choose writable grants.
+ */
 function toolStateArguments(environment: Environment, home: string, reads: Set<string>): string[] {
-  const configHome = environment.XDG_CONFIG_HOME || join(home, ".config");
-  const dataHome = environment.XDG_DATA_HOME || join(home, ".local", "share");
-  const cacheHome = environment.XDG_CACHE_HOME || join(home, ".cache");
   const args: string[] = [];
-  for (const path of [
-    join(home, ".pi-lens"),
-    environment.PI_HASHLINE_DIR || join(configHome, "pi-hashline-edit-pro"),
-    environment.FFF_FRECENCY_DB || join(cacheHome, "nvim", "fff_nvim"),
-    environment.FFF_HISTORY_DB || join(dataHome, "nvim", "fff_queries"),
-  ]) {
-    if (existingDirectory(path) !== undefined) args.push("--allow", path);
+  for (const grant of grants) {
+    const path = (grant.override && environment[grant.override]) || join(baseDirectory(grant.base, home, environment), grant.path);
+    if (grant.type === "file") {
+      if (existingFile(path)) args.push("--read-file", path);
+      continue;
+    }
+    const directory = existingDirectory(path);
+    if (directory === undefined) continue;
+    if (grant.access === "readwrite") args.push("--allow", path);
+    // Read-only directories join the --read section, at their canonical location. For example,
+    // direnv approvals are user-owned authorization; the sandbox may only consume existing decisions.
+    else reads.add(directory);
   }
-  for (const path of [join(configHome, "fbb", "data", "typos.abolish"), join(configHome, "nix", "git", "config")]) {
-    if (existingFile(path)) args.push("--read-file", path);
-  }
-  const direnvAllow = existingDirectory(join(dataHome, "direnv", "allow"));
-  // Approval is user-owned authorization; the sandbox may only consume existing decisions.
-  if (direnvAllow !== undefined) reads.add(direnvAllow);
   return args;
 }
 
@@ -257,7 +257,8 @@ function assertLaunchGrants(args: readonly string[], { cwd, home, environment, l
   });
 }
 
-function planLaunchArguments(cwd: string, agentDir: string, home: string, environment: Environment, profile: string, rawPi: string, envBinary: string, platform: NodeJS.Platform = process.platform, registry: CapabilityRegistry = defaultCapabilities): Effect.Effect<LaunchPlan, SandboxError> {
+// `hostEnvironment` defaults to `environment` only for callers without a project environment, such as tests.
+function planLaunchArguments(cwd: string, agentDir: string, home: string, environment: Environment, profile: string, rawPi: string, envBinary: string, platform: NodeJS.Platform = process.platform, registry: CapabilityRegistry = defaultCapabilities, hostEnvironment: Environment = environment): Effect.Effect<LaunchPlan, SandboxError> {
   return Effect.gen(function* () {
     if (!isAbsolute(profile) || !existingFile(profile)) return yield* new LaunchPrerequisiteError({ message: `Nix nono profile missing: ${profile}` });
     if (!isAbsolute(envBinary) || !existingFile(envBinary)) return yield* new LaunchPrerequisiteError({ message: `Nix env executable missing: ${envBinary}` });
@@ -273,7 +274,7 @@ function planLaunchArguments(cwd: string, agentDir: string, home: string, enviro
     const writableRoots = yield* writableReferenceRoots(cwd, home, metadata);
     yield* addReferenceGrants(cwd, agentDir, home, writableRoots, needsGitSockets, { grants, reads, gitDirectories });
     // Stow links extension resources into the repo; only grant their actual targets.
-    for (const path of [agentDir, join(home, ".agents", "skills"), join(home, ".cache", "pi")]) {
+    for (const path of [agentDir, ...sandboxPolicy.filesystem.agent.writableHomePaths.map((path) => join(home, path))]) {
       const canonical = yield* attempt(() => existingDirectory(path));
       if (canonical !== undefined) grants.add(canonical);
     }
@@ -291,7 +292,7 @@ function planLaunchArguments(cwd: string, agentDir: string, home: string, enviro
     for (const path of agent.runtimePaths) if (!credentialStore(path)) grants.add(path);
     if (credentialPaths.length === 0) yield* attempt(() => addCredentialStoreGrants(home, agent, grants, extra));
     const sockets = yield* attempt(() => socketArguments(environment, home, capabilities, gitDirectories, ipcRestricted));
-    extra.push(...sockets.args, ...yield* attempt(() => toolStateArguments(environment, home, reads)), ...yield* attempt(() => hostRuntimeArguments(environment, platform, ipcRestricted)));
+    extra.push(...sockets.args, ...yield* attempt(() => toolStateArguments(hostEnvironment, home, reads)), ...yield* attempt(() => hostRuntimeArguments(environment, platform, ipcRestricted)));
     // Seatbelt denies startup writes on macOS; Linux must keep them outside every writable grant instead.
     const approvals = dirname(referenceApprovalStore(home));
     const shellPaths = platform === "linux" && (yield* attempt(() => existingDirectory(home))) !== undefined ? (yield* shellProtection(home, environment)).protectedPaths : [];
@@ -333,7 +334,7 @@ export function launchCommand(...parameters: LaunchCommandParameters): string[] 
 }
 
 /** The complete nono command for a session, or raw Pi for an explicit `--no-sandbox` launch. */
-export function planLaunchCommand(args: string[], cwd: string, agentDir: string, home: string, environment: Environment, nono: string, rawPi: string, profile: string, envBinary: string, registry: CapabilityRegistry = defaultCapabilities): Effect.Effect<LaunchCommandPlan, SandboxError> {
+export function planLaunchCommand(args: string[], cwd: string, agentDir: string, home: string, environment: Environment, nono: string, rawPi: string, profile: string, envBinary: string, registry: CapabilityRegistry = defaultCapabilities, hostEnvironment: Environment = environment): Effect.Effect<LaunchCommandPlan, SandboxError> {
   return Effect.gen(function* () {
     if (!isAbsolute(rawPi) || !existsSync(rawPi)) return yield* new LaunchPrerequisiteError({ message: `Raw Pi executable missing: ${rawPi}` });
     if (args[0] === "--no-sandbox") return { command: [rawPi, ...args.slice(1)], protectedPaths: [] };
@@ -341,7 +342,7 @@ export function planLaunchCommand(args: string[], cwd: string, agentDir: string,
       ? ["--extension", fileURLToPath(new URL("./diagnostics-extension.mts", import.meta.url))]
       : [];
     if (!isAbsolute(nono) || !existsSync(nono)) return yield* new LaunchPrerequisiteError({ message: `nono executable missing: ${nono}` });
-    const plan = yield* planLaunchArguments(cwd, agentDir, home, environment, profile, rawPi, envBinary, process.platform, registry);
+    const plan = yield* planLaunchArguments(cwd, agentDir, home, environment, profile, rawPi, envBinary, process.platform, registry, hostEnvironment);
     return { command: [nono, ...plan.args, ...extension, ...args], protectedPaths: plan.protectedPaths, credentialPaths: plan.credentialPaths, exposedCredentials: plan.exposedCredentials };
   });
 }

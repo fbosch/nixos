@@ -4,6 +4,7 @@ import { dirname, join, resolve } from "node:path";
 import { existingDirectory, within } from "../shared/paths.mts";
 import type { ErrnoError } from "../shared/types.mts";
 import { InvalidConfigError, type SandboxError, UnsafeFileError, attempt } from "../shared/errors.mts";
+import { sandboxPolicy } from "../shared/sandbox-policy.mts";
 
 /** Git metadata that a checkout needs writable, and how the checkout is registered. */
 export interface GitMetadata {
@@ -81,7 +82,7 @@ export function gitMetadata(cwd: string, home: string): Effect.Effect<GitMetadat
 
 function pairedRepositoryRootsSync(home: string): string[] {
   // These exceptions are packaged by Nix, never selected by mutable reference names or settings.
-  const roots = ["dotfiles", "nixos"].map((name) => existingDirectory(join(home, name))).filter(Boolean) as string[];
+  const roots = sandboxPolicy.exceptions.configurationRepositories.map((name) => existingDirectory(join(home, name))).filter(Boolean) as string[];
   if (roots.length === 0) return [];
   const canonicalHome = realpathSync(home);
   if (roots.some((root) => within(canonicalHome, root))) {

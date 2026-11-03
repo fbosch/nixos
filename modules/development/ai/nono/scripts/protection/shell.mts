@@ -6,6 +6,7 @@ import { optionalLstat, within } from "../shared/paths.mts";
 import type { Environment, ErrnoError, NonoProfile } from "../shared/types.mts";
 import { resolveComponents } from "./resolve.mts";
 import { InvalidConfigError, type SandboxError, UnsafeFileError, attempt } from "../shared/errors.mts";
+import { sandboxPolicy } from "../shared/sandbox-policy.mts";
 
 function seatbeltString(path: string): string {
   if (/[\x00-\x1f\x7f]/u.test(path)) throw new UnsafeFileError({ message: `Unsupported control character in startup path: ${JSON.stringify(path)}` });
@@ -20,14 +21,13 @@ function startupPaths(home: string, environment: Environment): string[] {
     if (!isAbsolute(path)) throw new InvalidConfigError({ message: `Startup directory must be absolute: ${path}` });
     if (path.split(sep).includes("..")) throw new InvalidConfigError({ message: `Startup directory contains parent traversal: ${path}` });
   }
+  const { shellStartup } = sandboxPolicy.filesystem;
+  const below = (roots: Set<string>, names: string[]) => [...roots].flatMap((root) => names.map((name) => join(root, name)));
   return [
-    join(home, ".shinit"),
-    join(home, "dotfiles", ".shinit"),
-    join(home, "dotfiles", ".config", "fish"),
-    join(home, ".inshellisense", "key-bindings.fish"),
-    ...[...configs].flatMap((path) => [join(path, "fish"), join(path, "starship.toml"), join(path, "starship-tty.toml")]),
-    ...[...caches].map((path) => join(path, "fish")),
-    ...[...data].flatMap((path) => ["vendor_conf.d", "vendor_functions.d", "vendor_completions.d"].map((name) => join(path, "fish", name))),
+    ...shellStartup.home.map((name) => join(home, name)),
+    ...below(configs, shellStartup.config),
+    ...below(caches, shellStartup.cache),
+    ...below(data, shellStartup.data),
   ];
 }
 

@@ -75,7 +75,8 @@ let
       );
     in
     pi;
-  mkIpcManifest = pkgs: pkgs.writeText "pi-ipc-capabilities.json" (builtins.toJSON config.piIpcRegistry);
+  mkIpcManifest = pkgs: pkgs.writeText "pi-ipc-capabilities.json" (builtins.toJSON config.pi.sandbox.ipc.registry);
+  mkSandboxPolicy = pkgs: pkgs.writeText "pi-sandbox-policy.json" (builtins.toJSON config.pi.sandbox.launcherPolicy);
   # The runtime holds no development packages: Node strips .mts types itself. `withTypes` adds only
   # @types/node for the type check, which uses pkgs.typescript_7 instead of npm's per-platform binaries.
   mkIpcRuntime = pkgs: { withTypes ? false }:
@@ -113,6 +114,7 @@ let
       let
         runtime = mkIpcRuntime pkgs { };
         manifest = mkIpcManifest pkgs;
+        sandboxPolicy = mkSandboxPolicy pkgs;
         # The desktop broker runs these from fixed store paths, never from the session PATH.
         desktopTools = pkgs.lib.optionalString pkgs.stdenv.hostPlatform.isLinux
           "--set PI_DESKTOP_WL_COPY ${pkgs.wl-clipboard}/bin/wl-copy --set PI_DESKTOP_GRIM ${pkgs.grim}/bin/grim --set PI_DESKTOP_IMAGE_VIEWER ${pkgs.loupe}/bin/loupe --set PI_DESKTOP_IMAGE_DATA ${pkgs.shared-mime-info}/share --set PI_DESKTOP_PATH ${pkgs.coreutils}/bin";
@@ -137,9 +139,10 @@ let
           ln -s ${../nono/scripts/pi-ask.lua} "$out/share/pi/pi-ask.lua"
           # A binary entry avoids sourcing BASH_ENV before nono applies confinement.
           ${pkgs.nodejs}/bin/node --input-type=module -e 'import { loadCapabilities } from "${runtime}/scripts/ipc/policy.mts"; loadCapabilities(process.argv[1]);' "${manifest}"
+          ${pkgs.nodejs}/bin/node --input-type=module -e 'import { loadSandboxPolicy } from "${runtime}/scripts/shared/sandbox-policy.mts"; loadSandboxPolicy(process.argv[1]);' "${sandboxPolicy}"
           makeBinaryWrapper ${pkgs.nodejs}/bin/node "$out/bin/pi" \
             --unset NODE_OPTIONS --unset NODE_PATH \
-            --set PI_IPC_MANIFEST "${manifest}" ${desktopTools} \
+            --set PI_IPC_MANIFEST "${manifest}" --set PI_SANDBOX_POLICY "${sandboxPolicy}" ${desktopTools} \
             --set PI_NONO_DIAGNOSTICS 1 \
             --set PI_SSH_ADD ${pkgs.openssh}/bin/ssh-add \
             --set PI_MODEL_EXECUTOR_PACKAGE ${executorPi}/lib/pi/node_modules/@earendil-works/pi-coding-agent ${executorModelsFlag} \
@@ -227,12 +230,6 @@ let
     };
 in
 {
-  options.piIpcRegistry = lib.mkOption {
-    type = lib.types.attrsOf lib.types.anything;
-    default = builtins.fromJSON (builtins.readFile ../nono/scripts/ipc/capabilities.json);
-    description = "Nix-owned IPC capability catalog and profile selections; validated by the runtime JSON Schema.";
-  };
-
   config = {
     flake.modules = {
       nixos.development.imports = [ systemPackages ];
@@ -333,6 +330,7 @@ in
                 }
                 ''
                   ${pkgs.nodejs}/bin/node --input-type=module -e 'import { loadCapabilities } from "${mkIpcRuntime pkgs { }}/scripts/ipc/policy.mts"; loadCapabilities(process.argv[1]);' "${mkIpcManifest pkgs}"
+                  PI_SANDBOX_POLICY=${mkSandboxPolicy pkgs} ${pkgs.nodejs}/bin/node --test ${mkIpcRuntime pkgs { }}/__tests__/sandbox-policy.test.mjs
                   ${pkgs.nodejs}/bin/node --test \
                     ${mkIpcRuntime pkgs { }}/__tests__/ipc-policy.test.mjs \
                     ${mkIpcRuntime pkgs { }}/__tests__/launch-mode.test.mjs \
@@ -366,15 +364,15 @@ in
             expected = (mkLauncher pkgs (mkPi pkgs) { ipcRestricted = true; }).outPath;
           };
           testOrdinaryFsmonitorUsesExistingDarwinEndpoints = {
-            expr = config.piIpcRegistry.profiles.ordinary."git-fsmonitor";
+            expr = config.pi.sandbox.ipc.registry.profiles.ordinary."git-fsmonitor";
             expected = { access = "connect-existing"; platforms = [ "darwin" ]; };
           };
           testRestrictedFsmonitorDeclaresFullProtocolAuthority = {
-            expr = config.piIpcRegistry.capabilities."git-fsmonitor".authority;
+            expr = config.pi.sandbox.ipc.registry.capabilities."git-fsmonitor".authority;
             expected = "full-protocol";
           };
           testRestrictedFsmonitorPermitsLazyEndpointCreation = {
-            expr = config.piIpcRegistry.profiles.restricted."git-fsmonitor".access;
+            expr = config.pi.sandbox.ipc.registry.profiles.restricted."git-fsmonitor".access;
             expected = "bind";
           };
         };

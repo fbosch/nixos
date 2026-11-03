@@ -1,0 +1,118 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Pi sandbox policy as the launcher reads it: the Nix option pi.sandbox without ipc, with disabled grants removed. Nix owns this file; it is never read from a location the sandbox can write.",
+  "type": "object",
+  "required": ["version", "filesystem", "ssh", "exceptions"],
+  "additionalProperties": false,
+  "definitions": {
+    "relativePath": {
+      "description": "Slash-separated path below its base: no leading slash, no empty, '.' or '..' segments.",
+      "type": "string",
+      "maxLength": 256,
+      "pattern": "^(?!\\.\\.?(/|$))(?!.*/\\.\\.?(/|$))[A-Za-z0-9._@+-]+(/[A-Za-z0-9._@+-]+)*$"
+    },
+    "name": {
+      "description": "A single path segment.",
+      "type": "string",
+      "maxLength": 128,
+      "pattern": "^(?!\\.\\.?$)[A-Za-z0-9._@+-]+$"
+    },
+    "relativePaths": { "type": "array", "items": { "$ref": "#/definitions/relativePath" }, "uniqueItems": true },
+    "names": { "type": "array", "items": { "$ref": "#/definitions/name" }, "uniqueItems": true }
+  },
+  "properties": {
+    "version": { "const": 1 },
+    "filesystem": {
+      "type": "object",
+      "required": ["grants", "agent", "shellStartup", "runtimeDirectory"],
+      "additionalProperties": false,
+      "properties": {
+        "grants": {
+          "description": "Tool state shared with the host, granted only when it exists. Keyed by grant name; applied in name order.",
+          "type": "object",
+          "propertyNames": { "pattern": "^[a-z][a-z0-9-]*$", "maxLength": 64 },
+          "additionalProperties": {
+            "type": "object",
+            "required": ["base", "path", "type", "access"],
+            "additionalProperties": false,
+            "properties": {
+              "base": {
+                "description": "home: $HOME. config, cache, data: XDG_CONFIG_HOME, XDG_CACHE_HOME, XDG_DATA_HOME from the launcher's own environment, or their $HOME defaults.",
+                "enum": ["home", "config", "cache", "data"]
+              },
+              "path": { "$ref": "#/definitions/relativePath" },
+              "override": {
+                "description": "A variable in the launcher's own environment that replaces the whole location.",
+                "type": "string",
+                "pattern": "^[A-Z][A-Z0-9_]*$"
+              },
+              "type": { "enum": ["directory", "file"] },
+              "access": { "enum": ["read", "readwrite"] }
+            },
+            "not": {
+              "description": "Writable single files are not supported.",
+              "properties": { "type": { "const": "file" }, "access": { "const": "readwrite" } },
+              "required": ["type", "access"]
+            }
+          }
+        },
+        "agent": {
+          "type": "object",
+          "required": ["writableHomePaths", "runtimeEntries", "controlEntries"],
+          "additionalProperties": false,
+          "properties": {
+            "writableHomePaths": { "description": "Writable directories below $HOME that Pi uses besides its agent directory, granted at their canonical location.", "$ref": "#/definitions/relativePaths" },
+            "runtimeEntries": { "description": "Agent-directory entries that stay writable in locked-down sessions.", "$ref": "#/definitions/names" },
+            "controlEntries": { "description": "Agent-directory entries that are always protected, even when missing.", "$ref": "#/definitions/names" }
+          }
+        },
+        "shellStartup": {
+          "description": "Shell startup paths kept read-only. config, cache and data entries apply below both the $HOME default and the XDG override.",
+          "type": "object",
+          "required": ["home", "config", "cache", "data"],
+          "additionalProperties": false,
+          "properties": {
+            "home": { "$ref": "#/definitions/relativePaths" },
+            "config": { "$ref": "#/definitions/relativePaths" },
+            "cache": { "$ref": "#/definitions/relativePaths" },
+            "data": { "$ref": "#/definitions/relativePaths" }
+          }
+        },
+        "runtimeDirectory": {
+          "type": "object",
+          "required": ["secrets", "services"],
+          "additionalProperties": false,
+          "properties": {
+            "secrets": { "description": "XDG_RUNTIME_DIR entries that no grant may reach.", "$ref": "#/definitions/names" },
+            "services": { "description": "XDG_RUNTIME_DIR directories created before granting, for tools that cannot create them.", "$ref": "#/definitions/names" }
+          }
+        }
+      }
+    },
+    "ssh": {
+      "type": "object",
+      "required": ["publicFiles", "defaultIdentity"],
+      "additionalProperties": false,
+      "properties": {
+        "publicFiles": {
+          "description": "Files in ~/.ssh the sandbox may read despite the ~/.ssh deny rule. Only public files: never a private key.",
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^(config|known_hosts2?|(?!\\.)[A-Za-z0-9_.-]+\\.pub)$" }
+        },
+        "defaultIdentity": { "description": "Private key in ~/.ssh that the launcher offers to load into the host agent. Never granted to the sandbox.", "$ref": "#/definitions/name" }
+      }
+    },
+    "exceptions": {
+      "type": "object",
+      "required": ["configurationRepositories"],
+      "additionalProperties": false,
+      "properties": {
+        "configurationRepositories": {
+          "description": "Directories below $HOME whose sessions may edit Pi setup. Each must also pass Git checkout validation.",
+          "$ref": "#/definitions/names"
+        }
+      }
+    }
+  }
+}
