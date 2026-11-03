@@ -18,6 +18,8 @@ Host-side launcher, credential boundary and IPC brokers that confine Pi under no
 
 - Fail closed. Never add a fallback that runs without a guard, a broker or the sandbox when validation fails.
 - Linux Landlock cannot subtract a protected child from a writable parent. Grants are split instead (`launch/plan.mts`). Do not replace a split grant with a broad `--allow`.
+- Grants are decisions in a `GrantPlan` (`shared/grant-plan.mts`): builders return `Grant` entries, every launch guard inspects the plan, and `toArguments` turns it into nono flags once. Do not add a guard or builder that reads or produces nono argv directly. Grant order is argument order.
+- Read the nono profile only through `readNonoProfile` (`shared/nono-profile.mts`), so every module sees the same shape checks and errors.
 - Paths below are read by Nix or spawned by file URL, not imported. When you move one, update its consumer and the `entry` list in `.fallowrc.json`:
   - `credentials/credentials.json`: read by `lib/pi-credential-profile.nix`, `modules/sops.nix` and `default.nix`.
   - `credentials/claude-credential.mts`: resolved through the `script` field in `credentials.json`.
@@ -34,7 +36,8 @@ Host-side launcher, credential boundary and IPC brokers that confine Pi under no
 - `pi.sandbox.exceptions.configurationRepositories` cannot be appended to from another module; replacing it requires `mkForce`, because it grants write access to Pi configuration.
 - The code keeps the rules: existence checks, symlink and hard-link checks, Git worktree validation and grant splitting. Do not move a rule into the file.
 - `shared/sandbox-policy.schema.json` is part of the security boundary. SSH client files must stay public files, because each one also bypasses the `~/.ssh` deny rule. Paths stay relative to their base, with no `..` segments.
-- Tool grant locations and overrides come from the environment the launcher started with, never from the project `.envrc`.
+- A project `.envrc` must never choose a grant. `sessionEnvironment` (`launch/environment.mts`) restores every variable in `hostOnlyVariables` to the launcher's own value, or removes it. A new variable that selects a socket, directory or file grant belongs in that list, with a case in `__tests__/launch-environment.test.mjs`.
+- Tool grant locations also read XDG_CONFIG/CACHE/DATA_HOME from the environment the launcher started with (`hostEnvironment` in `launch/plan.mts`). Those three stay project-settable for Pi itself.
 
 ## TypeScript
 

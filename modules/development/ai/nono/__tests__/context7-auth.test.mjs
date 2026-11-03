@@ -7,13 +7,15 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 import { assertCredentialSourceGrants, credentialDefinitions, credentialEnvironmentForDirenv, prepareCredentialEnvironment } from "../scripts/credentials/definitions.mts";
+import { grantPlan } from "../scripts/shared/grant-plan.mts";
 
 const context7 = { context7: credentialDefinitions.context7 };
 const context7SecretPath = context7.context7.source.path;
 const direnvContext7Environment = (environment) => credentialEnvironmentForDirenv(environment, context7);
 const prepareContext7Environment = (inherited, loaded) => prepareCredentialEnvironment(inherited, loaded, "/home/user", context7);
-const assertContext7CredentialGrants = (args, cwd, home, environment = {}, profile = {}, path = context7SecretPath) =>
-  Effect.runSync(assertCredentialSourceGrants(args, cwd, home, environment, profile, {
+// `grants` lists [flag, path] pairs of the plan under test.
+const assertContext7CredentialGrants = (grants, cwd, home, environment = {}, profile = {}, path = context7SecretPath) =>
+  Effect.runSync(assertCredentialSourceGrants(grantPlan(grants.map(([flag, granted]) => ({ flag, path: granted }))), cwd, home, environment, profile, {
     context7: { ...context7.context7, source: { ...context7.context7.source, path } },
   }));
 
@@ -53,10 +55,10 @@ test("SOPS-style symlinks cannot expose a Context7 key through file, runtime, or
     symlinkSync(target, secret);
     const check = (args, cwd = safe, env = {}, profile = {}) =>
       assertContext7CredentialGrants(args, cwd, root, env, profile, secret);
-    assert.doesNotThrow(() => check(["--read", safe, "--", "pi"]));
+    assert.doesNotThrow(() => check([["--read", safe]]));
     for (const flag of ["--read", "--allow", "--read-file", "--allow-file", "--allow-unix-socket", "--bypass-protection"]) {
       for (const grant of [secret, target, generation, root]) {
-        assert.throws(() => check([flag, grant, "--", "pi"]), /Context7 credential/);
+        assert.throws(() => check([[flag, grant]]), /Context7 credential/);
       }
     }
     assert.throws(() => check([], generation), /Context7 credential/);
@@ -79,7 +81,7 @@ test("a not-yet-materialized key remains protected without blocking unrelated st
     const safe = join(root, "safe");
     mkdirSync(safe);
     assert.doesNotThrow(() => assertContext7CredentialGrants([], safe, root, {}, {}, secret));
-    assert.throws(() => assertContext7CredentialGrants(["--read", root], safe, root, {}, {}, secret), /Context7 credential/);
+    assert.throws(() => assertContext7CredentialGrants([["--read", root]], safe, root, {}, {}, secret), /Context7 credential/);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

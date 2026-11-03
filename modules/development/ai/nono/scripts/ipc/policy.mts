@@ -2,6 +2,7 @@ import { Ajv, type AnySchemaObject, type ValidateFunction } from "ajv";
 import { readFileSync, lstatSync, realpathSync, type Stats } from "node:fs";
 import { join } from "node:path";
 import type { JsonValue } from "../shared/types.mts";
+import { grant, type Grant } from "../shared/grant-plan.mts";
 
 // Types mirror capabilities.schema.json; Ajv validates every manifest against it before use.
 
@@ -174,8 +175,8 @@ export function selectCapabilities(registry: CapabilityRegistry, profile: string
   }));
 }
 
-export function endpointArguments(capabilities: SelectedCapabilities, locations: Record<string, string[]>): string[] {
-  const args: string[] = [];
+export function endpointGrants(capabilities: SelectedCapabilities, locations: Record<string, string[]>): Grant[] {
+  const grants: Grant[] = [];
   for (const capability of Object.values(capabilities)) {
     if (capability.backend !== "endpoint") continue;
     const roots = locations[capability.discovery];
@@ -189,11 +190,11 @@ export function endpointArguments(capabilities: SelectedCapabilities, locations:
         if (capability.access === "bind") throw new Error(`Unsafe IPC endpoint: ${endpoint}`);
         continue;
       }
-      if (capability.access === "bind") args.push("--allow-unix-socket-bind", endpoint);
-      else if (entry) args.push("--allow-unix-socket", endpoint);
+      if (capability.access === "bind") grants.push(grant("--allow-unix-socket-bind", endpoint));
+      else if (entry) grants.push(grant("--allow-unix-socket", endpoint));
     }
   }
-  return args;
+  return grants;
 }
 
 export function createMessageValidator(capability: JsonLinesCapability, context: LaunchContext): MessageValidator {

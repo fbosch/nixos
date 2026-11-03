@@ -6,6 +6,7 @@ import { basename, dirname, isAbsolute, join, sep } from "node:path";
 import type { Environment } from "../shared/types.mts";
 import { privateIpcDirectory, privateIpcPrefix } from "./private.mts";
 import { InvalidConfigError, LaunchPrerequisiteError, type SandboxError, UnsafeFileError, attempt } from "../shared/errors.mts";
+import { grant, type Grant } from "../shared/grant-plan.mts";
 
 function waylandSocket(environment: Environment): string | undefined {
   const display = environment.WAYLAND_DISPLAY;
@@ -69,20 +70,20 @@ export function devenvRuntime(cwd: string, home: string, environment: Environmen
   return join(base, `devenv-${hash}`);
 }
 
-function serviceSocketArgumentsSync(cwd: string, home: string, environment: Environment, restricted: boolean): string[] {
+function serviceSocketGrantsSync(cwd: string, home: string, environment: Environment, restricted: boolean): Grant[] {
   if (!restricted) return [];
-  const args: string[] = [];
+  const grants: Grant[] = [];
   // Direct compositor access deliberately permits all exposed Wayland protocols, including clipboard reads.
   const display = waylandSocket(environment);
-  if (display) args.push("--allow-unix-socket", display);
+  if (display) grants.push(grant("--allow-unix-socket", display));
   const browser = environment.AGENT_BROWSER_SOCKET_DIR;
   if (browser) {
     const directory = realpathSync(browser);
     if (!directory.startsWith(privateIpcPrefix(home)) || !lstatSync(browser).isDirectory()) throw new UnsafeFileError({ message: "Browser IPC directory must belong to this Pi launch" });
-    args.push("--allow", directory, "--allow-unix-socket-dir-bind", directory);
+    grants.push(grant("--allow", directory), grant("--allow-unix-socket-dir-bind", directory));
   }
   const runtime = devenvRuntime(cwd, home, environment);
-  if (!runtime) return args;
+  if (!runtime) return grants;
   // Native process-manager endpoints are created lazily under processes/.
   mkdirSync(runtime, { mode: 0o700, recursive: true });
   const entry = lstatSync(runtime);
@@ -99,15 +100,15 @@ function serviceSocketArgumentsSync(cwd: string, home: string, environment: Envi
     }
   }
   mkdirSync(join(runtime, "processes"), { mode: 0o700, recursive: true });
-  args.push("--allow", runtime, "--allow-unix-socket-dir-bind", runtime);
+  grants.push(grant("--allow", runtime), grant("--allow-unix-socket-dir-bind", runtime));
   // Existing service directories get direct-child grants, never a subtree grant.
   for (const entry of readdirSync(runtime, { withFileTypes: true })) {
-    if (entry.isDirectory()) args.push("--allow-unix-socket-dir-bind", join(runtime, entry.name));
+    if (entry.isDirectory()) grants.push(grant("--allow-unix-socket-dir-bind", join(runtime, entry.name)));
   }
-  return args;
+  return grants;
 }
 
 /** Socket grants for Wayland, the session's browser daemon and the project's devenv runtime. */
-export function serviceSocketArguments(cwd: string, home: string, environment: Environment, restricted: boolean): Effect.Effect<string[], SandboxError> {
-  return attempt(() => serviceSocketArgumentsSync(cwd, home, environment, restricted));
+export function serviceSocketGrants(cwd: string, home: string, environment: Environment, restricted: boolean): Effect.Effect<Grant[], SandboxError> {
+  return attempt(() => serviceSocketGrantsSync(cwd, home, environment, restricted));
 }

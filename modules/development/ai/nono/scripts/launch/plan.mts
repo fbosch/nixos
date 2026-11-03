@@ -7,19 +7,21 @@ import { assertCredentialGrants } from "../credentials/grants.mts";
 import { credentialFilesOutsideStore, credentialStoreDirectory } from "../credentials/store.mts";
 import { assertCredentialSourceGrants } from "../credentials/definitions.mts";
 import { assertPrivateIpcGrants, privateIpcPrefix } from "../ipc/private.mts";
-import { defaultCapabilities, endpointArguments, selectCapabilities, type CapabilityRegistry, type SelectedCapabilities } from "../ipc/policy.mts";
-import { serviceSocketArguments } from "../ipc/services.mts";
+import { defaultCapabilities, endpointGrants, selectCapabilities, type CapabilityRegistry, type SelectedCapabilities } from "../ipc/policy.mts";
+import { serviceSocketGrants } from "../ipc/services.mts";
 import { MODEL_EXECUTOR_SOCKET } from "../model-executor/launch.mts";
 import { agentCredentialPaths, agentDirectories, agentProtection, type AgentProtection } from "../protection/agent.mts";
 import { shellProtection } from "../protection/shell.mts";
-import { existingDirectory, existingFile, readJsonFile, within } from "../shared/paths.mts";
+import { existingDirectory, existingFile, within } from "../shared/paths.mts";
 import type { Environment, NonoProfile } from "../shared/types.mts";
 import { gitMetadata, pairedRepositoryRoots, writableReferenceRoots } from "./git.mts";
 import { approvedReferenceRoots, referenceApprovalStore, references } from "./references.mts";
 import { sandboxRuntimeCommand } from "./runtime.mts";
-import { assertReadOnlySshGrants, sshClientArguments } from "./ssh.mts";
+import { assertReadOnlySshGrants, sshClientGrants } from "./ssh.mts";
 import { GrantConflictError, LaunchPrerequisiteError, type SandboxError, attempt, runSyncOrThrow } from "../shared/errors.mts";
-import { baseDirectory, grants, sandboxPolicy } from "../shared/sandbox-policy.mts";
+import { baseDirectory, grants as toolGrants, sandboxPolicy } from "../shared/sandbox-policy.mts";
+import { grant, grantedPaths, grantPlan, toArguments, writableFlags, type Grant, type GrantPlan } from "../shared/grant-plan.mts";
+import { readNonoProfile } from "../shared/nono-profile.mts";
 
 // Builds the nono command line for one session: filesystem, socket and credential grants plus
 // the guards that reject any grant reaching host-only or credential paths.
@@ -62,16 +64,16 @@ const runtimeSecretEntries = sandboxPolicy.filesystem.runtimeDirectory.secrets;
 // Sandboxed tools cannot create top-level runtime entries, so create their directories before granting them.
 const runtimeServiceDirectories = sandboxPolicy.filesystem.runtimeDirectory.services;
 
-function runtimeDirectoryArguments(runtime: string, platform: NodeJS.Platform): string[] {
-  if (platform !== "linux") return ["--allow", runtime];
+function runtimeDirectoryGrants(runtime: string, platform: NodeJS.Platform): Grant[] {
+  if (platform !== "linux") return [grant("--allow", runtime)];
   for (const name of runtimeServiceDirectories) mkdirSync(join(runtime, name), { recursive: true, mode: 0o700 });
   // Landlock cannot exclude a child of a granted directory, so grant top-level entries instead of the root.
   // Sockets need no grant while AF_UNIX mediation is off; symlinks are skipped so they cannot redirect a grant.
   return readdirSync(runtime, { withFileTypes: true }).flatMap((entry) => {
     if (runtimeSecretEntries.includes(entry.name)) return [];
     const path = join(runtime, entry.name);
-    if (entry.isDirectory()) return ["--allow", path];
-    return entry.isFile() ? ["--allow-file", path] : [];
+    if (entry.isDirectory()) return [grant("--allow", path)];
+    return entry.isFile() ? [grant("--allow-file", path)] : [];
   });
 }
 
@@ -97,9 +99,8 @@ function splitWritableGrant(root: string, protectedPaths: readonly string[], spl
   }
 }
 
-function assertHostOnlyGrants(args: readonly string[], cwd: string, hostOnlyPaths: readonly string[]): void {
-  const separator = args.indexOf("--");
-  const writable = [...(args.slice(0, separator).includes("--allow-cwd") ? [cwd] : []), ...args.slice(0, separator).flatMap((part, index, all) => ["--allow", "--allow-file"].includes(part) ? [all[index + 1]!] : [])];
+function assertHostOnlyGrants(plan: GrantPlan, cwd: string, hostOnlyPaths: readonly string[]): void {
+  const writable = [...(plan.allowCwd ? [cwd] : []), ...grantedPaths(plan, writableFlags)];
   for (const path of writable) {
     const grant = existsSync(path) ? realpathSync(path) : path;
     const conflict = hostOnlyPaths.find((hostOnly) => within(hostOnly, grant) || within(grant, hostOnly));
@@ -108,12 +109,12 @@ function assertHostOnlyGrants(args: readonly string[], cwd: string, hostOnlyPath
   }
 }
 
-function assertRuntimeSecretGrants(args: readonly string[], cwd: string, home: string, environment: Environment, profile: NonoProfile, platform: NodeJS.Platform): Effect.Effect<void, SandboxError> {
+function assertRuntimeSecretGrants(plan: GrantPlan, cwd: string, home: string, environment: Environment, profile: NonoProfile, platform: NodeJS.Platform): Effect.Effect<void, SandboxError> {
   return Effect.gen(function* () {
     const runtime = platform === "linux" && environment.XDG_RUNTIME_DIR ? yield* attempt(() => existingDirectory(environment.XDG_RUNTIME_DIR!)) : undefined;
     if (runtime === undefined) return;
     const secrets = runtimeSecretEntries.map((name) => join(runtime, name)).filter((path) => existsSync(path));
-    yield* assertCredentialGrants(args, cwd, home, environment, profile, secrets, "Runtime secret");
+    yield* assertCredentialGrants(plan, cwd, home, environment, profile, secrets, "Runtime secret");
   });
 }
 
@@ -144,13 +145,13 @@ function addReferenceGrants(cwd: string, agentDir: string, home: string, writabl
 }
 
 // Without the executor, Pi in the sandbox reads and refreshes migrated credentials itself.
-function addCredentialStoreGrants(home: string, agent: AgentProtection, grants: Set<string>, extra: string[]): void {
-  for (const path of agent.authFiles) extra.push("--allow-file", path);
+function addCredentialStoreGrants(home: string, agent: AgentProtection, grants: Set<string>, extra: Grant[]): void {
+  for (const path of agent.authFiles) extra.push(grant("--allow-file", path));
   let store: string | undefined;
   try { store = existingDirectory(credentialStoreDirectory(home)); } catch { store = undefined; }
   if (store === undefined) return;
   const auth = join(store, "auth.json");
-  if (existingFile(auth)) extra.push("--allow-file", auth);
+  if (existingFile(auth)) extra.push(grant("--allow-file", auth));
   const profiles = existingDirectory(join(store, "auth-profiles"));
   if (profiles !== undefined) grants.add(profiles);
 }
@@ -161,8 +162,8 @@ function requireSocket(path: string, variable: string, message = `${variable} mu
 }
 
 /** Unix-socket grants for IPC capabilities, the model executor and the Neovim Pi Ask endpoint. */
-function socketArguments(environment: Environment, home: string, capabilities: SelectedCapabilities, gitDirectories: Set<string>, ipcRestricted: boolean): { args: string[]; usesPrivateIpc: boolean } {
-  const args = endpointArguments(capabilities, { "selected-git-metadata": [...gitDirectories] });
+function socketGrants(environment: Environment, home: string, capabilities: SelectedCapabilities, gitDirectories: Set<string>, ipcRestricted: boolean): { grants: Grant[]; usesPrivateIpc: boolean } {
+  const grants = endpointGrants(capabilities, { "selected-git-metadata": [...gitDirectories] });
   const socketVariables = new Set(Object.values(capabilities).filter(capability => capability.backend === "json-lines").map(capability => capability.socketEnvironment));
   if (!ipcRestricted && environment.HERDR_ENV === "1") socketVariables.add("HERDR_SOCKET_PATH");
   if (ipcRestricted && environment.HERDR_ENV === "1" && environment.HERDR_SOCKET_PATH && !socketVariables.has("HERDR_SOCKET_PATH")) throw new LaunchPrerequisiteError({ message: "Herdr reporting is not enabled in the IPC capability profile" });
@@ -170,66 +171,66 @@ function socketArguments(environment: Environment, home: string, capabilities: S
     const socket = environment[variable];
     if (!socket) continue;
     requireSocket(socket, variable);
-    args.push("--allow-unix-socket", socket);
+    grants.push(grant("--allow-unix-socket", socket));
   }
   const executorSocket = environment[MODEL_EXECUTOR_SOCKET];
   if (executorSocket) {
     // Only the launcher-owned executor endpoint is granted; it lives in private IPC state.
     if (!executorSocket.startsWith(privateIpcPrefix(home))) throw new LaunchPrerequisiteError({ message: `${MODEL_EXECUTOR_SOCKET} must be a private Pi IPC socket` });
     requireSocket(executorSocket, MODEL_EXECUTOR_SOCKET, `${MODEL_EXECUTOR_SOCKET} must be a private Pi IPC socket`);
-    args.push("--allow-unix-socket", executorSocket);
+    grants.push(grant("--allow-unix-socket", executorSocket));
   }
   const editorSocket = environment.PI_NVIM_ASK_SOCKET;
   if (environment.PI_NVIM_SOCKET && !editorSocket) throw new LaunchPrerequisiteError({ message: "Native Neovim RPC is not a Pi Ask endpoint; update both Pi Ask integrations" });
   if (editorSocket) {
     requireSocket(editorSocket, "PI_NVIM_ASK_SOCKET");
-    args.push("--allow-unix-socket", editorSocket);
+    grants.push(grant("--allow-unix-socket", editorSocket));
   }
   const usesPrivateIpc = [...socketVariables].some(variable => Boolean(environment[variable])) || Boolean(executorSocket || editorSocket || environment.AGENT_BROWSER_SOCKET_DIR);
-  return { args, usesPrivateIpc };
+  return { grants, usesPrivateIpc };
 }
 
 /**
  * State that Pi extensions and editor integrations share with the host. Locations come from the
  * environment the launcher started with: a project .envrc must not choose writable grants.
  */
-function toolStateArguments(environment: Environment, home: string, reads: Set<string>): string[] {
-  const args: string[] = [];
-  for (const grant of grants) {
-    const path = (grant.override && environment[grant.override]) || join(baseDirectory(grant.base, home, environment), grant.path);
-    if (grant.type === "file") {
-      if (existingFile(path)) args.push("--read-file", path);
+function toolStateGrants(environment: Environment, home: string, reads: Set<string>): Grant[] {
+  const grants: Grant[] = [];
+  for (const tool of toolGrants) {
+    const path = (tool.override && environment[tool.override]) || join(baseDirectory(tool.base, home, environment), tool.path);
+    if (tool.type === "file") {
+      if (existingFile(path)) grants.push(grant("--read-file", path));
       continue;
     }
     const directory = existingDirectory(path);
     if (directory === undefined) continue;
-    if (grant.access === "readwrite") args.push("--allow", path);
+    if (tool.access === "readwrite") grants.push(grant("--allow", path));
     // Read-only directories join the --read section, at their canonical location. For example,
     // direnv approvals are user-owned authorization; the sandbox may only consume existing decisions.
     else reads.add(directory);
   }
-  return args;
+  return grants;
 }
 
-function hostRuntimeArguments(environment: Environment, platform: NodeJS.Platform, ipcRestricted: boolean): string[] {
-  const args: string[] = [];
+function hostRuntimeGrants(environment: Environment, platform: NodeJS.Platform, ipcRestricted: boolean): Grant[] {
+  const grants: Grant[] = [];
   // Keep legacy behavior until the candidate passes the Linux development/desktop gates.
   if (!ipcRestricted && environment.XDG_RUNTIME_DIR) {
     const runtime = existingDirectory(environment.XDG_RUNTIME_DIR);
     if (runtime === undefined) {
       console.warn(`pi sandbox launch: XDG_RUNTIME_DIR is missing (${JSON.stringify(environment.XDG_RUNTIME_DIR)}); continuing without runtime-directory access.`);
     } else {
-      args.push(...runtimeDirectoryArguments(runtime, platform));
+      grants.push(...runtimeDirectoryGrants(runtime, platform));
     }
   }
   // grim and other Wayland clients allocate buffers with shm_open; its flat names cannot be scoped per tool.
   // Both profiles permit native screenshots and the accompanying access to unrelated same-user shared memory.
   const sharedMemory = platform === "linux" ? existingDirectory("/dev/shm") : undefined;
-  if (sharedMemory !== undefined) args.push("--allow", sharedMemory);
-  return args;
+  if (sharedMemory !== undefined) grants.push(grant("--allow", sharedMemory));
+  return grants;
 }
 
-/** Reject a finished command line whose grants reach private IPC, SSH, credential or host-only paths. */
+/** Reject a grant plan that reaches private IPC, SSH, credential or host-only paths. */
 interface LaunchGrantContext {
   cwd: string;
   home: string;
@@ -242,17 +243,17 @@ interface LaunchGrantContext {
   credentialPaths: readonly string[];
 }
 
-function assertLaunchGrants(args: readonly string[], { cwd, home, environment, loadedProfile, platform, usesPrivateIpc, hostOnlyPaths, approvals, credentialPaths }: LaunchGrantContext): Effect.Effect<void, SandboxError> {
+function assertLaunchGrants(plan: GrantPlan, { cwd, home, environment, loadedProfile, platform, usesPrivateIpc, hostOnlyPaths, approvals, credentialPaths }: LaunchGrantContext): Effect.Effect<void, SandboxError> {
   return Effect.gen(function* () {
-    if (usesPrivateIpc) yield* assertPrivateIpcGrants(args, cwd, home);
-    yield* assertReadOnlySshGrants(args, cwd);
+    if (usesPrivateIpc) yield* assertPrivateIpcGrants(plan, cwd, home);
+    yield* assertReadOnlySshGrants(plan, cwd);
     const guardEnvironment = { ...environment, TMPDIR: environment.TMPDIR || tmpdir() };
-    yield* assertCredentialSourceGrants(args, cwd, home, guardEnvironment, loadedProfile);
-    yield* assertRuntimeSecretGrants(args, cwd, home, guardEnvironment, loadedProfile, platform);
-    yield* attempt(() => assertHostOnlyGrants(args, cwd, platform === "linux" ? hostOnlyPaths : [approvals]));
+    yield* assertCredentialSourceGrants(plan, cwd, home, guardEnvironment, loadedProfile);
+    yield* assertRuntimeSecretGrants(plan, cwd, home, guardEnvironment, loadedProfile, platform);
+    yield* attempt(() => assertHostOnlyGrants(plan, cwd, platform === "linux" ? hostOnlyPaths : [approvals]));
     if (credentialPaths.length > 0 && (yield* attempt(() => existingDirectory(home))) !== undefined) {
       // No grant, including profile reads, may reach the credential store in executor mode.
-      yield* assertCredentialGrants(args, cwd, home, guardEnvironment, loadedProfile, [credentialStoreDirectory(home)], "Pi");
+      yield* assertCredentialGrants(plan, cwd, home, guardEnvironment, loadedProfile, [credentialStoreDirectory(home)], "Pi");
     }
   });
 }
@@ -260,11 +261,9 @@ function assertLaunchGrants(args: readonly string[], { cwd, home, environment, l
 // `hostEnvironment` defaults to `environment` only for callers without a project environment, such as tests.
 function planLaunchArguments(cwd: string, agentDir: string, home: string, environment: Environment, profile: string, rawPi: string, envBinary: string, platform: NodeJS.Platform = process.platform, registry: CapabilityRegistry = defaultCapabilities, hostEnvironment: Environment = environment): Effect.Effect<LaunchPlan, SandboxError> {
   return Effect.gen(function* () {
-    if (!isAbsolute(profile) || !existingFile(profile)) return yield* new LaunchPrerequisiteError({ message: `Nix nono profile missing: ${profile}` });
+    const loadedProfile = yield* attempt(() => readNonoProfile(profile));
     if (!isAbsolute(envBinary) || !existingFile(envBinary)) return yield* new LaunchPrerequisiteError({ message: `Nix env executable missing: ${envBinary}` });
-    // The Nix-generated profile is a JSON object; nono validates its full schema.
-    const loadedProfile = (yield* attempt(() => readJsonFile(profile, "nono profile"))) as NonoProfile;
-    const ipcRestricted = loadedProfile?.linux?.af_unix_mediation === "pathname";
+    const ipcRestricted = loadedProfile.linux?.af_unix_mediation === "pathname";
     const capabilities = selectCapabilities(registry, ipcRestricted ? "restricted" : "ordinary", platform);
     const needsGitSockets = Object.values(capabilities).some(capability => capability.backend === "endpoint" && capability.discovery === "selected-git-metadata");
     const metadata = yield* gitMetadata(cwd, home);
@@ -278,7 +277,7 @@ function planLaunchArguments(cwd: string, agentDir: string, home: string, enviro
       const canonical = yield* attempt(() => existingDirectory(path));
       if (canonical !== undefined) grants.add(canonical);
     }
-    const extra = [...yield* sshClientArguments(home, environment), ...yield* serviceSocketArguments(cwd, home, environment, ipcRestricted)];
+    const extra = [...yield* sshClientGrants(home, environment), ...yield* serviceSocketGrants(cwd, home, environment, ipcRestricted)];
     let agent: AgentProtection = { protectedPaths: [], runtimePaths: [], authFiles: [] };
     if (writableRoots.length > 0) {
       // Configuration sessions may persist Pi changes on either OS; other host-only guards still apply.
@@ -291,8 +290,8 @@ function planLaunchArguments(cwd: string, agentDir: string, home: string, enviro
     const credentialStore = (path: string) => credentialPaths.some((credential) => within(path, credential));
     for (const path of agent.runtimePaths) if (!credentialStore(path)) grants.add(path);
     if (credentialPaths.length === 0) yield* attempt(() => addCredentialStoreGrants(home, agent, grants, extra));
-    const sockets = yield* attempt(() => socketArguments(environment, home, capabilities, gitDirectories, ipcRestricted));
-    extra.push(...sockets.args, ...yield* attempt(() => toolStateArguments(hostEnvironment, home, reads)), ...yield* attempt(() => hostRuntimeArguments(environment, platform, ipcRestricted)));
+    const sockets = yield* attempt(() => socketGrants(environment, home, capabilities, gitDirectories, ipcRestricted));
+    extra.push(...sockets.grants, ...yield* attempt(() => toolStateGrants(hostEnvironment, home, reads)), ...yield* attempt(() => hostRuntimeGrants(environment, platform, ipcRestricted)));
     // Seatbelt denies startup writes on macOS; Linux must keep them outside every writable grant instead.
     const approvals = dirname(referenceApprovalStore(home));
     const shellPaths = platform === "linux" && (yield* attempt(() => existingDirectory(home))) !== undefined ? (yield* shellProtection(home, environment)).protectedPaths : [];
@@ -309,21 +308,24 @@ function planLaunchArguments(cwd: string, agentDir: string, home: string, enviro
     if (splitCwd) grants.add(canonicalCwd);
     const split: SplitGrants = { allow: [], files: [], reads: [] };
     for (const path of grants) splitWritableGrant(path, platform === "linux" ? hostOnlyPaths : [...agent.protectedPaths, ...credentialPaths], split);
-    const args = [
-      "run", "--profile", profile, ...(splitCwd ? [] : ["--allow-cwd"]), "--suppress-save-prompt", "/",
-      ...(platform === "darwin" ? ["--trust-proxy-ca"] : []),
-      // No direct-egress ports: Landlock port grants admit every host, so all traffic must cross the nono proxy.
+    const plan = grantPlan([
       ...extra,
-      ...[...new Set([...reads, ...split.reads])].filter((path) => !split.allow.includes(path)).flatMap((path) => ["--read", path]),
-      ...split.allow.flatMap((path) => ["--allow", path]),
-      ...split.files.flatMap((path) => ["--allow-file", path]),
-      "--", ...sandboxRuntimeCommand(home, rawPi, envBinary),
-    ];
-    yield* assertLaunchGrants(args, { cwd, home, environment, loadedProfile, platform, usesPrivateIpc: sockets.usesPrivateIpc, hostOnlyPaths, approvals, credentialPaths });
+      ...[...new Set([...reads, ...split.reads])].filter((path) => !split.allow.includes(path)).map((path) => grant("--read", path)),
+      ...split.allow.map((path) => grant("--allow", path)),
+      ...split.files.map((path) => grant("--allow-file", path)),
+    ], !splitCwd);
+    yield* assertLaunchGrants(plan, { cwd, home, environment, loadedProfile, platform, usesPrivateIpc: sockets.usesPrivateIpc, hostOnlyPaths, approvals, credentialPaths });
     // Landlock cannot hide regular files inside a readable agent directory; only store links are safe.
     const exposedCredentials = credentialPaths.length > 0 && platform === "linux"
       ? credentialFilesOutsideStore(yield* agentDirectories(home, agentDir))
       : [];
+    // No direct-egress ports: Landlock port grants admit every host, so all traffic must cross the nono proxy.
+    const args = [
+      "run", "--profile", profile, ...(plan.allowCwd ? ["--allow-cwd"] : []), "--suppress-save-prompt", "/",
+      ...(platform === "darwin" ? ["--trust-proxy-ca"] : []),
+      ...toArguments(plan.grants),
+      "--", ...sandboxRuntimeCommand(home, rawPi, envBinary),
+    ];
     return { args, protectedPaths: [...agent.protectedPaths, approvals], credentialPaths, exposedCredentials };
   });
 }

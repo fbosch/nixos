@@ -6,9 +6,10 @@ import { existingFile, optionalLstat } from "../shared/paths.mts";
 import type { Environment, ErrnoError } from "../shared/types.mts";
 import { GrantConflictError, InvalidConfigError, LaunchPrerequisiteError, type SandboxError, UnsafeFileError, attempt } from "../shared/errors.mts";
 import { sandboxPolicy } from "../shared/sandbox-policy.mts";
+import { grant, grantedPaths, type Grant, type GrantPlan } from "../shared/grant-plan.mts";
 
-function sshClientArgumentsSync(home: string, environment: Environment): string[] {
-  const args: string[] = [];
+function sshClientGrantsSync(home: string, environment: Environment): Grant[] {
+  const grants: Grant[] = [];
   const directory = join(home, ".ssh");
   try {
     const entry = optionalLstat(directory);
@@ -28,7 +29,7 @@ function sshClientArgumentsSync(home: string, environment: Environment): string[
           throw new UnsafeFileError({ message: `SSH client file must be a regular file without hard links: ${path}` });
         }
         // The default profile denies all of ~/.ssh; a read grant alone cannot lift that deny.
-        args.push("--read-file", path, "--bypass-protection", path);
+        grants.push(grant("--read-file", path), grant("--bypass-protection", path));
       }
     }
   } catch (error) {
@@ -42,7 +43,7 @@ function sshClientArgumentsSync(home: string, environment: Environment): string[
       if (!isAbsolute(socket)) throw new InvalidConfigError({ message: "must be absolute" });
       if (!statSync(socket).isSocket()) throw new LaunchPrerequisiteError({ message: "must identify an existing Unix socket" });
       // Authorize signing through the caller's existing agent, not access to private-key files.
-      args.push("--allow-unix-socket", socket, "--bypass-protection", socket);
+      grants.push(grant("--allow-unix-socket", socket), grant("--bypass-protection", socket));
     } catch (error) {
       if ((error as ErrnoError).code === "ENOENT") {
         console.warn(`pi sandbox launch: SSH_AUTH_SOCK socket is missing (${JSON.stringify(socket)}); continuing without SSH agent access.`);
@@ -51,20 +52,19 @@ function sshClientArgumentsSync(home: string, environment: Environment): string[
       }
     }
   }
-  return args;
+  return grants;
 }
 
 /** Read-only grants for public SSH client files, plus the agent socket when the host opted in. */
-export function sshClientArguments(home: string, environment: Environment): Effect.Effect<string[], SandboxError> {
-  return attempt(() => sshClientArgumentsSync(home, environment));
+export function sshClientGrants(home: string, environment: Environment): Effect.Effect<Grant[], SandboxError> {
+  return attempt(() => sshClientGrantsSync(home, environment));
 }
 
-function assertReadOnlySshGrantsSync(args: readonly string[], cwd: string): void {
-  const values = (flag: string) => args.flatMap((part, index) => part === flag ? [args[index + 1]!] : []);
-  const exemptions = new Set(values("--bypass-protection"));
-  const files = values("--read-file").filter(path => exemptions.has(path));
+function assertReadOnlySshGrantsSync(plan: GrantPlan, cwd: string): void {
+  const exemptions = new Set(grantedPaths(plan, ["--bypass-protection"]));
+  const files = grantedPaths(plan, ["--read-file"]).filter(path => exemptions.has(path));
   if (files.length === 0) return;
-  const roots = [cwd, ...values("--allow"), ...values("--allow-file")].flatMap(path => optionalLstat(path) ? [path, realpathSync(path)] : [path]);
+  const roots = [cwd, ...grantedPaths(plan, ["--allow"]), ...grantedPaths(plan, ["--allow-file"])].flatMap(path => optionalLstat(path) ? [path, realpathSync(path)] : [path]);
   for (const file of files) {
     const targets = [file, realpathSync(file), join(realpathSync(dirname(file)), basename(file))];
     for (const root of roots) {
@@ -77,8 +77,8 @@ function assertReadOnlySshGrantsSync(args: readonly string[], cwd: string): void
 }
 
 /** Fail when a writable grant would cover an SSH file that must stay read-only. */
-export function assertReadOnlySshGrants(args: readonly string[], cwd: string): Effect.Effect<void, SandboxError> {
-  return attempt(() => assertReadOnlySshGrantsSync(args, cwd));
+export function assertReadOnlySshGrants(plan: GrantPlan, cwd: string): Effect.Effect<void, SandboxError> {
+  return attempt(() => assertReadOnlySshGrantsSync(plan, cwd));
 }
 
 // Sandboxed SSH and Git signing only reach keys through the agent; the private key file stays denied.

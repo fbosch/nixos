@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { assertCredentialSourceGrants, credentialDefinitions, credentialEnvironmentForDirenv, prepareCredentialEnvironment } from "../scripts/credentials/definitions.mts";
+import { grant, grantPlan } from "../scripts/shared/grant-plan.mts";
 
 test("Claude CLI login stays host-only and project endpoint overrides are removed", () => {
   const definition = credentialDefinitions.anthropic;
@@ -75,9 +76,9 @@ test("an additional file-backed MCP gets secret-path protection from its declara
     const secret = join(store, "docs-api-key");
     writeFileSync(secret, "synthetic-docs-key", { mode: 0o400 });
     const definitions = docs(secret);
-    assert.doesNotThrow(() => Effect.runSync(assertCredentialSourceGrants(["--read", safe], safe, root, {}, {}, definitions)));
-    for (const grant of [secret, store, root]) {
-      assert.throws(() => Effect.runSync(assertCredentialSourceGrants(["--read", grant], safe, root, {}, {}, definitions)), /Docs credential store overlaps/);
+    assert.doesNotThrow(() => Effect.runSync(assertCredentialSourceGrants(grantPlan([grant("--read", safe)]), safe, root, {}, {}, definitions)));
+    for (const path of [secret, store, root]) {
+      assert.throws(() => Effect.runSync(assertCredentialSourceGrants(grantPlan([grant("--read", path)]), safe, root, {}, {}, definitions)), /Docs credential store overlaps/);
     }
   } finally {
     rmSync(root, { recursive: true, force: true });

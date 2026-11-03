@@ -5,6 +5,7 @@ import { isRecord, readJsonFile } from "../shared/paths.mts";
 import type { Environment, ErrnoError, NonoProfile } from "../shared/types.mts";
 import { assertCredentialGrants, canonicalCredentialPath } from "./grants.mts";
 import { InvalidConfigError, UnsafeFileError, attempt, type SandboxError } from "../shared/errors.mts";
+import type { GrantPlan } from "../shared/grant-plan.mts";
 
 /** One entry of `credentials.json`. Nix reads the same file to build nono's credential routes. */
 export interface CredentialDefinition {
@@ -105,7 +106,7 @@ function protectedFile(path: string, label: string): string {
 }
 
 /** Fail when a grant reaches any credential source or protected path that a declaration names. */
-export function assertCredentialSourceGrants(args: readonly string[], cwd: string, home: string, environment: Environment = {}, profile: NonoProfile = {}, definitions: CredentialDefinitions = credentialDefinitions): Effect.Effect<void, SandboxError> {
+export function assertCredentialSourceGrants(plan: GrantPlan, cwd: string, home: string, environment: Environment = {}, profile: NonoProfile = {}, definitions: CredentialDefinitions = credentialDefinitions): Effect.Effect<void, SandboxError> {
   return Effect.gen(function* () {
     for (const [name, definition] of yield* attempt(() => entries(definitions))) {
       const label = definition.label ?? name;
@@ -114,7 +115,7 @@ export function assertCredentialSourceGrants(args: readonly string[], cwd: strin
         ...(source.protected_directories ?? []).map((path) => canonicalCredentialPath(expandHome(path, home), label)),
         ...[...(source.protected_files ?? []), ...(source.type === "file" ? [source.path!] : [])].map((path) => protectedFile(expandHome(path, home), label)),
       ]);
-      yield* assertCredentialGrants(args, cwd, home, environment, profile, protectedPaths, label);
+      yield* assertCredentialGrants(plan, cwd, home, environment, profile, protectedPaths, label);
     }
   });
 }

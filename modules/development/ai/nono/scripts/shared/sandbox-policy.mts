@@ -10,7 +10,7 @@ import type { Environment } from "./types.mts";
 
 type Base = "home" | "config" | "cache" | "data";
 
-export interface Grant {
+export interface ToolGrant {
   base: Base;
   path: string;
   override?: string;
@@ -21,7 +21,7 @@ export interface Grant {
 export interface SandboxPolicy {
   version: 1;
   filesystem: {
-    grants: Record<string, Grant>;
+    grants: Record<string, ToolGrant>;
     agent: { writableHomePaths: string[]; runtimeEntries: string[]; controlEntries: string[] };
     shellStartup: Record<Base, string[]>;
     runtimeDirectory: { secrets: string[]; services: string[] };
@@ -59,7 +59,7 @@ export function loadSandboxPolicy(path: string | URL = new URL("./sandbox-policy
 export const sandboxPolicy: SandboxPolicy = loadSandboxPolicy(process.env.PI_SANDBOX_POLICY || undefined);
 
 /** Grants in name order: the order of their nono arguments, which carries no meaning. */
-export const grants: readonly (Grant & { name: string })[] = Object.entries(sandboxPolicy.filesystem.grants)
+export const grants: readonly (ToolGrant & { name: string })[] = Object.entries(sandboxPolicy.filesystem.grants)
   .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
   .map(([name, grant]) => ({ name, ...grant }));
 

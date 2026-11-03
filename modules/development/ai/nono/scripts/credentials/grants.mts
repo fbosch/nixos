@@ -3,6 +3,7 @@ import { lstatSync, realpathSync } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import type { Environment, ErrnoError, NonoProfile } from "../shared/types.mts";
 import { GrantConflictError, InvalidConfigError, UnsafeFileError, attempt, type SandboxError } from "../shared/errors.mts";
+import { grantedPaths, type GrantFlag, type GrantPlan } from "../shared/grant-plan.mts";
 
 export function canonicalCredentialPath(path: string, label: string): string {
   if (!isAbsolute(path)) throw new InvalidConfigError({ message: `${label} credential grant path must be absolute` });
@@ -35,9 +36,11 @@ function overlaps(left: string, right: string): boolean {
   return remainder === "" || (remainder !== ".." && !remainder.startsWith(`..${sep}`) && !isAbsolute(remainder));
 }
 
-function assertCredentialGrantsSync(args: readonly string[], cwd: string, home: string, environment: Environment, profile: NonoProfile, protectedPaths: readonly string[], label: string): void {
-  const flags = new Set(["--allow", "--read", "--allow-file", "--read-file", "--allow-unix-socket", "--read-unix-socket", "--bypass-protection"]);
-  const paths: (string | undefined)[] = [cwd];
+// Every grant that can reach a file's contents. Socket binds create new endpoints instead.
+const credentialReachingFlags: readonly GrantFlag[] = ["--allow", "--read", "--allow-file", "--read-file", "--allow-unix-socket", "--read-unix-socket", "--bypass-protection"];
+
+function assertCredentialGrantsSync(plan: GrantPlan, cwd: string, home: string, environment: Environment, profile: NonoProfile, protectedPaths: readonly string[], label: string): void {
+  const paths: string[] = [cwd];
   // Check declared profile grants too: a project-selected TMPDIR must not expose the store.
   const filesystem = profile.filesystem ?? {};
   for (const key of ["allow", "read", "write", "unix_socket", "bypass_protection"] as const) {
@@ -52,11 +55,8 @@ function assertCredentialGrantsSync(args: readonly string[], cwd: string, home: 
       paths.push(expanded);
     }
   }
-  for (let index = 0; index < args.length && args[index] !== "--"; index++) {
-    if (flags.has(args[index]!)) paths.push(args[++index]);
-  }
+  paths.push(...grantedPaths(plan, credentialReachingFlags));
   for (const path of paths) {
-    if (typeof path !== "string") throw new InvalidConfigError({ message: `Missing ${label} credential grant path` });
     const grant = canonicalCredentialPath(path, label);
     if (protectedPaths.some((protectedPath) => overlaps(grant, protectedPath) || overlaps(protectedPath, grant))) {
       throw new GrantConflictError({ message: `${label} credential store overlaps a Pi sandbox grant` });
@@ -65,6 +65,6 @@ function assertCredentialGrantsSync(args: readonly string[], cwd: string, home: 
 }
 
 /** Fail when any launcher or profile grant overlaps a protected credential path. */
-export function assertCredentialGrants(args: readonly string[], cwd: string, home: string, environment: Environment, profile: NonoProfile, protectedPaths: readonly string[], label: string): Effect.Effect<void, SandboxError> {
-  return attempt(() => assertCredentialGrantsSync(args, cwd, home, environment, profile, protectedPaths, label));
+export function assertCredentialGrants(plan: GrantPlan, cwd: string, home: string, environment: Environment, profile: NonoProfile, protectedPaths: readonly string[], label: string): Effect.Effect<void, SandboxError> {
+  return attempt(() => assertCredentialGrantsSync(plan, cwd, home, environment, profile, protectedPaths, label));
 }

@@ -4,10 +4,11 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSyn
 import { createServer } from "node:net";
 import { join } from "node:path";
 import { afterEach, test } from "node:test";
-import { defaultCapabilities, createMessageValidator, endpointArguments, loadCapabilities, selectCapabilities, validateCapabilities } from "../scripts/ipc/policy.mts";
+import { defaultCapabilities, createMessageValidator, endpointGrants, loadCapabilities, selectCapabilities, validateCapabilities } from "../scripts/ipc/policy.mts";
 import { launchArguments } from "../scripts/launch/plan.mts";
 import { herdrReporter } from "../scripts/herdr/bootstrap.mts";
 import { withScoped } from "./fixtures/scoped.mjs";
+import { toArguments } from "../scripts/shared/grant-plan.mts";
 
 const roots = [];
 function fixture() {
@@ -67,8 +68,8 @@ test("lazy endpoint grants cover selected metadata only, without directory grant
   const git = join(root, "git");
   const unrelated = join(root, "other");
   mkdirSync(git); mkdirSync(unrelated);
-  assert.deepEqual(endpointArguments(selected(), { "selected-git-metadata": [git, git] }), ["--allow-unix-socket-bind", join(git, "fsmonitor--daemon.ipc")]);
-  assert.deepEqual(endpointArguments(selectCapabilities(defaultCapabilities, "ordinary", "darwin"), { "selected-git-metadata": [git] }), []);
+  assert.deepEqual(toArguments(endpointGrants(selected(), { "selected-git-metadata": [git, git] })), ["--allow-unix-socket-bind", join(git, "fsmonitor--daemon.ipc")]);
+  assert.deepEqual(toArguments(endpointGrants(selectCapabilities(defaultCapabilities, "ordinary", "darwin"), { "selected-git-metadata": [git] })), []);
 });
 
 test("direct endpoint grants accept existing owned sockets and reject aliases", async () => {
@@ -78,12 +79,12 @@ test("direct endpoint grants accept existing owned sockets and reject aliases", 
   const host = createServer();
   host.listen(endpoint); await once(host, "listening");
   try {
-    assert.deepEqual(endpointArguments(selectCapabilities(defaultCapabilities, "ordinary", "darwin"), { "selected-git-metadata": [git] }), ["--allow-unix-socket", endpoint]);
+    assert.deepEqual(toArguments(endpointGrants(selectCapabilities(defaultCapabilities, "ordinary", "darwin"), { "selected-git-metadata": [git] })), ["--allow-unix-socket", endpoint]);
   } finally { await new Promise(resolve => host.close(resolve)); }
   const target = join(root, "other"); writeFileSync(target, "not a socket");
   symlinkSync(target, endpoint);
-  assert.throws(() => endpointArguments(selected(), { "selected-git-metadata": [git] }), /Unsafe IPC endpoint/);
-  assert.deepEqual(endpointArguments(selectCapabilities(defaultCapabilities, "ordinary", "darwin"), { "selected-git-metadata": [git] }), []);
+  assert.throws(() => toArguments(endpointGrants(selected(), { "selected-git-metadata": [git] })), /Unsafe IPC endpoint/);
+  assert.deepEqual(toArguments(endpointGrants(selectCapabilities(defaultCapabilities, "ordinary", "darwin"), { "selected-git-metadata": [git] })), []);
 });
 
 test("the launcher uses registry selection rather than hard-coded fsmonitor grants", () => {

@@ -6,6 +6,7 @@ import type { ChildProcess } from "node:child_process";
 import { join, sep } from "node:path";
 import { GrantConflictError, type HostProcessError, type SandboxError, UnsafeFileError, attempt, hostProcessError } from "../shared/errors.mts";
 import type { ErrnoError } from "../shared/types.mts";
+import { grantedPaths, type GrantPlan } from "../shared/grant-plan.mts";
 
 /** Path prefix of private IPC state. Unlike privateIpcBase, it never creates the directory. */
 export function privateIpcPrefix(home: string): string {
@@ -104,9 +105,9 @@ export function awaitHelperEndpoint(helper: ChildProcess, home: string, options:
   return Effect.tryPromise({ try: () => helperEndpoint(helper, home, options), catch: hostProcessError });
 }
 
-function assertPrivateIpcGrantsSync(args: readonly string[], cwd: string, home: string): void {
+function assertPrivateIpcGrantsSync(plan: GrantPlan, cwd: string, home: string): void {
   const base = join(realpathSync(home), ".pi-ipc");
-  const roots = [cwd, ...args.flatMap((part, index) => part === "--allow" ? [args[index + 1]!] : [])];
+  const roots = [cwd, ...grantedPaths(plan, ["--allow"])];
   for (const path of roots) {
     const root = realpathSync(path);
     if (base === root || base.startsWith(`${root}${sep}`) || root === sep) {
@@ -116,6 +117,6 @@ function assertPrivateIpcGrantsSync(args: readonly string[], cwd: string, home: 
 }
 
 /** Fail when a writable grant would cover private Pi IPC state. */
-export function assertPrivateIpcGrants(args: readonly string[], cwd: string, home: string): Effect.Effect<void, SandboxError> {
-  return attempt(() => assertPrivateIpcGrantsSync(args, cwd, home));
+export function assertPrivateIpcGrants(plan: GrantPlan, cwd: string, home: string): Effect.Effect<void, SandboxError> {
+  return attempt(() => assertPrivateIpcGrantsSync(plan, cwd, home));
 }

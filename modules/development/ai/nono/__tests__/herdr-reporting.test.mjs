@@ -11,6 +11,7 @@ import { startReportingServer } from "../scripts/herdr/service.mts";
 import { herdrReporter } from "../scripts/herdr/bootstrap.mts";
 import { assertPrivateIpcGrants } from "../scripts/ipc/private.mts";
 import { withScoped } from "./fixtures/scoped.mjs";
+import { grantPlan } from "../scripts/shared/grant-plan.mts";
 
 const created = [];
 function fixture(embedded = false) {
@@ -254,7 +255,7 @@ test("bootstrap binds inherited identity, creates the endpoint before launch and
       assert.equal((await exchange(endpoint, f.request("pane.report_agent", { pane_id: "wOther:p2" }))).ok, false);
     });
     assert.throws(() => realpathSync(endpoint), /ENOENT/);
-    assert.throws(() => Effect.runSync(assertPrivateIpcGrants([], f.home, f.home)), /covers private Pi IPC state/);
+    assert.throws(() => Effect.runSync(assertPrivateIpcGrants(grantPlan([]), f.home, f.home)), /covers private Pi IPC state/);
   } finally {
     await new Promise(resolve => host.close(resolve));
   }

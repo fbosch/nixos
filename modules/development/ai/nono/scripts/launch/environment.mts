@@ -1,7 +1,10 @@
 import { spawnSync } from "node:child_process";
+import { tmpdir } from "node:os";
 import { existsSync, statSync, type Stats } from "node:fs";
 import { delimiter, isAbsolute, join, resolve } from "node:path";
 import { stripVTControlCharacters } from "node:util";
+import { prepareCredentialEnvironment } from "../credentials/definitions.mts";
+import { MODEL_EXECUTOR_SOCKET } from "../model-executor/launch.mts";
 import { expandTilde, isRecord } from "../shared/paths.mts";
 import type { Environment, ErrnoError } from "../shared/types.mts";
 
@@ -73,4 +76,41 @@ export function configurePiPaths(environment: Environment, home: string, entryBi
     managedBin,
   ].join(delimiter);
   return agentDir;
+}
+
+/**
+ * Variables that choose host integration endpoints or sandbox grants. A project .envrc cannot
+ * set them: the session always gets the value the launcher started with, or none.
+ */
+export const hostOnlyVariables = [
+  "HOME",
+  // Sockets the planner grants: Pi Ask, the opted-in SSH agent, Herdr and the compositor.
+  "PI_NVIM_ASK_SOCKET", "PI_NVIM_SOCKET", "SSH_AUTH_SOCK", "PI_NONO_SSH_AGENT",
+  "HERDR_ENV", "HERDR_SOCKET_PATH", "HERDR_PANE_ID", "PI_NVIM_HERDR_PANE_ID", "WAYLAND_DISPLAY",
+  // Directories that receive grants: runtime entries, and the profile's $TMPDIR read grant.
+  "XDG_RUNTIME_DIR", "TMPDIR",
+  // Tool-state locations that receive writable grants.
+  "PI_HASHLINE_DIR", "FFF_FRECENCY_DB", "FFF_HISTORY_DB",
+] as const;
+
+/**
+ * The environment a sandboxed session starts from: the project-loaded environment with credential
+ * rules applied, host-only variables restored from `host`, and the launcher's own selections.
+ * Grants for tool state also use `host` for XDG_CONFIG/CACHE/DATA_HOME; see launch/plan.mts.
+ */
+export function sessionEnvironment(host: Environment, loaded: Environment, home: string, platform: NodeJS.Platform = process.platform): Environment {
+  const session = prepareCredentialEnvironment(host, loaded, home);
+  for (const name of hostOnlyVariables) {
+    if (host[name] === undefined) delete session[name];
+    else session[name] = host[name];
+  }
+  // Only the launcher selects an executor endpoint; never trust an inherited or project value.
+  delete session[MODEL_EXECUTOR_SOCKET];
+  // Agent signing is opt-in from the invoking host environment.
+  if (host.PI_NONO_SSH_AGENT !== "1") {
+    delete session.PI_NONO_SSH_AGENT;
+    delete session.SSH_AUTH_SOCK;
+  }
+  if (platform === "darwin" && !session.XDG_RUNTIME_DIR) session.XDG_RUNTIME_DIR = session.TMPDIR || tmpdir();
+  return session;
 }

@@ -1,26 +1,26 @@
 import * as Effect from "effect/Effect";
 import { existsSync, realpathSync } from "node:fs";
-import { homedir, tmpdir } from "node:os";
+import { homedir } from "node:os";
 import { delimiter, isAbsolute } from "node:path";
 import { spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
-import { credentialEnvironmentForDirenv, prepareCredentialEnvironment } from "./credentials/definitions.mts";
+import { credentialEnvironmentForDirenv } from "./credentials/definitions.mts";
 import { credentialProxySession } from "./credentials/proxy.mts";
 import { credentialFilesOutsideStore, migrateCredentialStore, runningSandboxes } from "./credentials/store.mts";
 import { loadCapabilities } from "./ipc/policy.mts";
 import { ipcCapabilities } from "./ipc/session.mts";
 import { sessionServices } from "./ipc/services.mts";
 import { nonoDiagnostics } from "./launch/diagnostics.mts";
-import { configurePiPaths, loadProjectEnvironment } from "./launch/environment.mts";
+import { configurePiPaths, loadProjectEnvironment, sessionEnvironment } from "./launch/environment.mts";
 import { planLaunchCommand } from "./launch/plan.mts";
 import { prepareJitiCache, prepareNpmCache, prepareRuntimeLocks, prepareSandboxRuntime } from "./launch/runtime.mts";
 import { ensureSshIdentity } from "./launch/ssh.mts";
 import { MODEL_EXECUTOR_SOCKET, modelExecutorEnabled, modelExecutor, modelExecutorEnvironment } from "./model-executor/launch.mts";
 import { prepareAgentRuntime } from "./protection/agent.mts";
 import { protectedShellProfile } from "./protection/shell.mts";
-import type { HostProcessError, SandboxError } from "./shared/errors.mts";
-import { readJsonFile } from "./shared/paths.mts";
-import type { Environment, ExitResult, NonoProfile } from "./shared/types.mts";
+import { type HostProcessError, type SandboxError, attempt } from "./shared/errors.mts";
+import type { Environment, ExitResult } from "./shared/types.mts";
+import { readNonoProfile } from "./shared/nono-profile.mts";
 
 // Entry point of the packaged `pi` wrapper: node launcher.mts <nono> <raw-pi> <profile> <direnv> <env> [pi args...]
 
@@ -47,7 +47,6 @@ function launchSandboxed(nono: string, rawPi: string, profile: string, direnv: s
     delete environment.NODE_PATH;
     const entryBin = (environment.PATH || "").split(delimiter)[0];
     const home = homedir();
-    const inheritedHome = environment.HOME;
     const inheritedEnvironment = { ...environment };
     // The binary wrapper pins this store path; project environment loading cannot replace it.
     const sshAdd = environment.PI_SSH_ADD;
@@ -59,23 +58,10 @@ function launchSandboxed(nono: string, rawPi: string, profile: string, direnv: s
       console.error(`pi sandbox launch: ${message}; continuing without project direnv environment`);
       environment = safeEnvironment;
     }
-    environment = prepareCredentialEnvironment(inheritedEnvironment, environment, home);
-    // Only this launcher may select an executor endpoint; never trust an inherited or project value.
-    delete environment[MODEL_EXECUTOR_SOCKET];
-    if (inheritedHome === undefined) delete environment.HOME;
-    else environment.HOME = inheritedHome;
-    if (process.platform === "darwin" && !environment.XDG_RUNTIME_DIR) {
-      environment.XDG_RUNTIME_DIR = environment.TMPDIR || tmpdir();
-    }
+    environment = sessionEnvironment(inheritedEnvironment, environment, home);
     const agentDir = configurePiPaths(environment, home, entryBin);
     // Confined sessions share locks outside read-only configuration.
     environment.PI_LOCKFILE_DIR = prepareRuntimeLocks(home);
-    // Agent signing is opt-in from the invoking host environment; a project .envrc cannot enable it.
-    if (inheritedEnvironment.PI_NONO_SSH_AGENT === "1") environment.PI_NONO_SSH_AGENT = "1";
-    else {
-      delete environment.PI_NONO_SSH_AGENT;
-      delete environment.SSH_AUTH_SOCK;
-    }
     prepareSandboxRuntime(home);
     prepareAgentRuntime(agentDir);
     // Existing setups move to the credential store on the first sandboxed launch while no other
@@ -96,8 +82,8 @@ function launchSandboxed(nono: string, rawPi: string, profile: string, direnv: s
     }
     ensureSshIdentity(environment, home, sshAdd);
     // The Nix-pinned profile is immutable for the whole launch; parse it once.
-    const nonoProfile = readJsonFile(profile, "nono profile") as NonoProfile | undefined;
-    const ipcRestricted = nonoProfile?.linux?.af_unix_mediation === "pathname";
+    const nonoProfile = yield* attempt(() => readNonoProfile(profile));
+    const ipcRestricted = nonoProfile.linux?.af_unix_mediation === "pathname";
     const runPi = (boundEnvironment: Environment) => Effect.gen(function* () {
       environment = yield* nonoDiagnostics(boundEnvironment);
       environment.PI_NONO_DIAGNOSTICS = inheritedEnvironment.PI_NONO_DIAGNOSTICS === "1" ? "1" : "0";
@@ -113,7 +99,7 @@ function launchSandboxed(nono: string, rawPi: string, profile: string, direnv: s
       if (environment.HERDR_ENV === "1") environment.HERDR_AGENT = "pi";
       prepareJitiCache();
       prepareNpmCache();
-      if (process.platform === "linux" && nonoProfile?.network?.credentials?.length) {
+      if (process.platform === "linux" && nonoProfile.network?.credentials?.length) {
         return yield* credentialProxySession(nono, profile, command, environment, { sandboxed: true });
       }
       command[command.indexOf("--profile") + 1] = yield* protectedShellProfile(profile, home, environment, process.platform, protectedPaths, credentialPaths);

@@ -6,7 +6,8 @@ import { tmpdir } from "node:os";
 import { isAbsolute, join } from "node:path";
 import { stripVTControlCharacters } from "node:util";
 import type { Environment, ErrnoError, ExitResult, NonoProfile } from "../shared/types.mts";
-import { type HostProcessError, InvalidConfigError, LaunchPrerequisiteError, type SandboxError, hostProcessError } from "../shared/errors.mts";
+import { type HostProcessError, LaunchPrerequisiteError, type SandboxError, attempt, hostProcessError } from "../shared/errors.mts";
+import { readNonoProfile } from "../shared/nono-profile.mts";
 
 /** Where the standalone proxy listens, and the CA bundle sandboxed clients must trust. */
 interface ProxyConnection {
@@ -183,14 +184,7 @@ export function credentialProxySession(nono: string, profilePath: string, comman
   return Effect.scoped(Effect.gen(function* () {
     if (sandboxed && platform !== "linux") return yield* new LaunchPrerequisiteError({ message: "Standalone sandbox proxy is supported only on Linux" });
     if (!isAbsolute(nono) || !existsSync(nono)) return yield* new LaunchPrerequisiteError({ message: `nono executable missing: ${nono}` });
-    if (!isAbsolute(profilePath) || !existsSync(profilePath) || !statSync(profilePath).isFile()) return yield* new LaunchPrerequisiteError({ message: "Nix nono profile missing" });
-    const profileContents = readFileSync(profilePath, "utf8");
-    let profile: NonoProfile;
-    try {
-      profile = JSON.parse(profileContents);
-    } catch {
-      return yield* new InvalidConfigError({ message: "Nix nono profile is not valid JSON" });
-    }
+    const profile = yield* attempt(() => readNonoProfile(profilePath));
     const token = randomBytes(32).toString("hex");
     const proxyEnvironment: Environment = { ...environment, NONO_PROXY_PASS: token, NO_COLOR: "1", CLICOLOR: "0" };
     for (const name of ["NODE_OPTIONS", "NODE_PATH", "BASH_ENV", "ENV"]) delete proxyEnvironment[name];

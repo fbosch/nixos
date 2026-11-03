@@ -1,12 +1,13 @@
 import type * as Scope from "effect/Scope";
 import * as Effect from "effect/Effect";
-import { lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync, type Stats } from "node:fs";
+import { lstatSync, mkdirSync, mkdtempSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync, type Stats } from "node:fs";
 import { basename, dirname, isAbsolute, join, sep } from "node:path";
 import { optionalLstat, within } from "../shared/paths.mts";
 import type { Environment, ErrnoError, NonoProfile } from "../shared/types.mts";
 import { resolveComponents } from "./resolve.mts";
 import { InvalidConfigError, type SandboxError, UnsafeFileError, attempt } from "../shared/errors.mts";
 import { sandboxPolicy } from "../shared/sandbox-policy.mts";
+import { readNonoProfile } from "../shared/nono-profile.mts";
 
 function seatbeltString(path: string): string {
   if (/[\x00-\x1f\x7f]/u.test(path)) throw new UnsafeFileError({ message: `Unsupported control character in startup path: ${JSON.stringify(path)}` });
@@ -163,21 +164,9 @@ export function credentialDenyRule(credentialPaths: readonly string[]): string |
 }
 
 function prepareProfile(profilePath: string, home: string, environment: Environment, additionalPaths: readonly string[]): { profile: NonoProfile; reads: unknown[]; rules: string[]; directory: string; protection: ShellProtection } {
-  let profile: NonoProfile;
-  try {
-    profile = JSON.parse(readFileSync(profilePath, "utf8"));
-  } catch (error) {
-    throw new InvalidConfigError({ message: `Cannot read Pi nono profile ${profilePath}: ${(error as Error).message}`, cause: error });
-  }
-  if (!profile || typeof profile !== "object" || Array.isArray(profile)) throw new InvalidConfigError({ message: "Invalid Pi nono profile." });
-  if (profile.filesystem !== undefined && (!profile.filesystem || typeof profile.filesystem !== "object" || Array.isArray(profile.filesystem))) {
-    throw new InvalidConfigError({ message: "Invalid Pi nono filesystem profile." });
-  }
-  const reads = profile.filesystem?.read === undefined ? [] : profile.filesystem.read;
-  const rules = profile.unsafe_macos_seatbelt_rules === undefined ? [] : profile.unsafe_macos_seatbelt_rules;
-  if (!Array.isArray(reads) || !Array.isArray(rules) || !rules.every((rule) => typeof rule === "string")) {
-    throw new InvalidConfigError({ message: "Invalid Pi nono profile rule lists." });
-  }
+  const profile = readNonoProfile(profilePath);
+  const reads = profile.filesystem?.read ?? [];
+  const rules = profile.unsafe_macos_seatbelt_rules ?? [];
   const directory = privateProfileDirectory(home);
   const protection = shellProtectionSync(home, environment, additionalPaths);
   if (directory !== protection.profileDirectory) throw new UnsafeFileError({ message: "Pi profile directory changed during startup." });

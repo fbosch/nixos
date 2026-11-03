@@ -7,11 +7,14 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 import { assertCredentialSourceGrants, credentialDefinitions, credentialEnvironmentForDirenv, prepareCredentialEnvironment } from "../scripts/credentials/definitions.mts";
+import { grantPlan } from "../scripts/shared/grant-plan.mts";
 
 const github = { github: credentialDefinitions.github };
 const direnvGithubEnvironment = (environment) => credentialEnvironmentForDirenv(environment, github);
 const prepareGithubEnvironment = (inherited, loaded, home) => prepareCredentialEnvironment(inherited, loaded, home, github);
-const assertGithubCredentialGrants = (args, cwd, home, environment = {}, profile = {}) => Effect.runSync(assertCredentialSourceGrants(args, cwd, home, environment, profile, github));
+// `grants` lists [flag, path] pairs of the plan under test.
+const assertGithubCredentialGrants = (grants, cwd, home, environment = {}, profile = {}) =>
+  Effect.runSync(assertCredentialSourceGrants(grantPlan(grants.map(([flag, path]) => ({ flag, path }))), cwd, home, environment, profile, github));
 
 const envBinary = process.env.ENV_TEST_BINARY ?? "/usr/bin/env";
 
@@ -104,16 +107,16 @@ test("file, socket, bypass, and ancestor grants cannot alias a symlinked hosts c
     const { symlinkSync, linkSync } = await import("node:fs");
     symlinkSync(target, join(store, "hosts.yml"));
     for (const flag of ["--allow", "--read", "--allow-file", "--read-file", "--allow-unix-socket", "--bypass-protection"]) {
-      assert.throws(() => assertGithubCredentialGrants(["run", flag, target, "--", "pi"], safe, home), /GitHub credential/);
-      assert.throws(() => assertGithubCredentialGrants(["run", flag, targetRoot, "--", "pi"], safe, home), /GitHub credential/);
+      assert.throws(() => assertGithubCredentialGrants([[flag, target]], safe, home), /GitHub credential/);
+      assert.throws(() => assertGithubCredentialGrants([[flag, targetRoot]], safe, home), /GitHub credential/);
     }
-    assert.doesNotThrow(() => assertGithubCredentialGrants(["run", "--allow", safe, "--", "pi", "--read", store], safe, home));
+    assert.doesNotThrow(() => assertGithubCredentialGrants([["--allow", safe]], safe, home));
     rmSync(join(store, "hosts.yml"));
     linkSync(target, join(store, "hosts.yml"));
-    assert.throws(() => assertGithubCredentialGrants(["run", "--allow", safe, "--", "pi"], safe, home), /hard links/);
+    assert.throws(() => assertGithubCredentialGrants([["--allow", safe]], safe, home), /hard links/);
     rmSync(join(store, "hosts.yml"));
     symlinkSync(join(root, "missing"), join(store, "hosts.yml"));
-    assert.throws(() => assertGithubCredentialGrants(["run", "--allow", safe, "--", "pi"], safe, home), /Cannot resolve GitHub credential/);
+    assert.throws(() => assertGithubCredentialGrants([["--allow", safe]], safe, home), /Cannot resolve GitHub credential/);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
