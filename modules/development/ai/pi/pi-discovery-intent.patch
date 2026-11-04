@@ -166,7 +166,7 @@
  		for (const document of indexed) {
  			const norm = this.k1 * (1 - this.b + (this.b * document.textLength) / averageLength);
  			let score = 0;
-@@ -367,12 +350,10 @@
+@@ -367,19 +350,22 @@
  				score += (idf.get(term) ?? 0) * weight;
  			}
  			if (score === 0) continue;
@@ -181,10 +181,11 @@
  			.slice(0, limit)
  			.map(({ name, score }) => ({ name, score }));
  	}
-@@ -380,6 +361,11 @@
+ }
  
  export const toolSearchSchema = Type.Object({
- 	query: Type.String({ description: "Search query for deferred tools." }),
+-	query: Type.String({ description: "Search query for deferred tools." }),
++	query: Type.String({ description: "Task or capability to explore, or a known exact tool name for lookup." }),
 +	mode: Type.Optional(
 +		Type.Union([Type.Literal("explore"), Type.Literal("lookup")], {
 +			description: "Default explore: describe the task or capability. Use lookup only for a known exact tool name.",
