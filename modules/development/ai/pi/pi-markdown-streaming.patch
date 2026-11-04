@@ -436,7 +436,7 @@ text on completion, including when the final update adds no text.
  	invalidate(): void {
  		this.clearRenderCache();
  		// The theme may have changed, which changes every styled line and the default style's prefix.
-@@ -357,20 +745,19 @@
+@@ -357,21 +745,20 @@
  		}
  
  		// Replace tabs with 3 spaces for consistent rendering
@@ -451,6 +451,8 @@ text on completion, including when the final update adds no text.
 -			tokens = markdownParser.lexer(normalizedText);
 -			trimPartialClosingFences(tokens);
 +			tokens = lexMarkdown(normalizedText, this.options.complete);
+-			removeHtmlCommentBlocks(tokens);
++			removeHtmlCommentBlocks(tokens);
  			this.cachedTokens = new WeakRef({ source: normalizedText, tokens });
  		}
  
