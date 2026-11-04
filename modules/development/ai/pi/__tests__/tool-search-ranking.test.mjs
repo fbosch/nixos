@@ -50,7 +50,7 @@ function context(registry, label, signal) {
     label,
     signal,
     tools: state.tools.map((tool) => ({ ...tool, execute: async () => ({ content: [] }) })),
-    sessionManager: { getBranch: () => [] },
+    sessionManager: { getBranch: () => [], getSessionId: () => "tool-search-ranking-fixture" },
   };
 }
 async function runSearch(registry, signal, query = "archive", limit = 2, globalSignal) {
