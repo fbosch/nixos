@@ -25,7 +25,7 @@ Malformed manifests, unknown capabilities or providers, invalid schemas, conflic
 
 The endpoint backend resolves selected worktree, shared Git and explicitly referenced Git metadata directories. `connect-existing` grants existing user-owned, unaliased sockets. `bind` grants the exact filename even before the daemon creates it. Existing symlinks, non-sockets and aliased sockets cannot receive restricted grants. Bind permission also permits connecting. It is not a read-only protocol permission.
 
-The JSON-lines backend accepts one UTF-8 `{id, method, params}` request per connection. It enforces bounded frames, connections and timeouts, then returns `{id, ok: true}` after upstream acknowledgment. Host-handled operations, including desktop requests and Herdr reads, may add a projected `result`. Errors include an `id` and `PI_IPC_DENIED`. The backend rejects batches, extra fields, malformed UTF-8 and methods absent from the operation table. It does not forward arbitrary upstream response bodies or implement general JSON-RPC 2.0.
+The JSON-lines backend defaults to one UTF-8 `{id, method, params}` request per connection. It enforces bounded frames, connections and timeouts, then returns `{id, ok: true}` after upstream acknowledgment. Host-handled operations, including desktop requests and Herdr reads, may add a projected `result`. Errors include an `id` and `PI_IPC_DENIED`. The backend rejects batches, extra fields, malformed UTF-8 and methods absent from the operation table. It does not forward arbitrary upstream response bodies or implement general JSON-RPC 2.0.
 
 ## Trusted endpoint providers
 
@@ -36,6 +36,20 @@ The JSON-lines backend accepts one UTF-8 `{id, method, params}` request per conn
 `desktop` runs in the helper process instead of forwarding to an upstream socket. It needs `WAYLAND_DISPLAY` naming an existing socket in `XDG_RUNTIME_DIR`, plus `PI_DESKTOP_WL_COPY`, `PI_DESKTOP_GRIM` and `PI_DESKTOP_PATH`, which the Nix wrapper sets to store paths. Without them the provider exports nothing. It allows `clipboard.copy_text` and `screenshot.capture` for all outputs, one output or a region. There is no clipboard read. The tools receive only `WAYLAND_DISPLAY`, `XDG_RUNTIME_DIR` and the fixed `PATH`. Screenshots return as base64 PNG data, and `pi-desktop` writes them inside the sandbox, so the host never writes to an agent-selected path. Hyprland's `noscreenshare` window rule applies to grim's screencopy capture; the broker adds no separate privacy filter. Ordinary sessions run `pi-desktop` against the compositor directly.
 
 Providers supply trusted facts. Schemas do not prove filesystem ownership, path freshness, editor-buffer ownership or screenshot privacy. A service requiring such checks needs an appropriate host-side guard before its methods can be enabled.
+
+### Neovim Ask
+
+The `neovim-ask` capability uses the shared JSON-lines helper with `persistent: true`. Persistent connections accept serialized requests and declared `{method, params}` notifications. The server queues notifications behind the current reply, bounds queued data, and calls the provider's disconnect handler after any in-flight request settles. Existing request/response providers keep their single-request contract.
+
+The `neovim` provider captures `PI_NVIM_SOCKET`, `PI_NVIM_LAUNCH_ID` and the canonical working directory before project environment loading. It exports only the private `PI_NVIM_ASK_SOCKET` broker endpoint. The planner grants that endpoint through the registry and rejects native Neovim socket variables left in the sandbox environment.
+
+Pi may call `neovim.bind`, `neovim.ack` and `neovim.close`. The provider translates these into fixed Lua calls over native Neovim RPC, with data passed separately as arguments. It chooses the native channel ID and checks launch, worktree and session identity. It never accepts a Lua expression, function name or native RPC method from Pi. Neovim pushes prompts as `neovim.prompt` notifications.
+
+Dotfiles owns the editor adapter in `.config/nvim/lua/plugins/ai/pi/ask_host.lua`. Neovim loads it before launching Pi; broker requests invoke already-loaded callbacks rather than loading files. The adapter keeps editor binding state and uses Neovim's native server. The Nix runtime owns the broker, schemas, native RPC client and sandbox grants, and pins `neovim@5.4.0` independently of dotfiles' dependencies.
+
+Both sandbox profiles select this capability. `--no-sandbox` still immediately execs raw Pi without editor integration. When an editor supplies `PI_NVIM_SOCKET`, raw mode starts only the same Ask broker, without loading sandbox profiles, the custom IPC manifest or credential proxies.
+
+Dotfiles' cross-repository integration tests exercise the real editor adapter against the installed `/run/current-system/sw/share/pi/ipc-runtime`. Set `PI_ASK_TEST_RUNTIME` to a built runtime or the feature-local `nono` directory to test unactivated changes. NixOS broker and confinement tests use a synthetic native-RPC peer and do not depend on dotfiles source files.
 
 ### Read-only Herdr workspace access
 
@@ -114,7 +128,7 @@ On rvn-pc, the launcher build passed 215 tests and skipped 26, including eight d
 ## Implementation and checks
 
 - `ipc/policy.mts` validates manifests, selects profiles, resolves endpoint grants, compiles operation schemas and enforces bindings.
-- `ipc/session.mts` binds every selected JSON-lines capability through its provider. A provider (`ipc/provider.mts`) owns both sides of a capability: `start` runs in the launcher and `serve` runs inside the filter helper. `ipc/providers/registry.mts` maps the manifest's provider names to `ipc/providers/herdr/provider.mts`, `ipc/providers/desktop/provider.mts` and `ipc/providers/inherited-socket.mts`.
+- `ipc/session.mts` binds every selected JSON-lines capability through its provider. A provider (`ipc/provider.mts`) owns both sides of a capability: `start` runs in the launcher and `serve` runs inside the filter helper. `ipc/providers/registry.mts` maps the manifest's provider names to `ipc/providers/herdr/provider.mts`, `ipc/providers/desktop/provider.mts`, `ipc/providers/neovim/provider.mts` and `ipc/providers/inherited-socket.mts`.
 - `ipc/helper-launch.mts`, `ipc/helper.mts` and `ipc/json-lines-server.mts` own helper readiness, private endpoints, framing, forwarding and shutdown.
 - `ipc/providers/herdr/provider.mts` and `protocol.mts` retain Herdr-specific context and session-file guards. `reader.mts` in the same directory projects passive workspace snapshots and the CLI handshake; it does not expose terminal control.
 - `modules/development/ai/pi/default.nix` builds `packages.<system>.pi-ipc-runtime`; `checks.<system>.nono-tests` runs the IPC tests with the rest of the nono suite. Tests use the assembled immutable runtime so module resolution matches production.
@@ -143,6 +157,6 @@ On rvn-pc, `checks.x86_64-linux.pi-ipc` passed 72 tests with no skips. The earli
 
 ## Remaining scope
 
-Bounded Hyprland operations, clipboard reads through the desktop broker, image opening, D-Bus credential access and explicit host-container capabilities are not implemented by this registry. Direct Wayland access nevertheless permits clipboard reads and other compositor protocols. Neovim retains its existing dedicated editor transport. Nix daemon, SSH-agent, Wayland, browser and devenv grants remain in their existing code. Those integrations have not been migrated into the catalog.
+Bounded Hyprland operations, clipboard reads through the desktop broker, image opening, D-Bus credential access and explicit host-container capabilities are not implemented by this registry. Direct Wayland access nevertheless permits clipboard reads and other compositor protocols. Nix daemon, SSH-agent, Wayland, browser and devenv grants remain in their existing code. Those integrations have not been migrated into the catalog.
 
 This registry does not repair Linux's previously identified seccomp address race, io_uring limitations or descriptor passing. An endpoint grant authorizes the peer's full protocol. Passing schema and transport tests does not establish containment of hostile native code. Default promotion does not close the remaining platform and workflow validation gaps.

@@ -5,7 +5,8 @@
   "type": "module",
   "dependencies": {
     "ajv": "8.20.0",
-    "effect": "4.1.2"
+    "effect": "4.1.2",
+    "neovim": "5.4.0"
   },
   "devDependencies": {
     "@types/node": "24.19.2",

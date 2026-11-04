@@ -1,235 +1,146 @@
 import assert from "node:assert/strict";
-import { spawn, spawnSync } from "node:child_process";
+import * as Effect from "effect/Effect";
+import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { createInterface } from "node:readline";
-import {
-  existsSync,
-  lstatSync,
-  mkdirSync,
-  mkdtempSync,
-  rmSync,
-  statSync,
-} from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, statSync } from "node:fs";
+import { join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { createConnection } from "node:net";
+import { createConnection, createServer } from "node:net";
+import { defaultCapabilities } from "../scripts/ipc/policy.mts";
+import { neovimProvider } from "../scripts/ipc/providers/neovim/provider.mts";
+import { startJsonLinesServer } from "../scripts/ipc/json-lines-server.mts";
 
-const script = fileURLToPath(new URL("../scripts/pi-ask.lua", import.meta.url));
-const harness = fileURLToPath(new URL("./pi-ask-host.lua", import.meta.url));
-const cwd = resolve(new URL("../../../../..", import.meta.url).pathname);
+const launchId = "0123456789abcdef0123456789abcdef";
+const capability = defaultCapabilities.capabilities["neovim-ask"];
 
-function storePath(path) {
-  const result = spawnSync("nix-store", ["--add", path], { encoding: "utf8" });
-  assert.equal(result.status, 0, result.stderr || result.stdout);
-  const stored = result.stdout.trim();
-  assert.match(stored, /^\/nix\/store\//);
-  assert.equal(lstatSync(stored).isSymbolicLink(), false);
-  return stored;
-}
-
-function eventQueue(child) {
-  const queue = [];
-  const waiters = [];
-  let failure;
-  const lines = createInterface({ input: child.stdout });
-  lines.on("line", (line) => {
-    let event;
-    try {
-      event = JSON.parse(line);
-    } catch {
-      failure = new Error(`Unexpected Neovim output: ${line}`);
-      while (waiters.length) waiters.shift()?.reject(failure);
-      return;
-    }
-    const waiter = waiters.findIndex((entry) => entry.predicate(event));
-    if (waiter >= 0) waiters.splice(waiter, 1)[0]?.resolve(event);
-    else queue.push(event);
-  });
-  child.once("exit", (code) => {
-    if (code !== 0) {
-      failure = new Error(`Neovim helper exited ${code}`);
-      while (waiters.length) waiters.shift()?.reject(failure);
-    }
-  });
+function frames(stream) {
+  const lines = createInterface({ input: stream });
+  const iterator = lines[Symbol.asyncIterator]();
   return {
-    close: () => lines.close(),
-    next(predicate, timeoutMs = 5000) {
-      if (failure) return Promise.reject(failure);
-      const index = queue.findIndex(predicate);
-      if (index >= 0) return Promise.resolve(queue.splice(index, 1)[0]);
-      return new Promise((resolve, reject) => {
-        const waiter = { predicate, resolve, reject };
-        waiters.push(waiter);
-        const timer = setTimeout(() => {
-          const i = waiters.indexOf(waiter);
-          if (i >= 0) waiters.splice(i, 1);
-          reject(new Error("Timed out waiting for Neovim helper event"));
-        }, timeoutMs);
-        const originalResolve = waiter.resolve;
-        waiter.resolve = (event) => {
-          clearTimeout(timer);
-          originalResolve(event);
-        };
-      });
+    async next() {
+      let timer;
+      try {
+        const line = await Promise.race([iterator.next(), new Promise((_, reject) => { timer = setTimeout(() => reject(new Error("Frame timeout")), 5000); })]);
+        if (line.done) throw new Error("Peer closed");
+        return JSON.parse(line.value);
+      } finally { clearTimeout(timer); }
     },
+    close: () => lines.close(),
+  };
+}
+async function connect(path) {
+  const socket = createConnection(path);
+  const input = frames(socket);
+  await once(socket, "connect");
+  return {
+    socket, ...input,
+    send: message => socket.write(JSON.stringify(message) + "\n"),
+    async stop() { if (!socket.destroyed) { const closed = once(socket, "close"); socket.end(); await closed; } input.close(); },
   };
 }
 
-function connect(path) {
-  return new Promise((resolve, reject) => {
-    const socket = createConnection(path);
-    const frames = [];
-    const waiters = [];
-    let buffer = "";
-    socket.setEncoding("utf8");
-    socket.on("data", (chunk) => {
-      buffer += chunk;
-      while (true) {
-        const newline = buffer.indexOf("\n");
-        if (newline < 0) break;
-        const frame = JSON.parse(buffer.slice(0, newline));
-        buffer = buffer.slice(newline + 1);
-        const waiter = waiters.shift();
-        if (waiter) waiter(frame);
-        else frames.push(frame);
-      }
-    });
-    socket.once("error", (error) => reject(error));
-    socket.once("connect", () => resolve({
-      socket,
-      closed: once(socket, "close"),
-      send(value) { socket.write(`${JSON.stringify(value)}\n`); },
-      sendRaw(value) { socket.write(value); },
-      next() {
-        const frame = frames.shift();
-        if (frame !== undefined) return Promise.resolve(frame);
-        return new Promise((resolveFrame, rejectFrame) => {
-          const timer = setTimeout(() => rejectFrame(new Error("Timed out waiting for socket frame")), 5000);
-          waiters.push((value) => { clearTimeout(timer); resolveFrame(value); });
-        });
-      },
-    }));
-  });
-}
-
-async function rejectsMessage(path, value) {
-  const client = await connect(path);
-  client.send(value);
-  const response = await client.next();
-  assert.deepEqual(response, { version: 1, type: "error", code: "protocol-error" });
-  await client.closed;
-}
-
-test("production Pi Ask helper enforces NDJSON and private socket lifecycle", { timeout: 30000 }, async (t) => {
-  const nvim = spawnSync("nvim", ["--version"], { encoding: "utf8" });
-  const nixStore = spawnSync("nix-store", ["--version"], { encoding: "utf8" });
-  if (nvim.status !== 0 || nixStore.status !== 0) {
-    t.skip("requires Nix and headless Neovim");
-    return;
-  }
-
-  const storedHelper = storePath(script);
-  const storedHarness = storePath(harness);
-  const root = mkdtempSync(join("/tmp", "piask-"));
+test("Neovim provider binds, pushes prompts, acknowledges and replaces sessions through the shared broker", {
+  skip: !process.env.NVIM_TEST_BINARY, timeout: 30000,
+}, async () => {
+  const root = realpathSync(mkdtempSync("/tmp/piask-"));
   const home = join(root, "home");
   mkdirSync(home, { mode: 0o700 });
-  const child = spawn("nvim", ["--headless", "-u", "NONE", "-l", storedHarness], {
-    cwd,
-    env: {
-      ...process.env,
-      HOME: home,
-      PI_ASK_TEST_HOST: storedHelper,
-      PI_ASK_TEST_CWD: cwd,
-    },
+  const child = spawn(process.env.NVIM_TEST_BINARY, ["--headless", "-u", "NONE", "-i", "NONE", "-l", fileURLToPath(new URL("./fixtures/neovim-host.lua", import.meta.url))], {
+    cwd: root, env: { HOME: home, PI_ASK_TEST_CWD: root },
     stdio: ["ignore", "pipe", "pipe"],
   });
-  let stderr = "";
-  child.stderr.setEncoding("utf8").on("data", (chunk) => { stderr += chunk; });
-  const events = eventQueue(child);
-  let exited = false;
-  const childExited = once(child, "exit");
+  const exited = once(child, "exit");
+  const events = frames(child.stdout);
+  let errors = "";
+  child.stderr.on("data", chunk => { errors += chunk; });
+  let server, service;
   try {
-    const ready = await events.next((event) => event.event === "ready");
-    const socketPath = ready.socketPath;
-    assert.equal(socketPath.length <= 103, true);
-    const privateRoot = dirname(dirname(socketPath));
-    const privateSocketDir = dirname(socketPath);
-    for (const directory of [privateRoot, privateSocketDir]) {
-      const stat = statSync(directory);
-      assert.equal(stat.uid, process.getuid());
-      assert.equal(stat.mode & 0o777, 0o700);
+    const ready = await events.next();
+    const endpoint = join(root, "broker.sock");
+    const context = { launchId, cwd: root, home, uid: process.getuid() };
+    service = neovimProvider.serve({ upstream: ready.socketPath, context }, capability, root);
+    server = await startJsonLinesServer({ capability, endpoint, ...service });
+    assert.equal(statSync(endpoint).mode & 0o777, 0o600);
+    // These requests must fail before creating an editor binding, not merely fail in Neovim.
+    for (const message of [
+      { id: "bad", method: "nvim_exec_lua", params: { code: "return os.execute('false')" } },
+      { id: "bad", method: "neovim.bind", params: { launchId, cwd: root + "-other", sessionId: "one" } },
+      { id: "bad", method: "neovim.bind", params: { launchId: "f".repeat(32), cwd: root, sessionId: "one" } },
+      { id: "bad", method: "neovim.bind", params: { launchId, cwd: root, sessionId: "one", channelId: 1 } },
+      { id: "bad", method: "neovim.ack", params: { payload: {} } },
+    ]) {
+      const client = await connect(endpoint);
+      client.send(message);
+      assert.equal((await client.next()).error.code, "PI_IPC_DENIED");
+      await client.stop();
     }
-    assert.equal(statSync(socketPath).mode & 0o777, 0o600);
-
-    await rejectsMessage(socketPath, {
-      version: 1, type: "bind", launchId: "0123456789abcdef0123456789abcdef",
-      cwd, sessionId: "unknown-fields", extra: true,
-    });
-    await rejectsMessage(socketPath, {
-      version: 1, type: "nvim_exec_lua", code: "return os.execute('false')",
-    });
-    const oversized = await connect(socketPath);
-    oversized.sendRaw("x".repeat(70 * 1024));
-    const oversizedResponse = await oversized.next();
-    assert.deepEqual(oversizedResponse, { version: 1, type: "error", code: "protocol-error" });
-    await oversized.closed;
-
-    await rejectsMessage(socketPath, {
-      version: 1, type: "bind", launchId: "0123456789abcdef0123456789abcdef",
-      cwd: cwd + "-other", sessionId: "wrong-worktree",
-    });
-
     for (const sessionId of ["first-session", "replacement-session"]) {
-      const client = await connect(socketPath);
-      client.send({
-        version: 1, type: "bind", launchId: "0123456789abcdef0123456789abcdef", cwd, sessionId,
-      });
+      const client = await connect(endpoint);
+      client.send({ id: "bind", method: "neovim.bind", params: { launchId, cwd: root, sessionId } });
       const bound = await client.next();
-      assert.equal(bound.type, "bound");
-      assert.deepEqual(Object.keys(bound).sort(), ["binding", "type", "version"]);
-      assert.equal(bound.binding.sessionId, sessionId);
-      assert.equal(bound.binding.cwd, cwd);
+      assert.equal(bound.ok, true);
+      assert.equal(bound.result.sessionId, sessionId);
+      assert.equal(bound.result.cwd, root);
+      const event = await events.next();
+      assert.equal(event.event, "bind");
       const prompt = await client.next();
-      assert.equal(prompt.type, "prompt");
-      assert.deepEqual(Object.keys(prompt).sort(), ["request", "type", "version"]);
-      client.send({
-        version: 1,
-        type: "ack",
-        payload: {
-          version: 1,
-          requestId: `ack:${sessionId}`,
-          launchId: "0123456789abcdef0123456789abcdef",
-          sessionId,
-          ownerId: "test-owner",
-          outcome: "accepted",
-          state: "idle",
-        },
-      });
-      const acknowledged = await events.next((event) => event.event === "ack" && event.payload.sessionId === sessionId);
-      assert.equal(acknowledged.channelId, bound.binding.channelId);
-      client.send({ version: 1, type: "close" });
-      const closed = await events.next((event) => event.event === "closed" && event.channelId === bound.binding.channelId);
-      assert.equal(closed.channelId, bound.binding.channelId);
-      await client.closed;
+      assert.equal(prompt.method, "neovim.prompt");
+      assert.equal(prompt.params.text, "explain æøå");
+      client.send({ id: "ack", method: "neovim.ack", params: { payload: {
+        version: 1, requestId: prompt.params.requestId, launchId, sessionId, ownerId: "test-owner", outcome: "accepted", state: "idle",
+      } } });
+      assert.equal((await client.next()).ok, true);
+      assert.equal((await events.next()).event, "ack");
+      if (sessionId === "first-session") {
+        client.send({ id: "forged", method: "neovim.ack", params: { payload: {
+          version: 1, requestId: prompt.params.requestId, launchId, sessionId, ownerId: "another-owner", outcome: "accepted", state: "idle",
+        } } });
+        assert.equal((await client.next()).error.code, "PI_IPC_DENIED");
+      } else client.send({ id: "close", method: "neovim.close", params: {} });
+      const closed = await events.next();
+      assert.equal(closed.event, "closed");
+      await client.stop();
     }
-
-    const done = await events.next((event) => event.event === "done");
-    assert.deepEqual(
-      { bindCount: done.bindCount, ackCount: done.ackCount, closeCount: done.closeCount },
-      { bindCount: 2, ackCount: 2, closeCount: 2 },
-    );
-    const [code] = await childExited;
-    exited = true;
-    assert.equal(code, 0, stderr);
-    assert.equal(existsSync(socketPath), false);
-    assert.equal(existsSync(privateSocketDir), false);
+    assert.deepEqual(await events.next(), { event: "done", bindCount: 2, ackCount: 2, closeCount: 2 });
+    assert.equal((await exited)[0], 0, errors);
   } finally {
-    if (!exited && child.exitCode === null && child.signalCode === null) {
-      child.kill("SIGTERM");
-      await childExited;
-    }
+    await server?.close();
+    await service?.dispose?.();
+    if (child.exitCode === null && child.signalCode === null) child.kill();
+    await exited;
     events.close();
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("Neovim bootstrap captures host identity and exports only the filtered endpoint", async () => {
+  const root = realpathSync(mkdtempSync("/tmp/piask-env-"));
+  const upstream = join(root, "nvim");
+  const server = createServer(socket => socket.destroy());
+  try {
+    server.listen(upstream);
+    await once(server, "listening");
+    const inherited = { PI_NVIM_SOCKET: upstream, PI_NVIM_LAUNCH_ID: launchId };
+    const forged = { ...inherited, PI_NVIM_SOCKET: "/project/socket", PI_NVIM_LAUNCH_ID: "f".repeat(32), NVIM: upstream };
+    let captured;
+    const session = {
+      inherited, home: root, cwd: root, agentDir: root, args: [],
+      startHelper: (env, cap, launch) => { captured = launch; return Effect.succeed({ ...env, [cap.socketEnvironment]: join(root, "filtered") }); },
+    };
+    const bound = await Effect.runPromise(neovimProvider.start(forged, session, capability));
+    assert.equal(captured.upstream, upstream);
+    assert.equal(captured.context.launchId, launchId);
+    assert.equal(captured.context.cwd, root);
+    assert.equal(bound.PI_NVIM_LAUNCH_ID, launchId);
+    assert.equal(bound.PI_NVIM_SOCKET, undefined);
+    assert.equal(bound.NVIM, undefined);
+    assert.equal(bound.PI_NVIM_ASK_SOCKET, join(root, "filtered"));
+    const disabled = await Effect.runPromise(neovimProvider.start(forged, { ...session, inherited: {} }, capability));
+    assert.deepEqual(disabled, {});
+  } finally {
+    await new Promise(resolve => server.close(resolve));
     rmSync(root, { recursive: true, force: true });
   }
 });

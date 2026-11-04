@@ -10,7 +10,7 @@ import { providers } from "./providers/registry.mts";
 // closes or a termination signal arrives. ipc/helper-launch.mts starts it.
 
 let directory: string | undefined;
-let dispose: (() => void) | undefined;
+let dispose: (() => Promise<void> | void) | undefined;
 try {
   const { capability, home, launch }: HelperArgument = JSON.parse(process.argv[2]!);
   validateCapabilities({ version: 1, capabilities: { filter: capability }, profiles: { ordinary: {}, restricted: { filter: {} } } });
@@ -23,7 +23,7 @@ try {
   const stop = () => stopping ??= (async () => {
     process.stdin.destroy();
     try { await server.close(); }
-    finally { dispose?.(); rmSync(directory!, { recursive: true, force: true }); }
+    finally { try { await dispose?.(); } finally { rmSync(directory!, { recursive: true, force: true }); } }
   })();
   const shutdown = () => { void stop().catch((error: Error) => { console.error(error.message); process.exitCode = 1; }); };
   process.stdin.resume();
@@ -32,7 +32,7 @@ try {
   process.once("SIGINT", shutdown);
   process.stdout.write(JSON.stringify({ endpoint }) + "\n");
 } catch (error) {
-  dispose?.();
+  try { await dispose?.(); } catch {}
   if (directory) rmSync(directory, { recursive: true, force: true });
   console.error(error instanceof Error ? error.message : "IPC filter helper failed");
   process.exitCode = 1;

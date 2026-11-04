@@ -150,13 +150,8 @@ function socketGrants(environment: Environment, home: string, capabilities: Sele
     requireSocket(executorSocket, MODEL_EXECUTOR_SOCKET, `${MODEL_EXECUTOR_SOCKET} must be a private Pi IPC socket`);
     grants.push(grant("--allow-unix-socket", executorSocket));
   }
-  const editorSocket = environment.PI_NVIM_ASK_SOCKET;
-  if (environment.PI_NVIM_SOCKET && !editorSocket) throw new LaunchPrerequisiteError({ message: "Native Neovim RPC is not a Pi Ask endpoint; update both Pi Ask integrations" });
-  if (editorSocket) {
-    requireSocket(editorSocket, "PI_NVIM_ASK_SOCKET");
-    grants.push(grant("--allow-unix-socket", editorSocket));
-  }
-  const usesPrivateIpc = [...socketVariables].some(variable => Boolean(environment[variable])) || Boolean(executorSocket || editorSocket || environment.AGENT_BROWSER_SOCKET_DIR);
+  if (environment.PI_NVIM_SOCKET) throw new LaunchPrerequisiteError({ message: "Native Neovim RPC must remain host-only" });
+  const usesPrivateIpc = [...socketVariables].some(variable => Boolean(environment[variable])) || Boolean(executorSocket || environment.AGENT_BROWSER_SOCKET_DIR);
   return { grants, usesPrivateIpc };
 }
 

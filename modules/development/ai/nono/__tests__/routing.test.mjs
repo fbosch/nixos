@@ -8,10 +8,10 @@ import { test } from "node:test";
 const { PI_TEST_PROFILE: profile, PI_TEST_PROBE: probe, PI_TEST_FISH: fish } = process.env;
 assert.ok(profile && probe && fish, "Run through checks.pi-launcher-routing");
 
-test("assembled system profile exposes the activation marker and immutable Pi Ask host beside pi", () => {
+test("assembled system profile exposes the activation marker and immutable IPC helper beside pi", () => {
   assert.ok(existsSync(join(profile, "bin", "pi")));
   assert.ok(existsSync(join(profile, "share", "pi", "nono-wrapper")));
-  const host = realpathSync(join(profile, "share", "pi", "pi-ask.lua"));
+  const host = realpathSync(join(profile, "share", "pi", "ipc-runtime", "scripts", "ipc", "helper.mts"));
   assert.match(host, /^\/nix\/store\//);
   const stat = lstatSync(host);
   assert.ok(stat.isFile());

@@ -2,7 +2,7 @@ import type * as Effect from "effect/Effect";
 import type * as Scope from "effect/Scope";
 import type { HostProcessError, SandboxError } from "../shared/errors.mts";
 import type { Environment } from "../shared/types.mts";
-import type { Deliver } from "./json-lines-server.mts";
+import type { ConnectionDeliver, IpcConnection } from "./json-lines-server.mts";
 import type { JsonLinesCapability, LaunchContext, MessageValidator } from "./policy.mts";
 
 // An IPC provider owns both sides of one JSON-lines capability: `start` runs in the launcher and
@@ -30,9 +30,10 @@ export interface HelperService {
   /** Socket to forward validated requests to, when `deliver` is absent. */
   upstream?: string;
   validate: MessageValidator;
-  deliver?: Deliver;
+  deliver?: ConnectionDeliver;
+  disconnect?: (connection: IpcConnection) => Promise<void> | void;
   /** Releases provider state when the helper stops. */
-  dispose?: () => void;
+  dispose?: () => Promise<void> | void;
 }
 
 export interface IpcProvider {

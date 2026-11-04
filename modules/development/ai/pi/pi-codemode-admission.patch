@@ -1,0 +1,569 @@
+--- a/packages/coding-agent/src/index.ts
++++ b/packages/coding-agent/src/index.ts
+@@ -411,6 +411,7 @@
+ // Built-in extensions. The CLI loads them; SDK sessions add them to their extension factories.
+ export { type CodemodeExtensionOptions, createCodemodeExtension } from "./extensions/codemode/index.ts";
+ export type { CodemodeStoreEntryData, CodemodeToolDetails } from "./extensions/codemode/tool.ts";
++export type { CodemodeAdmissionDetails, CodemodeWorkerEvent } from "./extensions/codemode/worker-admission.ts";
+ export type { BeforeModelAvailabilityEvent } from "./core/extensions/types.ts";
+ export type { LoadedMcpConfig, McpExposure, McpServerConfig, McpServerEntry } from "./extensions/mcp/config.ts";
+ export { createMcpExtension, type McpExtensionOptions, type McpTransportFactory } from "./extensions/mcp/index.ts";
+--- a/packages/coding-agent/src/extensions/codemode/execute.ts
++++ b/packages/coding-agent/src/extensions/codemode/execute.ts
+@@ -43,72 +43,20 @@
+ 	getCodemodeCallableTools,
+ 	toCodemodeDeclaration,
+ } from "./tool.ts";
++import {
++	CODEMODE_MEMORY_LIMIT_BYTES,
++	CodemodeAdmissionError,
++	type CodemodeAdmissionDetails,
++	CodemodeWorkerAdmission,
++	type CodemodeWorkerLease,
++} from "./worker-admission.ts";
+ 
+ const ARGS_PREVIEW_CHARS = 200;
+ const ERROR_PREVIEW_CHARS = 500;
+ /** `models.classify()` and `models.generateImages()` calls one script may have in flight; `Promise.all` over many items queues the rest. */
+ const MAX_CONCURRENT_MODEL_CALLS = 4;
+-/**
+- * Heap limit for the QuickJS VM. The worker shares pi's process, so without a limit a runaway
+- * script can grow to wasm32's 4 GiB and take the session down. Overruns throw
+- * `InternalError: out of memory` inside the script.
+- */
+-const CODEMODE_MEMORY_LIMIT_BYTES = 256 * 1024 * 1024;
+-// Shared across calls and sessions. Allow one replacement while a cancelled worker is still exiting.
+-const DEFAULT_MAX_CODEMODE_WORKERS = 2;
+-
+-/** `PI_CODEMODE_MAX_WORKERS` if it is a positive integer. Read per call so SDK hosts can set it at runtime. */
+-function maxCodemodeWorkers(): number {
+-	const value = Number(process.env.PI_CODEMODE_MAX_WORKERS);
+-	return Number.isInteger(value) && value > 0 ? value : DEFAULT_MAX_CODEMODE_WORKERS;
+-}
+-/**
+- * How long a script waits for a free worker before failing. Bounds the wait when every worker is
+- * held by a script that waits on another script, for example an in-process subagent that uses codemode.
+- */
+ const CODEMODE_WORKER_WAIT_MS = 60_000;
+-let activeCodemodeWorkers = 0;
+-/** Scripts waiting for a worker, in arrival order. */
+-const codemodeWorkerWaiters: (() => void)[] = [];
+-
+-/**
+- * Reserve one worker slot, waiting in arrival order while all are taken. Resolves with why it could
+- * not reserve one: the signal aborted, or `timeoutMs` passed.
+- */
+-function reserveCodemodeWorker(
+-	signal: AbortSignal | undefined,
+-	timeoutMs: number,
+-): Promise<"reserved" | "aborted" | "timeout"> {
+-	if (signal?.aborted) return Promise.resolve("aborted");
+-	return new Promise((resolve) => {
+-		const settle = (outcome: "reserved" | "aborted" | "timeout") => {
+-			clearTimeout(timer);
+-			signal?.removeEventListener("abort", onAbort);
+-			const index = codemodeWorkerWaiters.indexOf(grant);
+-			if (index >= 0) codemodeWorkerWaiters.splice(index, 1);
+-			resolve(outcome);
+-		};
+-		const grant = () => settle("reserved");
+-		const onAbort = () => settle("aborted");
+-		const timer = setTimeout(() => settle("timeout"), timeoutMs);
+-		codemodeWorkerWaiters.push(grant);
+-		signal?.addEventListener("abort", onAbort, { once: true });
+-		admitCodemodeWorkers();
+-	});
+-}
+-
+-/** Give free slots to waiting scripts in arrival order. */
+-function admitCodemodeWorkers(): void {
+-	while (codemodeWorkerWaiters.length > 0 && activeCodemodeWorkers < maxCodemodeWorkers()) {
+-		activeCodemodeWorkers++;
+-		codemodeWorkerWaiters.shift()?.();
+-	}
+-}
+-
+-function releaseCodemodeWorker(): void {
+-	activeCodemodeWorkers--;
+-	admitCodemodeWorkers();
+-}
++const workerAdmission = new CodemodeWorkerAdmission();
+ const MODEL_TYPES: ReadonlySet<string> = new Set<ModelType>(["chat", "image", "classifier"]);
+ 
+ function truncateText(text: string, maxChars: number): string {
+@@ -511,7 +459,12 @@
+ 		modelUsage = modelUsage ? combineUsage(modelUsage, usage) : usage;
+ 	};
+ 
+-	const snapshot = (): CodemodeToolDetails => ({ calls: calls.map((call) => ({ ...call })) });
++	let lease: CodemodeWorkerLease | undefined;
++	let rejectedAdmission: CodemodeAdmissionDetails | undefined;
++	const snapshot = (): CodemodeToolDetails => {
++		const admission = lease?.snapshot() ?? rejectedAdmission;
++		return { calls: calls.map((call) => ({ ...call })), ...(admission ? { admission } : {}) };
++	};
+ 	const publish = () => onUpdate?.({ content: [], details: snapshot() });
+ 	// Show the script as running before its first nested call, so the row's timer starts.
+ 	publish();
+@@ -551,20 +504,28 @@
+ 		},
+ 	}));
+ 
+-	// The wait for a worker counts toward the script's deadline.
++	// Admission and VM startup both consume the script's original deadline.
+ 	const deadline = sourceOptions.timeoutMs ?? Number.POSITIVE_INFINITY;
+-	const waitStartedAt = performance.now();
+-	const admission = await reserveCodemodeWorker(signal, Math.min(deadline, CODEMODE_WORKER_WAIT_MS));
+-	const waitedMs = performance.now() - waitStartedAt;
+-	if (admission !== "reserved") {
++	try {
++		lease = await workerAdmission.acquire({
++			sessionId: ctx ? ctx.sessionManager.getSessionId() : "standalone",
++			toolCallId,
++			signal,
++			timeoutMs: Math.min(Math.max(0, deadline - (performance.now() - startedAt)), CODEMODE_WORKER_WAIT_MS),
++			onEvent: options.onWorkerEvent,
++		});
++	} catch (cause) {
++		if (!(cause instanceof CodemodeAdmissionError)) throw cause;
++		rejectedAdmission = cause.details;
+ 		const waited = ((performance.now() - startedAt) / 1000).toFixed(1);
+ 		const reason = signal?.reason;
++		const state = workerAdmission.snapshot();
+ 		const error =
+-			admission === "aborted"
++			cause.reason === "aborted"
+ 				? `Script aborted: ${reason instanceof Error ? reason.message : "Execution aborted"}`
+ 				: deadline <= CODEMODE_WORKER_WAIT_MS
+ 					? `Script timed out: Execution timed out after ${deadline} ms while waiting for a free codemode worker`
+-					: `No codemode worker became free within ${CODEMODE_WORKER_WAIT_MS / 1000} seconds. All ${maxCodemodeWorkers()} workers, shared by every session in this process, are held by other scripts. Retry after they finish.`;
++					: `No codemode worker became available within ${CODEMODE_WORKER_WAIT_MS / 1000} seconds. Resource limit ${state.resourceLimit}, ${state.activeWorkers} workers held, ${state.queuedRequests} other scripts queued in this process.`;
+ 		return {
+ 			content: [
+ 				{ type: "text", text: `Script failed\nWall time ${waited} seconds\nOutput:\n` },
+@@ -574,6 +535,8 @@
+ 			isError: true,
+ 		};
+ 	}
++	const reservation = lease;
++	publish();
+ 	// The reservation covers the one worker this script starts. A launch that resumes after the result
+ 	// settled finds it released and starts no worker.
+ 	let reserved = true;
+@@ -589,15 +552,16 @@
+ 					? createModelGlobals(ctx.modelRegistry, toolCallId, calls, publish, addModelUsage, addGeneratedImages)
+ 					: []),
+ 			],
+-			timeoutMs: Math.max(1, Math.round(deadline - waitedMs)),
++			timeoutMs: Math.max(1, Math.ceil(deadline - (performance.now() - startedAt))),
+ 			memoryLimitBytes: CODEMODE_MEMORY_LIMIT_BYTES,
+ 			wasm: loadQuickJSWasm(getQuickJSWasmPath()),
+ 			workerUrl: getCodemodeWorkerSpecifier(),
++			onWorkerStarted: () => reservation.started(),
+ 			acquireWorker: () => {
+ 				if (!reserved) throw new Error("The script already settled");
+ 				// From here the sandbox releases the slot when the worker actually exits.
+ 				reserved = false;
+-				return releaseCodemodeWorker;
++				return () => reservation.release();
+ 			},
+ 		});
+ 		const store = ctx ? readCodemodeStore(ctx.sessionManager.getBranch()) : {};
+@@ -606,7 +570,7 @@
+ 		await sandbox?.close();
+ 		if (reserved) {
+ 			reserved = false;
+-			releaseCodemodeWorker();
++			reservation.release();
+ 		}
+ 	}
+ 	// Calls still marked running were cut off by the script ending, a timeout, or an abort.
+--- a/packages/coding-agent/src/extensions/codemode/tool.ts
++++ b/packages/coding-agent/src/extensions/codemode/tool.ts
+@@ -35,6 +35,7 @@
+ import { type TypeBoxAgentTool, wrapToolDefinition } from "../../core/tools/tool-definition-wrapper.ts";
+ import { loadCodemodeExecutor } from "./execute.lazy.ts";
+ import { codemodeRenderers } from "./renderer.ts";
++import type { CodemodeAdmissionDetails, CodemodeWorkerEvent } from "./worker-admission.ts";
+ 
+ export const CODEMODE_TOOL_NAME = "codemode";
+ 
+@@ -53,6 +54,8 @@
+ >;
+ 
+ export interface CodemodeToolOptions {
++	/** Lifecycle telemetry includes actual exit, which may happen after an aborted tool result. */
++	onWorkerEvent?: (event: CodemodeWorkerEvent) => void;
+ 	/** Namespace of a tool, for `searchTools()` ranking and its `namespace` filter. */
+ 	getToolNamespace?: (toolName: string) => ToolNamespace | undefined;
+ 	/** Prompt guidelines of every tool, by tool name, shown with declarations by `describeTool()` and `ALL_TOOLS`. */
+@@ -101,6 +104,8 @@
+ 
+ export interface CodemodeToolDetails {
+ 	calls: CodemodeNestedCall[];
++	/** Admission timing; releasedAt is absent while the worker still holds its reservation. */
++	admission?: CodemodeAdmissionDetails;
+ 	/** Temp file with the full text output, when the output was truncated. */
+ 	fullOutputPath?: string;
+ }
+--- a/packages/coding-agent/src/extensions/codemode/index.ts
++++ b/packages/coding-agent/src/extensions/codemode/index.ts
+@@ -10,8 +10,11 @@
+ import { SETTINGS_DEFAULTS } from "../../core/settings-defaults.ts";
+ import type { CodemodeMode } from "../../core/settings-manager.ts";
+ import { createCodemodeToolDefinition } from "./tool.ts";
++import type { CodemodeWorkerEvent } from "./worker-admission.ts";
+ 
+ export interface CodemodeExtensionOptions {
++	/** Observe admission and actual worker exit without recording script source or tool arguments. */
++	onWorkerEvent?: (event: CodemodeWorkerEvent) => void;
+ 	/** Overrides the `codemode.mode` setting. */
+ 	mode?: CodemodeMode;
+ 	/** Overrides the `codemode.inlineBudget` setting. */
+@@ -35,6 +38,7 @@
+ 			...createCodemodeToolDefinition({
+ 				appendEntry: (customType, data) => pi.appendEntry(customType, data),
+ 				models: options.models ?? true,
++				onWorkerEvent: options.onWorkerEvent,
+ 				getToolNamespace: (name) => pi.getAllTools().find((tool) => tool.name === name)?.namespace,
+ 				getToolGuidelines: () =>
+ 					new Map(pi.getAllTools().map((tool) => [tool.name, tool.promptGuidelines ?? []] as const)),
+--- /dev/null
++++ b/packages/coding-agent/src/extensions/codemode/worker-admission.ts
+@@ -0,0 +1,292 @@
++import { availableParallelism, cpus, totalmem } from "node:os";
++
++export const CODEMODE_MEMORY_LIMIT_BYTES = 256 * 1024 * 1024;
++// Reserve the entire sandbox allowance plus host overhead, not the RSS of an idle fixture.
++export const CODEMODE_WORKER_BUDGET_BYTES = CODEMODE_MEMORY_LIMIT_BYTES + 64 * 1024 * 1024;
++const RESOURCE_RECHECK_MS = 100;
++const CPU_PRESSURE_THRESHOLD = 0.85;
++
++export interface CodemodeWorkerResources {
++	availableMemory: number;
++	totalMemory: number;
++	parallelism: number;
++	cpuUtilization: number;
++}
++
++export interface CodemodeAdmissionDetails {
++	sessionId: string;
++	toolCallId: string;
++	queuedAt: number;
++	admittedAt?: number;
++	startedAt?: number;
++	releasedAt?: number;
++	waitMs: number;
++	resourceLimit?: number;
++	activeWorkers?: number;
++}
++
++export interface CodemodeWorkerEvent extends CodemodeAdmissionDetails {
++	kind: "queued" | "admitted" | "started" | "released" | "aborted" | "timeout";
++}
++
++export interface CodemodeWorkerLease {
++	snapshot(): CodemodeAdmissionDetails;
++	started(): void;
++	// Call on actual worker exit, or when a reserved script never starts a worker.
++	release(): void;
++}
++
++export class CodemodeAdmissionError extends Error {
++	readonly reason: "aborted" | "timeout";
++	readonly details: CodemodeAdmissionDetails;
++
++	constructor(reason: "aborted" | "timeout", details: CodemodeAdmissionDetails) {
++		super(`Codemode worker admission ${reason}`);
++		this.name = "CodemodeAdmissionError";
++		this.reason = reason;
++		this.details = details;
++	}
++}
++
++interface Request {
++	sessionId: string;
++	toolCallId: string;
++	signal?: AbortSignal;
++	timeoutMs: number;
++	onEvent?: (event: CodemodeWorkerEvent) => void;
++}
++
++interface Waiter {
++	request: Request;
++	details: CodemodeAdmissionDetails;
++	queuedAt: number;
++	bypassed: boolean;
++	settled: boolean;
++	cleanup(): void;
++	resolve(lease: CodemodeWorkerLease): void;
++	reject(error: Error): void;
++}
++
++export function createCodemodeResourceProbe(): () => CodemodeWorkerResources {
++	let previous: { at: number; idle: number; total: number } | undefined;
++	let utilization = 0;
++	return () => {
++		const now = performance.now();
++		if (!previous || now - previous.at >= RESOURCE_RECHECK_MS) {
++			const times = cpus().reduce(
++				(sum, cpu) => ({
++					idle: sum.idle + cpu.times.idle,
++					total: sum.total + Object.values(cpu.times).reduce((a, b) => a + b, 0),
++				}),
++				{ idle: 0, total: 0 },
++			);
++			if (previous && times.total > previous.total) {
++				const sample = Math.max(0, Math.min(1, 1 - (times.idle - previous.idle) / (times.total - previous.total)));
++				utilization = 0.5 * utilization + 0.5 * sample;
++			}
++			previous = { at: now, ...times };
++		}
++		const constrained = process.constrainedMemory();
++		return {
++			availableMemory: process.availableMemory(),
++			totalMemory: constrained > 0 ? Math.min(totalmem(), constrained) : totalmem(),
++			parallelism: availableParallelism(),
++			cpuUtilization: utilization,
++		};
++	};
++}
++
++function configuredCeiling(): number | undefined {
++	const value = process.env.PI_CODEMODE_MAX_WORKERS;
++	if (value === undefined) return undefined;
++	const parsed = Number(value);
++	if (!Number.isSafeInteger(parsed) || parsed < 1) {
++		throw new Error("PI_CODEMODE_MAX_WORKERS must be a positive safe integer");
++	}
++	return parsed;
++}
++
++export class CodemodeWorkerAdmission {
++	private readonly resources: () => CodemodeWorkerResources;
++	private readonly ceiling: () => number | undefined;
++	private readonly now: () => number;
++	private readonly retryMs: number;
++	private readonly holders = new Map<symbol, string>();
++	private readonly waiters: Waiter[] = [];
++	private retry: ReturnType<typeof setTimeout> | undefined;
++	private pumping = false;
++	private windowAt = Number.NEGATIVE_INFINITY;
++	private startsInWindow = 0;
++	private resourceLimit = 0;
++
++	constructor(
++		options: {
++			resources?: () => CodemodeWorkerResources;
++			ceiling?: () => number | undefined;
++			now?: () => number;
++			retryMs?: number;
++		} = {},
++	) {
++		this.resources = options.resources ?? createCodemodeResourceProbe();
++		this.ceiling = options.ceiling ?? configuredCeiling;
++		this.now = options.now ?? (() => performance.now());
++		this.retryMs = options.retryMs ?? RESOURCE_RECHECK_MS;
++		if (!Number.isFinite(this.retryMs) || this.retryMs <= 0) throw new Error("retryMs must be positive");
++	}
++
++	snapshot(): { activeWorkers: number; queuedRequests: number; resourceLimit: number } {
++		return {
++			activeWorkers: this.holders.size,
++			queuedRequests: this.waiters.length,
++			resourceLimit: this.resourceLimit,
++		};
++	}
++
++	acquire(request: Request): Promise<CodemodeWorkerLease> {
++		if (!Number.isFinite(request.timeoutMs) || request.timeoutMs < 0)
++			throw new Error("timeoutMs must be non-negative");
++		return new Promise((resolve, reject) => {
++			const waiter: Waiter = {
++				request,
++				details: { sessionId: request.sessionId, toolCallId: request.toolCallId, queuedAt: Date.now(), waitMs: 0 },
++				queuedAt: this.now(),
++				bypassed: false,
++				settled: false,
++				cleanup: () => {},
++				resolve,
++				reject,
++			};
++			const onAbort = () => this.fail(waiter, "aborted");
++			const timer = setTimeout(() => this.fail(waiter, "timeout"), request.timeoutMs);
++			waiter.cleanup = () => {
++				clearTimeout(timer);
++				request.signal?.removeEventListener("abort", onAbort);
++			};
++			this.waiters.push(waiter);
++			request.signal?.addEventListener("abort", onAbort, { once: true });
++			this.emit(waiter, "queued");
++			if (request.signal?.aborted) this.fail(waiter, "aborted");
++			else if (request.timeoutMs === 0) this.fail(waiter, "timeout");
++			else this.pump();
++		});
++	}
++
++	private emit(waiter: Waiter, kind: CodemodeWorkerEvent["kind"]): void {
++		try {
++			waiter.request.onEvent?.({ ...waiter.details, kind });
++		} catch (error) {
++			// Observability must not leak a slot or throw from a worker's exit event.
++			process.emitWarning(error instanceof Error ? error : String(error), { type: "CodemodeWorkerTelemetry" });
++		}
++	}
++
++	private fail(waiter: Waiter, reason: "aborted" | "timeout"): void {
++		if (waiter.settled) return;
++		waiter.settled = true;
++		waiter.cleanup();
++		const index = this.waiters.indexOf(waiter);
++		if (index >= 0) this.waiters.splice(index, 1);
++		waiter.details.waitMs = this.now() - waiter.queuedAt;
++		this.emit(waiter, reason);
++		waiter.reject(new CodemodeAdmissionError(reason, { ...waiter.details }));
++		this.pump();
++	}
++
++	private grant(waiter: Waiter): void {
++		waiter.settled = true;
++		waiter.cleanup();
++		const token = Symbol();
++		this.holders.set(token, waiter.request.sessionId);
++		Object.assign(waiter.details, {
++			admittedAt: Date.now(),
++			waitMs: this.now() - waiter.queuedAt,
++			resourceLimit: this.resourceLimit,
++			activeWorkers: this.holders.size,
++		});
++		this.startsInWindow++;
++		this.emit(waiter, "admitted");
++		waiter.resolve({
++			snapshot: () => ({ ...waiter.details }),
++			started: () => {
++				if (!this.holders.has(token)) throw new Error("Codemode worker reservation already released");
++				waiter.details.startedAt = Date.now();
++				this.emit(waiter, "started");
++			},
++			release: () => {
++				if (!this.holders.delete(token)) return;
++				waiter.details.releasedAt = Date.now();
++				this.emit(waiter, "released");
++				this.pump();
++			},
++		});
++	}
++
++	private pump(): void {
++		if (this.pumping) return;
++		this.pumping = true;
++		clearTimeout(this.retry);
++		this.retry = undefined;
++		let ceiling: number | undefined;
++		try {
++			if (!this.waiters.length) return;
++			const resources = this.resources();
++			ceiling = this.ceiling();
++			if (
++				!Number.isFinite(resources.availableMemory) ||
++				resources.availableMemory < 0 ||
++				!Number.isFinite(resources.totalMemory) ||
++				resources.totalMemory <= 0 ||
++				!Number.isSafeInteger(resources.parallelism) ||
++				resources.parallelism < 1 ||
++				!Number.isFinite(resources.cpuUtilization) ||
++				resources.cpuUtilization < 0 ||
++				resources.cpuUtilization > 1 ||
++				(ceiling !== undefined && (!Number.isSafeInteger(ceiling) || ceiling < 1))
++			) {
++				throw new Error("Invalid codemode worker resource or ceiling probe");
++			}
++			const reserve = Math.min(resources.totalMemory / 8, 1024 * 1024 * 1024);
++			// Counting full budgets for holders is deliberately conservative: their heaps may still grow.
++			const memoryLimit = Math.floor(
++				Math.max(0, resources.availableMemory - reserve) / CODEMODE_WORKER_BUDGET_BYTES,
++			);
++			this.resourceLimit = Math.min(memoryLimit, ceiling ?? memoryLimit);
++			const now = this.now();
++			if (now - this.windowAt >= this.retryMs) {
++				this.windowAt = now;
++				this.startsInWindow = 0;
++			}
++			const starts = Math.max(1, Math.floor(resources.parallelism * (1 - resources.cpuUtilization)));
++			while (this.waiters.length && this.holders.size < this.resourceLimit) {
++				// CPU is an admission throttle, not a one-worker-per-core limit on I/O-waiting VMs.
++				if (
++					this.holders.size > 0 &&
++					(resources.cpuUtilization >= CPU_PRESSURE_THRESHOLD || this.startsInWindow >= starts)
++				)
++					break;
++				const oldest = this.waiters[0];
++				const occupied = new Set(this.holders.values());
++				const candidate =
++					occupied.has(oldest.request.sessionId) && !oldest.bypassed
++						? this.waiters.findIndex((w) => !occupied.has(w.request.sessionId))
++						: -1;
++				// One bypass favors an unserved session; the oldest request owns the next free slot.
++				const index = candidate > 0 ? candidate : 0;
++				if (index > 0) oldest.bypassed = true;
++				this.grant(this.waiters.splice(index, 1)[0]);
++			}
++		} catch (error) {
++			for (const waiter of this.waiters.splice(0)) {
++				waiter.settled = true;
++				waiter.cleanup();
++				waiter.reject(error instanceof Error ? error : new Error(String(error)));
++			}
++		} finally {
++			this.pumping = false;
++			// Releases drive normal admission. Recheck only while external pressure can block a queue.
++			if (this.waiters.length && (ceiling === undefined || this.holders.size < ceiling)) {
++				this.retry = setTimeout(() => this.pump(), this.retryMs);
++			}
++		}
++	}
++}
+--- a/packages/coding-agent/docs/codemode.md
++++ b/packages/coding-agent/docs/codemode.md
+@@ -17,6 +17,22 @@
+ 
+ The result starts with `Script completed` or `Script failed`, the wall time, and the output. Text and image items appear in order, each on its own line. When the output has more than one text item (from `text()` or `return`), each starts with a `==> text N/M <==` line. `console` calls follow in one `<console_output>` block with one line per call. A failed script keeps its partial output, followed by `Script error:` and the error. Tool calls are real: calls made before a failure are not undone. Calls still running when the script ends are cancelled, and unawaited promises are discarded.
+ 
++## Worker admission
++
++Each script gets a fresh worker thread and QuickJS VM. Sessions in the same pi process share worker admission, including in-process subagents. Workers start only when scripts need them.
++
++Admission reserves 320 MiB per worker, including the 256 MiB sandbox allowance and 64 MiB of estimated host overhead. Pi keeps one eighth of the process's total memory available as headroom, capped at 1 GiB. The resulting ceiling uses current available memory and counts reservations before workers start. This is an admission budget, not a limit on total process RSS or memory used by host tools.
++
++CPU measurements throttle new starts in 100 ms windows. The initial burst uses available parallelism. Later bursts account for smoothed system CPU utilization. At 85% utilization or above, existing workers finish before another starts. One worker can still make progress when the pool is empty and memory permits. Low-CPU scripts waiting on tools can grow beyond the logical CPU count.
++
++Set `PI_CODEMODE_MAX_WORKERS` to a positive safe integer to impose a lower ceiling. Invalid values fail the call. Changing the ceiling or resource pressure never terminates running scripts. Slots stay reserved until workers actually exit.
++
++A queued session without a worker may bypass the oldest request once. The oldest request then gets priority at the next admission opportunity. Scripts wait at most 60 seconds for admission, or their remaining `timeout_ms`, whichever is shorter. Only a resource-blocked queue needs timed rechecks; ordinary worker exits wake queued scripts directly.
++
++Tool-result `details.admission` records the owning session, tool-call ID, queue and admission times, start time, wait duration, and resource ceiling at admission. `releasedAt` is absent if the worker still holds its reservation when the result returns. SDK callers of `createCodemodeExtension()` can supply `onWorkerEvent` to observe queue, admission, start, actual release, cancellation, and timeout events. Events omit script source and tool arguments.
++
++These limits are per process. Independent pi processes do not share reservations or a machine-wide fairness queue.
++
+ ## Globals
+ 
+ | Global | Purpose |
+@@ -225,6 +241,6 @@
+ 
+ - A script's VM has 256 MB of memory. Running out throws `InternalError: out of memory`; filter or aggregate large data instead of accumulating it.
+ - On Bun, stopping a script or reaching its deadline ends the call promptly, but a built-in that does not poll QuickJS's interrupt handler can keep computing in its worker until it returns.
+-- At most two codemode workers may be alive across all sessions in one pi process; `PI_CODEMODE_MAX_WORKERS` changes the limit. A cancelled worker occupies its slot until it exits. At capacity, new scripts wait for a free worker in arrival order. A script that gets no worker within 60 seconds, or before its `timeout_ms`, fails without running.
++- Sessions in the same process share resource-aware worker admission. `PI_CODEMODE_MAX_WORKERS` can impose a lower ceiling. See [Worker admission](#worker-admission).
+ - A script that waits on a promise that can never settle (no tool call pending) fails immediately, since there are no timers.
+ - Scripts cannot start other `codemode` scripts.
+--- a/packages/coding-agent/docs/environment-variables.md
++++ b/packages/coding-agent/docs/environment-variables.md
+@@ -85,7 +85,7 @@
+ | `PI_SKIP_VERSION_CHECK` | Disable the `pi.dev` latest-version request |
+ | `PI_SELF_UPDATE_COMMAND` | Command `pi update` runs to update Pi itself, split on whitespace, with `{packageName}`, `{version}`, and `{installSpec}` placeholders. Takes precedence over the `selfUpdateCommand` setting. See [Custom update command](cli.md#custom-update-command) |
+ | `PI_TELEMETRY` | Override install/update telemetry and provider attribution headers: `1`/`true`/`yes` or `0`/`false`/`no` |
+-| `PI_CODEMODE_MAX_WORKERS` | Maximum codemode workers alive at once across all sessions in the process; default `2`. Each worker's script may use up to 256 MB. Raise it when one process runs several sessions, such as in-process subagents. Further scripts wait for a free worker. See [Codemode](codemode.md) |
++| `PI_CODEMODE_MAX_WORKERS` | Optional positive-integer ceiling for codemode workers across all sessions in this process. When unset, admission adapts to available memory, CPU pressure, and queued demand. The ceiling cannot override resource checks. See [Worker admission](codemode.md#worker-admission) |
+ | `PI_CACHE_RETENTION` | Set to `long` for extended provider prompt caching where supported |
+ | `PI_SHARE_VIEWER_URL` | Override the base URL used by `/share` |
+ | `PI_RADIUS_GATEWAY` | Override the Radius gateway origin used by `/bug` uploads |

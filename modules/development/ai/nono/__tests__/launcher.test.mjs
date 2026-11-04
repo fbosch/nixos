@@ -295,7 +295,7 @@ test("invalid Neovim socket paths fail the launch", () => {
 });
 test("native Neovim RPC cannot substitute for Pi Ask", () => {
   const { launch } = fixture();
-  assert.throws(() => launch([], { PI_NVIM_SOCKET: "/host/nvim.sock" }), /Native Neovim RPC is not a Pi Ask endpoint/);
+  assert.throws(() => launch([], { PI_NVIM_SOCKET: "/host/nvim.sock" }), /Native Neovim RPC must remain host-only/);
 });
 test("prepares missing npm cache and log directories without replacing existing contents", () => {
   const { home } = fixture();

@@ -7,7 +7,8 @@
         "platforms": [
           "darwin"
         ]
-      }
+      },
+      "neovim-ask": {}
     },
     "restricted": {
       "git-fsmonitor": {
@@ -18,6 +19,7 @@
         ]
       },
       "herdr-reporting": {},
+      "neovim-ask": {},
       "desktop": {}
     }
   },
@@ -445,6 +447,91 @@
       "cleanup": [],
       "provider": "desktop",
       "socketEnvironment": "PI_DESKTOP_SOCKET"
+    },
+    "neovim-ask": {
+      "backend": "json-lines",
+      "limits": {
+        "maxFrameBytes": 67584,
+        "maxConnections": 4,
+        "clientTimeoutMs": 5000,
+        "upstreamTimeoutMs": 5000
+      },
+      "persistent": true,
+      "operations": {
+        "neovim.bind": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "launchId": { "type": "string", "format": "ipc-text", "maxUtf8Bytes": 32, "pattern": "^[a-f0-9]{32}$" },
+              "cwd": { "type": "string", "format": "ipc-text", "maxUtf8Bytes": 4096 },
+              "sessionId": { "type": "string", "format": "ipc-text", "maxUtf8Bytes": 1024, "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?$" }
+            },
+            "required": ["launchId", "cwd", "sessionId"],
+            "additionalProperties": false
+          },
+          "bindings": { "launchId": "launchId", "cwd": "cwd" }
+        },
+        "neovim.ack": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "payload": {
+                "type": "object",
+                "properties": {
+                  "version": { "const": 1 },
+                  "requestId": { "type": "string", "format": "ipc-text", "maxUtf8Bytes": 128 },
+                  "launchId": { "type": "string", "format": "ipc-text", "maxUtf8Bytes": 32, "pattern": "^[a-f0-9]{32}$" },
+                  "sessionId": { "type": "string", "format": "ipc-text", "maxUtf8Bytes": 1024, "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?$" },
+                  "ownerId": { "type": "string", "format": "ipc-text", "maxUtf8Bytes": 128 },
+                  "outcome": { "enum": ["accepted", "duplicate", "rejected"] },
+                  "state": { "enum": ["starting", "idle", "streaming", "blocked", "closed"] },
+                  "code": {
+                    "enum": [
+                      "PI_BUSY", "PI_DISCONNECTED", "PI_DELIVERY_UNKNOWN", "PI_INVALID_REQUEST",
+                      "PI_INVALID_UTF8", "PI_LAUNCH_MISMATCH", "PI_NO_UI", "PI_PROMPT_EMPTY",
+                      "PI_PROMPT_TOO_LARGE", "PI_REQUEST_ID_REUSED", "PI_REQUEST_OUT_OF_ORDER",
+                      "PI_REQUEST_PENDING", "PI_SESSION_MISMATCH", "PI_SESSION_NOT_READY",
+                      "PI_STALE_REQUEST", "PI_UNSUPPORTED", "PI_WORKTREE_MISMATCH"
+                    ]
+                  }
+                },
+                "required": ["version", "requestId", "launchId", "sessionId", "ownerId", "outcome", "state"],
+                "additionalProperties": false
+              }
+            },
+            "required": ["payload"],
+            "additionalProperties": false
+          },
+          "bindings": {}
+        },
+        "neovim.close": {
+          "schema": { "type": "object", "properties": {}, "additionalProperties": false },
+          "bindings": {}
+        }
+      },
+      "notifications": {
+        "neovim.prompt": {
+          "type": "object",
+          "properties": {
+            "version": { "const": 1 },
+            "requestId": { "type": "string", "maxUtf8Bytes": 128 },
+            "sequence": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
+            "operation": { "enum": ["append", "submit"] },
+            "launchId": { "type": "string", "maxUtf8Bytes": 32, "pattern": "^[a-f0-9]{32}$" },
+            "sessionId": { "type": "string", "maxUtf8Bytes": 1024, "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?$" },
+            "ownerId": { "type": "string", "maxUtf8Bytes": 128 },
+            "cwd": { "type": "string", "maxUtf8Bytes": 4096 },
+            "editorPid": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
+            "text": { "type": "string", "maxUtf8Bytes": 16384 },
+            "context": {}
+          },
+          "required": ["version", "requestId", "sequence", "operation", "launchId", "sessionId", "ownerId", "cwd", "editorPid", "text", "context"],
+          "additionalProperties": false
+        }
+      },
+      "cleanup": [],
+      "provider": "neovim",
+      "socketEnvironment": "PI_NVIM_ASK_SOCKET"
     }
   }
 }

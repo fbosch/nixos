@@ -31,7 +31,7 @@ export default async function () {
       parameters: { type: "object", properties: { value: { type: "number" } } },
       outputSchema: { type: "number" },
     }],
-    sessionManager: { getBranch: () => [] },
+    sessionManager: { getBranch: () => [], getSessionId: () => "compiled-worker-fixture" },
     executeTool: async (name, args) => {
       assert.equal(name, "fixture_echo");
       assert.deepEqual(args, { value: 42 });

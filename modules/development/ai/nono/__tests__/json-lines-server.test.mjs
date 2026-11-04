@@ -91,3 +91,55 @@ for (const [name, respond] of [
     }, respond);
   });
 }
+
+test("persistent providers share bounded framing and send replies before queued notifications", async () => {
+  const root = realpathSync(mkdtempSync("/tmp/pi-stream-"));
+  const endpoint = join(root, "s");
+  const capability = { ...echoCapability(), persistent: true, cleanup: [], notifications: {
+    "echo.event": { type: "object", properties: { text: { type: "string" } }, required: ["text"], additionalProperties: false },
+  } };
+  const context = { cwd: "/work/selected" };
+  const seen = [];
+  let notify;
+  let released;
+  const disconnected = new Promise(resolve => { released = resolve; });
+  const server = await startJsonLinesServer({
+    capability, context, endpoint, validate: createMessageValidator(capability, context),
+    deliver: async (request, connection) => {
+      seen.push(request.id);
+      notify = connection.notify;
+      assert.equal(connection.notify("not.allowed", {}), false);
+      assert.equal(connection.notify("echo.event", { text: "æøå" }), true);
+      return { received: request.id };
+    },
+    disconnect: () => released(),
+  });
+  const socket = createConnection(endpoint);
+  const frames = [];
+  let buffer = "";
+  let complete;
+  const delivered = new Promise(resolve => { complete = resolve; });
+  socket.on("data", chunk => {
+    buffer += chunk.toString();
+    while (buffer.includes("\n")) {
+      const end = buffer.indexOf("\n");
+      frames.push(JSON.parse(buffer.slice(0, end)));
+      buffer = buffer.slice(end + 1);
+      if (frames.length === 4) complete();
+    }
+  });
+  try {
+    await once(socket, "connect");
+    socket.write(JSON.stringify(request()) + "\n" + JSON.stringify({ ...request(), id: 2 }) + "\n");
+    await delivered;
+    assert.deepEqual(frames.map(frame => frame.id ?? frame.method), [1, "echo.event", 2, "echo.event"]);
+    assert.deepEqual(seen, [1, 2]);
+    socket.destroy();
+    await disconnected;
+    assert.equal(notify("echo.event", { text: "stale" }), false);
+  } finally {
+    socket.destroy();
+    await server.close();
+    rmSync(root, { recursive: true, force: true });
+  }
+});

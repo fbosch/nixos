@@ -68,12 +68,10 @@ for (const { browser, fsmonitor } of [{ browser: false, fsmonitor: false }, { br
       const directoryAlias = join(work, "host-alias");
       symlinkSync(join(home, "host"), directoryAlias);
       if (editor) {
-        const sources = ["../scripts/pi-ask.lua", "./pi-ask-host.lua"].map(path => fileURLToPath(new URL(path, import.meta.url)));
-        const stored = await Promise.all(sources.map(path => execute("nix-store", ["--add", path], { encoding: "utf8" })));
-        const [helper, harness] = stored.map(result => result.stdout.trim());
+        const harness = fileURLToPath(new URL("./fixtures/neovim-host.lua", import.meta.url));
         nvim = spawn(process.env.NVIM_TEST_BINARY, ["--headless", "-u", "NONE", "-i", "NONE", "-l", harness], {
           cwd: work,
-          env: { ...environment, PI_ASK_TEST_HOST: helper, PI_ASK_TEST_CWD: work, PI_ASK_TEST_NATIVE: join(home, "host", "nvim.sock") },
+          env: { ...environment, PI_ASK_TEST_CWD: work, PI_ASK_TEST_NATIVE: join(home, "host", "nvim.sock") },
           stdio: ["ignore", "pipe", "pipe"],
         });
         nvimExited = once(nvim, "exit");
@@ -89,11 +87,11 @@ for (const { browser, fsmonitor } of [{ browser: false, fsmonitor: false }, { br
           nvim.once("error", reject);
           nvim.once("exit", () => { clearTimeout(timer); reject(new Error(`Neovim exited: ${stderr}`)); });
         });
-        environment.PI_NVIM_ASK_SOCKET = editorIdentity.socketPath;
+        environment.PI_NVIM_SOCKET = editorIdentity.socketPath;
         environment.PI_NVIM_LAUNCH_ID = "0123456789abcdef0123456789abcdef";
         const nativeAlias = join(work, "native-alias.sock");
         symlinkSync(editorIdentity.native, nativeAlias);
-        nativeEndpoints.push(editorIdentity.native, editorIdentity.alternate, nativeAlias, join(directoryAlias, "nvim.sock"), relative(work, editorIdentity.native));
+        nativeEndpoints.push(editorIdentity.socketPath, editorIdentity.native, editorIdentity.alternate, nativeAlias, join(directoryAlias, "nvim.sock"), relative(work, editorIdentity.native));
         const native = await execute(process.env.NVIM_TEST_BINARY, ["--server", editorIdentity.native, "--remote-expr", "getpid()"], { encoding: "utf8" });
         assert.ok(Number(native.stdout.trim()) > 0, "the native RPC fixture must work outside Nono");
       }

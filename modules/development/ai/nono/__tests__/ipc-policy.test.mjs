@@ -22,7 +22,7 @@ const registry = () => structuredClone(defaultCapabilities);
 const selected = (value = defaultCapabilities) => selectCapabilities(value, "restricted", "linux");
 
 test("profile selection preserves ordinary grants and explicitly selects restricted authority", () => {
-  assert.deepEqual(Object.keys(selectCapabilities(defaultCapabilities, "ordinary", "linux")), []);
+  assert.deepEqual(Object.keys(selectCapabilities(defaultCapabilities, "ordinary", "linux")), ["neovim-ask"]);
   assert.equal(selectCapabilities(defaultCapabilities, "ordinary", "darwin")["git-fsmonitor"].access, "connect-existing");
   assert.equal(selected()["git-fsmonitor"].access, "bind");
   assert.equal(selected()["git-fsmonitor"].authority, "full-protocol");

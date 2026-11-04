@@ -46,8 +46,10 @@ export interface JsonLinesCapability {
   backend: "json-lines";
   limits: IpcLimits;
   operations: Record<string, Operation>;
+  persistent?: true;
+  notifications?: Record<string, OperationSchema>;
   cleanup: CleanupMessage[];
-  provider: "herdr" | "inherited-socket" | "desktop";
+  provider: "herdr" | "inherited-socket" | "desktop" | "neovim";
   socketEnvironment: string;
 }
 
@@ -119,6 +121,28 @@ function validators(capability: JsonLinesCapability): Map<string, ValidateFuncti
   return result;
 }
 
+const compiledNotifications = new WeakMap<JsonLinesCapability, Map<string, ValidateFunction>>();
+
+function notificationValidators(capability: JsonLinesCapability): Map<string, ValidateFunction> {
+  if (compiledNotifications.has(capability)) return compiledNotifications.get(capability)!;
+  const result = new Map<string, ValidateFunction>();
+  for (const [method, schema] of Object.entries(capability.notifications ?? {})) {
+    if (schema.$async !== undefined || schema.type !== "object" || schema.additionalProperties !== false) {
+      throw new Error(`IPC notification ${method} must use a closed object schema`);
+    }
+    result.set(method, ajv.compile({ ...schema }));
+  }
+  compiledNotifications.set(capability, result);
+  return result;
+}
+
+export type NotificationValidator = (method: string, params: unknown) => boolean;
+
+export function createNotificationValidator(capability: JsonLinesCapability): NotificationValidator {
+  const validators = notificationValidators(capability);
+  return (method, params) => validators.get(method)?.(params) ?? false;
+}
+
 function freeze<T>(value: T): T {
   if (value && typeof value === "object") {
     for (const child of Object.values(value)) freeze(child);
@@ -148,6 +172,8 @@ export function validateCapabilities(value: CapabilityRegistry): CapabilityRegis
     if (capability.backend !== "json-lines") continue;
     if (capability.provider === "herdr" && capability.socketEnvironment !== "HERDR_SOCKET_PATH") throw new Error("The Herdr provider requires HERDR_SOCKET_PATH");
     validators(capability);
+    if (capability.notifications && !capability.persistent) throw new Error("IPC notifications require a persistent connection");
+    notificationValidators(capability);
     for (const cleanup of capability.cleanup) {
       if (!Object.hasOwn(capability.operations, cleanup.method)) throw new Error(`Unknown IPC cleanup operation: ${cleanup.method}`);
       for (const field of cleanup.optionalBindings ?? []) {

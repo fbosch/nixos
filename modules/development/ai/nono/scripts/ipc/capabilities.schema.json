@@ -109,7 +109,7 @@
                   "maxFrameBytes": {
                     "type": "integer",
                     "minimum": 256,
-                    "maximum": 65536
+                    "maximum": 67584
                   },
                   "maxConnections": {
                     "type": "integer",
@@ -170,6 +170,26 @@
                   "additionalProperties": false
                 }
               },
+              "persistent": { "const": true },
+              "notifications": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z][A-Za-z0-9_.:-]*$",
+                  "maxLength": 128
+                },
+                "additionalProperties": {
+                  "type": "object",
+                  "properties": {
+                    "type": { "const": "object" },
+                    "additionalProperties": { "const": false },
+                    "properties": { "type": "object" },
+                    "required": { "type": "array", "items": { "type": "string" } }
+                  },
+                  "required": ["type", "additionalProperties"],
+                  "additionalProperties": true
+                }
+              },
               "cleanup": {
                 "type": "array",
                 "maxItems": 8,
@@ -210,7 +230,8 @@
                 "enum": [
                   "herdr",
                   "inherited-socket",
-                  "desktop"
+                  "desktop",
+                  "neovim"
                 ]
               },
               "socketEnvironment": {

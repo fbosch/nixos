@@ -1,6 +1,7 @@
 import { desktopProvider } from "./desktop/provider.mts";
 import { herdrProvider } from "./herdr/provider.mts";
 import { inheritedSocketProvider } from "./inherited-socket.mts";
+import { neovimProvider } from "./neovim/provider.mts";
 import type { JsonLinesCapability } from "../policy.mts";
 import type { IpcProvider } from "../provider.mts";
 
@@ -8,5 +9,6 @@ import type { IpcProvider } from "../provider.mts";
 export const providers: Record<JsonLinesCapability["provider"], IpcProvider> = {
   herdr: herdrProvider,
   desktop: desktopProvider,
+  neovim: neovimProvider,
   "inherited-socket": inheritedSocketProvider,
 };

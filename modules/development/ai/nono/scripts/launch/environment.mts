@@ -85,7 +85,7 @@ export function configurePiPaths(environment: Environment, home: string, entryBi
 export const hostOnlyVariables = [
   "HOME",
   // Sockets the planner grants: Pi Ask, the opted-in SSH agent, Herdr and the compositor.
-  "PI_NVIM_ASK_SOCKET", "PI_NVIM_SOCKET", "SSH_AUTH_SOCK", "PI_NONO_SSH_AGENT",
+  "PI_NVIM_ASK_SOCKET", "PI_NVIM_SOCKET", "PI_NVIM_LAUNCH_ID", "SSH_AUTH_SOCK", "PI_NONO_SSH_AGENT",
   "HERDR_ENV", "HERDR_SOCKET_PATH", "HERDR_PANE_ID", "PI_NVIM_HERDR_PANE_ID", "WAYLAND_DISPLAY",
   // Directories that receive grants: runtime entries, and the profile's $TMPDIR read grant.
   "XDG_RUNTIME_DIR", "TMPDIR",

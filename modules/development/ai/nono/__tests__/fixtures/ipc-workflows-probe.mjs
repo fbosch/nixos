@@ -41,17 +41,21 @@ if (editor) {
     socket.setTimeout(3000, () => socket.destroy(new Error("Pi Ask timed out")));
     try {
       await once(socket, "connect");
-      socket.write(JSON.stringify({ version: 1, type: "bind", launchId: process.env.PI_NVIM_LAUNCH_ID, cwd: process.cwd(), sessionId }) + "\n");
+      assert.equal(process.env.PI_NVIM_SOCKET, undefined);
+      socket.write(JSON.stringify({ id: "bind", method: "neovim.bind", params: { launchId: process.env.PI_NVIM_LAUNCH_ID, cwd: process.cwd(), sessionId } }) + "\n");
       const bound = JSON.parse((await frames.next()).value);
       const prompt = JSON.parse((await frames.next()).value);
-      assert.equal(bound.type, "bound");
-      assert.equal(bound.binding.sessionId, sessionId);
-      assert.equal(prompt.type, "prompt");
-      socket.write(JSON.stringify({ version: 1, type: "ack", payload: {
-        version: 1, requestId: prompt.request.requestId, launchId: bound.binding.launchId,
-        sessionId, ownerId: bound.binding.ownerId, outcome: "accepted", state: "idle",
-      } }) + "\n");
-      socket.end(JSON.stringify({ version: 1, type: "close" }) + "\n");
+      assert.equal(bound.ok, true);
+      assert.equal(bound.result.sessionId, sessionId);
+      assert.equal(prompt.method, "neovim.prompt");
+      socket.write(JSON.stringify({ id: "ack", method: "neovim.ack", params: { payload: {
+        version: 1, requestId: prompt.params.requestId, launchId: bound.result.launchId,
+        sessionId, ownerId: bound.result.ownerId, outcome: "accepted", state: "idle",
+      } } }) + "\n");
+      assert.equal(JSON.parse((await frames.next()).value).ok, true);
+      socket.write(JSON.stringify({ id: "close", method: "neovim.close", params: {} }) + "\n");
+      if (sessionId === "first-session") assert.equal(JSON.parse((await frames.next()).value).ok, true);
+      socket.end();
       await closed;
     } finally {
       socket.destroy();

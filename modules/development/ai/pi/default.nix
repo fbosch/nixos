@@ -19,6 +19,7 @@ let
           ./pi-markdown-streaming.patch
           ./pi-image-read.patch
           ./pi-model-executor.patch
+          ./pi-codemode-admission.patch
         ];
         patchFlags = [
           "--batch"
@@ -125,7 +126,7 @@ let
           mkdir -p "$out/bin"
           mkdir -p "$out/share/pi"
           touch "$out/share/pi/nono-wrapper"
-          ln -s ${../nono/scripts/pi-ask.lua} "$out/share/pi/pi-ask.lua"
+          ln -s ${runtime} "$out/share/pi/ipc-runtime"
           # A binary entry avoids sourcing BASH_ENV before nono applies confinement.
           ${pkgs.nodejs}/bin/node --input-type=module -e 'import { loadCapabilities } from "${runtime}/scripts/ipc/policy.mts"; loadCapabilities(process.argv[1]);' "${manifest}"
           ${pkgs.nodejs}/bin/node --input-type=module -e 'import { loadSandboxPolicy } from "${runtime}/scripts/shared/sandbox-policy.mts"; loadSandboxPolicy(process.argv[1]);' "${sandboxPolicy}"
@@ -259,6 +260,7 @@ in
               BASH_TEST_BINARY = "${pkgs.bash}/bin/bash";
               CURL_TEST_BINARY = lib.getExe pkgs.curl;
               GIT_TEST_BINARY = lib.getExe pkgs.git;
+              NVIM_TEST_BINARY = lib.getExe pkgs.neovim-unwrapped;
               SSH_ADD_TEST_BINARY = lib.getExe' pkgs.openssh "ssh-add";
               HERDR_REPORTER_TEST_SOURCE = "${inputs.herdr}/src/integration/assets/pi/herdr-agent-state.ts";
               HERDR_READ_TEST_BINARY = lib.getExe inputs.herdr.packages.${pkgs.stdenv.hostPlatform.system}.default;

@@ -25,7 +25,7 @@ Host-side launcher, credential boundary and IPC brokers that confine Pi under no
 - Paths below are read by Nix or spawned by file URL, not imported. When you move one, update its consumer and the `entry` list in `.fallowrc.json`:
   - `credentials/credentials.json`: read by `lib/pi-credential-profile.nix`, `modules/sops.nix` and `default.nix`.
   - `credentials/claude-credential.mts`: resolved through the `script` field in `credentials.json`.
-  - `ipc/capabilities.json`, `ipc/policy.mts`, `launcher.mts`, `pi-desktop.mts` and `pi-ask.lua`: used by `../pi/default.nix`.
+  - `ipc/capabilities.json`, `ipc/policy.mts`, `launcher.mts` and `pi-desktop.mts`: used by `../pi/default.nix`.
   - `shared/sandbox-policy.json` and `shared/sandbox-policy.mts`: the defaults of the `pi.sandbox` option in `../pi/sandbox.nix`, and its build-time validation in `../pi/default.nix`.
   - `ipc/helper.mts`, `model-executor/server.mts` and `launch/diagnostics-extension.mts`: spawned or loaded by URL.
 - Import from the module that owns a function. Do not re-export it through `launcher.mts`.

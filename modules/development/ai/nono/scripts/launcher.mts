@@ -1,12 +1,14 @@
 import * as Effect from "effect/Effect";
 import { existsSync, realpathSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { neovimProvider } from "./ipc/providers/neovim/provider.mts";
 import { homedir } from "node:os";
 import { delimiter, isAbsolute } from "node:path";
 import { pathToFileURL } from "node:url";
 import { credentialEnvironmentForDirenv } from "./credentials/definitions.mts";
 import { credentialProxySession } from "./credentials/proxy.mts";
 import { credentialFilesOutsideStore, migrateCredentialStore, runningSandboxes } from "./credentials/store.mts";
-import { loadCapabilities } from "./ipc/policy.mts";
+import { loadCapabilities, defaultCapabilities } from "./ipc/policy.mts";
 import { ipcCapabilities, providerSession } from "./ipc/session.mts";
 import { sessionServices } from "./ipc/services.mts";
 import { nonoDiagnostics } from "./launch/diagnostics.mts";
@@ -34,6 +36,20 @@ function execRawPi(rawPi: string, piArgs: string[]): void {
   delete environment[MODEL_EXECUTOR_SOCKET];
   configurePiPaths(environment, homedir(), (environment.PATH || "").split(delimiter)[0]);
   process.execve!(rawPi, [rawPi, ...piArgs], environment);
+}
+
+function launchRawEditor(rawPi: string, args: string[]): Effect.Effect<ExitResult, SandboxError | HostProcessError> {
+  return Effect.scoped(Effect.gen(function* () {
+    const inherited = { ...process.env };
+    const home = homedir();
+    const environment: Environment = { ...inherited, PI_NONO_MODE: "disabled" };
+    delete environment[MODEL_EXECUTOR_SOCKET];
+    const agentDir = configurePiPaths(environment, home, (environment.PATH || "").split(delimiter)[0]);
+    const capability = defaultCapabilities.capabilities["neovim-ask"]!;
+    if (capability.backend !== "json-lines") throw new Error("Invalid Neovim capability");
+    const bound = yield* neovimProvider.start(environment, providerSession({ inherited, home, cwd: process.cwd(), agentDir, args }), capability);
+    return spawnSync(rawPi, args, { stdio: "inherit", env: bound }) as ExitResult;
+  }));
 }
 
 function launchSandboxed(nono: string, rawPi: string, profile: string, direnv: string, envBinary: string, args: string[]): Effect.Effect<ExitResult, SandboxError | HostProcessError> {
@@ -119,8 +135,11 @@ function launchSandboxed(nono: string, rawPi: string, profile: string, direnv: s
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   try {
     const [nono, rawPi, profile, direnv, envBinary, ...args] = process.argv.slice(2) as [string, string, string, string, string, ...string[]];
-    if (args[0] === "--no-sandbox") execRawPi(rawPi, args.slice(1));
-    const child = await Effect.runPromise(launchSandboxed(nono, rawPi, profile, direnv, envBinary, args));
+    const raw = args[0] === "--no-sandbox";
+    if (raw && !process.env.PI_NVIM_SOCKET) execRawPi(rawPi, args.slice(1));
+    const child = await Effect.runPromise(raw
+      ? launchRawEditor(rawPi, args.slice(1))
+      : launchSandboxed(nono, rawPi, profile, direnv, envBinary, args));
     if (child.error) throw child.error;
     if (child.signal) process.kill(process.pid, child.signal);
     process.exit(child.status ?? 1);
