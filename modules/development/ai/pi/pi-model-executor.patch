@@ -1883,9 +1883,10 @@ index 8e03f4d..24a7aa7 100644
  
  		const { transformHeaders, ...rawProviderOptions } = options ?? {};
  		const providerOptions = rawProviderOptions as Omit<TOptions, "transformHeaders"> & ProviderRequestOptions<TModel>;
-@@ -749,6 +795,20 @@ export class ModelRuntime implements Models {
- 				return this.streamSimple(route.model, context, { ...rest, ...auth, maxTokens, reasoning });
- 			});
+@@ -751,9 +797,23 @@ export class ModelRuntime implements Models {
+ 				undefined,
+ 				options?.signal,
+ 			);
  		}
 +		const executor = this.executorFor(model, options);
 +		if (executor) {
@@ -1901,13 +1902,12 @@ index 8e03f4d..24a7aa7 100644
 +				return executor.streamSimple(model, transcript, options, resolution);
 +			});
 +		}
- 		return lazyStream(model, async () => {
- 			assertChatModel(model);
- 			const prepared = await this.prepareRequest(model, options);
-@@ -756,6 +816,33 @@ export class ModelRuntime implements Models {
- 		});
- 	}
- 
+ 		return lazyStream(
+ 			model,
+ 			async () => {
+ 				assertChatModel(model);
+ 				const prepared = await this.prepareRequest(model, options);
+@@ -821,1 +835,28 @@ export class ModelRuntime implements Models {
 +	/**
 +	 * The executor handles requests for providers the executor process also defines. Extension
 +	 * providers run in this process; deferred responses stay local until fetch and cancel are relayed.

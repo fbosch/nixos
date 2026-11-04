@@ -174,7 +174,7 @@ diff --git a/packages/coding-agent/src/modes/interactive/components/tree-selecto
 -		this.addChild(new TreeHelp());
 +		this.treeHelp = new TreeHelp();
 +		this.addChild(this.treeHelp);
- 		this.addChild(new SearchLine(this.treeList));
+ 		this.addChild(this.searchLine);
  		this.addChild(new DynamicBorder());
  		this.addChild(new Spacer(1));
 @@ -1395,6 +1409,41 @@
