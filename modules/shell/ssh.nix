@@ -75,7 +75,7 @@ let
         settings = lib.mkMerge [
           (lib.mkMerge (lib.mapAttrsToList mkMatchBlocks managedHosts))
           {
-            "ssh.dev.azure.com" = {
+            "ssh.dev.azure.com vs-ssh.visualstudio.com" = {
               IdentityFile = "~/.ssh/id_rsa";
               IdentitiesOnly = true;
               HostkeyAlgorithms = "+ssh-rsa";

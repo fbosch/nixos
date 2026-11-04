@@ -65,6 +65,16 @@ On macOS, nono manages its credential proxy within the native launch path. The l
 
 This deliberately retains an exfiltration channel for data the agent can read. Direct TCP access to ports 22, 80, and 443 remains denied. The existing browser-port exceptions were not changed in this pass.
 
+## Azure DevOps Git over SSH
+
+The packaged Pi launcher puts a private SSH wrapper on its PATH. Inside nono, the wrapper supplies an SSH configuration that sends `ssh.dev.azure.com:22` and `vs-ssh.visualstudio.com:22` through the existing HTTP proxy with authenticated `CONNECT`. Other hosts retain their existing transport configuration. Raw Pi sessions use native SSH without the additional configuration.
+
+The helper connects only to the local nono proxy and rejects other destinations and ports. It does not grant direct port-22 access or read private keys. The proxy's unrestricted forwarding policy remains unchanged; the helper's Azure check is not a restriction on what an agent can otherwise request through that proxy.
+
+SSH authentication still requires the host to load the Azure key into its SSH agent and launch Pi with `PI_NONO_SSH_AGENT=1`. The sandbox receives only the existing agent socket. Existing SSH identity settings and host-key verification still apply. Accept new host keys on the host, since sandboxed `known_hosts` files are read-only.
+
+Rebuild the launcher and start a new Pi session to receive the wrapper. `/reload` cannot change a running session's PATH or grants. `ssh-transport.test.mjs` covers CONNECT authentication, SSH byte forwarding, malformed/refused responses, destination validation, and SSH configuration selection. A real Azure push remains a deployment check.
+
 ## Claude Bridge authentication
 
 Sandboxed Claude Bridge uses the existing Claude CLI login through a host-side capture command. No SOPS secret or additional API key is required. This is the same login, not a separately revocable credential.

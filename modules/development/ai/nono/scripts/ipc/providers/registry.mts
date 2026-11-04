@@ -1,14 +1,10 @@
-import { desktopProvider } from "./desktop/provider.mts";
-import { herdrProvider } from "./herdr/provider.mts";
-import { inheritedSocketProvider } from "./inherited-socket.mts";
-import { neovimProvider } from "./neovim/provider.mts";
 import type { JsonLinesCapability } from "../policy.mts";
 import type { IpcProvider } from "../provider.mts";
 
-/** Every provider a JSON-lines capability may name; the manifest schema allows exactly these. */
-export const providers: Record<JsonLinesCapability["provider"], IpcProvider> = {
-  herdr: herdrProvider,
-  desktop: desktopProvider,
-  neovim: neovimProvider,
-  "inherited-socket": inheritedSocketProvider,
+/** Load only the helper's selected provider; the manifest schema allows exactly these names. */
+export const providerLoaders: Record<JsonLinesCapability["provider"], () => Promise<IpcProvider>> = {
+  herdr: async () => (await import("./herdr/provider.mts")).herdrProvider,
+  desktop: async () => (await import("./desktop/provider.mts")).desktopProvider,
+  neovim: async () => (await import("./neovim/provider.mts")).neovimProvider,
+  "inherited-socket": async () => (await import("./inherited-socket.mts")).inheritedSocketProvider,
 };

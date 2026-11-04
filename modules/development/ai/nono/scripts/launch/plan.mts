@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { assertCredentialGrants } from "../credentials/grants.mts";
 import { assertCredentialSourceGrants } from "../credentials/definitions.mts";
 import { assertPrivateIpcGrants, privateIpcPrefix } from "../ipc/private.mts";
-import { defaultCapabilities, endpointGrants, selectCapabilities, type CapabilityRegistry, type SelectedCapabilities } from "../ipc/policy.mts";
+import { loadCapabilities, endpointGrants, selectCapabilities, type CapabilityRegistry, type SelectedCapabilities } from "../ipc/policy.mts";
 import { serviceSocketGrants } from "../ipc/services.mts";
 import { MODEL_EXECUTOR_SOCKET } from "../model-executor/launch.mts";
 import { agentDirectories, agentProtection, type AgentProtection } from "../protection/agent.mts";
@@ -217,7 +217,7 @@ function assertLaunchGrants(plan: GrantPlan, { cwd, home, environment, loadedPro
 }
 
 // `hostEnvironment` defaults to `environment` only for callers without a project environment, such as tests.
-function planLaunchArguments(cwd: string, agentDir: string, home: string, environment: Environment, profile: string, rawPi: string, envBinary: string, platform: NodeJS.Platform = process.platform, registry: CapabilityRegistry = defaultCapabilities, hostEnvironment: Environment = environment): Effect.Effect<LaunchPlan, SandboxError> {
+function planLaunchArguments(cwd: string, agentDir: string, home: string, environment: Environment, profile: string, rawPi: string, envBinary: string, platform: NodeJS.Platform = process.platform, registry: CapabilityRegistry = loadCapabilities(), hostEnvironment: Environment = environment): Effect.Effect<LaunchPlan, SandboxError> {
   return Effect.gen(function* () {
     const confinement = confinementFor(platform);
     const loadedProfile = yield* attempt(() => readNonoProfile(profile));
@@ -286,7 +286,7 @@ export function launchCommand(...parameters: LaunchCommandParameters): string[] 
 }
 
 /** The complete nono command for a session, or raw Pi for an explicit `--no-sandbox` launch. */
-export function planLaunchCommand(args: string[], cwd: string, agentDir: string, home: string, environment: Environment, nono: string, rawPi: string, profile: string, envBinary: string, registry: CapabilityRegistry = defaultCapabilities, hostEnvironment: Environment = environment): Effect.Effect<LaunchCommandPlan, SandboxError> {
+export function planLaunchCommand(args: string[], cwd: string, agentDir: string, home: string, environment: Environment, nono: string, rawPi: string, profile: string, envBinary: string, registry: CapabilityRegistry = loadCapabilities(), hostEnvironment: Environment = environment): Effect.Effect<LaunchCommandPlan, SandboxError> {
   return Effect.gen(function* () {
     if (!isAbsolute(rawPi) || !existsSync(rawPi)) return yield* new LaunchPrerequisiteError({ message: `Raw Pi executable missing: ${rawPi}` });
     if (args[0] === "--no-sandbox") return { command: [rawPi, ...args.slice(1)], protectedPaths: [] };

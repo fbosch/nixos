@@ -84,6 +84,8 @@ export function configurePiPaths(environment: Environment, home: string, entryBi
  */
 export const hostOnlyVariables = [
   "HOME",
+  // The packaged SSH transport must precede project-provided OpenSSH binaries.
+  "PI_SSH_BIN",
   // Sockets the planner grants: Pi Ask, the opted-in SSH agent, Herdr and the compositor.
   "PI_NVIM_ASK_SOCKET", "PI_NVIM_SOCKET", "PI_NVIM_LAUNCH_ID", "SSH_AUTH_SOCK", "PI_NONO_SSH_AGENT",
   "HERDR_ENV", "HERDR_SOCKET_PATH", "HERDR_PANE_ID", "PI_NVIM_HERDR_PANE_ID", "WAYLAND_DISPLAY",
@@ -104,6 +106,7 @@ export function sessionEnvironment(host: Environment, loaded: Environment, home:
     if (host[name] === undefined) delete session[name];
     else session[name] = host[name];
   }
+  if (host.PI_SSH_BIN) session.PATH = [host.PI_SSH_BIN, session.PATH].filter(Boolean).join(delimiter);
   // Only the launcher selects an executor endpoint; never trust an inherited or project value.
   delete session[MODEL_EXECUTOR_SOCKET];
   // Agent signing is opt-in from the invoking host environment.

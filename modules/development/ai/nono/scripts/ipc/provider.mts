@@ -43,7 +43,7 @@ export interface IpcProvider {
    */
   start(environment: Environment, session: ProviderSession, capability: JsonLinesCapability): Effect.Effect<Environment, HostProcessError | SandboxError, Scope.Scope>;
   /** Inside the helper process: `launch` is what `start` passed to `startHelper`. `directory` is private to the helper. */
-  serve(launch: unknown, capability: JsonLinesCapability, directory: string): HelperService;
+  serve(launch: unknown, capability: JsonLinesCapability, directory: string): HelperService | Promise<HelperService>;
   /** Restricted profile only: remove this provider's inherited variables when no capability selects it. */
   scrub?(environment: Environment): Environment;
 }

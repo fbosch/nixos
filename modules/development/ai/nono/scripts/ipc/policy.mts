@@ -184,14 +184,19 @@ export function validateCapabilities(value: CapabilityRegistry): CapabilityRegis
   return freeze(value);
 }
 
-export function loadCapabilities(path: string | URL = new URL("./capabilities.json", import.meta.url)): CapabilityRegistry {
-  let value: CapabilityRegistry;
-  try { value = JSON.parse(readFileSync(path, "utf8")); }
-  catch (cause) { throw new Error(`Cannot read IPC capability manifest: ${path}`, { cause }); }
-  return validateCapabilities(value);
-}
+let bundledCapabilities: CapabilityRegistry | undefined;
 
-export const defaultCapabilities = loadCapabilities();
+/** The bundled catalog is immutable; explicit manifest paths are always read and validated anew. */
+export function loadCapabilities(path?: string | URL): CapabilityRegistry {
+  if (path === undefined && bundledCapabilities) return bundledCapabilities;
+  const source = path ?? new URL("./capabilities.json", import.meta.url);
+  let value: CapabilityRegistry;
+  try { value = JSON.parse(readFileSync(source, "utf8")); }
+  catch (cause) { throw new Error(`Cannot read IPC capability manifest: ${source}`, { cause }); }
+  const registry = validateCapabilities(value);
+  if (path === undefined) bundledCapabilities = registry;
+  return registry;
+}
 
 export function selectCapabilities(registry: CapabilityRegistry, profile: string, platform: NodeJS.Platform = process.platform): SelectedCapabilities {
   if (!Object.hasOwn(registry.profiles, profile)) throw new Error(`Unknown IPC profile: ${profile}`);

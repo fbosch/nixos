@@ -5,7 +5,7 @@ import type { Environment } from "../shared/types.mts";
 import { selectCapabilities, type CapabilityRegistry, type JsonLinesCapability } from "./policy.mts";
 import { filterHelper } from "./helper-launch.mts";
 import type { ProviderSession } from "./provider.mts";
-import { providers } from "./providers/registry.mts";
+import { providerLoaders } from "./providers/registry.mts";
 
 /**
  * Bind every JSON-lines capability of `profile`, in manifest order, through its provider. Helpers
@@ -26,11 +26,16 @@ export function ipcCapabilities(environment: Environment, session: ProviderSessi
         if (capability.backend === "json-lines" && !activeVariables.has(capability.socketEnvironment)) delete current[capability.socketEnvironment];
       }
       // The restricted profile never passes an unselected provider's inherited access through unfiltered.
-      for (const [name, provider] of Object.entries(providers)) {
-        if (provider.scrub && !selected.some(capability => capability.provider === name)) current = provider.scrub(current);
+      for (const [name, load] of Object.entries(providerLoaders)) {
+        if (selected.some(capability => capability.provider === name)) continue;
+        const provider = yield* Effect.promise(load);
+        if (provider.scrub) current = provider.scrub(current);
       }
     }
-    for (const capability of selected) current = yield* providers[capability.provider].start(current, session, capability);
+    for (const capability of selected) {
+      const provider = yield* Effect.promise(providerLoaders[capability.provider]);
+      current = yield* provider.start(current, session, capability);
+    }
     return current;
   });
 }

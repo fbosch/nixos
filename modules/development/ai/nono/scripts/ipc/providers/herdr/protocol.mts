@@ -1,6 +1,6 @@
 import { lstatSync, realpathSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, resolve } from "node:path";
-import { createMessageValidator, defaultCapabilities, selectCapabilities, type IpcRequest, type JsonLinesCapability, type LaunchContext } from "../../policy.mts";
+import { createMessageValidator, loadCapabilities, selectCapabilities, type IpcRequest, type JsonLinesCapability, type LaunchContext } from "../../policy.mts";
 
 export interface HerdrAuthority {
   readonly upstream: string;
@@ -12,8 +12,14 @@ export interface HerdrAuthority {
 /** A validated Herdr request, after the launch-workspace bindings and defaults are applied. */
 export type ReportRequest = IpcRequest;
 
-// The bundled manifest always selects Herdr reporting as a JSON-lines capability in the restricted profile.
-export const defaultReportingCapability = selectCapabilities(defaultCapabilities, "restricted")["herdr-reporting"] as JsonLinesCapability;
+let defaultReportingCapability: JsonLinesCapability | undefined;
+export function getDefaultReportingCapability(): JsonLinesCapability {
+  if (defaultReportingCapability) return defaultReportingCapability;
+  const capability = selectCapabilities(loadCapabilities(), "restricted")["herdr-reporting"];
+  if (capability?.backend !== "json-lines") throw new Error("The bundled Herdr capability must use JSON-lines");
+  defaultReportingCapability = capability;
+  return capability;
+}
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const sessionFile = /^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z_([0-9a-f-]{36})\.jsonl$/i;
 
@@ -48,7 +54,7 @@ export function reportingContext(authority: HerdrAuthority): LaunchContext {
   };
 }
 
-export function createReportValidator(authority: HerdrAuthority, capability: JsonLinesCapability = defaultReportingCapability): (value: IpcRequest) => ReportRequest {
+export function createReportValidator(authority: HerdrAuthority, capability: JsonLinesCapability = getDefaultReportingCapability()): (value: IpcRequest) => ReportRequest {
   const captured = structuredClone(authority);
   const validate = createMessageValidator(capability, reportingContext(captured));
   return (value: IpcRequest): ReportRequest => {
@@ -70,6 +76,6 @@ export function createReportValidator(authority: HerdrAuthority, capability: Jso
   };
 }
 
-export function validateReport(value: unknown, authority: HerdrAuthority, capability: JsonLinesCapability = defaultReportingCapability): ReportRequest {
+export function validateReport(value: unknown, authority: HerdrAuthority, capability: JsonLinesCapability = getDefaultReportingCapability()): ReportRequest {
   return createReportValidator(authority, capability)(value as IpcRequest);
 }

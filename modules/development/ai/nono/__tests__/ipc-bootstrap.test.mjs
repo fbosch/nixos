@@ -4,7 +4,9 @@ import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync
 import { join } from "node:path";
 import { afterEach, test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { defaultCapabilities } from "../scripts/ipc/policy.mts";
+import { loadCapabilities } from "../scripts/ipc/policy.mts";
+
+const defaultCapabilities = loadCapabilities();
 
 const roots = [];
 afterEach(() => { for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true }); });

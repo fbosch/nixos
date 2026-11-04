@@ -1,0 +1,6 @@
+Host ssh.dev.azure.com vs-ssh.visualstudio.com
+  ProxyCommand @node@ @transport@ connect %h %p
+Host *
+  Include ~/.ssh/config
+Host *
+  Include /etc/ssh/ssh_config

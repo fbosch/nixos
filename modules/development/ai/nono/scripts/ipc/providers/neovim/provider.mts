@@ -2,7 +2,6 @@ import * as Effect from "effect/Effect";
 import { realpathSync, statSync } from "node:fs";
 import { isAbsolute } from "node:path";
 import { createConnection } from "node:net";
-import { attach } from "neovim";
 import { LaunchPrerequisiteError, attempt } from "../../../shared/errors.mts";
 import type { Environment, JsonValue } from "../../../shared/types.mts";
 import { createMessageValidator, type LaunchContext } from "../../policy.mts";
@@ -37,9 +36,11 @@ export const neovimProvider: IpcProvider = {
     });
     return yield* startHelper({ ...bound, PI_NVIM_LAUNCH_ID: launchId }, capability, launch);
   }),
-  serve: (launch, capability) => {
+  serve: async (launch, capability) => {
     const { upstream, context } = launch as NeovimLaunch;
     if (!capability.persistent || capability.socketEnvironment !== "PI_NVIM_ASK_SOCKET") throw new Error("Neovim requires its persistent broker endpoint");
+    // Load the RPC SDK only in the Neovim helper, before it announces readiness.
+    const { attach } = await import("neovim");
     const peers = new Map<IpcConnection, { close(): Promise<void>; acknowledge(payload: JsonValue): Promise<void> }>();
     const timeout = capability.limits.upstreamTimeoutMs;
     const disconnect = async (connection: IpcConnection) => {

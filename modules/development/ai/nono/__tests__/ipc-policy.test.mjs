@@ -4,12 +4,14 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSyn
 import { createServer } from "node:net";
 import { join } from "node:path";
 import { afterEach, test } from "node:test";
-import { defaultCapabilities, createMessageValidator, endpointGrants, loadCapabilities, selectCapabilities, validateCapabilities } from "../scripts/ipc/policy.mts";
+import { createMessageValidator, endpointGrants, loadCapabilities, selectCapabilities, validateCapabilities } from "../scripts/ipc/policy.mts";
 import { launchArguments } from "../scripts/launch/plan.mts";
 import { withScoped } from "./fixtures/scoped.mjs";
 import { toArguments } from "../scripts/shared/grant-plan.mts";
 import { herdrProvider } from "../scripts/ipc/providers/herdr/provider.mts";
 import * as Effect from "effect/Effect";
+
+const defaultCapabilities = loadCapabilities();
 
 const roots = [];
 function fixture() {
@@ -62,6 +64,22 @@ test("invalid JSON reports its manifest path and never becomes an empty policy",
   const path = join(fixture(), "invalid.json");
   writeFileSync(path, "{");
   assert.throws(() => loadCapabilities(path), /Cannot read IPC capability manifest/);
+});
+
+test("explicit manifests are revalidated on every load, including unselected operations", () => {
+  const path = join(fixture(), "custom.json");
+  const value = registry();
+  delete value.profiles.restricted.desktop;
+  writeFileSync(path, JSON.stringify(value));
+  assert.equal(loadCapabilities(path).profiles.restricted.desktop, undefined);
+
+  value.capabilities.desktop.operations["clipboard.copy_text"].schema.additionalProperties = true;
+  writeFileSync(path, JSON.stringify(value));
+  assert.throws(() => loadCapabilities(path), /closed object schema/);
+
+  value.capabilities.desktop.operations["clipboard.copy_text"].schema.additionalProperties = false;
+  writeFileSync(path, JSON.stringify(value));
+  assert.equal(loadCapabilities(path).profiles.restricted.desktop, undefined);
 });
 
 test("lazy endpoint grants cover selected metadata only, without directory grants", () => {

@@ -20,6 +20,7 @@ let
           ./pi-image-read.patch
           ./pi-model-executor.patch
           ./pi-codemode-admission.patch
+          ./pi-discovery-intent.patch
         ];
         patchFlags = [
           "--batch"
@@ -113,6 +114,10 @@ let
         executorModelsSource = "${inputs.dotfiles}/.pi/agent/models.json";
         executorModelsFlag = pkgs.lib.optionalString (builtins.pathExists executorModelsSource)
           "--set PI_MODEL_EXECUTOR_MODELS ${builtins.path { path = executorModelsSource; name = "pi-executor-models.json"; }}";
+        sshConfig = pkgs.replaceVars ../nono/scripts/launch/ssh_config {
+          node = "${pkgs.nodejs}/bin/node";
+          transport = "${runtime}/scripts/launch/ssh-transport.mts";
+        };
         profile = pkgs.writeText "pi-nono-profile.json" (
           builtins.toJSON (config.flake.lib.mkPiCredentialProfile { inherit pkgs ipcRestricted; })
         );
@@ -127,6 +132,11 @@ let
           mkdir -p "$out/share/pi"
           touch "$out/share/pi/nono-wrapper"
           ln -s ${runtime} "$out/share/pi/ipc-runtime"
+          ln -s ${sshConfig} "$out/share/pi/ssh_config"
+          mkdir -p "$out/share/pi/ssh-bin"
+          makeBinaryWrapper ${pkgs.nodejs}/bin/node "$out/share/pi/ssh-bin/ssh" \
+            --unset NODE_OPTIONS --unset NODE_PATH \
+            --add-flags "${runtime}/scripts/launch/ssh-transport.mts client ${pkgs.openssh}/bin/ssh ${sshConfig}"
           # A binary entry avoids sourcing BASH_ENV before nono applies confinement.
           ${pkgs.nodejs}/bin/node --input-type=module -e 'import { loadCapabilities } from "${runtime}/scripts/ipc/policy.mts"; loadCapabilities(process.argv[1]);' "${manifest}"
           ${pkgs.nodejs}/bin/node --input-type=module -e 'import { loadSandboxPolicy } from "${runtime}/scripts/shared/sandbox-policy.mts"; loadSandboxPolicy(process.argv[1]);' "${sandboxPolicy}"
@@ -135,8 +145,9 @@ let
             --set PI_IPC_MANIFEST "${manifest}" --set PI_SANDBOX_POLICY "${sandboxPolicy}" ${desktopTools} \
             --set PI_NONO_DIAGNOSTICS 1 \
             --set PI_SSH_ADD ${pkgs.openssh}/bin/ssh-add \
+            --set PI_SSH_BIN "$out/share/pi/ssh-bin" \
             --set PI_MODEL_EXECUTOR_PACKAGE ${executorPi}/lib/pi/node_modules/@earendil-works/pi-coding-agent ${executorModelsFlag} \
-            --prefix PATH : "$out/bin" \
+            --prefix PATH : "$out/bin:$out/share/pi/ssh-bin" \
             --add-flags "${runtime}/scripts/launcher.mts ${pkgs.nono}/bin/nono ${rawPi}/bin/pi ${profile} ${pkgs.direnv}/bin/direnv ${pkgs.coreutils}/bin/env"
           makeBinaryWrapper ${pkgs.nodejs}/bin/node "$out/bin/pi-desktop" \
             --unset NODE_OPTIONS --unset NODE_PATH ${desktopTools} \
@@ -262,6 +273,9 @@ in
               GIT_TEST_BINARY = lib.getExe pkgs.git;
               NVIM_TEST_BINARY = lib.getExe pkgs.neovim-unwrapped;
               SSH_ADD_TEST_BINARY = lib.getExe' pkgs.openssh "ssh-add";
+              SSH_TEST_BINARY = lib.getExe' pkgs.openssh "ssh";
+              PI_TEST_SSH_CONFIG = "${launcher}/share/pi/ssh_config";
+              PI_TEST_SSH_BINARY = "${launcher}/share/pi/ssh-bin/ssh";
               HERDR_REPORTER_TEST_SOURCE = "${inputs.herdr}/src/integration/assets/pi/herdr-agent-state.ts";
               HERDR_READ_TEST_BINARY = lib.getExe inputs.herdr.packages.${pkgs.stdenv.hostPlatform.system}.default;
             } // lib.optionalAttrs isLinux {

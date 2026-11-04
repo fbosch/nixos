@@ -8,9 +8,11 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { createConnection, createServer } from "node:net";
-import { defaultCapabilities } from "../scripts/ipc/policy.mts";
+import { loadCapabilities } from "../scripts/ipc/policy.mts";
 import { neovimProvider } from "../scripts/ipc/providers/neovim/provider.mts";
 import { startJsonLinesServer } from "../scripts/ipc/json-lines-server.mts";
+
+const defaultCapabilities = loadCapabilities();
 
 const launchId = "0123456789abcdef0123456789abcdef";
 const capability = defaultCapabilities.capabilities["neovim-ask"];
@@ -60,7 +62,7 @@ test("Neovim provider binds, pushes prompts, acknowledges and replaces sessions 
     const ready = await events.next();
     const endpoint = join(root, "broker.sock");
     const context = { launchId, cwd: root, home, uid: process.getuid() };
-    service = neovimProvider.serve({ upstream: ready.socketPath, context }, capability, root);
+    service = await neovimProvider.serve({ upstream: ready.socketPath, context }, capability, root);
     server = await startJsonLinesServer({ capability, endpoint, ...service });
     assert.equal(statSync(endpoint).mode & 0o777, 0o600);
     // These requests must fail before creating an editor binding, not merely fail in Neovim.

@@ -6,13 +6,15 @@ import { createConnection, createServer } from "node:net";
 import { join } from "node:path";
 import { afterEach, test } from "node:test";
 import { pathToFileURL } from "node:url";
-import { defaultReportingCapability, validateReport } from "../scripts/ipc/providers/herdr/protocol.mts";
+import { getDefaultReportingCapability, validateReport } from "../scripts/ipc/providers/herdr/protocol.mts";
 import { startReportingServer } from "../scripts/ipc/providers/herdr/service.mts";
 import { assertPrivateIpcGrants } from "../scripts/ipc/private.mts";
 import { withScoped } from "./fixtures/scoped.mjs";
 import { grantPlan } from "../scripts/shared/grant-plan.mts";
 import { herdrProvider } from "../scripts/ipc/providers/herdr/provider.mts";
 import { session } from "./fixtures/ipc-provider.mjs";
+
+const defaultReportingCapability = getDefaultReportingCapability();
 
 const created = [];
 function fixture(embedded = false) {

@@ -53,8 +53,8 @@ function context(registry, label, signal) {
     sessionManager: { getBranch: () => [], getSessionId: () => "tool-search-ranking-fixture" },
   };
 }
-async function runSearch(registry, signal, query = "archive", limit = 2, globalSignal) {
-  return toolSearch.execute("rank-test", { query, limit }, signal, undefined, context(registry, "tool_search", globalSignal));
+async function runSearch(registry, signal, query = "archive", limit = 2, globalSignal, mode) {
+  return toolSearch.execute("rank-test", { query, limit, ...(mode === undefined ? {} : { mode }) }, signal, undefined, context(registry, "tool_search", globalSignal));
 }
 async function runScript(registry, code, signal, globalSignal, timeoutMs = 10000) {
   return codemode.execute("rank-script", {
@@ -96,6 +96,33 @@ function resetState() {
 }
 
 export default async function () {
+  for (const frontend of ["tool_search", "codemode"]) {
+    resetState();
+    const lookupRegistry = {};
+    let calls = 0;
+    const dispose = installToolSearchRanker(lookupRegistry, (request) => {
+      calls++;
+      assert.equal(request.mode, "lookup");
+      return { matches: request.documents
+        .filter((document) => document.name === "blue" && document.name === request.query.trim())
+        .map((document) => ({ name: document.name, score: 1 })) };
+    });
+    if (frontend === "tool_search") {
+      const blocked = await runSearch(lookupRegistry, undefined, "archive", 2, undefined, "lookup");
+      assert.deepEqual(blocked.details.loaded, []);
+      const found = await runSearch(lookupRegistry, undefined, "blue", 2, undefined, "lookup");
+      assert.deepEqual(found.details.loaded, ["blue"]);
+    } else {
+      const result = await runScript(lookupRegistry,
+        'const known = await searchTools("blue", { mode: "lookup", namespace: "chosen" }); if (known.length !== 1 || known[0].name !== "blue") throw new Error("known lookup missed"); if ((await searchTools("archive", { mode: "lookup" })).length) throw new Error("admission bypassed"); if ((await searchTools("bl", { mode: "lookup" })).length) throw new Error("prefix guessed"); if ((await searchTools("blue", { mode: "lookup", namespace: "absent" })).length) throw new Error("namespace bypassed"); return "lookup verified";');
+      assert.notEqual(result.isError, true, JSON.stringify(result));
+      assert.deepEqual(state.changes, []);
+    }
+    assert.ok(calls >= 2);
+    dispose();
+    await assert.rejects(runSearch({}, undefined, "archive", 2, undefined, "bad-mode"), /mode must be/);
+  }
+  resetState();
   const registry = {};
   let codemodeRequest;
   let nativeRequest;

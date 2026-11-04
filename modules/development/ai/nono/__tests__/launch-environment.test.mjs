@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { hostOnlyVariables, sessionEnvironment } from "../scripts/launch/environment.mts";
+import { configurePiPaths, hostOnlyVariables, sessionEnvironment } from "../scripts/launch/environment.mts";
 import { MODEL_EXECUTOR_SOCKET } from "../scripts/model-executor/launch.mts";
 
 const home = "/home/user";
@@ -34,6 +34,13 @@ test("the SSH agent reaches the session only after the host opts in", () => {
   const optedIn = sessionEnvironment({ HOME: home, SSH_AUTH_SOCK: socket, PI_NONO_SSH_AGENT: "1" }, { HOME: home, SSH_AUTH_SOCK: "/project/agent.sock" }, home, "linux");
   assert.equal(optedIn.SSH_AUTH_SOCK, socket);
   assert.equal(optedIn.PI_NONO_SSH_AGENT, "1");
+});
+
+test("packaged SSH precedes project OpenSSH while Pi keeps its immutable entry first", () => {
+  const host = { HOME: home, PATH: "/host/bin", PI_SSH_BIN: "/nix/store/pi/share/pi/ssh-bin" };
+  const session = sessionEnvironment(host, { ...host, PATH: "/project/openssh/bin", PI_SSH_BIN: "/project/ssh-bin" }, home, "linux");
+  configurePiPaths(session, home, "/nix/store/pi/bin");
+  assert.deepEqual(session.PATH.split(":"), ["/nix/store/pi/bin", host.PI_SSH_BIN, "/project/openssh/bin", `${home}/.pi/agent/bin`]);
 });
 
 test("macOS gets a runtime directory below the host TMPDIR, never a project one", () => {

@@ -4,7 +4,7 @@ import { startJsonLinesServer } from "./json-lines-server.mts";
 import { validateCapabilities } from "./policy.mts";
 import { privateIpcDirectory } from "./private.mts";
 import type { HelperArgument } from "./provider.mts";
-import { providers } from "./providers/registry.mts";
+import { providerLoaders } from "./providers/registry.mts";
 
 // Filter helper process for one JSON-lines capability: serves a private endpoint until stdin
 // closes or a termination signal arrives. ipc/helper-launch.mts starts it.
@@ -15,7 +15,8 @@ try {
   const { capability, home, launch }: HelperArgument = JSON.parse(process.argv[2]!);
   validateCapabilities({ version: 1, capabilities: { filter: capability }, profiles: { ordinary: {}, restricted: { filter: {} } } });
   directory = privateIpcDirectory(home, "ipc-");
-  const service = providers[capability.provider].serve(launch, capability, directory);
+  const provider = await providerLoaders[capability.provider]();
+  const service = await provider.serve(launch, capability, directory);
   dispose = service.dispose;
   const endpoint = join(directory, "s");
   const server = await startJsonLinesServer({ capability, endpoint, ...service });

@@ -133,6 +133,10 @@ On rvn-pc, the launcher build passed 215 tests and skipped 26, including eight d
 - `ipc/providers/herdr/provider.mts` and `protocol.mts` retain Herdr-specific context and session-file guards. `reader.mts` in the same directory projects passive workspace snapshots and the CLI handshake; it does not expose terminal control.
 - `modules/development/ai/pi/default.nix` builds `packages.<system>.pi-ipc-runtime`; `checks.<system>.nono-tests` runs the IPC tests with the rest of the nono suite. Tests use the assembled immutable runtime so module resolution matches production.
 
+Each helper imports only its selected provider. Provider initialization, including the Neovim RPC SDK import, finishes before the helper announces readiness. The launcher still applies unselected providers' environment scrubs before starting selected providers.
+
+The bundled default catalog is loaded lazily and cached after validation. Explicit manifest paths are always re-read and fully validated, including operations on unselected capabilities. Helpers validate the capability they receive without loading the bundled catalog.
+
 The scoped source tests run with:
 
 ```sh

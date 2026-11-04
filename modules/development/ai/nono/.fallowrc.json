@@ -9,6 +9,7 @@
     "scripts/ipc/helper.mts",
     "scripts/model-executor/server.mts",
     "scripts/launch/diagnostics-extension.mts",
+    "scripts/launch/ssh-transport.mts",
     "__tests__/**/*.test.mjs",
     "__tests__/fixtures/**"
   ],

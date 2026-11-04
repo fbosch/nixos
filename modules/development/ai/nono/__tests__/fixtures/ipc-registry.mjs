@@ -1,4 +1,6 @@
-import { defaultCapabilities, validateCapabilities } from "../../scripts/ipc/policy.mts";
+import { loadCapabilities, validateCapabilities } from "../../scripts/ipc/policy.mts";
+
+const defaultCapabilities = loadCapabilities();
 
 export function echoRegistry() {
   const registry = structuredClone(defaultCapabilities);

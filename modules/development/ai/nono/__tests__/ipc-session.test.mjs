@@ -4,12 +4,14 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, realpathSync, rmSync, 
 import { createConnection, createServer } from "node:net";
 import { join } from "node:path";
 import { test } from "node:test";
-import { defaultCapabilities, validateCapabilities } from "../scripts/ipc/policy.mts";
+import { loadCapabilities, validateCapabilities } from "../scripts/ipc/policy.mts";
 import { ipcCapabilities } from "../scripts/ipc/session.mts";
 import { launchArguments } from "../scripts/launch/plan.mts";
 import { echoRegistry } from "./fixtures/ipc-registry.mjs";
 import { withScoped } from "./fixtures/scoped.mjs";
 import { session } from "./fixtures/ipc-provider.mjs";
+
+const defaultCapabilities = loadCapabilities();
 
 function exchange(endpoint, request) {
   return new Promise((resolve, reject) => {

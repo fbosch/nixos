@@ -8,7 +8,7 @@ import { pathToFileURL } from "node:url";
 import { credentialEnvironmentForDirenv } from "./credentials/definitions.mts";
 import { credentialProxySession } from "./credentials/proxy.mts";
 import { credentialFilesOutsideStore, migrateCredentialStore, runningSandboxes } from "./credentials/store.mts";
-import { loadCapabilities, defaultCapabilities } from "./ipc/policy.mts";
+import { loadCapabilities } from "./ipc/policy.mts";
 import { ipcCapabilities, providerSession } from "./ipc/session.mts";
 import { sessionServices } from "./ipc/services.mts";
 import { nonoDiagnostics } from "./launch/diagnostics.mts";
@@ -45,7 +45,7 @@ function launchRawEditor(rawPi: string, args: string[]): Effect.Effect<ExitResul
     const environment: Environment = { ...inherited, PI_NONO_MODE: "disabled" };
     delete environment[MODEL_EXECUTOR_SOCKET];
     const agentDir = configurePiPaths(environment, home, (environment.PATH || "").split(delimiter)[0]);
-    const capability = defaultCapabilities.capabilities["neovim-ask"]!;
+    const capability = loadCapabilities().capabilities["neovim-ask"]!;
     if (capability.backend !== "json-lines") throw new Error("Invalid Neovim capability");
     const bound = yield* neovimProvider.start(environment, providerSession({ inherited, home, cwd: process.cwd(), agentDir, args }), capability);
     return spawnSync(rawPi, args, { stdio: "inherit", env: bound }) as ExitResult;
