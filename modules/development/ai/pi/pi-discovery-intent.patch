@@ -240,7 +240,7 @@
 --- a/packages/coding-agent/src/extensions/codemode/execute.ts
 +++ b/packages/coding-agent/src/extensions/codemode/execute.ts
 @@ -30,7 +30,12 @@
- import { formatSize } from "../../core/tools/truncate.ts";
+ import { formatSize, sliceHead, sliceTail } from "../../core/tools/truncate.ts";
  import { combineUsage } from "../../core/usage-totals.ts";
  import { writeOutputFile } from "../../utils/output-files.ts";
 -import { createToolSearchDocument, DEFAULT_TOOL_SEARCH_LIMIT, rankToolSearch } from "../tool-search/tool.ts";
