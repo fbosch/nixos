@@ -617,6 +617,40 @@ test("global, trusted project and docs-cache references receive canonical read-o
   assert.ok(!values(args(), "--allow").includes(home));
 });
 
+for (const platform of ["linux", "darwin"]) {
+  for (const useXdg of [false, true]) {
+    test(`personal config receives a canonical read-only grant on ${platform} (${useXdg ? "XDG" : "default"} config)`, () => {
+      const { root, home, cwd, agent, raw, profile } = fixture();
+      const config = useXdg ? join(root, "config") : join(home, ".config");
+      const target = join(root, "stow", ".config", "fbb");
+      mkdirSync(config, { recursive: true });
+      mkdirSync(target, { recursive: true });
+      writeFileSync(join(target, "TONE.md"), "Personal voice");
+      symlinkSync(target, join(config, "fbb"));
+      const environment = useXdg ? { XDG_CONFIG_HOME: config } : {};
+      const args = launchArguments(cwd, agent, home, environment, profile, raw, envBinary, platform);
+      const canonical = realpathSync(target);
+      assert.deepEqual(values(args, "--read"), [canonical, realpathSync(agent)]);
+      assert.ok(!values(args, "--allow").some(path => canonical === path || canonical.startsWith(`${path}/`)));
+    });
+    test(`personal config grants cover individual Stow file targets on ${platform} (${useXdg ? "XDG" : "default"} config)`, () => {
+      const { root, home, cwd, agent, raw, profile } = fixture();
+      const config = useXdg ? join(root, "config") : join(home, ".config");
+      const personal = join(config, "fbb");
+      const source = join(home, "dotfiles", ".config", "fbb");
+      mkdirSync(personal, { recursive: true });
+      mkdirSync(source, { recursive: true });
+      writeFileSync(join(source, "TONE.md"), "Personal voice");
+      symlinkSync(join(source, "TONE.md"), join(personal, "TONE.md"));
+      const environment = useXdg ? { XDG_CONFIG_HOME: config } : {};
+      const args = launchArguments(cwd, agent, home, environment, profile, raw, envBinary, platform);
+      const roots = [realpathSync(personal), realpathSync(source)];
+      assert.deepEqual(values(args, "--read"), [...roots, realpathSync(agent)]);
+      assert.ok(!values(args, "--allow").some(path => roots.some(root => root === path || root.startsWith(`${path}/`))));
+    });
+  }
+}
+
 test("retains narrow grants without Podman or SSH private-key access", () => {
   const { root, home, cwd, agent, raw, profile } = fixture();
   const config = join(root, "config");
@@ -635,7 +669,7 @@ test("retains narrow grants without Podman or SSH private-key access", () => {
   const args = launchArguments(cwd, agent, home, { XDG_CONFIG_HOME: config, XDG_DATA_HOME: data, XDG_CACHE_HOME: cache }, profile, raw, envBinary);
   assert.ok(values(args, "--allow").includes(fff));
   assert.ok(values(args, "--allow").includes(hashline));
-  assert.deepEqual(values(args, "--read"), [realpathSync(allow), realpathSync(agent)]);
+  assert.deepEqual(values(args, "--read"), [realpathSync(allow), realpathSync(join(config, "fbb")), realpathSync(agent)]);
   assert.ok(!values(args, "--allow").includes(realpathSync(join(data, "direnv"))));
   assert.ok(!values(args, "--allow").includes(realpathSync(allow)));
   // Grant order carries no meaning; grants apply in name order.

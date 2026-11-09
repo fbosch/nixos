@@ -6,6 +6,8 @@
       "pi-hashline": { "base": "config", "path": "pi-hashline-edit-pro", "override": "PI_HASHLINE_DIR", "type": "directory", "access": "readwrite" },
       "fff-frecency": { "base": "cache", "path": "nvim/fff_nvim", "override": "FFF_FRECENCY_DB", "type": "directory", "access": "readwrite" },
       "fff-history": { "base": "data", "path": "nvim/fff_queries", "override": "FFF_HISTORY_DB", "type": "directory", "access": "readwrite" },
+      "personal-config": { "base": "config", "path": "fbb", "type": "directory", "access": "read" },
+      "personal-config-source": { "base": "home", "path": "dotfiles/.config/fbb", "type": "directory", "access": "read" },
       "typos": { "base": "config", "path": "fbb/data/typos.abolish", "type": "file", "access": "read" },
       "git-config": { "base": "config", "path": "nix/git/config", "type": "file", "access": "read" },
       "direnv-approvals": { "base": "data", "path": "direnv/allow", "type": "directory", "access": "read" }
