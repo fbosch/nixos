@@ -26,7 +26,7 @@ export interface SandboxPolicy {
     shellStartup: Record<Base, string[]>;
     runtimeDirectory: { secrets: string[]; services: string[] };
   };
-  ssh: { publicFiles: string[]; defaultIdentity: string };
+  ssh: { publicFiles: string[]; agentIdentities: string[] };
   exceptions: { configurationRepositories: string[] };
 }
 

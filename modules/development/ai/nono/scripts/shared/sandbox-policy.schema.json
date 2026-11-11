@@ -91,7 +91,7 @@
     },
     "ssh": {
       "type": "object",
-      "required": ["publicFiles", "defaultIdentity"],
+      "required": ["publicFiles", "agentIdentities"],
       "additionalProperties": false,
       "properties": {
         "publicFiles": {
@@ -100,7 +100,7 @@
           "uniqueItems": true,
           "items": { "type": "string", "pattern": "^(config|known_hosts2?|(?!\\.)[A-Za-z0-9_.-]+\\.pub)$" }
         },
-        "defaultIdentity": { "description": "Private key in ~/.ssh that the launcher offers to load into the host agent. Never granted to the sandbox.", "$ref": "#/definitions/name" }
+        "agentIdentities": { "description": "Private keys in ~/.ssh that the host launcher ensures are usable in its SSH agent. Never granted to the sandbox.", "$ref": "#/definitions/names" }
       }
     },
     "exceptions": {

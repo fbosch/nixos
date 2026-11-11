@@ -65,13 +65,21 @@ On macOS, nono manages its credential proxy within the native launch path. The l
 
 This deliberately retains an exfiltration channel for data the agent can read. Direct TCP access to ports 22, 80, and 443 remains denied. The existing browser-port exceptions were not changed in this pass.
 
+## Host SSH-agent access
+
+The packaged launcher defaults `PI_NONO_SSH_AGENT=1`. When the host's `SSH_AUTH_SOCK` names an existing Unix socket, the sandbox receives connect access to that socket. Set `PI_NONO_SSH_AGENT=0` in the host launch environment to disable access. A project `.envrc` cannot enable access or select another socket.
+
+The agent can use identities loaded into the host SSH agent for authentication and Git signing. This grants signing authority; private-key files remain denied inside the sandbox.
+
+Interactive launches check every existing key in `pi.sandbox.ssh.agentIdentities`, which defaults to `id_ed25519` and `id_rsa`. The host launcher uses each public companion file with `ssh-add -T` to check agent usability and offers to load missing identities before confinement. These checks perform signing operations and may trigger agent confirmation prompts. Missing private-key files are skipped. Without a public companion, the launcher offers to load the key directly. Noninteractive launches do not load identities; the host must preload them.
+
 ## Azure DevOps Git over SSH
 
 The packaged Pi launcher puts a private SSH wrapper on its PATH. Inside nono, the wrapper supplies an SSH configuration that sends `ssh.dev.azure.com:22` and `vs-ssh.visualstudio.com:22` through the existing HTTP proxy with authenticated `CONNECT`. Other hosts retain their existing transport configuration. Raw Pi sessions use native SSH without the additional configuration.
 
 The helper connects only to the local nono proxy and rejects other destinations and ports. It does not grant direct port-22 access or read private keys. The proxy's unrestricted forwarding policy remains unchanged; the helper's Azure check is not a restriction on what an agent can otherwise request through that proxy.
 
-SSH authentication still requires the host to load the Azure key into its SSH agent and launch Pi with `PI_NONO_SSH_AGENT=1`. The sandbox receives only the existing agent socket. Existing SSH identity settings and host-key verification still apply. Accept new host keys on the host, since sandboxed `known_hosts` files are read-only.
+Azure authentication requires its configured identity in the host agent. The default interactive preload includes `id_rsa`; noninteractive launches need that identity loaded beforehand. The sandbox receives only the existing agent socket. Existing SSH identity settings and host-key verification still apply. Accept new host keys on the host, since sandboxed `known_hosts` files are read-only.
 
 Rebuild the launcher and start a new Pi session to receive the wrapper. `/reload` cannot change a running session's PATH or grants. `ssh-transport.test.mjs` covers CONNECT authentication, SSH byte forwarding, malformed/refused responses, destination validation, and SSH configuration selection. A real Azure push remains a deployment check.
 
@@ -120,7 +128,7 @@ Then verify a fresh interactive session, FFF history, model availability, and br
 
 ## Verification
 
-`agent-protection.test.mjs`, run by `nono-tests`, starts a new native nono sandbox from a Nix check. It uses synthetic credential files, a live fixture SSH-agent socket, and a Stow-style Fish configuration. It tests both the default and configured Pi directories in an unrelated-project session. The same check runs `config-editing.test.mjs` in fresh sandboxes for both configuration roots, a registered worktree, and an unrelated project. Those probes verify atomic instruction/settings/extension edits, including after changing directories, while secret, Fish startup, SSH-agent, network, and reference-approval denials remain enforced. It also starts the packaged Pi CLI in RPC mode and verifies that an extension selected by the existing settings registers its command. It does not make a model inference request.
+`agent-protection.test.mjs`, run by `nono-tests`, starts a new native nono sandbox from a Nix check. It uses synthetic credential files, a live fixture SSH-agent socket, and a Stow-style Fish configuration. It tests both the default and configured Pi directories in an unrelated-project session. The same check runs `config-editing.test.mjs` in fresh sandboxes for both configuration roots, a registered worktree, and an unrelated project. Those probes verify atomic instruction/settings/extension edits, including after changing directories, while secret, Fish startup, ungranted SSH-agent, network, and reference-approval denials remain enforced. It also starts the packaged Pi CLI in RPC mode and verifies that an extension selected by the existing settings registers its command. It does not make a model inference request.
 
 | Finding | Before | After and verification | Result |
 | --- | --- | --- | --- |
@@ -131,7 +139,7 @@ Then verify a fresh interactive session, FFF history, model availability, and br
 | Direct HTTPS | Previously fixed. | Requested curl probe to `https://ifconfig.me`; separate loopback TCP probes to ports 22, 80, and 443. | Curl returns `000`. The TCP probes return `EACCES`. |
 | Direct SSH | Previously fixed. | Bash opens `/dev/tcp/140.82.121.4/22`. | Denied. |
 | Claude OAuth file | Previously fixed. | `cat "$HOME/.claude/.credentials.json"` against a real synthetic file. | Denied. |
-| SSH agent | Previously fixed by default. | `ssh-add -l` with `SSH_AUTH_SOCK` pointing to the live fixture socket. | Denied. |
+| SSH agent without a launcher grant | Previously fixed by default. | `ssh-add -l` with `SSH_AUTH_SOCK` pointing to the live fixture socket. | Denied. |
 | Fish startup file | Previously fixed. | `echo p >> "$HOME/.config/fish/config.fish"` through a Stow symlink. | Denied. |
 | Kernel core pattern | Previously denied. | `echo p >> /proc/sys/kernel/core_pattern`. | Denied. |
 | Other-process environment | Previously denied. | `cat /proc/1/environ`. | Denied. |

@@ -144,6 +144,7 @@ let
             --unset NODE_OPTIONS --unset NODE_PATH \
             --set PI_IPC_MANIFEST "${manifest}" --set PI_SANDBOX_POLICY "${sandboxPolicy}" ${desktopTools} \
             --set PI_NONO_DIAGNOSTICS 1 \
+            --set-default PI_NONO_SSH_AGENT 1 \
             --set PI_SSH_ADD ${pkgs.openssh}/bin/ssh-add \
             --set PI_SSH_BIN "$out/share/pi/ssh-bin" \
             --set PI_MODEL_EXECUTOR_PACKAGE ${executorPi}/lib/pi/node_modules/@earendil-works/pi-coding-agent ${executorModelsFlag} \
@@ -273,6 +274,8 @@ in
               GIT_TEST_BINARY = lib.getExe pkgs.git;
               NVIM_TEST_BINARY = lib.getExe pkgs.neovim-unwrapped;
               SSH_ADD_TEST_BINARY = lib.getExe' pkgs.openssh "ssh-add";
+              SSH_AGENT_TEST_BINARY = lib.getExe' pkgs.openssh "ssh-agent";
+              SSH_KEYGEN_TEST_BINARY = lib.getExe' pkgs.openssh "ssh-keygen";
               SSH_TEST_BINARY = lib.getExe' pkgs.openssh "ssh";
               PI_TEST_SSH_CONFIG = "${launcher}/share/pi/ssh_config";
               PI_TEST_SSH_BINARY = "${launcher}/share/pi/ssh-bin/ssh";
@@ -280,7 +283,6 @@ in
               HERDR_READ_TEST_BINARY = lib.getExe inputs.herdr.packages.${pkgs.stdenv.hostPlatform.system}.default;
             } // lib.optionalAttrs isLinux {
               NONO_TEST_BINARY = lib.getExe pkgs.nono;
-              SSH_KEYGEN_TEST_BINARY = lib.getExe' pkgs.openssh "ssh-keygen";
               GH_TEST_BINARY = lib.getExe pkgs.gh;
               WT_TEST_BINARY = "${pkgs.worktrunk}/bin/wt";
               GIO_TEST_BINARY = "${pkgs.glib.bin}/bin/gio";

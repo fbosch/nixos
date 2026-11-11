@@ -34,6 +34,9 @@ test("the SSH agent reaches the session only after the host opts in", () => {
   const optedIn = sessionEnvironment({ HOME: home, SSH_AUTH_SOCK: socket, PI_NONO_SSH_AGENT: "1" }, { HOME: home, SSH_AUTH_SOCK: "/project/agent.sock" }, home, "linux");
   assert.equal(optedIn.SSH_AUTH_SOCK, socket);
   assert.equal(optedIn.PI_NONO_SSH_AGENT, "1");
+  const disabled = sessionEnvironment({ HOME: home, SSH_AUTH_SOCK: socket, PI_NONO_SSH_AGENT: "0" }, { HOME: home, SSH_AUTH_SOCK: "/project/agent.sock", PI_NONO_SSH_AGENT: "1" }, home, "linux");
+  assert.equal(disabled.SSH_AUTH_SOCK, undefined);
+  assert.equal(disabled.PI_NONO_SSH_AGENT, undefined);
 });
 
 test("packaged SSH precedes project OpenSSH while Pi keeps its immutable entry first", () => {

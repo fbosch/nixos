@@ -60,10 +60,7 @@ in
 
     ssh = {
       publicFiles = list "Public files in ~/.ssh the sandbox may read. The schema rejects anything but config, known_hosts* and *.pub.";
-      defaultIdentity = mkOption {
-        type = types.str;
-        description = "Key the launcher offers to load into the host SSH agent. Never granted to the sandbox.";
-      };
+      agentIdentities = list "Keys in ~/.ssh the host launcher ensures are usable in its SSH agent. Never granted to the sandbox.";
     };
 
     exceptions.configurationRepositories = mkOption {

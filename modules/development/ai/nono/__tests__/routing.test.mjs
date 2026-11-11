@@ -66,3 +66,22 @@ test("wrapper and Pi's actual shell helper keep writable launchers behind immuta
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test("packaged launcher enables SSH-agent access by default and preserves a host opt-out", () => {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "pi-ssh-routing-")));
+  try {
+    const home = join(root, "home");
+    mkdirSync(home);
+    const environment = { ...process.env, HOME: home, PI_CODING_AGENT_DIR: join(home, ".pi", "agent") };
+    delete environment.PI_NONO_SSH_AGENT;
+    for (const mode of [undefined, "0"]) {
+      const env = { ...environment, ...(mode === undefined ? {} : { PI_NONO_SSH_AGENT: mode }) };
+      const child = spawnSync(probe, ["--no-sandbox"], { cwd: root, env, encoding: "utf8", timeout: 10000 });
+      assert.ifError(child.error);
+      assert.equal(child.status, 0, child.stderr);
+      assert.equal(JSON.parse(child.stdout).sshAgentMode, mode ?? "1");
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

@@ -82,19 +82,30 @@ export function assertReadOnlySshGrants(plan: GrantPlan, cwd: string): Effect.Ef
 }
 
 // Sandboxed SSH and Git signing only reach keys through the agent; the private key file stays denied.
-// Load the default key on the host first, while the launcher still owns the terminal for a passphrase prompt.
+// Load configured keys on the host first, while the launcher still owns the terminal for a passphrase prompt.
 export type SshIdentityResult = "skipped" | "loaded" | "added" | "failed";
 
 export function ensureSshIdentity(environment: Environment, home: string, sshAdd: string | undefined, { run = spawnSync, interactive = process.stdin.isTTY === true }: { run?: typeof spawnSync; interactive?: boolean } = {}): SshIdentityResult {
   const socket = environment.SSH_AUTH_SOCK;
-  const key = join(home, ".ssh", sandboxPolicy.ssh.defaultIdentity);
-  if (!interactive || !socket || !sshAdd || !isAbsolute(sshAdd) || !existingFile(key)) return "skipped";
+  if (!interactive || !socket || !sshAdd || !isAbsolute(sshAdd)) return "skipped";
+  const keys = sandboxPolicy.ssh.agentIdentities.map(name => join(home, ".ssh", name)).filter(existingFile);
+  if (keys.length === 0) return "skipped";
   const env = { SSH_AUTH_SOCK: socket, HOME: home };
   // ssh-add -l exits 1 for an empty agent and 2 when no agent is reachable.
   const listed = run(sshAdd, ["-l"], { env, stdio: "ignore", timeout: 5000 });
-  if (listed.status !== 1) return listed.status === 0 ? "loaded" : "skipped";
-  const added = run(sshAdd, [key], { env, stdio: "inherit", timeout: 120_000 });
-  if (added.status === 0) return "added";
-  console.warn(`pi sandbox launch: ssh-add did not load ~/.ssh/${sandboxPolicy.ssh.defaultIdentity}; SSH and commit signing will fail inside Pi.`);
-  return "failed";
+  if (listed.status !== 0 && listed.status !== 1) return "skipped";
+  let result: SshIdentityResult = "loaded";
+  for (const key of keys) {
+    // -T checks this public key with the agent, not just whether any identity is loaded.
+    const publicKey = `${key}.pub`;
+    if (existingFile(publicKey) && run(sshAdd, ["-T", publicKey], { env, stdio: "ignore", timeout: 5000 }).status === 0) continue;
+    const added = run(sshAdd, [key], { env, stdio: "inherit", timeout: 120_000 });
+    if (added.status === 0) {
+      if (result !== "failed") result = "added";
+      continue;
+    }
+    console.warn(`pi sandbox launch: ssh-add did not load ~/.ssh/${basename(key)}; SSH operations requiring this identity will fail inside Pi.`);
+    result = "failed";
+  }
+  return result;
 }

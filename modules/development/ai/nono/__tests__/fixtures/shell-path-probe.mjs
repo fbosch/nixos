@@ -27,4 +27,5 @@ console.log(JSON.stringify({
   launchPath: process.env.PATH,
   shellPath: environment.PATH,
   pi: child.stdout.trim(),
+  sshAgentMode: process.env.PI_NONO_SSH_AGENT ?? null,
 }));
