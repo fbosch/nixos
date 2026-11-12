@@ -132,6 +132,10 @@
                   sources = bunSources;
                 };
               });
+          # shortcut: Supply AWS-LC until nixpkgs' nono declares it as a build input.
+          nono = prev.nono.overrideAttrs (old: {
+            buildInputs = (old.buildInputs or [ ]) ++ [ final.aws-lc ];
+          });
         };
 
   };

@@ -1,32 +1,39 @@
 diff --git a/src/modules/wlr/taskbar.cpp b/src/modules/wlr/taskbar.cpp
 --- a/src/modules/wlr/taskbar.cpp
 +++ b/src/modules/wlr/taskbar.cpp
-@@ -102,1 +102,10 @@ Task::Task(const waybar::Bar& bar, const Json::Value& config, Taskbar* tbar,
-   button.add(content_);
-+  if (config_["truncate"].isBool() && config_["truncate"].asBool()) {
-+    text_before_.set_single_line_mode(true);
-+    text_before_.set_ellipsize(Pango::ELLIPSIZE_END);
-+    text_before_.set_line_wrap(false);
-+
-+    text_after_.set_single_line_mode(true);
-+    text_after_.set_ellipsize(Pango::ELLIPSIZE_END);
-+    text_after_.set_line_wrap(false);
-+  }
-@@ -464,1 +464,8 @@ void Task::update() {
-  std::string title = title_;
-+  std::string display_title = title_;
+@@ -612,16 +612,24 @@ void Task::update() {
+
+   bool markup = config_["markup"].isBool() ? config_["markup"].asBool() : false;
+   std::string title = toSingleLine(title_);
++  std::string display_title = title;
 +  if (config_["max-length"].isInt() && config_["max-length"].asInt() > 0) {
 +    const auto max_length = static_cast<Glib::ustring::size_type>(config_["max-length"].asInt());
 +    if (Glib::ustring(display_title).length() > max_length) {
 +      display_title = Glib::ustring(display_title).substr(0, max_length) + "…";
 +    }
 +  }
-@@ -468,1 +475,2 @@ void Task::update() {
-  title = Glib::Markup::escape_text(title);
+   std::string name = toSingleLine(name_);
+   std::string app_id = toSingleLine(app_id_);
+   if (markup) {
+     title = Glib::Markup::escape_text(title);
 +    display_title = Glib::Markup::escape_text(display_title);
-@@ -474,1 +482,1 @@ void Task::update() {
+     name = Glib::Markup::escape_text(name);
+     app_id = Glib::Markup::escape_text(app_id);
+   }
+   if (!format_before_.empty()) {
+     auto txt =
 -        fmt::format(fmt::runtime(format_before_), fmt::arg("title", title), fmt::arg("name", name),
 +        fmt::format(fmt::runtime(format_before_), fmt::arg("title", display_title), fmt::arg("name", name),
-@@ -488,1 +496,1 @@ void Task::update() {
+                     fmt::arg("app_id", app_id), fmt::arg("state", state_string()),
+                     fmt::arg("short_state", state_string(true)));
+
+@@ -635,8 +643,8 @@ void Task::update() {
+   }
+   if (!format_after_.empty()) {
+     auto txt =
 -        fmt::format(fmt::runtime(format_after_), fmt::arg("title", title), fmt::arg("name", name),
 +        fmt::format(fmt::runtime(format_after_), fmt::arg("title", display_title), fmt::arg("name", name),
+                     fmt::arg("app_id", app_id), fmt::arg("state", state_string()),
+                     fmt::arg("short_state", state_string(true)));
+
+     txt = waybar::util::rewriteString(txt, config_["rewrite"]);

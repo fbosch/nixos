@@ -9,10 +9,6 @@
           ./patches/waybar-taskbar-icon-resolution.patch
         ];
         postPatch = (old.postPatch or "") + ''
-          substituteInPlace src/modules/hyprland/workspace.cpp \
-            --replace-fail \
-            'm_ipc.getSocket1Reply("dispatch workspace " + std::to_string(id()));' \
-            'm_ipc.getSocket1Reply("dispatch hl.dsp.focus({ workspace = \"" + std::to_string(id()) + "\" })");'
 
           substituteInPlace src/modules/sni/item.cpp \
             --replace-fail \

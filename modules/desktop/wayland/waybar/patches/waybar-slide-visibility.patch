@@ -1,18 +1,17 @@
 diff --git a/include/bar.hpp b/include/bar.hpp
-index 7dce4d7..d25c6b4 100644
 --- a/include/bar.hpp
 +++ b/include/bar.hpp
-@@ -84,6 +84,7 @@ class Bar : public sigc::trackable {
-   void setPosition(Gtk::PositionType position);
+@@ -133,6 +133,7 @@ class Bar : public sigc::trackable {
    void onConfigure(GdkEventConfigure* ev);
    void configureGlobalOffset(int width, int height);
 +  void animateVisibility(bool visible);
    void onOutputGeometryChanged();
-
-   /* Copy initial set of modes to allow customization */
-@@ -94,5 +95,12 @@ class Bar : public sigc::trackable {
-   struct bar_margins margins_;
-   uint32_t width_, height_;
+ #ifdef HAVE_BAR_BLUR
+   void setupBackgroundBlur();
+ #endif
+@@ -146,6 +147,13 @@ class Bar : public sigc::trackable {
+   /* Scale of the last buffer GTK painted for this window (0: nothing painted yet) */
+   int painted_scale_ = 0;
    bool passthrough_;
 +  int slide_margin_ = 0;
 +  guint slide_tick_callback_ = 0;
@@ -21,36 +20,31 @@ index 7dce4d7..d25c6b4 100644
 +  int slide_start_ = 0;
 +  int slide_target_ = 0;
 +  double slide_ease_out_exponent_ = 1;
-
-   Gtk::Box left_;
+ #ifdef HAVE_BAR_BLUR
+   bool blur_enabled_ = false;
+   struct ext_background_effect_surface_v1* background_effect_surface_ = nullptr;
 diff --git a/src/bar.cpp b/src/bar.cpp
-index 2b07f65..c65b991 100644
 --- a/src/bar.cpp
 +++ b/src/bar.cpp
-@@ -1,5 +1,7 @@
- #include "bar.hpp"
-
-+#include <algorithm>
-+#include <cmath>
- #include <gtk-layer-shell.h>
+@@ -4,6 +4,7 @@
  #include <spdlog/spdlog.h>
 
-@@ -169,6 +171,7 @@ waybar::Bar::Bar(struct waybar_output* w_output, const Json::Value& w_config)
+ #include <algorithm>
++#include <cmath>
+ #include <ostream>
+ #include <type_traits>
+
+@@ -269,6 +270,7 @@ waybar::Bar::Bar(struct waybar_output* w_output, const Json::Value& w_config)
      margins_ = {.top = gaps, .right = gaps, .bottom = gaps, .left = gaps};
    }
 
 +  slide_margin_ = margins_.bottom;
    window.signal_configure_event().connect_notify(sigc::mem_fun(*this, &Bar::onConfigure));
-   output->monitor->property_geometry().signal_changed().connect(
-       sigc::mem_fun(*this, &Bar::onOutputGeometryChanged));
-@@ -366,11 +369,58 @@ void waybar::Bar::setVisible(bool value) {
-   visible = value;
-   if (auto mode = config.get("mode", {}); mode.isString()) {
-     setMode(visible ? config["mode"].asString() : MODE_INVISIBLE);
--  } else {
--    setMode(visible ? MODE_DEFAULT : MODE_INVISIBLE);
-+  } else {
-+    setMode(visible ? MODE_DEFAULT : MODE_INVISIBLE);
+   window.signal_draw().connect(
+       [this](const Cairo::RefPtr<Cairo::Context>&) {
+@@ -670,8 +672,54 @@ void waybar::Bar::setVisible(bool value) {
+   } else {
+     setMode(visible ? MODE_DEFAULT : MODE_INVISIBLE);
    }
 +  animateVisibility(visible);
  }
@@ -88,8 +82,7 @@ index 2b07f65..c65b991 100644
 +        bar->slide_margin_ = static_cast<int>(bar->slide_start_ +
 +                                              (bar->slide_target_ - bar->slide_start_) * progress);
 +        gtk_layer_set_margin(bar->window.gobj(), GTK_LAYER_SHELL_EDGE_BOTTOM, bar->slide_margin_);
-+        gtk_layer_try_force_commit(bar->window.gobj());
-+        wl_display_flush(Client::inst()->wl_display);
++        bar->forceLayerCommit();
 +
 +        if (linear_progress == 1.0) {
 +          bar->slide_tick_callback_ = 0;
