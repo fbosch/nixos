@@ -29,7 +29,11 @@ let
     in
     {
       environment.systemPackages = with pkgs; [
-        fnm
+        # shortcut: Supply zstd-sys dependencies until nixpkgs' fnm declares them.
+        (fnm.overrideAttrs (previous: {
+          nativeBuildInputs = (previous.nativeBuildInputs or [ ]) ++ [ pkg-config ];
+          buildInputs = (previous.buildInputs or [ ]) ++ [ zstd ];
+        }))
         bun
         nodejs_24
         yarn

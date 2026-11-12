@@ -16,7 +16,6 @@ let
         ++ lib.optionals stdenv.hostPlatform.isLinux [
           s-tui
           microfetch
-          below
         ];
     };
 in
