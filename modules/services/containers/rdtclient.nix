@@ -180,7 +180,7 @@ in
         environment.etc.${userQuadletPath}.text = ''
           [Container]
           ContainerName=rdtclient
-          Image=docker.io/rogerfar/rdtclient:2.0.142
+          Image=docker.io/rogerfar/rdtclient:2.0.143
           UserNS=keep-id
           User=${toString cfg.userId}:${toString primaryGroupId}
           GroupAdd=keep-groups
