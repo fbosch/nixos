@@ -2,11 +2,15 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { test } from "node:test";
+import { pathToFileURL } from "node:url";
 import { runInNewContext } from "node:vm";
 
 const root = process.env.PI_TEST_PACKAGE;
 assert.ok(root, "PI_TEST_PACKAGE must point to the unpacked Pi package");
 const source = await readFile(join(root, "dist/extensions/mcp/index.js"), "utf8");
+const { mcpServerSummary } = await import(
+  pathToFileURL(join(root, "../pi-mcp/dist/index.js")).href
+);
 
 assert.match(
   source,
@@ -50,6 +54,7 @@ function fixture(exposure = "codemode", errors = []) {
       join, resolve: join, getAgentDir: () => "/tmp/pi-mcp-test",
       openBrowser() {},
       mcpNamespace: (name) => `mcp__${name}`,
+      mcpServerSummary,
       CODEMODE_TOOL_NAME: "codemode", TOOL_SEARCH_TOOL_NAME: "tool_search",
       LIST_MCP_RESOURCES_TOOL: "list_mcp_resources",
       LIST_MCP_RESOURCE_TEMPLATES_TOOL: "list_mcp_resource_templates",

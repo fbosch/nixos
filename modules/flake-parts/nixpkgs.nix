@@ -132,9 +132,19 @@
                   sources = bunSources;
                 };
               });
-          # shortcut: Supply AWS-LC until nixpkgs' nono declares it as a build input.
-          nono = prev.nono.overrideAttrs (old: {
-            buildInputs = (old.buildInputs or [ ]) ++ [ final.aws-lc ];
+          # shortcut: Backport nixpkgs#587533 until the pin includes Glances' PyJWT migration.
+          glances = prev.glances.overridePythonAttrs (old: {
+            version = "4.5.9";
+            src = final.fetchFromGitHub {
+              owner = "nicolargo";
+              repo = "glances";
+              tag = "v4.5.9";
+              hash = "sha256-CvT9GQ29xXTVxC7V2nGmfDhHLsAtF61+XMMLG8cmHww=";
+            };
+            dependencies =
+              builtins.filter (dependency: (dependency.pname or "") != "python-jose") old.dependencies
+              ++ [ final.python3Packages.pyjwt ];
+            nativeCheckInputs = (old.nativeCheckInputs or [ ]) ++ [ final.python3Packages.pysmart ];
           });
         };
 
