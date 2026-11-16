@@ -1088,11 +1088,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1794327655,
-        "narHash": "sha256-ofj65V1rfG1JJZPD/x+s/wxqBvZAMrpu3kfWHFE1k20=",
+        "lastModified": 1794512224,
+        "narHash": "sha256-2FMSr9C/1PpifOSYXwacqpuJ9MoQSylQUGJ9vY6BsAc=",
         "owner": "hyprwm",
         "repo": "hyprsunset",
-        "rev": "86ebc74562748f994821ea26404352309f526e9e",
+        "rev": "cea48a6f82126d70f9c9ae1e6696ceb2ce35049e",
         "type": "github"
       },
       "original": {
