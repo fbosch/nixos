@@ -5,7 +5,8 @@ pkgs.stdenvNoCC.mkDerivation {
   version = "final";
 
   src = pkgs.fetchFromGitHub {
-    owner = "Born2Root";
+    # The upstream repository is unavailable; this fork preserves the pinned source hash.
+    owner = "eagnespuerto";
     repo = "Fast-Font";
     rev = "21f7b0556d36f03db7415efe1702d2ec38da76ba";
     hash = "sha256-oU7cNO0p2yGN5WJs8HCzQXGil6az3cuz4aYeeCnqqk4=";

@@ -14,8 +14,8 @@ pkgs.stdenvNoCC.mkDerivation {
         stripRoot = false;
       };
       tahoma = pkgs.fetchurl {
-        url = "https://gitlab.winehq.org/wine/wine/-/raw/master/fonts/tahoma.ttf?ref_type=heads&inline=false";
-        hash = "sha256-kPGrrU2gzgPaXSJ37nWpYAzoEtN8kOq3bgg4/6eTflU=";
+        url = "https://raw.githubusercontent.com/wine-mirror/wine/44ff04cad0bd208a49b92e59bdc3300ff42ad9a9/fonts/tahoma.ttf";
+        hash = "sha256-OhK9HRoOMtsGPAaEfL7A5nwaSGXOkipM5JuFVzERhDg=";
       };
     in
     ''

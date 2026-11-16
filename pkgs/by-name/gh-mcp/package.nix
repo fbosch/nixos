@@ -10,15 +10,15 @@ let
   sources = {
     aarch64-darwin = {
       name = "darwin-arm64";
-      hash = "sha256-Uzmu/ouRWXKIvQukMFFZ/SudPHyYbt6akeWNlHdmzfc=";
+      hash = "sha256-L+7klpuNLHkKVbmKJjEadrQNqWN67RzmlrvrCQsBIOI=";
     };
     x86_64-darwin = {
       name = "darwin-amd64";
-      hash = "sha256-gvxL9HMUulZpdb+sGViZCxQDDtUD6DOUSrxFLEC0fdY=";
+      hash = "sha256-JT0JQtkCaXZu2fDyCFUegq5gWhQ4q8UQNIuB+cKZ0qM=";
     };
     aarch64-linux = {
       name = "linux-arm64";
-      hash = "sha256-E+PNfF3uzwCGmR9yRmZ01OW3FCkiL06xCRRZi4qNQyY=";
+      hash = "sha256-JpWD1snNPrn1P7dDNi5FOtQ4QILG8Llpuonrh5AyxdQ=";
     };
     x86_64-linux = {
       name = "linux-amd64";
