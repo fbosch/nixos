@@ -1942,13 +1942,14 @@ diff --git a/packages/coding-agent/src/main.ts b/packages/coding-agent/src/main.
 index 70d2704..8ac05db 100644
 --- a/packages/coding-agent/src/main.ts
 +++ b/packages/coding-agent/src/main.ts
-@@ -46,6 +46,7 @@ import { exportFromFile } from "./core/export-html/index.ts";
+@@ -49,7 +49,8 @@ import { exportFromFile } from "./core/export-html/index.ts";
  import type { InlineExtension } from "./core/extensions/types.ts";
  import { applyHttpProxySettings, configureHttpDispatcher } from "./core/http-dispatcher.ts";
  import { resolveCliModel, resolveModelScopeWithDiagnostics, type ScopedModel } from "./core/model-resolver.ts";
 +import { MODEL_EXECUTOR_SOCKET_ENV } from "./core/model-executor.ts";
  import { ModelRuntime } from "./core/model-runtime.ts";
  import { restoreStdout, takeOverStdout } from "./core/output-guard.ts";
+ import type { ProgressEvent } from "./core/package-manager.ts";
  import { type AppMode, resolveProjectTrusted } from "./core/project-trust.ts";
 @@ -146,6 +147,16 @@ async function runAuthCommand(args: string[]): Promise<boolean> {
  		return true;

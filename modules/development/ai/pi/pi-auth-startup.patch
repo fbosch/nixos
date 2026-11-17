@@ -168,10 +168,8 @@ diff --git a/packages/coding-agent/src/core/agent-session.ts b/packages/coding-a
  import { createToolNameMatcher, isMcpToolName } from "./mcp-servers.ts";
  import { type BashExecutionMessage, type CustomMessage, convertToLlm } from "./messages.ts";
  import { ModelRegistry } from "./model-registry.ts";
-@@ -3691,6 +3692,11 @@
- 			this._extensionShutdownHandler ||
- 			this._extensionErrorListener;
- 		if (hasBindings) {
+@@ -3866,4 +3867,9 @@
+ 		if (this._extensionsBound) {
 +			await emitBeforeModelAvailability(this._extensionRunner, {
 +				type: "before_model_availability",
 +				reason: "reload",

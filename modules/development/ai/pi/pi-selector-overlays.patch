@@ -183,7 +183,7 @@ diff --git a/packages/coding-agent/src/modes/interactive/components/tree-selecto
  		}
 +	}
 +
-+	render(width: number): string[] {
++	render(width: number): readonly string[] {
 +		if (!this.getViewportHeight) return super.render(width);
 +		const viewportHeight = this.getViewportHeight();
 +		this.treeHelp.setVisible(true);
@@ -287,7 +287,7 @@ diff --git a/packages/coding-agent/src/modes/interactive/components/user-message
  		}
  	}
  
-+	render(width: number): string[] {
++	render(width: number): readonly string[] {
 +		if (!this.getViewportHeight) return super.render(width);
 +		const viewportHeight = this.getViewportHeight();
 +		this.messageList.setMaxVisible(DEFAULT_MAX_VISIBLE_MESSAGES);
