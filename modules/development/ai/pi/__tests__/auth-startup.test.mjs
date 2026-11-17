@@ -22,7 +22,7 @@ const { AuthStorage } = await load("core/auth-storage.js");
 const { SessionManager } = await load("core/session-manager.js");
 const { SettingsManager } = await load("core/settings-manager.js");
 const { DefaultResourceLoader } = await load("core/resource-loader.js");
-const { resolveModelScope } = await load("core/model-resolver.js");
+const { resolveModelScopeWithDiagnostics } = await load("core/model-resolver.js");
 
 async function fixture(run) {
   const dir = await mkdtemp(join(tmpdir(), "pi-auth-startup-"));
@@ -144,10 +144,11 @@ test("CLI service ordering, replacement metadata, and reload before callback", a
         },
       });
       // This is the CLI's pre-SDK model-scope resolution seam.
-      const scope = await resolveModelScope(
+      const { scopedModels: scope, diagnostics } = await resolveModelScopeWithDiagnostics(
         ["openai-codex/*"],
         services.modelRuntime,
       );
+      assert.deepEqual(diagnostics, []);
       assert.ok(
         scope.length > 0,
         "selected profile must be visible before CLI scope resolution",

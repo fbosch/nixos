@@ -12,9 +12,7 @@ diff --git a/packages/coding-agent/install-lock/package-lock.json b/packages/cod
 -			"dependencies": {
 +			"dependencies": {
 +				"esbuild": "0.28.2",
-@@ -557,6 +558,422 @@
- 				"node": ">=22.19.0"
- 			}
+@@ -568,2 +569,418 @@
  		},
 +		"node_modules/@esbuild/aix-ppc64": {
 +			"version": "0.28.2",
@@ -433,9 +431,7 @@ diff --git a/packages/coding-agent/install-lock/package-lock.json b/packages/cod
 +			}
 +		},
  		"node_modules/@google/genai": {
- 			"version": "2.21.0",
- 			"resolved": "https://registry.npmjs.org/@google/genai/-/genai-2.21.0.tgz",
-@@ -881,6 +1298,47 @@
+@@ -896,6 +1313,47 @@
  				"safe-buffer": "^5.0.1"
  			}
  		},
