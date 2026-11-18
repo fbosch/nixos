@@ -7,7 +7,6 @@ let
         [
           htop
           btop
-          glances
           dust
           dua
           ncdu
