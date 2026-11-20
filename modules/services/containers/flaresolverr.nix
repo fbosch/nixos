@@ -38,7 +38,7 @@ in
 
         imageTag = lib.mkOption {
           type = lib.types.str;
-          default = "v3.5.0";
+          default = "v3.5.2";
           description = "FlareSolverr Docker image tag";
         };
       };
