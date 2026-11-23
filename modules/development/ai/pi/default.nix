@@ -322,11 +322,57 @@ in
         packages = lib.mkForce {
           pi-sandbox = launcher;
           pi-raw = mkPi pkgs;
-          pi-ipc-candidate = launcher;
           pi-ipc-runtime = mkIpcRuntime pkgs { };
         };
         checks = lib.mkMerge [
           {
+            pi-activation = pkgs.runCommand "pi-activation" { } ''
+              export HOME="$TMPDIR/home" DRY_RUN_CMD=""
+              mkdir "$HOME"
+              activate=${pkgs.writeShellScript "secure-pi-agent-directory" securePiAgentDirectory.data}
+              agent="$HOME/.pi/agent"
+              legacy="$agent/bin/pi"
+
+              DRY_RUN_CMD=echo "$activate"
+              test ! -e "$agent"
+              "$activate"
+              test "$(${pkgs.coreutils}/bin/stat -c %a "$agent")" = 700
+
+              mkdir "$agent/bin"
+              for target in "$HOME/dotfiles/.pi/agent/bin/pi" "${inputs.dotfiles}/.pi/agent/bin/pi"; do
+                ln -s "$target" "$legacy"
+                DRY_RUN_CMD=echo "$activate"
+                test -L "$legacy"
+                "$activate"
+                test ! -L "$legacy"
+                test ! -e "$legacy"
+              done
+
+              expectRefusal() {
+                if "$activate"; then
+                  echo "activation unexpectedly succeeded: $1" >&2
+                  exit 1
+                fi
+              }
+
+              echo keep > "$legacy"
+              expectRefusal "unrelated file"
+              test "$(cat "$legacy")" = keep
+              rm "$legacy"
+              ln -s "$HOME/unrelated" "$legacy"
+              expectRefusal "unrelated alias"
+              test "$(readlink "$legacy")" = "$HOME/unrelated"
+              rm "$legacy"
+
+              for ancestor in "$agent/bin" "$agent" "$HOME/.pi" "$HOME"; do
+                mv "$ancestor" "$ancestor.real"
+                ln -s "$ancestor.real" "$ancestor"
+                expectRefusal "symlinked $ancestor"
+                rm "$ancestor"
+                mv "$ancestor.real" "$ancestor"
+              done
+              touch "$out"
+            '';
             # Same compiler version as the npm devDependency used for local editing.
             nono-typecheck =
               pkgs.runCommand "nono-typecheck" { nativeBuildInputs = [ pkgs.typescript_7 ]; } ''
@@ -369,24 +415,6 @@ in
           };
         };
         nix-unit.tests.piActivation = {
-          testSecuresPiAgentDirectory = {
-            expr = lib.hasInfix ''/bin/install -d -m 0700 "$HOME/.pi/agent"'' securePiAgentDirectory.data;
-            expected = true;
-          };
-          testRetiresOnlyKnownPiAlias = {
-            expr =
-              lib.hasInfix ''/bin/rm -- "$legacy"'' securePiAgentDirectory.data
-              && lib.hasInfix "pinned_source=$(" securePiAgentDirectory.data
-              && lib.hasInfix ''"$HOME/dotfiles/.pi/agent/bin/pi"'' securePiAgentDirectory.data
-              && lib.hasInfix "Refusing unknown Pi launcher" securePiAgentDirectory.data;
-            expected = true;
-          };
-          testRejectsSymlinkedAncestors = {
-            expr =
-              lib.hasInfix ''"$HOME/.pi/agent/bin"'' securePiAgentDirectory.data
-              && lib.hasInfix ''if [ -L "$ancestor" ]'' securePiAgentDirectory.data;
-            expected = true;
-          };
           testRunsBeforeDotfiles = {
             expr = securePiAgentDirectory.before;
             expected = [ "dotfiles" ];
