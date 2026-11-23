@@ -11,7 +11,13 @@ let
 in
 {
   flake.modules = {
-    nixos.development = systemPackages;
-    darwin.development = systemPackages;
+    nixos = {
+      "development/language-servers" = systemPackages;
+      development = systemPackages;
+    };
+    darwin = {
+      "development/language-servers" = systemPackages;
+      development = systemPackages;
+    };
   };
 }
