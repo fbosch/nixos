@@ -3,7 +3,12 @@ export function proxyFixtureSource(options = {}) {
 Promise.all([import("node:http"), import("node:fs")]).then(([http, fs]) => {
   const options = ${JSON.stringify(options)};
   if (process.argv[2] !== "proxy") throw new Error("expected standalone proxy, not sandbox run");
-  if (options.pidFile) fs.writeFileSync(options.pidFile, String(process.pid));
+  if (options.pidFile) {
+    // The startup test treats publication of the PID file as its signal to interrupt.
+    const pending = options.pidFile + ".tmp";
+    fs.writeFileSync(pending, String(process.pid));
+    fs.renameSync(pending, options.pidFile);
+  }
   if (options.recordFile) fs.writeFileSync(options.recordFile, JSON.stringify({
     args: process.argv.slice(2),
     ghConfig: process.env.GH_CONFIG_DIR,

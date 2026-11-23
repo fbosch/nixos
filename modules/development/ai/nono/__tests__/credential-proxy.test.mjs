@@ -33,7 +33,10 @@ function fixture(options = {}) {
     OTHER: "kept",
   };
   const checkStopped = () => {
-    if (existsSync(pidFile)) assert.throws(() => process.kill(Number(readFileSync(pidFile, "utf8")), 0), { code: "ESRCH" });
+    if (!existsSync(pidFile)) return;
+    const pid = Number(readFileSync(pidFile, "utf8"));
+    assert.ok(Number.isSafeInteger(pid) && pid > 0, "expected a positive proxy PID");
+    assert.throws(() => process.kill(pid, 0), { code: "ESRCH" }, `proxy PID ${pid} still exists`);
   };
   return { root, nono, profile, pidFile, recordFile, output, bundle, environment, checkStopped };
 }

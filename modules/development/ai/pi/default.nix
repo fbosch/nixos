@@ -93,7 +93,6 @@ let
         pname = if withTypes then "pi-ipc-typecheck" else "pi-ipc-runtime";
         postInstall = ''
           cp -r ${../nono/scripts} "$out/scripts"
-          cp -r ${../nono/__tests__} "$out/__tests__"
         '';
         meta.description = "Pi IPC capability registry and bounded transport runtime";
       };
@@ -246,6 +245,12 @@ in
           builtins.toJSON (config.flake.lib.mkPiCredentialProfile { inherit pkgs; })
         );
         isLinux = pkgs.stdenv.hostPlatform.isLinux;
+        nonoTestWorkspace = pkgs.runCommand "nono-test-workspace" { } ''
+          mkdir -p "$out"
+          # Direct Node entry points compare argv[1] with import.meta.url; a scripts symlink breaks that check.
+          cp -r ${mkIpcRuntime pkgs { }}/. "$out/"
+          cp -r ${../nono/__tests__} "$out/__tests__"
+        '';
         # One `node --test` run over nono test files matching `tests`. TMPDIR moves out of /build:
         # the profile's TMPDIR read grant would otherwise cover nono state or mask fixture denials.
         # Native-kernel tests need NONO_TEST_BINARY, which Darwin Nix builders cannot use: they
@@ -293,7 +298,7 @@ in
               # Some kernel tests need fixtures outside /tmp, below an existing HOME.
               mkdir tmp home
               export TMPDIR="$PWD/tmp" HOME="$PWD/home"
-              ${pkgs.nodejs}/bin/node --test "${mkIpcRuntime pkgs { }}/__tests__/${tests}"
+              ${pkgs.nodejs}/bin/node --test "${nonoTestWorkspace}/__tests__/${tests}"
               touch "$out"
             '';
         piHomeConfig =
