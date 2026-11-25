@@ -105,11 +105,11 @@ uniform vec2 bottomRight;
 uniform vec2 windowTopLeft;
 uniform vec2 windowBottomRight;
 uniform vec2 fullSize;
-uniform float radius;
+uniform vec4 radius;
 uniform float roundingPower;
 uniform float range;
 uniform float shadowPower;
-uniform float thick;
+uniform vec4 thick;
 uniform float alpha;
 uniform int gradientLength;
 uniform vec4 gradient[10];
@@ -159,9 +159,15 @@ float cornerAlpha(float distanceToCorner, float cornerRadius) {
     return pow((outerRadius - distanceToCorner) / range, shadowPower);
 }
 
-bool pointInRoundedRect(vec2 point, vec2 rectTopLeft, vec2 rectBottomRight, float cornerRadius) {
+float cornerRadiusAt(vec4 radii, vec2 position) {
+    vec2 row = mix(radii.xy, radii.wz, step(0.0, position.y));
+    return mix(row.x, row.y, step(0.0, position.x));
+}
+
+bool pointInRoundedRect(vec2 point, vec2 rectTopLeft, vec2 rectBottomRight, vec4 radii) {
     if (point.x < rectTopLeft.x || point.x > rectBottomRight.x || point.y < rectTopLeft.y || point.y > rectBottomRight.y)
         return false;
+    float cornerRadius = cornerRadiusAt(radii, point - (rectTopLeft + rectBottomRight) * 0.5);
     if (cornerRadius <= 0.0)
         return true;
 
@@ -181,28 +187,14 @@ bool pointInRoundedRect(vec2 point, vec2 rectTopLeft, vec2 rectBottomRight, floa
 
 void main() {
     vec2 pixel = fullSize * v_texcoord;
+    vec2 fromCenter = pixel - (topLeft + bottomRight) * 0.5;
+    float cornerRadius = cornerRadiusAt(radius, fromCenter);
+    vec2 cornerDelta = abs(fromCenter) - ((bottomRight - topLeft) * 0.5 - cornerRadius);
     float mask = 1.0;
-    bool corner = false;
 
-    if (pixel.x < topLeft.x) {
-        if (pixel.y < topLeft.y) {
-            mask = cornerAlpha(distanceWithPower(pixel - topLeft, roundingPower), radius);
-            corner = true;
-        } else if (pixel.y > bottomRight.y) {
-            mask = cornerAlpha(distanceWithPower(pixel - vec2(topLeft.x, bottomRight.y), roundingPower), radius);
-            corner = true;
-        }
-    } else if (pixel.x > bottomRight.x) {
-        if (pixel.y < topLeft.y) {
-            mask = cornerAlpha(distanceWithPower(pixel - vec2(bottomRight.x, topLeft.y), roundingPower), radius);
-            corner = true;
-        } else if (pixel.y > bottomRight.y) {
-            mask = cornerAlpha(distanceWithPower(pixel - bottomRight, roundingPower), radius);
-            corner = true;
-        }
-    }
-
-    if (!corner) {
+    if (min(cornerDelta.x, cornerDelta.y) > 0.0) {
+        mask = cornerAlpha(distanceWithPower(cornerDelta, roundingPower), cornerRadius);
+    } else {
         float edgeDistance = min(min(pixel.y, fullSize.y - pixel.y), min(pixel.x, fullSize.x - pixel.x));
         if (edgeDistance < range)
             mask = pow(edgeDistance / range, shadowPower);
@@ -349,11 +341,11 @@ void main() {
     }
 
     struct SAdaptiveShadowRenderData {
-        bool  valid = false;
-        CBox  fullBox;
-        float rounding      = 0.F;
-        float roundingPower = 2.F;
-        int   range         = 0;
+        bool               valid = false;
+        CBox               fullBox;
+        Math::SCornerRadii rounding;
+        float              roundingPower = 2.F;
+        int                range         = 0;
     };
 
     class CAdaptiveSoftShadowDecoration;
@@ -603,7 +595,7 @@ void main() {
             const auto roundingBase = window->presentation().rounding();
             const auto roundingPower = window->presentation().roundingPower();
             const auto correctionOffset = borderSize * (std::sqrt(2.0) - 1.0) * std::max(2.0 - roundingPower, 0.0);
-            const auto rounding = roundingBase > 0 ? roundingBase + borderSize - correctionOffset : 0.0;
+            const auto rounding = roundingBase.expanded(static_cast<float>(borderSize - correctionOffset));
             const auto& workspaceOffset = presentation.workspaceOffset;
             const auto range = shadowRange();
 
@@ -637,7 +629,7 @@ void main() {
             return {
                 .valid         = true,
                 .fullBox       = fullBox,
-                .rounding      = static_cast<float>(rounding * monitor->m_scale),
+                .rounding      = rounding * monitor->m_scale,
                 .roundingPower = static_cast<float>(roundingPower),
                 .range         = static_cast<int>(range * monitor->m_scale),
             };
@@ -649,7 +641,7 @@ void main() {
             const auto colorCount = std::min(color.m_colors.size(), MAXIMUM_GRADIENT_COLORS);
             std::vector<CHyprColor> colors{color.m_colors.begin(), color.m_colors.begin() + colorCount};
             const Config::CGradientValueData boundedColor{std::move(colors), normalizedGradientAngle(color.m_angle)};
-            g_pHyprRenderer->drawShadow(ctx, data.fullBox, static_cast<int>(std::round(data.rounding)), data.roundingPower, data.range, boundedColor, shadowStrength * alpha, presentation);
+            g_pHyprRenderer->drawShadow(ctx, data.fullBox, data.rounding, data.roundingPower, data.range, boundedColor, shadowStrength * alpha, presentation);
         }
 
         void renderAdvancedBlend(Render::CRenderContext& ctx, const SAdaptiveShadowRenderData& data, PHLWINDOW window, float shadowStrength, float alpha, const Render::SWindowRenderPresentation& presentation) {
@@ -661,10 +653,13 @@ void main() {
             g_pHyprOpenGL->blend(true);
             const auto shader = g_pHyprOpenGL->useShader(g_advancedBlendShader);
             shader->setUniformMatrix3fv(SHADER_PROJ, 1, GL_TRUE, matrix.getMatrix());
-            shader->setUniformFloat2(SHADER_TOP_LEFT, data.range + data.rounding, data.range + data.rounding);
-            shader->setUniformFloat2(SHADER_BOTTOM_RIGHT, box.width - data.range - data.rounding, box.height - data.range - data.rounding);
+            const Vector2D shadowTopLeft{data.range, data.range};
+            const Vector2D shadowBottomRight{box.width - data.range, box.height - data.range};
+            const auto rounding = data.rounding.clamped(shadowBottomRight - shadowTopLeft);
+            shader->setUniformFloat2(SHADER_TOP_LEFT, shadowTopLeft.x, shadowTopLeft.y);
+            shader->setUniformFloat2(SHADER_BOTTOM_RIGHT, shadowBottomRight.x, shadowBottomRight.y);
             shader->setUniformFloat2(SHADER_FULL_SIZE, box.width, box.height);
-            shader->setUniformFloat(SHADER_RADIUS, data.rounding);
+            shader->setUniformFloat4(SHADER_RADIUS, rounding.topLeft, rounding.topRight, rounding.bottomRight, rounding.bottomLeft);
             shader->setUniformFloat(SHADER_ROUNDING_POWER, data.roundingPower);
             shader->setUniformFloat(SHADER_RANGE, data.range);
             shader->setUniformFloat(SHADER_SHADOW_POWER, renderPower());
@@ -677,7 +672,7 @@ void main() {
             shader->setUniformFloat(SHADER_ANGLE, normalizedGradientAngle(color.m_angle));
             shader->setUniformFloat2(SHADER_WINDOW_TOP_LEFT, -1.F, -1.F);
             shader->setUniformFloat2(SHADER_WINDOW_BOTTOM_RIGHT, -1.F, -1.F);
-            shader->setUniformFloat(SHADER_THICK, 0.F);
+            shader->setUniformFloat4(SHADER_THICK, 0.F, 0.F, 0.F, 0.F);
 
             CRegion drawRegion;
             if (renderData.clipBox.width != 0 && renderData.clipBox.height != 0) {
@@ -695,13 +690,15 @@ void main() {
 
                     const auto cutoutTopLeft = scaledWindowBox.pos() - box.pos();
                     const auto cutoutBottomRight = cutoutTopLeft + scaledWindowBox.size();
-                    auto cutoutRadius = std::max(0.F, static_cast<float>(window->presentation().rounding() * renderData.pMonitor->m_scale));
-                    cutoutRadius = std::round(cutoutRadius * renderData.renderModif.combinedScale());
+                    const auto scaledRadii = window->presentation().rounding() * renderData.pMonitor->m_scale * renderData.renderModif.combinedScale();
+                    const auto cutoutRadii = Math::SCornerRadii{std::round(scaledRadii.topLeft), std::round(scaledRadii.topRight),
+                                                               std::round(scaledRadii.bottomRight), std::round(scaledRadii.bottomLeft)}
+                                                 .clamped(scaledWindowBox.size());
 
                     shader->setUniformFloat2(SHADER_WINDOW_TOP_LEFT, cutoutTopLeft.x, cutoutTopLeft.y);
                     shader->setUniformFloat2(SHADER_WINDOW_BOTTOM_RIGHT, cutoutBottomRight.x, cutoutBottomRight.y);
-                    shader->setUniformFloat(SHADER_THICK, cutoutRadius);
-                    drawRegion.subtract(scaledWindowBox.copy().expand(-static_cast<int>(std::round(cutoutRadius))));
+                    shader->setUniformFloat4(SHADER_THICK, cutoutRadii.topLeft, cutoutRadii.topRight, cutoutRadii.bottomRight, cutoutRadii.bottomLeft);
+                    drawRegion.subtract(scaledWindowBox.copy().expand(-std::ceil(cutoutRadii.max())));
                 }
             }
 

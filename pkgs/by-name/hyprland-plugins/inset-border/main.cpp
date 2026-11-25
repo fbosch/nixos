@@ -119,8 +119,8 @@ in vec2 v_texcoord;
 uniform vec2 topLeft;
 uniform vec2 fullSize;
 uniform vec2 fullSizeUntransformed;
-uniform float radius;
-uniform float radiusOuter;
+uniform vec4 radius;
+uniform vec4 radiusOuter;
 uniform float roundingPower;
 uniform float thick;
 uniform int gradientLength;
@@ -255,6 +255,11 @@ vec3 blendColor(vec3 source, vec3 destination) {
     return source;
 }
 
+float cornerRadius(vec4 corners, vec2 position) {
+    vec2 row = mix(corners.xy, corners.wz, step(0.0, position.y));
+    return mix(row.x, row.y, step(0.0, position.x));
+}
+
 void main() {
     vec2 pixel = vec2(gl_FragCoord);
     vec2 outerPixel = pixel;
@@ -263,25 +268,27 @@ void main() {
     bool rounded = false;
 
     pixel -= topLeft + fullSize * 0.5;
+    float innerCorner = cornerRadius(radius, pixel);
+    float outerCorner = cornerRadius(radiusOuter, pixel);
     pixel *= vec2(lessThan(pixel, vec2(0.0))) * -2.0 + 1.0;
     outerPixel = pixel;
-    pixel -= fullSize * 0.5 - radius;
-    outerPixel -= fullSize * 0.5 - radiusOuter;
+    pixel -= fullSize * 0.5 - innerCorner;
+    outerPixel -= fullSize * 0.5 - outerCorner;
     pixel += vec2(1.0) / fullSize;
     outerPixel += vec2(1.0) / fullSize;
 
-    if (min(pixel.x, pixel.y) > 0.0 && radius > 0.0) {
+    if (min(pixel.x, pixel.y) > 0.0 && innerCorner > 0.0) {
         float innerDistance = pow(pow(pixel.x, roundingPower) + pow(pixel.y, roundingPower), 1.0 / roundingPower);
         float outerDistance = pow(pow(outerPixel.x, roundingPower) + pow(outerPixel.y, roundingPower), 1.0 / roundingPower);
         float halfThickness = thick * 0.5;
 
-        if (innerDistance < radius - halfThickness) {
-            coverage *= smoothstep(0.0, 1.0, (innerDistance - radius + thick + SMOOTHING_CONSTANT) / (SMOOTHING_CONSTANT * 2.0));
+        if (innerDistance < innerCorner - halfThickness) {
+            coverage *= smoothstep(0.0, 1.0, (innerDistance - innerCorner + thick + SMOOTHING_CONSTANT) / (SMOOTHING_CONSTANT * 2.0));
             rounded = true;
         } else if (min(outerPixel.x, outerPixel.y) > 0.0) {
-            coverage *= 1.0 - smoothstep(0.0, 1.0, (outerDistance - radiusOuter + SMOOTHING_CONSTANT) / (SMOOTHING_CONSTANT * 2.0));
+            coverage *= 1.0 - smoothstep(0.0, 1.0, (outerDistance - outerCorner + SMOOTHING_CONSTANT) / (SMOOTHING_CONSTANT * 2.0));
             rounded = true;
-        } else if (outerDistance < radiusOuter - halfThickness) {
+        } else if (outerDistance < outerCorner - halfThickness) {
             rounded = true;
         }
     }
@@ -504,7 +511,8 @@ void main() {
 
         CBox box = innerBox;
         box.expand(scaledBorderSize);
-        const auto rounding = data.round + (data.round == 0 ? 0 : scaledBorderSize);
+        const auto rounding = data.round.expanded(scaledBorderSize).clamped(box.size());
+        const auto outerRounding = data.outerRound == Math::SCornerRadii{-1.F} ? rounding : data.outerRound.clamped(box.size());
         const auto matrix = g_pHyprRenderer->projectBoxToTarget(ctx, box);
 
         const auto previousBlend = g_pHyprOpenGL->blendEnabled();
@@ -519,8 +527,8 @@ void main() {
         shader->setUniformFloat2(SHADER_TOP_LEFT, static_cast<float>(box.x), static_cast<float>(box.y));
         shader->setUniformFloat2(SHADER_FULL_SIZE, static_cast<float>(box.width), static_cast<float>(box.height));
         shader->setUniformFloat2(SHADER_FULL_SIZE_UNTRANSFORMED, static_cast<float>(box.width), static_cast<float>(box.height));
-        shader->setUniformFloat(SHADER_RADIUS, rounding);
-        shader->setUniformFloat(SHADER_RADIUS_OUTER, data.outerRound == -1 ? rounding : data.outerRound);
+        shader->setUniformFloat4(SHADER_RADIUS, rounding.topLeft, rounding.topRight, rounding.bottomRight, rounding.bottomLeft);
+        shader->setUniformFloat4(SHADER_RADIUS_OUTER, outerRounding.topLeft, outerRounding.topRight, outerRounding.bottomRight, outerRounding.bottomLeft);
         shader->setUniformFloat(SHADER_ROUNDING_POWER, data.roundingPower);
         shader->setUniformFloat(SHADER_THICK, scaledBorderSize);
         shader->setUniformFloat(SHADER_ALPHA, data.a);
@@ -534,7 +542,7 @@ void main() {
         shader->setUniformFloat(SHADER_ANGLE, normalizedGradientAngle(color.m_angle));
 
         CRegion borderRegion = renderData.damage.copy().intersect(box);
-        borderRegion.subtract(innerBox.copy().expand(-scaledBorderSize - rounding));
+        borderRegion.subtract(innerBox.copy().expand(-scaledBorderSize - std::max(rounding.max(), outerRounding.max())));
         if (renderData.clipBox.width != 0 && renderData.clipBox.height != 0)
             borderRegion.intersect(renderData.clipBox);
 
@@ -699,16 +707,16 @@ void main() {
                 return;
 
             const auto roundingPower = static_cast<double>(window->presentation().roundingPower());
-            const auto innerRounding = std::max(0.0, static_cast<double>(window->presentation().rounding()) - borderInset - borderThickness);
+            const auto innerRounding = window->presentation().rounding().inset(borderInset + borderThickness);
             const auto correctionOffset =
                 borderThickness * (std::sqrt(2.0) - 1.0) * std::max(2.0 - roundingPower, 0.0);
-            const auto outerRounding = std::max(0.0, innerRounding + borderThickness - correctionOffset);
+            const auto outerRounding = innerRounding.expanded(static_cast<float>(borderThickness - correctionOffset));
 
             CBorderPassElement::SBorderData data;
             data.box           = windowBox;
             data.grad1         = colorForWindow(window);
-            data.round         = static_cast<int>(innerRounding * monitor->m_scale);
-            data.outerRound    = static_cast<int>(outerRounding * monitor->m_scale);
+            data.round         = innerRounding * monitor->m_scale;
+            data.outerRound    = outerRounding * monitor->m_scale;
             data.roundingPower = static_cast<float>(roundingPower);
             data.a             = alpha;
             data.borderSize    = borderThickness;

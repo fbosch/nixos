@@ -7,7 +7,6 @@ let
         name = "pi-source-with-local-overlays";
         src = inputs.pi;
         patches = [
-          ./pi-copilot-catalog-types.patch
           ./pi-selector-overlays.patch
           ./pi-auth-startup.patch
           ./pi-tool-search-ranking.patch

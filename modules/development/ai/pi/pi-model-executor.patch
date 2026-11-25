@@ -8,7 +8,7 @@ index 5a8fa41..df654c7 100644
  import { getFileRevision, normalizePath } from "../utils/paths.ts";
 +import { executorAuthStorageBackend } from "./executor-credentials.ts";
  import { stripBom } from "../utils/text.ts";
- import { isCommandConfigValue, resolveConfigValue } from "./resolve-config-value.ts";
+ import { clearConfigValueCacheEntry, isCommandConfigValue, resolveConfigValue } from "./resolve-config-value.ts";
  
 @@ -52,6 +53,8 @@ let sharedAuthFileReadState: { authPath: string; readState: AuthFileReadState }
  
