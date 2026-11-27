@@ -87,12 +87,12 @@ diff --git a/packages/coding-agent/src/core/agent-session-services.ts b/packages
  }
  
  function applyExtensionFlagValues(
-@@ -191,8 +198,19 @@
+@@ -191,14 +198,25 @@
  		}
  	}
  	extensionsResult.runtime.pendingVirtualModelRegistrations = [];
 -	await modelRuntime.refresh({ allowNetwork: false });
- 	diagnostics.push(...applyExtensionFlagValues(resourceLoader, options.extensionFlagValues));
++	diagnostics.push(...applyExtensionFlagValues(resourceLoader, options.extensionFlagValues));
 +	if (options.sessionManager) {
 +		await prepareModelAvailability({
 +			cwd,
@@ -105,10 +105,17 @@ diff --git a/packages/coding-agent/src/core/agent-session-services.ts b/packages
 +	} else {
 +		await modelRuntime.refresh({ allowNetwork: false });
 +	}
+ 	// A warning, like invalid settings: the runtime keeps working without the file's models, and an error would
+ 	// make the CLI exit.
+ 	const modelsJsonError = modelRuntime.getError();
+ 	if (modelsJsonError) {
+ 		diagnostics.push({ type: "warning", message: `models.json error: ${modelsJsonError}` });
+ 	}
+-	diagnostics.push(...applyExtensionFlagValues(resourceLoader, options.extensionFlagValues));
  
  	return {
  		cwd,
-@@ -201,6 +219,7 @@
+@@ -208,6 +226,7 @@
  		settingsManager,
  		resourceLoader,
  		diagnostics,

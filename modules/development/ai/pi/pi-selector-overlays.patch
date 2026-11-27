@@ -346,7 +346,7 @@ diff --git a/packages/coding-agent/src/modes/interactive/interactive-mode.ts b/p
 +import type { FullscreenExitOutput, SelectorOverlayName, TuiMode } from "../../core/settings-manager.ts";
  import { BUILTIN_SLASH_COMMANDS } from "../../core/slash-commands.ts";
  import { getSourcePackageKey, type SourceInfo } from "../../core/source-info.ts";
- import { isInstallTelemetryEnabled } from "../../core/telemetry.ts";
+ import { withBuiltInRenderers } from "../../core/tools/renderers/index.ts";
 @@ -232,6 +234,64 @@
  	return typeof obj === "object" && obj !== null && "setExpanded" in obj && typeof obj.setExpanded === "function";
  }
