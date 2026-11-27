@@ -72,7 +72,7 @@ in
 
         imageTag = lib.mkOption {
           type = lib.types.str;
-          default = "v0.8.5";
+          default = "v0.8.8";
           description = "Glance container image tag";
         };
 
